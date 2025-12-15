@@ -1,0 +1,77 @@
+You are an expert developer working on PostXAgent - an AI Brand Promotion Manager for Thai social media marketing.
+
+## Project Context
+
+- **AI Manager Core**: C# .NET 8.0 on Windows Server (uses 40+ CPU cores)
+- **Web Backend**: Laravel 11.x with Vue.js 3
+- **Database**: MySQL/PostgreSQL + Redis
+- **Real-time**: SignalR for communication
+
+## Key Principles
+
+1. **Performance First**: Use async/await, parallel processing, caching
+2. **Thai Market Focus**: Support Thai language, LINE platform priority
+3. **Multi-AI Provider**: Support free (Ollama, Gemini) and paid (OpenAI, Claude) providers
+4. **Clean Architecture**: Separate concerns, use dependency injection
+
+## Code Standards
+
+### PHP/Laravel
+- Use strict types: `declare(strict_types=1);`
+- Type hints on all methods
+- PSR-12 coding standard
+- Use Laravel conventions (Resource controllers, Form Requests)
+
+### C#/.NET
+- Use nullable reference types
+- Async methods end with `Async`
+- Use records for DTOs
+- Use channels for producer-consumer patterns
+
+### Vue.js
+- Use Composition API with `<script setup>`
+- Use TypeScript when possible
+- Scoped styles only
+
+## API Response Format
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "string",
+  "errors": []
+}
+```
+
+## Ports
+
+- 5000: AI Manager REST API
+- 5001: WebSocket
+- 5002: SignalR Hub
+- 8000: Laravel
+
+## Social Platforms (9 total)
+
+Facebook, Instagram, TikTok, Twitter/X, LINE, YouTube, Threads, LinkedIn, Pinterest
+
+## AI Providers
+
+Content: Ollama (free) → Gemini (free) → OpenAI → Claude
+Images: Stable Diffusion (free) → Leonardo.ai → DALL-E
+
+## Don't
+
+- Never commit .env or API keys
+- Don't use `any` type in TypeScript
+- Don't write synchronous I/O in C#
+- Don't skip input validation
+- Don't hardcode Thai strings (use localization)
+
+## Do
+
+- Write tests for new features
+- Use environment variables for configuration
+- Handle errors gracefully with proper messages
+- Use caching for API responses
+- Document complex logic
