@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PHP_VERSION: '8.2'
+  NODE_VERSION: '20'
+
+jobs:
+  # Laravel Backend Tests
+  laravel:
+    name: Laravel Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: postxagent_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, redis
+          coverage: xdebug
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: laravel-backend/package-lock.json
+
+      - name: Get composer cache directory
+        id: composer-cache
+        working-directory: laravel-backend
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        working-directory: laravel-backend
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Install NPM dependencies
+        working-directory: laravel-backend
+        run: npm ci
+
+      - name: Build assets
+        working-directory: laravel-backend
+        run: npm run build
+
+      - name: Copy environment file
+        working-directory: laravel-backend
+        run: cp .env.example .env || cp ../.env.example .env || echo "APP_KEY=" > .env
+
+      - name: Generate application key
+        working-directory: laravel-backend
+        run: php artisan key:generate
+
+      - name: Run Laravel tests
+        working-directory: laravel-backend
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: postxagent_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+          REDIS_HOST: 127.0.0.1
+        run: |
+          php artisan migrate --force
+          php artisan test --parallel
+
+  # C# AI Manager Core Build
+  dotnet:
+    name: .NET Build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        working-directory: AIManagerCore
+        run: dotnet restore
+
+      - name: Build
+        working-directory: AIManagerCore
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        working-directory: AIManagerCore
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+  # Code Quality
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          tools: phpstan, php-cs-fixer
+
+      - name: Install dependencies
+        working-directory: laravel-backend
+        run: composer install --no-progress --prefer-dist
+
+      - name: Run PHP CS Fixer (dry-run)
+        working-directory: laravel-backend
+        run: php-cs-fixer fix --dry-run --diff || true
+
+      - name: Run PHPStan
+        working-directory: laravel-backend
+        run: phpstan analyse app --level=5 || true
+
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+
+      - name: Install dependencies
+        working-directory: laravel-backend
+        run: composer install --no-progress --prefer-dist
+
+      - name: Security check
+        working-directory: laravel-backend
+        run: composer audit

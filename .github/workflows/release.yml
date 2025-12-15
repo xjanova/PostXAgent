@@ -1,0 +1,206 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  # Create Release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Create changelog
+          CHANGELOG="## What's Changed\n\n${COMMITS}\n\n**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.version.outputs.version }}"
+
+          # Save to file for multiline support
+          echo -e "$CHANGELOG" > CHANGELOG.md
+          cat CHANGELOG.md
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: PostXAgent v${{ steps.version.outputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build Windows AI Manager
+  build-windows:
+    name: Build Windows AI Manager
+    needs: release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Update version in project
+        working-directory: AIManagerCore
+        shell: pwsh
+        run: |
+          $version = "${{ needs.release.outputs.version }}"
+          $csprojFiles = Get-ChildItem -Path . -Filter "*.csproj" -Recurse
+          foreach ($file in $csprojFiles) {
+            $content = Get-Content $file.FullName -Raw
+            $content = $content -replace '<Version>.*?</Version>', "<Version>$version</Version>"
+            $content = $content -replace '<AssemblyVersion>.*?</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+            $content = $content -replace '<FileVersion>.*?</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+            Set-Content -Path $file.FullName -Value $content
+          }
+
+      - name: Restore dependencies
+        working-directory: AIManagerCore
+        run: dotnet restore
+
+      - name: Build Release
+        working-directory: AIManagerCore
+        run: |
+          dotnet publish src/AIManager.API -c Release -r win-x64 --self-contained -o ./publish/api
+          dotnet publish src/AIManager.UI -c Release -r win-x64 --self-contained -o ./publish/ui
+
+      - name: Create ZIP archives
+        shell: pwsh
+        run: |
+          Compress-Archive -Path AIManagerCore/publish/api/* -DestinationPath AIManager-API-win-x64.zip
+          Compress-Archive -Path AIManagerCore/publish/ui/* -DestinationPath AIManager-UI-win-x64.zip
+
+      - name: Upload API artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: AIManager-API-win-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload UI artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: AIManager-UI-win-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build Laravel Package
+  build-laravel:
+    name: Build Laravel Package
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: laravel-backend
+        run: |
+          composer install --no-dev --optimize-autoloader
+          npm ci
+          npm run build
+
+      - name: Update version
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          echo "$VERSION" > VERSION
+          sed -i "s/'version' => '.*'/'version' => '$VERSION'/" laravel-backend/config/app.php || true
+
+      - name: Create package
+        run: |
+          tar -czvf laravel-backend-v${{ needs.release.outputs.version }}.tar.gz \
+            --exclude='laravel-backend/node_modules' \
+            --exclude='laravel-backend/.env' \
+            --exclude='laravel-backend/storage/logs/*' \
+            --exclude='laravel-backend/storage/framework/cache/*' \
+            laravel-backend/
+
+      - name: Upload Laravel artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: laravel-backend-v${{ needs.release.outputs.version }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Update VERSION file
+  update-version:
+    name: Update VERSION
+    needs: [release, build-windows, build-laravel]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update VERSION file
+        run: echo "${{ needs.release.outputs.version }}" > VERSION
+
+      - name: Commit version update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: bump version to ${{ needs.release.outputs.version }}" || echo "No changes to commit"
+          git push
