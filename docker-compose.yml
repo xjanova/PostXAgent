@@ -1,0 +1,283 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # AI Manager Core (Python - Multi-process)
+  # ===========================================
+  ai-manager:
+    build:
+      context: ./ai-manager
+      dockerfile: Dockerfile
+    container_name: postxagent-ai-manager
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=postxagent
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - NUM_CORES=0  # 0 = auto-detect all cores
+      - LOG_LEVEL=INFO
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - SD_API_URL=http://stable-diffusion:7860
+      - LARAVEL_API_URL=http://laravel:8000/api
+      - LARAVEL_API_KEY=${LARAVEL_API_KEY}
+    volumes:
+      - ai-manager-data:/app/data
+      - ./ai-manager:/app:ro
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - postxagent-network
+    deploy:
+      resources:
+        limits:
+          cpus: '40'
+          memory: 64G
+        reservations:
+          cpus: '20'
+          memory: 32G
+
+  # ===========================================
+  # Laravel Backend API
+  # ===========================================
+  laravel:
+    build:
+      context: ./laravel-backend
+      dockerfile: Dockerfile
+    container_name: postxagent-laravel
+    restart: unless-stopped
+    environment:
+      - APP_NAME=PostXAgent
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY}
+      - APP_DEBUG=false
+      - APP_URL=${APP_URL}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=postxagent
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+      - STRIPE_KEY=${STRIPE_KEY}
+      - STRIPE_SECRET=${STRIPE_SECRET}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+    volumes:
+      - laravel-storage:/app/storage
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - postxagent-network
+
+  # ===========================================
+  # Laravel Queue Worker
+  # ===========================================
+  laravel-worker:
+    build:
+      context: ./laravel-backend
+      dockerfile: Dockerfile
+    container_name: postxagent-laravel-worker
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3 --timeout=300
+    environment:
+      - APP_NAME=PostXAgent
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=postxagent
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - QUEUE_CONNECTION=redis
+    depends_on:
+      - redis
+      - postgres
+      - laravel
+    networks:
+      - postxagent-network
+    deploy:
+      replicas: 4
+
+  # ===========================================
+  # Laravel Scheduler
+  # ===========================================
+  laravel-scheduler:
+    build:
+      context: ./laravel-backend
+      dockerfile: Dockerfile
+    container_name: postxagent-scheduler
+    restart: unless-stopped
+    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction & sleep 60; done"
+    environment:
+      - APP_NAME=PostXAgent
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY}
+      - DB_HOST=postgres
+      - DB_DATABASE=postxagent
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+    depends_on:
+      - laravel
+    networks:
+      - postxagent-network
+
+  # ===========================================
+  # Nginx Reverse Proxy
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: postxagent-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+      - laravel-storage:/var/www/storage:ro
+    depends_on:
+      - laravel
+    networks:
+      - postxagent-network
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postxagent-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=postxagent
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - postxagent-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Redis (Queue & Cache)
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: postxagent-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - postxagent-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Ollama (Free Local LLM)
+  # ===========================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: postxagent-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - postxagent-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ===========================================
+  # Stable Diffusion (Free Image Generation)
+  # ===========================================
+  stable-diffusion:
+    image: universonic/stable-diffusion-webui:latest
+    container_name: postxagent-sd
+    restart: unless-stopped
+    environment:
+      - COMMANDLINE_ARGS=--api --listen --skip-torch-cuda-test
+    volumes:
+      - sd-models:/app/models
+      - sd-outputs:/app/outputs
+    networks:
+      - postxagent-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ===========================================
+  # Monitoring - Prometheus
+  # ===========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: postxagent-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - postxagent-network
+
+  # ===========================================
+  # Monitoring - Grafana
+  # ===========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: postxagent-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - postxagent-network
+    depends_on:
+      - prometheus
+
+networks:
+  postxagent-network:
+    driver: bridge
+
+volumes:
+  ai-manager-data:
+  laravel-storage:
+  postgres-data:
+  redis-data:
+  ollama-data:
+  sd-models:
+  sd-outputs:
+  prometheus-data:
+  grafana-data:
