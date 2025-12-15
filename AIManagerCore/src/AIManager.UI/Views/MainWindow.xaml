@@ -1,0 +1,184 @@
+<Window x:Class="AIManager.UI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+        mc:Ignorable="d"
+        Title="PostXAgent - AI Manager Dashboard"
+        Height="900" Width="1400"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource MaterialDesign.Brush.Background}"
+        TextElement.Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        TextOptions.TextFormattingMode="Ideal"
+        TextOptions.TextRenderingMode="Auto"
+        FontFamily="{DynamicResource MaterialDesignFont}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource MaterialDesign.Brush.Primary.Dark}"
+                CornerRadius="0,20,20,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Logo & Title -->
+                <StackPanel Grid.Row="0" Margin="20,30,20,30">
+                    <materialDesign:PackIcon Kind="RobotExcited"
+                                             Width="60" Height="60"
+                                             HorizontalAlignment="Center"
+                                             Foreground="White"/>
+                    <TextBlock Text="PostXAgent"
+                               FontSize="24" FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Foreground="White" Margin="0,10,0,0"/>
+                    <TextBlock Text="AI Manager"
+                               FontSize="14"
+                               HorizontalAlignment="Center"
+                               Foreground="#B0B0B0"/>
+                </StackPanel>
+
+                <!-- Navigation Menu -->
+                <StackPanel Grid.Row="1" Margin="15,0">
+                    <Button x:Name="BtnDashboard" Click="NavButton_Click" Tag="Dashboard"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White" HorizontalContentAlignment="Left"
+                            Margin="0,5" Padding="15,12">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ViewDashboard" Width="24" Height="24"/>
+                            <TextBlock Text="Dashboard" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnWorkers" Click="NavButton_Click" Tag="Workers"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White" HorizontalContentAlignment="Left"
+                            Margin="0,5" Padding="15,12">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="AccountGroup" Width="24" Height="24"/>
+                            <TextBlock Text="Workers" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnTasks" Click="NavButton_Click" Tag="Tasks"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White" HorizontalContentAlignment="Left"
+                            Margin="0,5" Padding="15,12">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="FormatListBulleted" Width="24" Height="24"/>
+                            <TextBlock Text="Tasks Queue" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnPlatforms" Click="NavButton_Click" Tag="Platforms"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White" HorizontalContentAlignment="Left"
+                            Margin="0,5" Padding="15,12">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ShareVariant" Width="24" Height="24"/>
+                            <TextBlock Text="Platforms" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnAIProviders" Click="NavButton_Click" Tag="AIProviders"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White" HorizontalContentAlignment="Left"
+                            Margin="0,5" Padding="15,12">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Brain" Width="24" Height="24"/>
+                            <TextBlock Text="AI Providers" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnLogs" Click="NavButton_Click" Tag="Logs"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White" HorizontalContentAlignment="Left"
+                            Margin="0,5" Padding="15,12">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="TextBox" Width="24" Height="24"/>
+                            <TextBlock Text="Logs" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnSettings" Click="NavButton_Click" Tag="Settings"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White" HorizontalContentAlignment="Left"
+                            Margin="0,5" Padding="15,12">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Cog" Width="24" Height="24"/>
+                            <TextBlock Text="Settings" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Server Status -->
+                <Border Grid.Row="2" Background="#2A2A3E" CornerRadius="15" Margin="15,10,15,20" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="12" Height="12" Fill="#4CAF50" x:Name="StatusIndicator"/>
+                            <TextBlock Text="Server Running" Foreground="White" Margin="10,0,0,0"
+                                       x:Name="StatusText"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="Start"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Background="#4CAF50" Foreground="White"
+                                    Click="StartButton_Click" x:Name="BtnStart"
+                                    Margin="0,0,10,0" Width="80"/>
+                            <Button Content="Stop"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Background="#F44336" Foreground="White"
+                                    Click="StopButton_Click" x:Name="BtnStop"
+                                    Width="80"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Column="1" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Dashboard" FontSize="28" FontWeight="Bold" x:Name="PageTitle"/>
+                    <TextBlock Text="Real-time monitoring of AI Manager system"
+                               Foreground="#808080" Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding CurrentTime, StringFormat='{}{0:HH:mm:ss}'}"
+                               FontSize="24" Margin="0,0,20,0" x:Name="ClockDisplay"/>
+                    <Button Style="{StaticResource MaterialDesignIconButton}">
+                        <materialDesign:PackIcon Kind="Bell" Width="24" Height="24"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Content Frame -->
+            <Frame Grid.Row="1" x:Name="ContentFrame" NavigationUIVisibility="Hidden"/>
+        </Grid>
+    </Grid>
+</Window>
