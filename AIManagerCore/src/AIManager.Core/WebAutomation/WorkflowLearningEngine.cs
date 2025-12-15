@@ -474,7 +474,7 @@ public class WorkflowLearningEngine
         // พยายามจับคู่ว่า input นี้ควรเป็น variable อะไร
         var placeholder = element?.Placeholder?.ToLowerInvariant() ?? "";
         var name = element?.Name?.ToLowerInvariant() ?? "";
-        var label = element?.Attributes.GetValueOrDefault("aria-label", "").ToLowerInvariant();
+        var label = element?.Attributes?.GetValueOrDefault("aria-label", "")?.ToLowerInvariant() ?? "";
 
         if (placeholder.Contains("message") || name.Contains("content") || label.Contains("post"))
             return "{{content.text}}";

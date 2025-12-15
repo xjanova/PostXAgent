@@ -15,13 +15,10 @@ public class BrowserController : IAsyncDisposable
 
     private Process? _browserProcess;
     private HttpClient? _cdpClient;
-    private string? _webSocketUrl;
     private bool _isConnected;
 
     // Event handlers
-    public event Func<RecordedStep, Task>? OnStepRecorded;
     public event Func<string, Task>? OnPageNavigated;
-    public event Func<string, Task>? OnError;
 
     public bool IsRecording { get; private set; }
     public string? CurrentUrl { get; private set; }
