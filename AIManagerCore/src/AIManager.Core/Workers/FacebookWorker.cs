@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using AIManager.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Workers;
 

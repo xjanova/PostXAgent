@@ -163,7 +163,7 @@ public class ProcessOrchestrator : IDisposable
     {
         task.Id ??= Guid.NewGuid().ToString();
         task.CreatedAt = DateTime.UtcNow;
-        task.Status = TaskStatus.Queued;
+        task.Status = Models.TaskStatus.Queued;
 
         var channel = _taskChannels[task.Platform];
         await channel.Writer.WriteAsync(task);
@@ -225,7 +225,7 @@ public class ProcessOrchestrator : IDisposable
             {
                 worker.CurrentTask = task;
                 worker.TasksProcessed++;
-                task.Status = TaskStatus.Running;
+                task.Status = Models.TaskStatus.Running;
                 task.StartedAt = DateTime.UtcNow;
 
                 try
@@ -320,7 +320,7 @@ public class ProcessOrchestrator : IDisposable
                         TaskCompleted?.Invoke(this, new TaskEventArgs(new TaskItem
                         {
                             Id = result.TaskId,
-                            Status = TaskStatus.Completed
+                            Status = Models.TaskStatus.Completed
                         }));
                     }
                     else
@@ -329,7 +329,7 @@ public class ProcessOrchestrator : IDisposable
                         TaskFailed?.Invoke(this, new TaskEventArgs(new TaskItem
                         {
                             Id = result.TaskId,
-                            Status = TaskStatus.Failed
+                            Status = Models.TaskStatus.Failed
                         }));
                     }
                 }

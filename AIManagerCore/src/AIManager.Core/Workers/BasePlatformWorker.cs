@@ -18,7 +18,7 @@ public abstract class BasePlatformWorker : IPlatformWorker
     protected BasePlatformWorker()
     {
         _httpClient = new HttpClient();
-        _logger = LoggerFactory.Create(b => b.AddDebug()).CreateLogger(GetType());
+        _logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger(GetType());
     }
 
     public virtual async Task<TaskResult> GenerateContentAsync(TaskItem task, CancellationToken ct)
