@@ -27,7 +27,7 @@ public class ContentGeneratorService
         CancellationToken ct)
     {
         // Try providers in order of preference (free first)
-        var providers = new[]
+        var providers = new (string name, Func<string, BrandInfo?, string, string, CancellationToken, Task<GeneratedContent?>> generator)[]
         {
             ("ollama", GenerateWithOllamaAsync),
             ("google", GenerateWithGeminiAsync),
