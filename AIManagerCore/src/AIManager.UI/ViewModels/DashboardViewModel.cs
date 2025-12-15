@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.ComponentModel;
 using AIManager.Core.Orchestrator;
 using AIManager.Core.Models;
 
@@ -8,30 +7,58 @@ namespace AIManager.UI.ViewModels;
 /// <summary>
 /// Dashboard page ViewModel
 /// </summary>
-public partial class DashboardViewModel : BaseViewModel
+public class DashboardViewModel : BaseViewModel
 {
     private readonly ProcessOrchestrator _orchestrator;
 
-    [ObservableProperty]
     private int _totalCores;
+    public int TotalCores
+    {
+        get => _totalCores;
+        set => SetProperty(ref _totalCores, value);
+    }
 
-    [ObservableProperty]
     private int _activeWorkers;
+    public int ActiveWorkers
+    {
+        get => _activeWorkers;
+        set => SetProperty(ref _activeWorkers, value);
+    }
 
-    [ObservableProperty]
     private long _tasksCompleted;
+    public long TasksCompleted
+    {
+        get => _tasksCompleted;
+        set => SetProperty(ref _tasksCompleted, value);
+    }
 
-    [ObservableProperty]
     private long _tasksFailed;
+    public long TasksFailed
+    {
+        get => _tasksFailed;
+        set => SetProperty(ref _tasksFailed, value);
+    }
 
-    [ObservableProperty]
     private long _tasksQueued;
+    public long TasksQueued
+    {
+        get => _tasksQueued;
+        set => SetProperty(ref _tasksQueued, value);
+    }
 
-    [ObservableProperty]
     private double _tasksPerSecond;
+    public double TasksPerSecond
+    {
+        get => _tasksPerSecond;
+        set => SetProperty(ref _tasksPerSecond, value);
+    }
 
-    [ObservableProperty]
     private string _uptime = "00:00:00";
+    public string Uptime
+    {
+        get => _uptime;
+        set => SetProperty(ref _uptime, value);
+    }
 
     public ObservableCollection<TaskDisplayItem> RecentTasks { get; } = new();
 

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using AIManager.Core.Orchestrator;
 using AIManager.Core.Models;
@@ -9,25 +8,41 @@ namespace AIManager.UI.ViewModels;
 /// <summary>
 /// Workers page ViewModel
 /// </summary>
-public partial class WorkersViewModel : BaseViewModel
+public class WorkersViewModel : BaseViewModel
 {
     private readonly ProcessOrchestrator _orchestrator;
 
-    [ObservableProperty]
     private int _totalWorkers;
+    public int TotalWorkers
+    {
+        get => _totalWorkers;
+        set => SetProperty(ref _totalWorkers, value);
+    }
 
-    [ObservableProperty]
     private int _activeWorkers;
+    public int ActiveWorkers
+    {
+        get => _activeWorkers;
+        set => SetProperty(ref _activeWorkers, value);
+    }
 
-    [ObservableProperty]
     private int _idleWorkers;
+    public int IdleWorkers
+    {
+        get => _idleWorkers;
+        set => SetProperty(ref _idleWorkers, value);
+    }
 
     public ObservableCollection<WorkerDisplayItem> Workers { get; } = new();
+
+    public IRelayCommand RefreshWorkersCommand { get; }
 
     public WorkersViewModel(ProcessOrchestrator orchestrator)
     {
         _orchestrator = orchestrator;
         Title = "Workers";
+
+        RefreshWorkersCommand = new RelayCommand(RefreshWorkers);
 
         _orchestrator.WorkerStatusChanged += OnWorkerStatusChanged;
         _orchestrator.StatsUpdated += OnStatsUpdated;
@@ -47,7 +62,6 @@ public partial class WorkersViewModel : BaseViewModel
         RefreshWorkers();
     }
 
-    [RelayCommand]
     private void RefreshWorkers()
     {
         Workers.Clear();

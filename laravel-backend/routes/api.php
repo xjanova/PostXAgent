@@ -34,6 +34,17 @@ Route::prefix('v1')->group(function () {
 
     // OAuth callbacks
     Route::get('/oauth/{platform}/callback', [SocialAccountController::class, 'callback']);
+
+    // AI Manager Public Status (no auth required)
+    Route::prefix('ai-manager')->group(function () {
+        Route::get('/status', [AIManagerStatusController::class, 'status']);
+        Route::get('/status/full', [AIManagerStatusController::class, 'fullStatus']);
+        Route::get('/status/badge', [AIManagerStatusController::class, 'badge']);
+        Route::get('/ping', [AIManagerStatusController::class, 'ping']);
+        Route::get('/stats', [AIManagerStatusController::class, 'stats']);
+        Route::get('/workers', [AIManagerStatusController::class, 'workers']);
+        Route::get('/system', [AIManagerStatusController::class, 'system']);
+    });
 });
 
 // Protected routes
@@ -86,19 +97,7 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::get('/brands/{brand}', [AnalyticsController::class, 'brand']);
     });
 
-    // AI Manager Connection Status
-    Route::prefix('ai-manager')->group(function () {
-        // Public status endpoints (for dashboard widgets)
-        Route::get('/status', [AIManagerStatusController::class, 'status']);
-        Route::get('/status/full', [AIManagerStatusController::class, 'fullStatus']);
-        Route::get('/status/badge', [AIManagerStatusController::class, 'badge']);
-        Route::get('/ping', [AIManagerStatusController::class, 'ping']);
-
-        // Stats & Workers (require auth)
-        Route::get('/stats', [AIManagerStatusController::class, 'stats']);
-        Route::get('/workers', [AIManagerStatusController::class, 'workers']);
-        Route::get('/system', [AIManagerStatusController::class, 'system']);
-    });
+    // Note: AI Manager status endpoints moved to public routes above
 
     // AI Manager Admin Controls (admin only)
     Route::prefix('ai-manager')->middleware(['role:admin'])->group(function () {

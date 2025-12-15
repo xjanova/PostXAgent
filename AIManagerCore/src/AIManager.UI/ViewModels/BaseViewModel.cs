@@ -5,12 +5,19 @@ namespace AIManager.UI.ViewModels;
 /// <summary>
 /// Base class for all ViewModels
 /// </summary>
-public abstract partial class BaseViewModel : ObservableObject
+public abstract class BaseViewModel : ObservableObject
 {
-    [ObservableProperty]
     private bool _isBusy;
+    public bool IsBusy
+    {
+        get => _isBusy;
+        set => SetProperty(ref _isBusy, value);
+    }
 
-    [ObservableProperty]
     private string _title = string.Empty;
+    public string Title
+    {
+        get => _title;
+        set => SetProperty(ref _title, value);
+    }
 }
-

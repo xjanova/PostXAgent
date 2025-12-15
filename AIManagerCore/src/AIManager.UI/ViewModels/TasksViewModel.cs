@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using AIManager.Core.Orchestrator;
 using AIManager.Core.Models;
@@ -9,36 +8,66 @@ namespace AIManager.UI.ViewModels;
 /// <summary>
 /// Tasks page ViewModel
 /// </summary>
-public partial class TasksViewModel : BaseViewModel
+public class TasksViewModel : BaseViewModel
 {
     private readonly ProcessOrchestrator _orchestrator;
 
-    [ObservableProperty]
     private long _totalTasks;
+    public long TotalTasks
+    {
+        get => _totalTasks;
+        set => SetProperty(ref _totalTasks, value);
+    }
 
-    [ObservableProperty]
     private long _completedTasks;
+    public long CompletedTasks
+    {
+        get => _completedTasks;
+        set => SetProperty(ref _completedTasks, value);
+    }
 
-    [ObservableProperty]
     private long _failedTasks;
+    public long FailedTasks
+    {
+        get => _failedTasks;
+        set => SetProperty(ref _failedTasks, value);
+    }
 
-    [ObservableProperty]
     private long _queuedTasks;
+    public long QueuedTasks
+    {
+        get => _queuedTasks;
+        set => SetProperty(ref _queuedTasks, value);
+    }
 
-    [ObservableProperty]
     private string _filterPlatform = "All";
+    public string FilterPlatform
+    {
+        get => _filterPlatform;
+        set => SetProperty(ref _filterPlatform, value);
+    }
 
-    [ObservableProperty]
     private string _filterStatus = "All";
+    public string FilterStatus
+    {
+        get => _filterStatus;
+        set => SetProperty(ref _filterStatus, value);
+    }
 
     public ObservableCollection<TaskListItem> Tasks { get; } = new();
     public ObservableCollection<string> Platforms { get; } = new() { "All", "Facebook", "Instagram", "TikTok", "Twitter", "LINE", "YouTube", "Threads", "LinkedIn", "Pinterest" };
     public ObservableCollection<string> Statuses { get; } = new() { "All", "Queued", "Running", "Completed", "Failed" };
 
+    public IRelayCommand ClearFiltersCommand { get; }
+    public IAsyncRelayCommand SubmitTestTaskCommand { get; }
+
     public TasksViewModel(ProcessOrchestrator orchestrator)
     {
         _orchestrator = orchestrator;
         Title = "Tasks";
+
+        ClearFiltersCommand = new RelayCommand(ClearFilters);
+        SubmitTestTaskCommand = new AsyncRelayCommand(SubmitTestTaskAsync);
 
         _orchestrator.TaskReceived += OnTaskReceived;
         _orchestrator.TaskCompleted += OnTaskCompleted;
@@ -101,14 +130,12 @@ public partial class TasksViewModel : BaseViewModel
         }
     }
 
-    [RelayCommand]
     private void ClearFilters()
     {
         FilterPlatform = "All";
         FilterStatus = "All";
     }
 
-    [RelayCommand]
     private async Task SubmitTestTaskAsync()
     {
         var task = new TaskItem

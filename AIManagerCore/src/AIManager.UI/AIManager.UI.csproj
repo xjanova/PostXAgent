@@ -21,7 +21,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <!-- Use CommunityToolkit.Mvvm as DLL only (no source generators) to fix WPF wpftmp issue -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" ExcludeAssets="analyzers" />
   </ItemGroup>
 
   <ItemGroup>
