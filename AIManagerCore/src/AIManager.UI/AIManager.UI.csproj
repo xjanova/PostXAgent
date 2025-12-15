@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <NoWarn>NU1605</NoWarn>
     <Company>PostXAgent</Company>
     <Product>AI Manager Dashboard</Product>
     <Description>Beautiful monitoring dashboard for AI Manager</Description>
