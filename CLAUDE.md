@@ -303,3 +303,152 @@ php artisan make:migration create_xyz_table
 - **Repository**: PostXAgent
 - **Version**: See `VERSION` file
 - **Documentation**: `/docs` folder
+
+---
+
+## Session Handoff Notes (Updated: Dec 2025)
+
+### Current Project State
+
+โปรเจคนี้อยู่ในสถานะ **พร้อมใช้งาน** - CI ผ่านทั้งหมดแล้ว
+
+### Key Files Location
+
+| Purpose | Path |
+|---------|------|
+| CI/CD Workflow | `.github/workflows/ci.yml` |
+| C# Solution | `AIManagerCore/AIManagerCore.sln` |
+| C# Core Library | `AIManagerCore/src/AIManager.Core/` |
+| C# WPF UI | `AIManagerCore/src/AIManager.UI/` |
+| C# API | `AIManagerCore/src/AIManager.API/` |
+| Laravel App | `laravel-backend/` |
+| Vue Components | `laravel-backend/resources/js/components/` |
+| PHP Composer | `laravel-backend/composer.json` + `composer.lock` |
+| NPM Packages | `laravel-backend/package.json` + `package-lock.json` |
+
+### CI/CD Configuration
+
+**File**: `.github/workflows/ci.yml`
+
+```yaml
+# Triggers on:
+- push to: main, develop, claude/**
+- pull_request to: main, develop
+
+# Jobs:
+1. dotnet-build: Builds C# solution (.NET 8.0)
+2. laravel-test: Runs PHP tests (PHP 8.2)
+3. frontend-build: Builds Vue.js (Node 20)
+```
+
+### Recent CI Fixes (Dec 2025)
+
+รายการปัญหาและวิธีแก้ที่เจอบ่อย:
+
+| Problem | Solution | File |
+|---------|----------|------|
+| ViewModels namespace not found | สร้าง ViewModels folder + 6 classes | `AIManager.UI/ViewModels/` |
+| Missing app.ico | สร้าง placeholder icon 16x16 | `AIManager.UI/Resources/app.ico` |
+| NU1605 package downgrade warning | เพิ่ม `<NoWarn>NU1605</NoWarn>` | `AIManager.UI.csproj` |
+| TaskStatus ambiguity | ใช้ `Models.TaskStatus` แทน `TaskStatus` | `AIManager.Core/` files |
+| AddDebug not found | เปลี่ยนเป็น `AddConsole()` | `Program.cs` |
+| PHP 8.4 vs 8.2 conflict | เพิ่ม `config.platform.php: "8.2.29"` | `composer.json` |
+| npm cache error | เพิ่ม `cache: 'npm'` + `cache-dependency-path` | `ci.yml` |
+| Missing package-lock.json | รัน `npm install` แล้ว commit | `laravel-backend/` |
+| Missing composer.lock | รัน `composer update` แล้ว commit | `laravel-backend/` |
+| predis version mismatch | Regenerate composer.lock หลัง update | `composer.lock` |
+
+### How to Regenerate Lock Files
+
+```bash
+# Composer (PHP) - เมื่อ composer.json เปลี่ยน
+cd laravel-backend
+rm composer.lock
+composer update --no-scripts --ignore-platform-req=ext-bcmath
+
+# NPM - เมื่อ package.json เปลี่ยน
+cd laravel-backend
+rm package-lock.json
+npm install
+```
+
+### Protected Branches
+
+- `main` เป็น protected branch - ไม่สามารถ push ตรงได้
+- ต้องสร้าง branch แยกแล้วทำ PR เข้า main
+- Branch naming: `claude/<description>-<session-id>`
+
+### Dependabot PRs
+
+มี Dependabot PRs หลายอันที่รอ merge:
+- `dependabot/composer/` - PHP packages
+- `dependabot/nuget/` - .NET packages
+- `dependabot/github_actions/` - GitHub Actions
+
+**วิธี merge**: ตรวจสอบว่าไม่ conflict กับ main แล้ว merge ผ่าน GitHub UI
+
+### C# Project Structure
+
+```
+AIManagerCore/
+├── AIManagerCore.sln          # Solution file
+└── src/
+    ├── AIManager.Core/        # Core library
+    │   ├── Models/            # Data models (TaskItem, TaskStatus enum)
+    │   ├── Services/          # Business logic
+    │   └── Workers/           # Social media workers
+    ├── AIManager.API/         # REST API (ASP.NET Core)
+    │   └── Program.cs         # Entry point
+    └── AIManager.UI/          # WPF Desktop App
+        ├── ViewModels/        # MVVM ViewModels
+        ├── Views/             # XAML Views
+        ├── Resources/         # Icons, images
+        └── App.xaml           # WPF App entry
+```
+
+### Laravel Project Structure
+
+```
+laravel-backend/
+├── app/
+│   ├── Http/Controllers/Api/  # API Controllers
+│   ├── Models/                # Eloquent Models
+│   └── Services/              # Business Services
+├── config/                    # Configuration files
+├── database/migrations/       # Database migrations
+├── resources/
+│   └── js/components/         # Vue.js components
+├── routes/api.php             # API routes
+├── composer.json              # PHP dependencies
+├── composer.lock              # Locked PHP versions
+├── package.json               # NPM dependencies
+└── package-lock.json          # Locked NPM versions
+```
+
+### Important Notes for New Sessions
+
+1. **ก่อนแก้ไขอะไร** - รัน `git status` และ `git pull origin main` ก่อน
+2. **CI ต้องผ่าน** - ทุก PR ต้อง CI ผ่านก่อน merge
+3. **Lock files สำคัญ** - ต้อง commit ทั้ง `composer.lock` และ `package-lock.json`
+4. **PHP version** - CI ใช้ PHP 8.2 ไม่ใช่ 8.4
+5. **Protected main** - ห้าม push ตรงเข้า main
+
+### Useful Commands
+
+```bash
+# Check CI status
+git log --oneline -5
+
+# Build C# locally
+cd AIManagerCore && dotnet build
+
+# Test Laravel locally
+cd laravel-backend && php artisan test
+
+# Build Vue locally
+cd laravel-backend && npm run build
+
+# Create new branch for fixes
+git checkout -b claude/<description>-<session-id>
+git push -u origin claude/<description>-<session-id>
+```
