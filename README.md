@@ -1,105 +1,701 @@
 # PostXAgent - AI Brand Promotion Manager
 
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║   ██████╗  ██████╗ ███████╗████████╗██╗  ██╗     █████╗  ██████╗ ███████╗    ║
+║   ██╔══██╗██╔═══██╗██╔════╝╚══██╔══╝╚██╗██╔╝    ██╔══██╗██╔════╝ ██╔════╝    ║
+║   ██████╔╝██║   ██║███████╗   ██║    ╚███╔╝     ███████║██║  ███╗█████╗      ║
+║   ██╔═══╝ ██║   ██║╚════██║   ██║    ██╔██╗     ██╔══██║██║   ██║██╔══╝      ║
+║   ██║     ╚██████╔╝███████║   ██║   ██╔╝ ██╗    ██║  ██║╚██████╔╝███████╗    ║
+║   ╚═╝      ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝    ╚═╝  ╚═╝ ╚═════╝ ╚══════╝    ║
+║                                                                               ║
+║                    AI-Powered Brand Promotion Manager                         ║
+║                       Intelligent Social Media Automation                     ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
+
 ## Overview
 
-PostXAgent is a comprehensive AI-powered brand promotion management system that automates content creation, image generation, and social media posting across all major platforms in Thailand.
+PostXAgent is a revolutionary AI-powered brand promotion management system that combines **intelligent content generation**, **smart account management**, and **self-learning web automation** to deliver seamless social media marketing across all major platforms.
 
-## Architecture
+---
+
+## System Architecture
 
 ```
-PostXAgent/
-├── ai-manager/              # AI Manager Core (Python - Multi-process Engine)
-│   ├── core/               # Core orchestration logic
-│   ├── workers/            # Platform-specific AI workers
-│   ├── services/           # AI services (OpenAI, Claude, Stable Diffusion)
-│   ├── utils/              # Utility functions
-│   └── config/             # Configuration files
-├── laravel-backend/        # Laravel API & Admin Panel
-├── docker/                 # Docker deployment configs
-├── docs/                   # Documentation
-└── scripts/               # Deployment & maintenance scripts
+                                    ┌─────────────────────────────┐
+                                    │     Web Control Panel       │
+                                    │      (Laravel + Vue.js)     │
+                                    │        Port: 8000           │
+                                    └─────────────┬───────────────┘
+                                                  │
+                                    ╔═════════════╧═════════════╗
+                                    ║   SignalR Real-time Hub   ║
+                                    ╚═════════════╤═════════════╝
+                                                  │
+    ┌─────────────────────────────────────────────┼─────────────────────────────────────────────┐
+    │                         C# AI Manager Core (Windows Server)                               │
+    │                                                                                           │
+    │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌──────────────┐  │
+    │  │    REST API     │    │   WebSocket     │    │    SignalR      │    │  WebView     │  │
+    │  │   Port 5000     │    │   Port 5001     │    │   Port 5002     │    │  Automation  │  │
+    │  └────────┬────────┘    └────────┬────────┘    └────────┬────────┘    └──────┬───────┘  │
+    │           │                      │                      │                     │          │
+    │           └──────────────────────┼──────────────────────┘                     │          │
+    │                                  │                                            │          │
+    │                    ┌─────────────┴─────────────┐              ┌───────────────┴───────┐  │
+    │                    │   Process Orchestrator    │              │  Workflow Learning    │  │
+    │                    │     (40+ CPU Cores)       │◄────────────►│      Engine          │  │
+    │                    └─────────────┬─────────────┘              └───────────────────────┘  │
+    │                                  │                                                       │
+    │    ┌─────────────┬───────────────┼───────────────┬─────────────┬─────────────┐          │
+    │    │             │               │               │             │             │          │
+    │    ▼             ▼               ▼               ▼             ▼             ▼          │
+    │ ┌──────┐    ┌──────┐       ┌──────────┐    ┌──────┐     ┌──────┐     ┌──────────┐      │
+    │ │  FB  │    │  IG  │       │  TikTok  │    │  X   │     │ LINE │     │  YouTube │      │
+    │ │Worker│    │Worker│       │  Worker  │    │Worker│     │Worker│     │  Worker  │      │
+    │ └──────┘    └──────┘       └──────────┘    └──────┘     └──────┘     └──────────┘      │
+    │                                                                                         │
+    └─────────────────────────────────────────────────────────────────────────────────────────┘
+                                                  │
+                                    ╔═════════════╧═════════════╗
+                                    ║       Redis Cache         ║
+                                    ║    & Message Queue        ║
+                                    ╚═══════════════════════════╝
 ```
+
+---
 
 ## Key Features
 
-### 1. AI Manager Core (40+ CPU Cores Utilization)
-- Multi-process architecture using Python multiprocessing
-- Process pool for parallel task execution
-- Queue-based task distribution (Redis/RabbitMQ)
-- Health monitoring and auto-recovery
-- Load balancing across CPU cores
+### 1. Intelligent Account Pool Management
 
-### 2. Supported Social Media Platforms (Thailand)
-- Facebook (Pages, Groups, Marketplace)
-- Instagram (Feed, Stories, Reels)
-- TikTok (Videos, Lives)
-- Twitter/X (Posts, Threads)
-- LINE Official Account (Broadcast, Rich Menu)
-- YouTube (Videos, Shorts, Community)
-- Threads (Posts)
-- LinkedIn (Posts, Articles)
-- Pinterest (Pins, Boards)
+Manage multiple social media accounts with smart rotation and automatic failover.
 
-### 3. AI Content Generation
-- **Text Generation**
-  - OpenAI GPT-4 (Paid)
-  - Anthropic Claude (Paid)
-  - Google Gemini (Free tier available)
-  - Ollama/Local LLMs (Free)
+```
+                          ╔═══════════════════════════════════════╗
+                          ║        Account Pool Manager           ║
+                          ╚═══════════════════╤═══════════════════╝
+                                              │
+              ┌───────────────────────────────┼───────────────────────────────┐
+              │                               │                               │
+              ▼                               ▼                               ▼
+    ┌─────────────────┐             ┌─────────────────┐             ┌─────────────────┐
+    │   Pool: Brand A │             │   Pool: Brand B │             │   Pool: Brand C │
+    │                 │             │                 │             │                 │
+    │  ┌───┐ ┌───┐   │             │  ┌───┐ ┌───┐   │             │  ┌───┐ ┌───┐   │
+    │  │ID1│ │ID2│   │             │  │ID1│ │ID2│   │             │  │ID1│ │ID2│   │
+    │  └───┘ └───┘   │             │  └───┘ └───┘   │             │  └───┘ └───┘   │
+    │  ┌───┐ ┌───┐   │             │  ┌───┐ ┌───┐   │             │  ┌───┐ ┌───┐   │
+    │  │ID3│ │ID4│   │             │  │ID3│ │ID4│   │             │  │ID3│ │ID4│   │
+    │  └───┘ └───┘   │             │  └───┘ └───┘   │             │  └───┘ └───┘   │
+    └─────────────────┘             └─────────────────┘             └─────────────────┘
+```
 
-- **Image Generation**
-  - DALL-E 3 (Paid)
-  - Midjourney (Paid)
-  - Stable Diffusion (Free - Self-hosted)
-  - Leonardo.ai (Free tier)
-  - Bing Image Creator (Free)
+#### Rotation Strategies
 
-### 4. Billing & Subscription (Stripe)
-- Multiple pricing tiers
-- Usage-based billing
-- Automated invoicing
-- Payment webhooks
+```
+    ╔═══════════════════════════════════════════════════════════════════════╗
+    ║                        Rotation Strategies                            ║
+    ╠═══════════════════════════════════════════════════════════════════════╣
+    ║                                                                       ║
+    ║   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌──────┐  ║
+    ║   │ Round Robin │    │   Random    │    │ Least Used  │    │Prio- │  ║
+    ║   │             │    │             │    │             │    │rity  │  ║
+    ║   │  1 → 2 → 3  │    │   ? → ?     │    │  Min Posts  │    │ ★★★  │  ║
+    ║   │  ↑       ↓  │    │   → ?       │    │     ↓       │    │ ★★   │  ║
+    ║   │  5 ← 4 ←    │    │             │    │  Selected   │    │ ★    │  ║
+    ║   └─────────────┘    └─────────────┘    └─────────────┘    └──────┘  ║
+    ║                                                                       ║
+    ╚═══════════════════════════════════════════════════════════════════════╝
+```
 
-## System Requirements
+---
 
-- **CPU**: 40+ cores recommended
-- **RAM**: 64GB+ recommended
-- **Storage**: 500GB+ SSD
-- **OS**: Ubuntu 22.04 LTS
-- **Python**: 3.11+
-- **PHP**: 8.2+
-- **Node.js**: 20 LTS
-- **Redis**: 7+
-- **PostgreSQL**: 15+
+### 2. Auto-Failover System
+
+Intelligent error handling with automatic account switching.
+
+```
+                                   ┌──────────────────┐
+                                   │   Post Request   │
+                                   └────────┬─────────┘
+                                            │
+                                            ▼
+                              ┌─────────────────────────┐
+                              │   Get Next Account      │
+                              │   from Pool             │
+                              └────────────┬────────────┘
+                                           │
+                                           ▼
+                              ┌─────────────────────────┐
+                              │    Execute Post         │
+                              └────────────┬────────────┘
+                                           │
+                          ┌────────────────┼────────────────┐
+                          │                │                │
+                          ▼                ▼                ▼
+                    ┌──────────┐    ┌──────────┐    ┌──────────────┐
+                    │ Success  │    │  Error   │    │Rate Limited  │
+                    └────┬─────┘    └────┬─────┘    └──────┬───────┘
+                         │               │                  │
+                         ▼               ▼                  ▼
+              ┌──────────────────┐ ┌────────────┐  ┌───────────────┐
+              │ Record Success   │ │Error Type? │  │Start Cooldown │
+              │ Update Stats     │ └─────┬──────┘  │ 15-60 minutes │
+              └──────────────────┘       │         └───────┬───────┘
+                                         │                 │
+                         ┌───────────────┼─────────────┐   │
+                         │               │             │   │
+                         ▼               ▼             ▼   │
+                   ┌──────────┐   ┌──────────┐  ┌───────────┐
+                   │  Banned  │   │ Expired  │  │ Temporary │
+                   │          │   │  Token   │  │   Error   │◄──┘
+                   └────┬─────┘   └────┬─────┘  └─────┬─────┘
+                        │              │              │
+                        ▼              ▼              ▼
+              ┌─────────────────┐ ┌──────────┐ ┌──────────────┐
+              │ Mark as Banned  │ │ Refresh  │ │ Retry with   │
+              │ Alert Admin     │ │  Token   │ │ Same Account │
+              │ Use Backup ID   │ └──────────┘ └──────────────┘
+              └─────────────────┘
+```
+
+#### Error Classification
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                         Error Classification System                        ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                            ║
+    ║    Platform Response                    Action                             ║
+    ║   ─────────────────                  ────────────                          ║
+    ║                                                                            ║
+    ║    ┌──────────────────┐             ┌──────────────────┐                  ║
+    ║    │ 429 Rate Limited │────────────►│ Cooldown + Retry │                  ║
+    ║    └──────────────────┘             └──────────────────┘                  ║
+    ║                                                                            ║
+    ║    ┌──────────────────┐             ┌──────────────────┐                  ║
+    ║    │ 401 Unauthorized │────────────►│ Refresh Token    │                  ║
+    ║    └──────────────────┘             └──────────────────┘                  ║
+    ║                                                                            ║
+    ║    ┌──────────────────┐             ┌──────────────────┐                  ║
+    ║    │ Account Disabled │────────────►│ Switch Account   │                  ║
+    ║    └──────────────────┘             └──────────────────┘                  ║
+    ║                                                                            ║
+    ║    ┌──────────────────┐             ┌──────────────────┐                  ║
+    ║    │  Spam Detected   │────────────►│ Ban + Alert      │                  ║
+    ║    └──────────────────┘             └──────────────────┘                  ║
+    ║                                                                            ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+### 3. AI-Powered Web Automation (Self-Learning)
+
+Revolutionary web automation system that learns and adapts without traditional APIs.
+
+```
+                        ╔═══════════════════════════════════════════╗
+                        ║     AI Web Automation Learning System     ║
+                        ╚═══════════════════════════════════════════╝
+
+    ┌───────────────────────────────────────────────────────────────────────────┐
+    │                                                                           │
+    │   ┌─────────────────┐                          ┌─────────────────┐       │
+    │   │  Teaching Mode  │                          │ Self-Learning   │       │
+    │   │  (Human Guided) │                          │ (Deep Learning) │       │
+    │   └────────┬────────┘                          └────────┬────────┘       │
+    │            │                                            │                │
+    │            │         ┌──────────────────┐               │                │
+    │            └────────►│  Learning Engine │◄──────────────┘                │
+    │                      └────────┬─────────┘                                │
+    │                               │                                          │
+    │                               ▼                                          │
+    │                      ┌──────────────────┐                                │
+    │                      │  AI Element      │                                │
+    │                      │  Analyzer        │                                │
+    │                      └────────┬─────────┘                                │
+    │                               │                                          │
+    │                               ▼                                          │
+    │                      ┌──────────────────┐                                │
+    │                      │  Learned         │                                │
+    │                      │  Workflow Store  │                                │
+    │                      └──────────────────┘                                │
+    │                                                                          │
+    └──────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Teaching Mode Flow
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                            Teaching Mode                                   ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+
+         Step 1                Step 2                Step 3               Step 4
+    ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+    │              │     │              │     │              │     │              │
+    │  Start       │     │  Show Tip    │     │  Record      │     │  Learn &     │
+    │  Session     │────►│  for Action  │────►│  User Click  │────►│  Analyze     │
+    │              │     │              │     │              │     │              │
+    └──────────────┘     └──────────────┘     └──────────────┘     └──────┬───────┘
+                                                                          │
+                                                                          ▼
+         Step 8                Step 7                Step 6               Step 5
+    ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+    │              │     │              │     │              │     │              │
+    │  Complete    │◄────│  Generate    │◄────│  AI Creates  │◄────│  Extract     │
+    │  Workflow    │     │  Selectors   │     │  Smart       │     │  Element     │
+    │              │     │              │     │  Patterns    │     │  Features    │
+    └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+
+                                        │
+                                        ▼
+                               ┌──────────────────┐
+                               │  Workflow Stored │
+                               │  Confidence: 95% │
+                               └──────────────────┘
+```
+
+#### Smart Element Recognition
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                     AI Element Recognition System                          ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                            ║
+    ║                        ┌─────────────────┐                                ║
+    ║                        │  Target Element │                                ║
+    ║                        └────────┬────────┘                                ║
+    ║                                 │                                          ║
+    ║                                 ▼                                          ║
+    ║                   ┌─────────────────────────┐                             ║
+    ║                   │   Multi-Selector        │                             ║
+    ║                   │   Strategy Generator    │                             ║
+    ║                   └─────────────┬───────────┘                             ║
+    ║                                 │                                          ║
+    ║         ┌───────────┬───────────┼───────────┬───────────┐                 ║
+    ║         │           │           │           │           │                 ║
+    ║         ▼           ▼           ▼           ▼           ▼                 ║
+    ║    ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           ║
+    ║    │   ID    │ │  Class  │ │  XPath  │ │  Text   │ │  ARIA   │           ║
+    ║    │Selector │ │Selector │ │Selector │ │Content  │ │  Label  │           ║
+    ║    │ ★★★★★   │ │ ★★★★    │ │ ★★★     │ │ ★★★★    │ │ ★★★★★   │           ║
+    ║    └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘           ║
+    ║                                                                            ║
+    ║                         Confidence Scoring                                 ║
+    ║    ─────────────────────────────────────────────────────────────          ║
+    ║    ID + ARIA    → 99% confidence                                          ║
+    ║    Class + Text → 90% confidence                                          ║
+    ║    XPath alone  → 70% confidence                                          ║
+    ║                                                                            ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+```
+
+#### Self-Repair Capability
+
+```
+                       ┌───────────────────────┐
+                       │   Execute Workflow    │
+                       └───────────┬───────────┘
+                                   │
+                                   ▼
+                       ┌───────────────────────┐
+                       │   Step N Failed?      │
+                       └───────────┬───────────┘
+                                   │
+                    ┌──────────────┼──────────────┐
+                    │              │              │
+                    ▼              │              ▼
+              ┌──────────┐        │        ┌──────────────┐
+              │   Yes    │        │        │     No       │
+              └────┬─────┘        │        └──────┬───────┘
+                   │              │               │
+                   ▼              │               ▼
+         ┌─────────────────┐     │        ┌──────────────┐
+         │  AI Analyzes    │     │        │  Continue    │
+         │  Current Page   │     │        │  Next Step   │
+         └────────┬────────┘     │        └──────────────┘
+                  │              │
+                  ▼              │
+         ┌─────────────────┐    │
+         │  Find Similar   │    │
+         │  Element        │    │
+         └────────┬────────┘    │
+                  │             │
+                  ▼             │
+         ┌─────────────────┐    │
+         │  Auto-Repair    │    │
+         │  Workflow       │────┘
+         └────────┬────────┘
+                  │
+                  ▼
+         ┌─────────────────┐
+         │  Update Stored  │
+         │  Workflow       │
+         └─────────────────┘
+```
+
+---
+
+### 4. Dual Posting Mode
+
+Choose between API-based posting or human-like web automation.
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                          Dual Posting Mode                                 ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                            ║
+    ║                         ┌────────────────┐                                ║
+    ║                         │  Post Request  │                                ║
+    ║                         └───────┬────────┘                                ║
+    ║                                 │                                          ║
+    ║                                 ▼                                          ║
+    ║                    ┌────────────────────────┐                             ║
+    ║                    │  Select Posting Mode   │                             ║
+    ║                    └────────────┬───────────┘                             ║
+    ║                                 │                                          ║
+    ║              ┌──────────────────┼──────────────────┐                      ║
+    ║              │                                     │                       ║
+    ║              ▼                                     ▼                       ║
+    ║    ┌─────────────────────┐             ┌─────────────────────┐            ║
+    ║    │     API Mode        │             │   WebView Mode      │            ║
+    ║    │                     │             │                     │            ║
+    ║    │  ✓ Fast             │             │  ✓ Human-like       │            ║
+    ║    │  ✓ Reliable         │             │  ✓ Bypasses limits  │            ║
+    ║    │  ✓ Feature-rich     │             │  ✓ Visual feedback  │            ║
+    ║    │  ✗ Rate limits      │             │  ✗ Slower           │            ║
+    ║    │  ✗ API restrictions │             │  ✓ No API needed    │            ║
+    ║    │                     │             │                     │            ║
+    ║    │  ┌───────────────┐  │             │  ┌───────────────┐  │            ║
+    ║    │  │ Platform API  │  │             │  │ Browser Auto  │  │            ║
+    ║    │  │   Endpoint    │  │             │  │ via Workflow  │  │            ║
+    ║    │  └───────────────┘  │             │  └───────────────┘  │            ║
+    ║    └─────────────────────┘             └─────────────────────┘            ║
+    ║                                                                            ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+### 5. AI Content Generation Pipeline
+
+Intelligent content creation with multi-provider support.
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                    AI Content Generation Pipeline                          ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+
+                              ┌──────────────────┐
+                              │  Content Brief   │
+                              │                  │
+                              │  • Topic         │
+                              │  • Tone          │
+                              │  • Target        │
+                              │  • Platform      │
+                              └────────┬─────────┘
+                                       │
+                                       ▼
+                        ┌──────────────────────────┐
+                        │   AI Provider Selector   │
+                        │                          │
+                        │  Priority Queue:         │
+                        │  1. Ollama (Free/Local)  │
+                        │  2. Gemini (Free Tier)   │
+                        │  3. GPT-4 (Paid)         │
+                        │  4. Claude (Paid)        │
+                        └────────────┬─────────────┘
+                                     │
+                     ┌───────────────┼───────────────┐
+                     │               │               │
+                     ▼               ▼               ▼
+              ┌────────────┐  ┌────────────┐  ┌────────────┐
+              │   Text     │  │   Image    │  │   Video    │
+              │ Generation │  │ Generation │  │ Generation │
+              └─────┬──────┘  └─────┬──────┘  └─────┬──────┘
+                    │               │               │
+                    │         ┌─────┴─────┐         │
+                    │         │           │         │
+                    │         ▼           ▼         │
+                    │   ┌──────────┐ ┌──────────┐   │
+                    │   │  SD     │ │Leonardo │   │
+                    │   │ (Free)  │ │ (Free)  │   │
+                    │   └──────────┘ └──────────┘   │
+                    │         │           │         │
+                    └─────────┼───────────┼─────────┘
+                              │           │
+                              ▼           ▼
+                        ┌───────────────────────┐
+                        │   Content Optimizer   │
+                        │                       │
+                        │  • Platform-specific  │
+                        │  • Hashtag generator  │
+                        │  • Emoji insertion    │
+                        │  • Length adjustment  │
+                        └───────────┬───────────┘
+                                    │
+                                    ▼
+                        ┌───────────────────────┐
+                        │   Ready to Post       │
+                        └───────────────────────┘
+```
+
+---
+
+### 6. Complete Data Flow
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                         Complete System Data Flow                          ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+
+     ┌──────────────┐
+     │    Admin     │
+     │   Dashboard  │◄────────────────────────────────────────────┐
+     └──────┬───────┘                                             │
+            │                                                      │
+            │ Create Campaign                                      │ Real-time
+            ▼                                                      │ Updates
+     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
+     │   Laravel    │     │              │     │              │   │
+     │   Backend    │────►│    Redis     │────►│  AI Manager  │   │
+     │              │     │    Queue     │     │     Core     │   │
+     └──────────────┘     └──────────────┘     └──────┬───────┘   │
+                                                      │           │
+                          ┌───────────────────────────┼───────────┤
+                          │                           │           │
+            ┌─────────────┼───────────────────────────┤           │
+            │             │                           │           │
+            ▼             ▼                           ▼           │
+     ┌────────────┐ ┌────────────┐           ┌────────────┐       │
+     │  Account   │ │  Content   │           │  Workflow  │       │
+     │   Pool     │ │ Generator  │           │  Executor  │       │
+     │  Manager   │ │            │           │            │       │
+     └─────┬──────┘ └─────┬──────┘           └─────┬──────┘       │
+           │              │                        │              │
+           │         ┌────┴────┐                   │              │
+           │         │         │                   │              │
+           ▼         ▼         ▼                   ▼              │
+     ┌──────────┐ ┌──────┐ ┌──────┐         ┌──────────┐         │
+     │Get Active│ │ Text │ │Image │         │ Browser  │         │
+     │ Account  │ │  AI  │ │  AI  │         │Controller│         │
+     └────┬─────┘ └──┬───┘ └──┬───┘         └────┬─────┘         │
+          │          │        │                  │               │
+          │          └───┬────┘                  │               │
+          │              │                       │               │
+          ▼              ▼                       ▼               │
+     ┌─────────────────────────────────────────────────┐        │
+     │                Platform Workers                  │        │
+     │  ┌────┐ ┌────┐ ┌────────┐ ┌────┐ ┌────┐ ┌────┐ │        │
+     │  │ FB │ │ IG │ │ TikTok │ │ X  │ │LINE│ │ YT │ │        │
+     │  └──┬─┘ └──┬─┘ └───┬────┘ └──┬─┘ └──┬─┘ └──┬─┘ │        │
+     └─────┼──────┼───────┼────────┼──────┼──────┼────┘        │
+           │      │       │        │      │      │              │
+           └──────┴───────┴────────┴──────┴──────┘              │
+                                │                               │
+                                ▼                               │
+                    ┌───────────────────────┐                   │
+                    │     Post Results      │                   │
+                    │                       │                   │
+                    │  • Success/Failure    │───────────────────┘
+                    │  • Screenshots        │
+                    │  • Engagement stats   │
+                    └───────────────────────┘
+```
+
+---
+
+### 7. Supported Platforms
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                       Supported Social Media Platforms                     ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                            ║
+    ║   ┌───────────────┐  ┌───────────────┐  ┌───────────────┐                 ║
+    ║   │   Facebook    │  │   Instagram   │  │    TikTok     │                 ║
+    ║   │               │  │               │  │               │                 ║
+    ║   │  • Pages      │  │  • Feed       │  │  • Videos     │                 ║
+    ║   │  • Groups     │  │  • Stories    │  │  • LIVE       │                 ║
+    ║   │  • Marketplace│  │  • Reels      │  │               │                 ║
+    ║   └───────────────┘  └───────────────┘  └───────────────┘                 ║
+    ║                                                                            ║
+    ║   ┌───────────────┐  ┌───────────────┐  ┌───────────────┐                 ║
+    ║   │   Twitter/X   │  │     LINE      │  │    YouTube    │                 ║
+    ║   │               │  │               │  │               │                 ║
+    ║   │  • Posts      │  │  • Broadcast  │  │  • Videos     │                 ║
+    ║   │  • Threads    │  │  • Rich Menu  │  │  • Shorts     │                 ║
+    ║   │  • Spaces     │  │  • Chat       │  │  • Community  │                 ║
+    ║   └───────────────┘  └───────────────┘  └───────────────┘                 ║
+    ║                                                                            ║
+    ║   ┌───────────────┐  ┌───────────────┐  ┌───────────────┐                 ║
+    ║   │    Threads    │  │   LinkedIn    │  │   Pinterest   │                 ║
+    ║   │               │  │               │  │               │                 ║
+    ║   │  • Posts      │  │  • Posts      │  │  • Pins       │                 ║
+    ║   │  • Replies    │  │  • Articles   │  │  • Boards     │                 ║
+    ║   │               │  │  • Company    │  │  • Stories    │                 ║
+    ║   └───────────────┘  └───────────────┘  └───────────────┘                 ║
+    ║                                                                            ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+### 8. Analytics Dashboard
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                          Analytics Dashboard                               ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                            ║
+    ║   Total Posts Today          Active Accounts           Success Rate        ║
+    ║   ┌────────────────┐        ┌────────────────┐        ┌────────────────┐  ║
+    ║   │                │        │                │        │                │  ║
+    ║   │     1,247      │        │      45/52     │        │     98.5%      │  ║
+    ║   │    ▲ +12%      │        │    ● Active    │        │    ▲ +2.1%     │  ║
+    ║   │                │        │                │        │                │  ║
+    ║   └────────────────┘        └────────────────┘        └────────────────┘  ║
+    ║                                                                            ║
+    ║   ─────────────────────────────────────────────────────────────────────   ║
+    ║                                                                            ║
+    ║   Posts by Platform                      Engagement Trend                  ║
+    ║   ┌────────────────────────┐            ┌─────────────────────────────┐   ║
+    ║   │ FB     ████████████ 35%│            │     ╭─────╮                 │   ║
+    ║   │ IG     ██████████   28%│            │    ╱      ╲    ╭───        │   ║
+    ║   │ TikTok ████████     22%│            │   ╱        ╲  ╱            │   ║
+    ║   │ X      ████         10%│            │  ╱          ╲╱             │   ║
+    ║   │ Others ██            5%│            │ ╱                          │   ║
+    ║   └────────────────────────┘            └─────────────────────────────┘   ║
+    ║                                           Mon  Tue  Wed  Thu  Fri         ║
+    ║                                                                            ║
+    ║   ─────────────────────────────────────────────────────────────────────   ║
+    ║                                                                            ║
+    ║   Recent Activity                                                          ║
+    ║   ┌───────────────────────────────────────────────────────────────────┐   ║
+    ║   │ ✓ Post to Facebook Page "Brand A"              2 seconds ago      │   ║
+    ║   │ ✓ Post to Instagram Feed "Brand B"             15 seconds ago     │   ║
+    ║   │ ⚠ Rate limit on TikTok - switching account     32 seconds ago     │   ║
+    ║   │ ✓ Workflow self-repaired for Twitter           1 minute ago       │   ║
+    ║   │ ✓ New workflow learned: Pinterest Pin          5 minutes ago      │   ║
+    ║   └───────────────────────────────────────────────────────────────────┘   ║
+    ║                                                                            ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+### 9. Security Architecture
+
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                         Security Architecture                              ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+
+                        ┌───────────────────────────┐
+                        │      API Gateway          │
+                        │   (Rate Limiting + Auth)  │
+                        └─────────────┬─────────────┘
+                                      │
+                          ┌───────────┼───────────┐
+                          │           │           │
+                          ▼           ▼           ▼
+                   ┌───────────┐ ┌─────────┐ ┌───────────┐
+                   │   JWT     │ │  API    │ │  OAuth    │
+                   │   Token   │ │  Key    │ │  2.0      │
+                   └─────┬─────┘ └────┬────┘ └─────┬─────┘
+                         │            │            │
+                         └────────────┼────────────┘
+                                      │
+                         ┌────────────┴────────────┐
+                         │   Laravel Middleware    │
+                         │                         │
+                         │  • Authentication       │
+                         │  • Rate Limiting        │
+                         │  • Input Validation     │
+                         │  • CORS Protection      │
+                         └────────────┬────────────┘
+                                      │
+                   ┌──────────────────┼──────────────────┐
+                   │                  │                  │
+                   ▼                  ▼                  ▼
+          ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+          │   Encrypted  │   │    Redis     │   │   Database   │
+          │  Credentials │   │   Session    │   │   (MySQL)    │
+          │    Store     │   │    Store     │   │              │
+          └──────────────┘   └──────────────┘   └──────────────┘
+```
+
+---
 
 ## Quick Start
 
-```bash
-# Clone repository
-git clone https://github.com/your-org/postxagent.git
-cd postxagent
-
-# Setup AI Manager
-cd ai-manager
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Setup Laravel Backend
-cd ../laravel-backend
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate
-
-# Start services with Docker
-docker-compose up -d
+```
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                            Quick Start Guide                               ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                            ║
+    ║   Step 1: Clone Repository                                                 ║
+    ║   ──────────────────────────                                               ║
+    ║   git clone https://github.com/your-org/postxagent.git                    ║
+    ║                                                                            ║
+    ║   Step 2: Setup Laravel Backend                                            ║
+    ║   ────────────────────────────                                             ║
+    ║   cd laravel-backend                                                       ║
+    ║   composer install                                                         ║
+    ║   cp .env.example .env                                                     ║
+    ║   php artisan key:generate                                                 ║
+    ║   php artisan migrate                                                      ║
+    ║                                                                            ║
+    ║   Step 3: Setup AI Manager Core                                            ║
+    ║   ─────────────────────────────                                            ║
+    ║   cd AIManagerCore                                                         ║
+    ║   dotnet build                                                             ║
+    ║   dotnet run --project src/AIManager.API                                   ║
+    ║                                                                            ║
+    ║   Step 4: Start All Services                                               ║
+    ║   ─────────────────────────                                                ║
+    ║   docker-compose up -d  (Redis, MySQL, etc.)                               ║
+    ║   php artisan serve     (Laravel on port 8000)                             ║
+    ║                                                                            ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
 ```
 
-## Environment Variables
+---
 
-See `.env.example` for all required environment variables.
+## System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| CPU | 8 cores | 40+ cores |
+| RAM | 16 GB | 64 GB |
+| Storage | 100 GB SSD | 500 GB NVMe |
+| OS | Windows Server 2019 | Windows Server 2022 |
+| .NET | 8.0 | 8.0 |
+| PHP | 8.2 | 8.3 |
+| Redis | 7.0 | 7.2 |
+| MySQL | 8.0 | 8.0 |
+
+---
 
 ## License
 
 Proprietary - All rights reserved
+
+---
+
+```
+                        ╔════════════════════════════════════╗
+                        ║                                    ║
+                        ║   Made with ❤️ in Thailand          ║
+                        ║                                    ║
+                        ║   PostXAgent - The Future of       ║
+                        ║   Social Media Automation          ║
+                        ║                                    ║
+                        ╚════════════════════════════════════╝
+```
