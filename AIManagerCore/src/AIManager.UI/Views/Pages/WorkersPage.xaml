@@ -1,0 +1,50 @@
+<Page x:Class="AIManager.UI.Views.Pages.WorkersPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      Title="Workers">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Stats Cards -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,20">
+            <materialDesign:Card Padding="20" Margin="0,0,15,0" Width="200">
+                <StackPanel>
+                    <TextBlock Text="Total Workers" Foreground="Gray"/>
+                    <TextBlock x:Name="TxtTotalWorkers" Text="0" FontSize="32" FontWeight="Bold"/>
+                </StackPanel>
+            </materialDesign:Card>
+            <materialDesign:Card Padding="20" Width="200">
+                <StackPanel>
+                    <TextBlock Text="Active Workers" Foreground="Gray"/>
+                    <TextBlock x:Name="TxtActiveWorkers" Text="0" FontSize="32" FontWeight="Bold" Foreground="#4CAF50"/>
+                </StackPanel>
+            </materialDesign:Card>
+        </StackPanel>
+
+        <!-- Workers List -->
+        <materialDesign:Card Grid.Row="1" Padding="15">
+            <DataGrid x:Name="WorkersList" AutoGenerateColumns="False" IsReadOnly="True"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                    <DataGridTextColumn Header="Platform" Binding="{Binding Platform}" Width="100"/>
+                    <DataGridTemplateColumn Header="Status" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Ellipse Width="12" Height="12"
+                                         Fill="{Binding IsActive, Converter={StaticResource BoolToColorConverter}}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Tasks" Binding="{Binding TasksProcessed}" Width="80"/>
+                    <DataGridTextColumn Header="Current Task" Binding="{Binding CurrentTask}" Width="150"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </materialDesign:Card>
+    </Grid>
+</Page>
