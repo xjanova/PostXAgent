@@ -1,0 +1,470 @@
+<Page x:Class="AIManager.UI.Views.Pages.DashboardPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+      mc:Ignorable="d"
+      d:DesignHeight="800" d:DesignWidth="1100"
+      Title="Dashboard">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Stats Cards Row -->
+            <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="0,0,0,20">
+                <!-- CPU Cores Card -->
+                <Border Background="#1E1E2E" CornerRadius="15" Margin="0,0,10,0" Padding="20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="CPU Cores" Foreground="#808080" FontSize="14"/>
+                            <TextBlock x:Name="TxtCpuCores" Text="40" FontSize="36" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Active Workers" Foreground="#4CAF50" FontSize="12"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Background="#7C4DFF" CornerRadius="10" Width="50" Height="50" VerticalAlignment="Top">
+                            <materialDesign:PackIcon Kind="Cpu64Bit" Width="28" Height="28" Foreground="White"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Active Workers Card -->
+                <Border Background="#1E1E2E" CornerRadius="15" Margin="5,0" Padding="20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Active Workers" Foreground="#808080" FontSize="14"/>
+                            <TextBlock x:Name="TxtActiveWorkers" Text="36" FontSize="36" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Across 9 platforms" Foreground="#00BCD4" FontSize="12"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Background="#00BCD4" CornerRadius="10" Width="50" Height="50" VerticalAlignment="Top">
+                            <materialDesign:PackIcon Kind="AccountGroup" Width="28" Height="28" Foreground="White"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Tasks Completed Card -->
+                <Border Background="#1E1E2E" CornerRadius="15" Margin="5,0" Padding="20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Tasks Completed" Foreground="#808080" FontSize="14"/>
+                            <TextBlock x:Name="TxtTasksCompleted" Text="1,234" FontSize="36" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock x:Name="TxtTasksPerSecond" Text="15.2/sec" Foreground="#4CAF50" FontSize="12"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Background="#4CAF50" CornerRadius="10" Width="50" Height="50" VerticalAlignment="Top">
+                            <materialDesign:PackIcon Kind="CheckCircle" Width="28" Height="28" Foreground="White"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Uptime Card -->
+                <Border Background="#1E1E2E" CornerRadius="15" Margin="10,0,0,0" Padding="20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Uptime" Foreground="#808080" FontSize="14"/>
+                            <TextBlock x:Name="TxtUptime" Text="24:32:15" FontSize="36" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Running stable" Foreground="#4CAF50" FontSize="12"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Background="#FF9800" CornerRadius="10" Width="50" Height="50" VerticalAlignment="Top">
+                            <materialDesign:PackIcon Kind="ClockOutline" Width="28" Height="28" Foreground="White"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </UniformGrid>
+
+            <!-- Platform Status Grid -->
+            <TextBlock Grid.Row="1" Text="Platform Status" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+
+            <UniformGrid Grid.Row="2" Rows="2" Columns="5" Margin="0,0,0,20">
+                <!-- Facebook -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="0,0,8,8" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#1877F2" CornerRadius="8" Width="35" Height="35">
+                                <materialDesign:PackIcon Kind="Facebook" Width="20" Height="20" Foreground="White"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="Facebook" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="85" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#1877F2"/>
+                        <TextBlock Text="85 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Instagram -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="4,0,4,8" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border CornerRadius="8" Width="35" Height="35">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#F58529" Offset="0"/>
+                                        <GradientStop Color="#DD2A7B" Offset="0.5"/>
+                                        <GradientStop Color="#8134AF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <materialDesign:PackIcon Kind="Instagram" Width="20" Height="20" Foreground="White"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="Instagram" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="72" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#DD2A7B"/>
+                        <TextBlock Text="72 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- TikTok -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="4,0,4,8" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#000000" CornerRadius="8" Width="35" Height="35" BorderBrush="#00F2EA" BorderThickness="1">
+                                <TextBlock Text="T" FontWeight="Bold" FontSize="18" Foreground="White"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="TikTok" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="68" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#00F2EA"/>
+                        <TextBlock Text="68 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Twitter -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="4,0,4,8" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#000000" CornerRadius="8" Width="35" Height="35">
+                                <TextBlock Text="X" FontWeight="Bold" FontSize="18" Foreground="White"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="Twitter/X" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="55" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#1DA1F2"/>
+                        <TextBlock Text="55 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- LINE -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="8,0,0,8" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#00B900" CornerRadius="8" Width="35" Height="35">
+                                <materialDesign:PackIcon Kind="Chat" Width="20" Height="20" Foreground="White"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="LINE" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="90" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#00B900"/>
+                        <TextBlock Text="90 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- YouTube -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="0,0,8,0" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#FF0000" CornerRadius="8" Width="35" Height="35">
+                                <materialDesign:PackIcon Kind="Youtube" Width="20" Height="20" Foreground="White"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="YouTube" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="45" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#FF0000"/>
+                        <TextBlock Text="45 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Threads -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="4,0,4,0" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#000000" CornerRadius="8" Width="35" Height="35" BorderBrush="White" BorderThickness="1">
+                                <TextBlock Text="@" FontWeight="Bold" FontSize="16" Foreground="White"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="Threads" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="35" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#FFFFFF"/>
+                        <TextBlock Text="35 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- LinkedIn -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="4,0,4,0" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#0A66C2" CornerRadius="8" Width="35" Height="35">
+                                <materialDesign:PackIcon Kind="Linkedin" Width="20" Height="20" Foreground="White"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="LinkedIn" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="28" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#0A66C2"/>
+                        <TextBlock Text="28 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Pinterest -->
+                <Border Background="#1E1E2E" CornerRadius="12" Margin="8,0,0,0" Padding="15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#E60023" CornerRadius="8" Width="35" Height="35">
+                                <materialDesign:PackIcon Kind="Pinterest" Width="20" Height="20" Foreground="White"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0">
+                                <TextBlock Text="Pinterest" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="4 workers" Foreground="#808080" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ProgressBar Value="22" Height="4" Margin="0,10,0,0" Background="#2A2A3E" Foreground="#E60023"/>
+                        <TextBlock Text="22 tasks/min" Foreground="#808080" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- Recent Activity & Charts -->
+            <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="350"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Recent Tasks -->
+                <Border Grid.Column="0" Background="#1E1E2E" CornerRadius="15" Margin="0,0,15,0" Padding="20">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                            <TextBlock Text="Recent Tasks" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Live" Foreground="#4CAF50" FontSize="12" Margin="10,4,0,0"/>
+                            <Ellipse Width="8" Height="8" Fill="#4CAF50" Margin="5,5,0,0"/>
+                        </StackPanel>
+
+                        <ListBox Grid.Row="1" x:Name="TasksList" Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#2A2A3E" CornerRadius="10" Padding="15" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Border Grid.Column="0" CornerRadius="8" Width="40" Height="40"
+                                                    Background="{Binding PlatformColor}" Margin="0,0,15,0">
+                                                <materialDesign:PackIcon Kind="{Binding PlatformIcon}" Width="22" Height="22"
+                                                                         Foreground="White" HorizontalAlignment="Center"
+                                                                         VerticalAlignment="Center"/>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding TaskType}" FontWeight="SemiBold" Foreground="White"/>
+                                                <TextBlock Text="{Binding Description}" Foreground="#808080" FontSize="12"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <Border Background="{Binding StatusColor}" CornerRadius="5" Padding="8,4">
+                                                    <TextBlock Text="{Binding Status}" FontSize="11" Foreground="White"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding TimeAgo}" Foreground="#808080" FontSize="11"
+                                                           HorizontalAlignment="Right" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <!-- AI Providers Status -->
+                <Border Grid.Column="1" Background="#1E1E2E" CornerRadius="15" Padding="20">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="AI Providers" FontSize="18" FontWeight="Bold"
+                                   Foreground="White" Margin="0,0,0,15"/>
+
+                        <StackPanel Grid.Row="1">
+                            <!-- OpenAI -->
+                            <Border Background="#2A2A3E" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#10A37F" CornerRadius="6" Width="30" Height="30">
+                                        <materialDesign:PackIcon Kind="Brain" Width="18" Height="18" Foreground="White"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0">
+                                        <TextBlock Text="OpenAI GPT-4" Foreground="White" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Paid" Foreground="#FF9800" FontSize="11"/>
+                                    </StackPanel>
+                                    <Ellipse Grid.Column="2" Width="10" Height="10" Fill="#4CAF50"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Claude -->
+                            <Border Background="#2A2A3E" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#D97757" CornerRadius="6" Width="30" Height="30">
+                                        <materialDesign:PackIcon Kind="Robot" Width="18" Height="18" Foreground="White"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0">
+                                        <TextBlock Text="Anthropic Claude" Foreground="White" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Paid" Foreground="#FF9800" FontSize="11"/>
+                                    </StackPanel>
+                                    <Ellipse Grid.Column="2" Width="10" Height="10" Fill="#4CAF50"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Gemini -->
+                            <Border Background="#2A2A3E" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#4285F4" CornerRadius="6" Width="30" Height="30">
+                                        <materialDesign:PackIcon Kind="Google" Width="18" Height="18" Foreground="White"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0">
+                                        <TextBlock Text="Google Gemini" Foreground="White" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Free Tier" Foreground="#4CAF50" FontSize="11"/>
+                                    </StackPanel>
+                                    <Ellipse Grid.Column="2" Width="10" Height="10" Fill="#4CAF50"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Ollama -->
+                            <Border Background="#2A2A3E" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#7C4DFF" CornerRadius="6" Width="30" Height="30">
+                                        <materialDesign:PackIcon Kind="LanConnect" Width="18" Height="18" Foreground="White"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0">
+                                        <TextBlock Text="Ollama (Local)" Foreground="White" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Free - Self-hosted" Foreground="#4CAF50" FontSize="11"/>
+                                    </StackPanel>
+                                    <Ellipse Grid.Column="2" Width="10" Height="10" Fill="#4CAF50"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Stable Diffusion -->
+                            <Border Background="#2A2A3E" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#FF6B6B" CornerRadius="6" Width="30" Height="30">
+                                        <materialDesign:PackIcon Kind="Image" Width="18" Height="18" Foreground="White"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0">
+                                        <TextBlock Text="Stable Diffusion" Foreground="White" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Free - Self-hosted" Foreground="#4CAF50" FontSize="11"/>
+                                    </StackPanel>
+                                    <Ellipse Grid.Column="2" Width="10" Height="10" Fill="#4CAF50"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- DALL-E -->
+                            <Border Background="#2A2A3E" CornerRadius="10" Padding="12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#10A37F" CornerRadius="6" Width="30" Height="30">
+                                        <materialDesign:PackIcon Kind="Palette" Width="18" Height="18" Foreground="White"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0">
+                                        <TextBlock Text="DALL-E 3" Foreground="White" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Paid" Foreground="#FF9800" FontSize="11"/>
+                                    </StackPanel>
+                                    <Ellipse Grid.Column="2" Width="10" Height="10" Fill="#4CAF50"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</Page>
