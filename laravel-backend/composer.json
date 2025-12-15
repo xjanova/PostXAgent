@@ -9,7 +9,7 @@
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.0",
         "laravel/cashier": "^15.0",
-        "predis/predis": "^2.0",
+        "predis/predis": "^3.3",
         "guzzlehttp/guzzle": "^7.0",
         "spatie/laravel-permission": "^6.0",
         "spatie/laravel-activitylog": "^4.0"
