@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\SocialAccountController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\WebhookController;
+use App\Http\Controllers\Api\AIManagerStatusController;
 
 /*
 |--------------------------------------------------------------------------
@@ -84,10 +85,25 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::get('/brands/{brand}', [AnalyticsController::class, 'brand']);
     });
 
-    // AI Manager status (admin only)
-    Route::middleware(['role:admin'])->group(function () {
-        Route::get('/admin/ai-manager/stats', [AdminController::class, 'aiManagerStats']);
-        Route::get('/admin/ai-manager/workers', [AdminController::class, 'workers']);
-        Route::post('/admin/ai-manager/restart', [AdminController::class, 'restartAIManager']);
+    // AI Manager Connection Status
+    Route::prefix('ai-manager')->group(function () {
+        // Public status endpoints (for dashboard widgets)
+        Route::get('/status', [AIManagerStatusController::class, 'status']);
+        Route::get('/status/full', [AIManagerStatusController::class, 'fullStatus']);
+        Route::get('/status/badge', [AIManagerStatusController::class, 'badge']);
+        Route::get('/ping', [AIManagerStatusController::class, 'ping']);
+
+        // Stats & Workers (require auth)
+        Route::get('/stats', [AIManagerStatusController::class, 'stats']);
+        Route::get('/workers', [AIManagerStatusController::class, 'workers']);
+        Route::get('/system', [AIManagerStatusController::class, 'system']);
+    });
+
+    // AI Manager Admin Controls (admin only)
+    Route::prefix('ai-manager')->middleware(['role:admin'])->group(function () {
+        Route::post('/start', [AIManagerStatusController::class, 'start']);
+        Route::post('/stop', [AIManagerStatusController::class, 'stop']);
+        Route::post('/refresh', [AIManagerStatusController::class, 'refresh']);
+        Route::post('/test-connection', [AIManagerStatusController::class, 'testConnection']);
     });
 });
