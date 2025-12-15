@@ -22,6 +22,21 @@ public class TaskResult
     [JsonProperty("error")]
     public string? Error { get; set; }
 
+    [JsonProperty("error_code")]
+    public string? ErrorCode { get; set; }
+
+    [JsonProperty("error_type")]
+    public ErrorType ErrorType { get; set; } = ErrorType.Unknown;
+
+    [JsonProperty("account_id")]
+    public int? AccountId { get; set; }
+
+    [JsonProperty("should_retry")]
+    public bool ShouldRetry { get; set; }
+
+    [JsonProperty("retry_after_seconds")]
+    public int? RetryAfterSeconds { get; set; }
+
     [JsonProperty("data")]
     public ResultData? Data { get; set; }
 
@@ -30,6 +45,23 @@ public class TaskResult
 
     [JsonProperty("completed_at")]
     public DateTime CompletedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Error types for account rotation handling
+/// </summary>
+public enum ErrorType
+{
+    Unknown = 0,
+    NetworkError = 1,
+    AuthenticationError = 2,
+    RateLimited = 3,
+    AccountBanned = 4,
+    AccountSuspended = 5,
+    ContentRejected = 6,
+    PlatformError = 7,
+    ValidationError = 8,
+    TokenExpired = 9
 }
 
 /// <summary>

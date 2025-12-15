@@ -5,7 +5,7 @@ namespace AIManager.Core.Workers;
 /// <summary>
 /// Factory for creating platform-specific workers
 /// </summary>
-public static class WorkerFactory
+public class WorkerFactory
 {
     private static readonly Dictionary<SocialPlatform, Func<IPlatformWorker>> _factories = new()
     {
@@ -20,6 +20,17 @@ public static class WorkerFactory
         { SocialPlatform.Pinterest, () => new PinterestWorker() },
     };
 
+    /// <summary>
+    /// Get worker for a specific platform (instance method for DI)
+    /// </summary>
+    public IPlatformWorker GetWorker(SocialPlatform platform)
+    {
+        return CreateWorker(platform);
+    }
+
+    /// <summary>
+    /// Create worker for a specific platform (static method)
+    /// </summary>
     public static IPlatformWorker CreateWorker(SocialPlatform platform)
     {
         if (_factories.TryGetValue(platform, out var factory))

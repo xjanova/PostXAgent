@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using AIManager.Core.Models;
+using AIManager.Core.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Workers;
@@ -28,7 +29,9 @@ public class FacebookWorker : BasePlatformWorker
                 return new TaskResult
                 {
                     Success = false,
-                    Error = "Missing credentials or content"
+                    Error = "Missing credentials or content",
+                    ErrorType = ErrorType.ValidationError,
+                    ShouldRetry = false
                 };
             }
 
@@ -69,12 +72,28 @@ public class FacebookWorker : BasePlatformWorker
                 };
             }
 
-            return new TaskResult
-            {
-                Success = false,
-                Error = result?.Error?.Message ?? "Unknown error",
-                ProcessingTimeMs = sw.ElapsedMilliseconds
-            };
+            // Error occurred - classify it for account rotation
+            var errorCode = result?.Error?.Code.ToString();
+            var errorMessage = result?.Error?.Message ?? "Unknown error";
+
+            return ErrorClassifier.CreateErrorResult(
+                Platform,
+                errorCode,
+                errorMessage,
+                (int)response.StatusCode,
+                sw.ElapsedMilliseconds
+            );
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Facebook post failed - network error");
+            return ErrorClassifier.CreateErrorResult(
+                Platform,
+                null,
+                ex.Message,
+                null,
+                sw.ElapsedMilliseconds
+            );
         }
         catch (Exception ex)
         {
@@ -83,6 +102,8 @@ public class FacebookWorker : BasePlatformWorker
             {
                 Success = false,
                 Error = ex.Message,
+                ErrorType = ErrorType.Unknown,
+                ShouldRetry = true,
                 ProcessingTimeMs = sw.ElapsedMilliseconds
             };
         }

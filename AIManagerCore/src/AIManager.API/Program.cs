@@ -1,6 +1,8 @@
 using AIManager.API.Hubs;
 using AIManager.Core.Orchestrator;
 using AIManager.Core.Models;
+using AIManager.Core.Workers;
+using AIManager.Core.WebAutomation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +41,14 @@ var config = new OrchestratorConfig
     RedisConnectionString = builder.Configuration.GetValue<string>("Redis:ConnectionString") ?? "localhost:6379"
 };
 builder.Services.AddSingleton(config);
+
+// Workers
+builder.Services.AddSingleton<WorkerFactory>();
+
+// Web Automation Services
+builder.Services.AddSingleton<WorkflowStorage>();
+builder.Services.AddSingleton<AIElementAnalyzer>();
+builder.Services.AddSingleton<WorkflowLearningEngine>();
 
 // Orchestrator
 builder.Services.AddSingleton<ProcessOrchestrator>();

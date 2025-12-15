@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\AIManagerStatusController;
+use App\Http\Controllers\Api\AccountPoolController;
 
 /*
 |--------------------------------------------------------------------------
@@ -105,5 +106,31 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::post('/stop', [AIManagerStatusController::class, 'stop']);
         Route::post('/refresh', [AIManagerStatusController::class, 'refresh']);
         Route::post('/test-connection', [AIManagerStatusController::class, 'testConnection']);
+    });
+
+    // Account Pools - จัดการ Pool ของ Account สำหรับ Auto-Rotation และ Failover
+    Route::prefix('account-pools')->group(function () {
+        Route::get('/', [AccountPoolController::class, 'index']);
+        Route::post('/', [AccountPoolController::class, 'store']);
+        Route::get('/health-report', [AccountPoolController::class, 'healthReport']);
+        Route::get('/{accountPool}', [AccountPoolController::class, 'show']);
+        Route::put('/{accountPool}', [AccountPoolController::class, 'update']);
+        Route::delete('/{accountPool}', [AccountPoolController::class, 'destroy']);
+
+        // Pool statistics and logs
+        Route::get('/{accountPool}/statistics', [AccountPoolController::class, 'statistics']);
+        Route::get('/{accountPool}/logs', [AccountPoolController::class, 'logs']);
+        Route::get('/{accountPool}/next-account', [AccountPoolController::class, 'previewNextAccount']);
+
+        // Account management within pool
+        Route::post('/{accountPool}/accounts', [AccountPoolController::class, 'addAccount']);
+        Route::delete('/{accountPool}/accounts/{accountId}', [AccountPoolController::class, 'removeAccount']);
+        Route::put('/{accountPool}/accounts/{accountId}', [AccountPoolController::class, 'updateMember']);
+        Route::post('/{accountPool}/accounts/{accountId}/recover', [AccountPoolController::class, 'recoverAccount']);
+    });
+
+    // Account Pools Admin (admin only)
+    Route::prefix('account-pools')->middleware(['role:admin'])->group(function () {
+        Route::post('/reset-daily-counters', [AccountPoolController::class, 'resetDailyCounters']);
     });
 });
