@@ -3,9 +3,8 @@ name: CI
 on:
   push:
     branches: [main, develop, 'claude/**']
-  # PR checks disabled temporarily - use push checks on claude/** branches
-  # pull_request:
-  #   branches: [main]
+  pull_request:
+    branches: [main, develop]
 
 env:
   DOTNET_VERSION: '8.0.x'

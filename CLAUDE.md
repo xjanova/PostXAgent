@@ -306,11 +306,29 @@ php artisan make:migration create_xyz_table
 
 ---
 
-## Session Handoff Notes (Updated: Dec 2025)
+## Session Handoff Notes (Updated: 16 Dec 2025)
+
+### Repository Paths
+
+| Type | Path |
+|------|------|
+| **Main Repository** | `D:/Code/PostXAgent` |
+| **Worktrees Directory** | `C:/Users/xman/.claude-worktrees/PostXAgent/` |
+
+**สำคัญ**: ใช้ไดร์ฟ D (`D:/Code/PostXAgent`) เป็นหลักสำหรับการทำงาน
 
 ### Current Project State
 
-โปรเจคนี้อยู่ในสถานะ **พร้อมใช้งาน** - CI ผ่านทั้งหมดแล้ว
+โปรเจคนี้อยู่ในสถานะ **พร้อมใช้งาน** - CI ผ่านทั้งหมดแล้ว (Version 1.0.0)
+
+### Recent Features Added (Dec 2025)
+
+| Feature | Description | PR |
+|---------|-------------|-----|
+| Account Pool Management | ระบบจัดการ pool ของ social accounts สำหรับ rotation | #29 |
+| AI Web Automation System | ระบบ automation สำหรับ web interactions | #29 |
+| Enhanced AI Manager UI | ปรับปรุง WPF UI และ platform workers | #29 |
+| Platform Workers | เพิ่ม workers สำหรับทุก platform (FB, IG, TikTok, etc.) | #28 |
 
 ### Key Files Location
 
@@ -333,15 +351,117 @@ php artisan make:migration create_xyz_table
 ```yaml
 # Triggers on:
 - push to: main, develop, claude/**
-- pull_request to: main, develop
+# Note: PR checks disabled temporarily - use push checks on claude/** branches
 
-# Jobs:
-1. dotnet-build: Builds C# solution (.NET 8.0)
-2. laravel-test: Runs PHP tests (PHP 8.2)
-3. frontend-build: Builds Vue.js (Node 20)
+# Jobs (4 total):
+1. laravel: Laravel Tests (PHP 8.2, Redis 7)
+2. dotnet: .NET Build (Windows, .NET 8.0)
+3. lint: Code Quality (PHPStan, PHP-CS-Fixer)
+4. security: Security Scan (composer audit)
 ```
 
-### Recent CI Fixes (Dec 2025)
+### Laravel Models (Current)
+
+```
+app/Models/
+├── AccountPool.php        # Pool ของ social accounts
+├── AccountPoolMember.php  # Member ใน pool
+├── AccountStatusLog.php   # Log การเปลี่ยนสถานะ account
+├── BackupCredential.php   # Backup credentials
+├── Brand.php              # Brand/แบรนด์
+├── Campaign.php           # Campaign/แคมเปญ
+├── Post.php               # โพสต์
+├── SocialAccount.php      # Social media accounts
+└── User.php               # ผู้ใช้
+```
+
+### C# Project Files (Current)
+
+```
+AIManager.Core/
+├── Helpers/
+│   └── ErrorClassifier.cs         # จัดประเภท errors
+├── Models/
+│   ├── Enums.cs                   # Enums (TaskStatus, Platform, etc.)
+│   ├── PlatformCredentials.cs     # Credentials model
+│   ├── TaskItem.cs                # Task model
+│   ├── TaskResult.cs              # Result model
+│   └── WorkerInfo.cs              # Worker info model
+├── Orchestrator/
+│   └── ProcessOrchestrator.cs     # จัดการ process orchestration
+├── Services/
+│   ├── AIBrainService.cs          # AI Brain สำหรับตัดสินใจ
+│   ├── ContentGeneratorService.cs # สร้างเนื้อหา AI
+│   ├── CredentialManagerService.cs # จัดการ credentials
+│   ├── GroupSearchService.cs      # ค้นหากลุ่ม
+│   ├── ImageGeneratorService.cs   # สร้างรูปภาพ AI
+│   ├── LoggingService.cs          # Logging
+│   ├── PostPublisherService.cs    # โพสต์ไปยัง platforms
+│   └── SchedulerService.cs        # จัดตารางเวลา
+├── WebAutomation/
+│   ├── AIElementAnalyzer.cs       # วิเคราะห์ elements ด้วย AI
+│   ├── BrowserController.cs       # ควบคุม browser
+│   ├── Models/WorkflowModels.cs   # Workflow models
+│   ├── WorkflowExecutor.cs        # รัน workflows
+│   ├── WorkflowLearningEngine.cs  # เรียนรู้ workflows
+│   └── WorkflowStorage.cs         # เก็บ workflows
+└── Workers/
+    ├── IPlatformWorker.cs         # Interface
+    ├── BasePlatformWorker.cs      # Base class
+    ├── FacebookWorker.cs          # Facebook worker
+    ├── PlatformWorkers.cs         # All platform workers
+    └── WorkerFactory.cs           # Factory pattern
+
+AIManager.API/
+├── Controllers/
+│   ├── StatusController.cs        # สถานะระบบ
+│   ├── TasksController.cs         # จัดการ tasks
+│   ├── TestPostController.cs      # ทดสอบโพสต์
+│   └── WebAutomationController.cs # Web automation API
+├── Hubs/
+│   └── AIManagerHub.cs            # SignalR Hub
+└── Program.cs                     # Entry point
+
+AIManager.UI/ViewModels/
+├── BaseViewModel.cs       # Base MVVM
+├── MainViewModel.cs       # Main window
+├── DashboardViewModel.cs  # Dashboard
+├── TasksViewModel.cs      # Tasks management
+├── WorkersViewModel.cs    # Workers status
+└── SettingsViewModel.cs   # Settings
+
+AIManager.UI/Views/Pages/
+├── AIProvidersPage.xaml   # AI Providers settings
+├── DashboardPage.xaml     # Dashboard หลัก
+├── LogsPage.xaml          # ดู logs
+├── PlatformsPage.xaml     # Platform settings
+├── SettingsPage.xaml      # Settings ทั่วไป
+├── TasksPage.xaml         # จัดการ tasks
+└── WorkersPage.xaml       # ดู workers
+```
+
+### Laravel Services (Current)
+
+```
+app/Services/
+├── AccountRotationService.php     # หมุนเวียน accounts
+├── AIManagerClient.php            # Client สำหรับเชื่อมต่อ AI Manager
+├── AIManagerConnectionStatus.php  # สถานะการเชื่อมต่อ
+└── AIManagerService.php           # Service หลักสำหรับ AI Manager
+```
+
+### Laravel Controllers (Current)
+
+```
+app/Http/Controllers/Api/
+├── AccountPoolController.php      # จัดการ Account Pools
+├── AIManagerController.php        # AI Manager operations
+├── AIManagerStatusController.php  # สถานะ AI Manager
+├── PostController.php             # จัดการโพสต์
+└── SubscriptionController.php     # จัดการ subscriptions
+```
+
+### CI Fixes Reference (Dec 2025)
 
 รายการปัญหาและวิธีแก้ที่เจอบ่อย:
 
@@ -372,48 +492,47 @@ rm package-lock.json
 npm install
 ```
 
-### Protected Branches
+### Git Workflow
 
 - `main` เป็น protected branch - ไม่สามารถ push ตรงได้
 - ต้องสร้าง branch แยกแล้วทำ PR เข้า main
 - Branch naming: `claude/<description>-<session-id>`
+- Active worktree branches: `keen-albattani`, `reverent-pare`, `tender-mahavira`
 
-### Dependabot PRs
-
-มี Dependabot PRs หลายอันที่รอ merge:
-- `dependabot/composer/` - PHP packages
-- `dependabot/nuget/` - .NET packages
-- `dependabot/github_actions/` - GitHub Actions
-
-**วิธี merge**: ตรวจสอบว่าไม่ conflict กับ main แล้ว merge ผ่าน GitHub UI
-
-### C# Project Structure
+### C# Project Structure (Full)
 
 ```
 AIManagerCore/
 ├── AIManagerCore.sln          # Solution file
 └── src/
-    ├── AIManager.Core/        # Core library
-    │   ├── Models/            # Data models (TaskItem, TaskStatus enum)
-    │   ├── Services/          # Business logic
-    │   └── Workers/           # Social media workers
-    ├── AIManager.API/         # REST API (ASP.NET Core)
+    ├── AIManager.Core/        # Core library (26 files)
+    │   ├── Helpers/           # ErrorClassifier
+    │   ├── Models/            # TaskItem, Enums, WorkerInfo, etc.
+    │   ├── Orchestrator/      # ProcessOrchestrator
+    │   ├── Services/          # 8 services (AI, Content, Scheduler, etc.)
+    │   ├── WebAutomation/     # 6 files (Browser, Workflow, AI Analyzer)
+    │   └── Workers/           # Platform workers (5 files)
+    ├── AIManager.API/         # REST API (ASP.NET Core, 6 files)
+    │   ├── Controllers/       # Status, Tasks, TestPost, WebAutomation
+    │   ├── Hubs/              # SignalR Hub
     │   └── Program.cs         # Entry point
-    └── AIManager.UI/          # WPF Desktop App
-        ├── ViewModels/        # MVVM ViewModels
-        ├── Views/             # XAML Views
+    └── AIManager.UI/          # WPF Desktop App (16 files)
+        ├── ViewModels/        # MVVM ViewModels (6 files)
+        ├── Views/Pages/       # 7 XAML Pages
+        ├── Converters/        # BoolToColorConverter
         ├── Resources/         # Icons, images
         └── App.xaml           # WPF App entry
 ```
 
-### Laravel Project Structure
+### Laravel Project Structure (Full)
 
 ```
 laravel-backend/
 ├── app/
-│   ├── Http/Controllers/Api/  # API Controllers
-│   ├── Models/                # Eloquent Models
-│   └── Services/              # Business Services
+│   ├── Console/Commands/      # ResetDailyAccountCounters
+│   ├── Http/Controllers/Api/  # 5 API Controllers
+│   ├── Models/                # 9 Eloquent Models
+│   └── Services/              # 4 Business Services
 ├── config/                    # Configuration files
 ├── database/migrations/       # Database migrations
 ├── resources/
@@ -432,6 +551,7 @@ laravel-backend/
 3. **Lock files สำคัญ** - ต้อง commit ทั้ง `composer.lock` และ `package-lock.json`
 4. **PHP version** - CI ใช้ PHP 8.2 ไม่ใช่ 8.4
 5. **Protected main** - ห้าม push ตรงเข้า main
+6. **Worktrees** - อาจมีหลาย worktree branches ที่กำลังใช้งาน
 
 ### Useful Commands
 
@@ -451,4 +571,7 @@ cd laravel-backend && npm run build
 # Create new branch for fixes
 git checkout -b claude/<description>-<session-id>
 git push -u origin claude/<description>-<session-id>
+
+# List worktrees
+git worktree list
 ```
