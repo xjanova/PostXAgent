@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\AIManagerStatusController;
 use App\Http\Controllers\Api\AccountPoolController;
+use App\Http\Controllers\Api\RentalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,14 @@ Route::prefix('v1')->group(function () {
 
     // Stripe webhooks
     Route::post('/webhooks/stripe', [WebhookController::class, 'handleStripe']);
+
+    // Omise webhooks (Thai payment gateway)
+    Route::post('/webhooks/omise', [RentalController::class, 'omiseWebhook']);
+
+    // Rental packages (public)
+    Route::get('/rentals/packages', [RentalController::class, 'packages']);
+    Route::get('/rentals/packages/{id}', [RentalController::class, 'packageDetail']);
+    Route::get('/rentals/payment-methods', [RentalController::class, 'paymentMethods']);
 
     // OAuth callbacks
     Route::get('/oauth/{platform}/callback', [SocialAccountController::class, 'callback']);
@@ -131,5 +140,32 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     // Account Pools Admin (admin only)
     Route::prefix('account-pools')->middleware(['role:admin'])->group(function () {
         Route::post('/reset-daily-counters', [AccountPoolController::class, 'resetDailyCounters']);
+    });
+
+    // Rentals (Thai Market) - ระบบเช่าแพ็กเกจสำหรับตลาดไทย
+    Route::prefix('rentals')->group(function () {
+        Route::get('/status', [RentalController::class, 'status']);
+        Route::get('/history', [RentalController::class, 'history']);
+        Route::post('/checkout', [RentalController::class, 'checkout']);
+        Route::post('/validate-promo', [RentalController::class, 'validatePromo']);
+        Route::post('/{id}/cancel', [RentalController::class, 'cancel']);
+
+        // Payments
+        Route::post('/payments/{uuid}/upload-slip', [RentalController::class, 'uploadSlip']);
+        Route::get('/payments/{uuid}/status', [RentalController::class, 'paymentStatus']);
+        Route::post('/payments/{uuid}/confirm', [RentalController::class, 'confirmPayment']);
+
+        // Invoices
+        Route::get('/invoices', [RentalController::class, 'invoices']);
+        Route::post('/invoices/{id}/request-tax', [RentalController::class, 'requestTaxInvoice']);
+        Route::get('/invoices/{id}/download', [RentalController::class, 'downloadInvoice']);
+    });
+
+    // Rentals Admin (admin only)
+    Route::prefix('admin/rentals')->middleware(['role:admin'])->group(function () {
+        Route::get('/payments', [RentalController::class, 'adminPayments']);
+        Route::post('/payments/{uuid}/verify', [RentalController::class, 'adminVerifyPayment']);
+        Route::post('/payments/{uuid}/reject', [RentalController::class, 'adminRejectPayment']);
+        Route::get('/stats', [RentalController::class, 'adminStats']);
     });
 });

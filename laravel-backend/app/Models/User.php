@@ -70,6 +70,49 @@ class User extends Authenticatable
         return $this->hasMany(Subscription::class);
     }
 
+    /**
+     * Get user's rental subscriptions (Thai market)
+     */
+    public function rentals()
+    {
+        return $this->hasMany(UserRental::class);
+    }
+
+    /**
+     * Get user's payments
+     */
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get user's invoices
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * Get active rental
+     */
+    public function activeRental()
+    {
+        return $this->rentals()
+            ->where('status', UserRental::STATUS_ACTIVE)
+            ->where('expires_at', '>', now())
+            ->first();
+    }
+
+    /**
+     * Check if user has active rental
+     */
+    public function hasActiveRental(): bool
+    {
+        return $this->activeRental() !== null;
+    }
+
     // Helpers
     public function hasActiveSubscription(): bool
     {
