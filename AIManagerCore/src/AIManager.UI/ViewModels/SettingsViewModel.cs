@@ -141,6 +141,13 @@ public class SettingsViewModel : BaseViewModel
         set => SetProperty(ref _facebookPageId, value);
     }
 
+    private string _facebookPageAccessToken = "";
+    public string FacebookPageAccessToken
+    {
+        get => _facebookPageAccessToken;
+        set => SetProperty(ref _facebookPageAccessToken, value);
+    }
+
     private bool _facebookConnected;
     public bool FacebookConnected
     {
@@ -217,6 +224,13 @@ public class SettingsViewModel : BaseViewModel
     {
         get => _tiktokOpenId;
         set => SetProperty(ref _tiktokOpenId, value);
+    }
+
+    private string _tiktokRefreshToken = "";
+    public string TikTokRefreshToken
+    {
+        get => _tiktokRefreshToken;
+        set => SetProperty(ref _tiktokRefreshToken, value);
     }
 
     private bool _tiktokConnected;
@@ -421,6 +435,13 @@ public class SettingsViewModel : BaseViewModel
         set => SetProperty(ref _linkedInOrganizationId, value);
     }
 
+    private string _linkedInRefreshToken = "";
+    public string LinkedInRefreshToken
+    {
+        get => _linkedInRefreshToken;
+        set => SetProperty(ref _linkedInRefreshToken, value);
+    }
+
     private bool _linkedInConnected;
     public bool LinkedInConnected
     {
@@ -458,6 +479,13 @@ public class SettingsViewModel : BaseViewModel
     {
         get => _pinterestBoardId;
         set => SetProperty(ref _pinterestBoardId, value);
+    }
+
+    private string _pinterestRefreshToken = "";
+    public string PinterestRefreshToken
+    {
+        get => _pinterestRefreshToken;
+        set => SetProperty(ref _pinterestRefreshToken, value);
     }
 
     private bool _pinterestConnected;
@@ -582,6 +610,7 @@ public class SettingsViewModel : BaseViewModel
         FacebookAppSecret = creds.Facebook.AppSecret;
         FacebookAccessToken = creds.Facebook.AccessToken;
         FacebookPageId = creds.Facebook.PageId;
+        FacebookPageAccessToken = creds.Facebook.PageAccessToken;
         FacebookConnected = creds.Facebook.IsConfigured;
 
         // Instagram
@@ -596,6 +625,7 @@ public class SettingsViewModel : BaseViewModel
         TikTokClientSecret = creds.TikTok.ClientSecret;
         TikTokAccessToken = creds.TikTok.AccessToken;
         TikTokOpenId = creds.TikTok.OpenId;
+        TikTokRefreshToken = creds.TikTok.RefreshToken;
         TikTokConnected = creds.TikTok.IsConfigured;
 
         // Twitter
@@ -632,6 +662,7 @@ public class SettingsViewModel : BaseViewModel
         LinkedInClientSecret = creds.LinkedIn.ClientSecret;
         LinkedInAccessToken = creds.LinkedIn.AccessToken;
         LinkedInOrganizationId = creds.LinkedIn.OrganizationId;
+        LinkedInRefreshToken = creds.LinkedIn.RefreshToken;
         LinkedInConnected = creds.LinkedIn.IsConfigured;
 
         // Pinterest
@@ -639,6 +670,7 @@ public class SettingsViewModel : BaseViewModel
         PinterestAppSecret = creds.Pinterest.AppSecret;
         PinterestAccessToken = creds.Pinterest.AccessToken;
         PinterestBoardId = creds.Pinterest.BoardId;
+        PinterestRefreshToken = creds.Pinterest.RefreshToken;
         PinterestConnected = creds.Pinterest.IsConfigured;
 
         IsDirty = false;
@@ -653,7 +685,8 @@ public class SettingsViewModel : BaseViewModel
             AppSecret = FacebookAppSecret,
             AccessToken = FacebookAccessToken,
             PageId = FacebookPageId,
-            IsConfigured = FacebookConnected
+            PageAccessToken = FacebookPageAccessToken,
+            IsConfigured = !string.IsNullOrEmpty(FacebookAccessToken) || !string.IsNullOrEmpty(FacebookPageAccessToken)
         });
 
         // Instagram
@@ -663,7 +696,7 @@ public class SettingsViewModel : BaseViewModel
             AppSecret = InstagramAppSecret,
             AccessToken = InstagramAccessToken,
             BusinessAccountId = InstagramBusinessAccountId,
-            IsConfigured = InstagramConnected
+            IsConfigured = !string.IsNullOrEmpty(InstagramAccessToken)
         });
 
         // TikTok
@@ -673,7 +706,8 @@ public class SettingsViewModel : BaseViewModel
             ClientSecret = TikTokClientSecret,
             AccessToken = TikTokAccessToken,
             OpenId = TikTokOpenId,
-            IsConfigured = TikTokConnected
+            RefreshToken = TikTokRefreshToken,
+            IsConfigured = !string.IsNullOrEmpty(TikTokAccessToken)
         });
 
         // Twitter
@@ -684,7 +718,7 @@ public class SettingsViewModel : BaseViewModel
             AccessToken = TwitterAccessToken,
             AccessTokenSecret = TwitterAccessTokenSecret,
             BearerToken = TwitterBearerToken,
-            IsConfigured = TwitterConnected
+            IsConfigured = !string.IsNullOrEmpty(TwitterBearerToken) || !string.IsNullOrEmpty(TwitterAccessToken)
         });
 
         // LINE
@@ -693,7 +727,7 @@ public class SettingsViewModel : BaseViewModel
             ChannelId = LineChannelId,
             ChannelSecret = LineChannelSecret,
             ChannelAccessToken = LineChannelAccessToken,
-            IsConfigured = LineConnected
+            IsConfigured = !string.IsNullOrEmpty(LineChannelAccessToken)
         });
 
         // YouTube
@@ -704,7 +738,7 @@ public class SettingsViewModel : BaseViewModel
             AccessToken = YouTubeAccessToken,
             RefreshToken = YouTubeRefreshToken,
             ChannelId = YouTubeChannelId,
-            IsConfigured = YouTubeConnected
+            IsConfigured = !string.IsNullOrEmpty(YouTubeAccessToken)
         });
 
         // Threads
@@ -714,7 +748,7 @@ public class SettingsViewModel : BaseViewModel
             AppSecret = ThreadsAppSecret,
             AccessToken = ThreadsAccessToken,
             UserId = ThreadsUserId,
-            IsConfigured = ThreadsConnected
+            IsConfigured = !string.IsNullOrEmpty(ThreadsAccessToken)
         });
 
         // LinkedIn
@@ -724,7 +758,8 @@ public class SettingsViewModel : BaseViewModel
             ClientSecret = LinkedInClientSecret,
             AccessToken = LinkedInAccessToken,
             OrganizationId = LinkedInOrganizationId,
-            IsConfigured = LinkedInConnected
+            RefreshToken = LinkedInRefreshToken,
+            IsConfigured = !string.IsNullOrEmpty(LinkedInAccessToken)
         });
 
         // Pinterest
@@ -734,7 +769,8 @@ public class SettingsViewModel : BaseViewModel
             AppSecret = PinterestAppSecret,
             AccessToken = PinterestAccessToken,
             BoardId = PinterestBoardId,
-            IsConfigured = PinterestConnected
+            RefreshToken = PinterestRefreshToken,
+            IsConfigured = !string.IsNullOrEmpty(PinterestAccessToken)
         });
 
         StatusMessage = "Platform credentials saved";
