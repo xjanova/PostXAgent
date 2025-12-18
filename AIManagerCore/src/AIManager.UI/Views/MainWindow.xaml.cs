@@ -297,6 +297,7 @@ public partial class MainWindow : Window
             "ModelManager" => new ModelManagerPage(),
             "WorkflowEditor" => new WorkflowEditorPage(),
             "Strategies" => new StrategiesPage(),
+            "ApiKeys" => new ApiKeysPage(),
             "Logs" => new LogsPage(),
             "Settings" => new SettingsPage(),
             _ => new DashboardPage(_orchestrator)

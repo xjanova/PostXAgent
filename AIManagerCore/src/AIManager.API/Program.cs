@@ -1,8 +1,10 @@
 using AIManager.API.Hubs;
+using AIManager.API.Middleware;
 using AIManager.Core.Orchestrator;
 using AIManager.Core.Models;
 using AIManager.Core.Workers;
 using AIManager.Core.WebAutomation;
+using AIManager.Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +55,23 @@ builder.Services.AddSingleton<WorkflowLearningEngine>();
 // Orchestrator
 builder.Services.AddSingleton<ProcessOrchestrator>();
 
+// API Key Service
+builder.Services.AddSingleton<ApiKeyService>();
+
 var app = builder.Build();
+
+// Generate master key if no keys exist (for initial setup)
+var apiKeyService = app.Services.GetRequiredService<ApiKeyService>();
+var masterKey = apiKeyService.GenerateMasterKeyIfNeeded();
+if (masterKey != null)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogWarning("========================================");
+    logger.LogWarning("INITIAL SETUP: Master API Key Generated");
+    logger.LogWarning("Key: {PlainKey}", masterKey.PlainKey);
+    logger.LogWarning("SAVE THIS KEY! It won't be shown again!");
+    logger.LogWarning("========================================");
+}
 
 // Configure pipeline
 if (app.Environment.IsDevelopment())
@@ -63,6 +81,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowLaravel");
+
+// API Key Authentication Middleware
+app.UseApiKeyAuth();
+
 app.UseAuthorization();
 app.MapControllers();
 
