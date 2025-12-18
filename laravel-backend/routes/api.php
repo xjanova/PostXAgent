@@ -12,6 +12,12 @@ use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\AIManagerStatusController;
 use App\Http\Controllers\Api\AccountPoolController;
 use App\Http\Controllers\Api\RentalController;
+use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\AccountCreationController;
+use App\Http\Controllers\Api\WebLearningController;
+use App\Http\Controllers\Api\UsageTrackingController;
+use App\Http\Controllers\Api\AdminRentalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,20 +27,22 @@ use App\Http\Controllers\Api\RentalController;
 
 // Public routes
 Route::prefix('v1')->group(function () {
-    // Authentication
-    Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login', [AuthController::class, 'login']);
-    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+    // Authentication (strict rate limit)
+    Route::middleware('throttle:auth')->group(function () {
+        Route::post('/auth/register', [AuthController::class, 'register']);
+        Route::post('/auth/login', [AuthController::class, 'login']);
+        Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+    });
 
     // Subscription plans (public)
     Route::get('/plans', [SubscriptionController::class, 'plans']);
 
-    // Stripe webhooks
-    Route::post('/webhooks/stripe', [WebhookController::class, 'handleStripe']);
-
-    // Omise webhooks (Thai payment gateway)
-    Route::post('/webhooks/omise', [RentalController::class, 'omiseWebhook']);
+    // Webhooks (higher rate limit)
+    Route::middleware('throttle:webhooks')->group(function () {
+        Route::post('/webhooks/stripe', [WebhookController::class, 'handleStripe']);
+        Route::post('/webhooks/omise', [RentalController::class, 'omiseWebhook']);
+    });
 
     // Rental packages (public)
     Route::get('/rentals/packages', [RentalController::class, 'packages']);
@@ -44,8 +52,8 @@ Route::prefix('v1')->group(function () {
     // OAuth callbacks
     Route::get('/oauth/{platform}/callback', [SocialAccountController::class, 'callback']);
 
-    // AI Manager Public Status (no auth required)
-    Route::prefix('ai-manager')->group(function () {
+    // AI Manager Public Status (relaxed rate limit)
+    Route::prefix('ai-manager')->middleware('throttle:status')->group(function () {
         Route::get('/status', [AIManagerStatusController::class, 'status']);
         Route::get('/status/full', [AIManagerStatusController::class, 'fullStatus']);
         Route::get('/status/badge', [AIManagerStatusController::class, 'badge']);
@@ -57,7 +65,7 @@ Route::prefix('v1')->group(function () {
 });
 
 // Protected routes
-Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // Auth
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
@@ -79,12 +87,30 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::post('/campaigns/{campaign}/pause', [CampaignController::class, 'pause']);
     Route::post('/campaigns/{campaign}/stop', [CampaignController::class, 'stop']);
 
-    // Posts
-    Route::apiResource('posts', PostController::class);
-    Route::post('/posts/generate-content', [PostController::class, 'generateContent']);
-    Route::post('/posts/generate-image', [PostController::class, 'generateImage']);
-    Route::post('/posts/{post}/publish', [PostController::class, 'publish']);
-    Route::get('/posts/{post}/metrics', [PostController::class, 'metrics']);
+    // Posts (with rental limit checks)
+    Route::middleware(['rental.active'])->group(function () {
+        Route::apiResource('posts', PostController::class);
+        Route::get('/posts/{post}/metrics', [PostController::class, 'metrics']);
+
+        // Bulk operations for posts
+        Route::prefix('posts/bulk')->group(function () {
+            Route::delete('/', [PostController::class, 'bulkDelete']);
+            Route::put('/status', [PostController::class, 'bulkUpdateStatus']);
+            Route::post('/schedule', [PostController::class, 'bulkSchedule']);
+        });
+    });
+
+    // AI Content Generation (with rental limits + rate limit)
+    Route::middleware(['rental.active', 'rental.limit:ai_generations', 'throttle:ai-generation'])->group(function () {
+        Route::post('/posts/generate-content', [PostController::class, 'generateContent']);
+        Route::post('/posts/generate-image', [PostController::class, 'generateImage']);
+    });
+
+    // Publishing (with rental limits + rate limit)
+    Route::middleware(['rental.active', 'rental.limit:posts', 'throttle:publishing'])->group(function () {
+        Route::post('/posts/{post}/publish', [PostController::class, 'publish']);
+        Route::post('/posts/bulk/publish', [PostController::class, 'bulkPublish']);
+    });
 
     // Subscriptions
     Route::prefix('subscription')->group(function () {
@@ -104,6 +130,25 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::get('/engagement', [AnalyticsController::class, 'engagement']);
         Route::get('/platforms', [AnalyticsController::class, 'platforms']);
         Route::get('/brands/{brand}', [AnalyticsController::class, 'brand']);
+    });
+
+    // Export (CSV/JSON)
+    Route::prefix('export')->group(function () {
+        Route::get('/posts', [ExportController::class, 'exportPosts']);
+        Route::get('/campaigns', [ExportController::class, 'exportCampaigns']);
+        Route::get('/analytics', [ExportController::class, 'exportAnalytics']);
+    });
+
+    // Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('/{id}', [NotificationController::class, 'destroy']);
+        Route::delete('/', [NotificationController::class, 'destroyAll']);
+        Route::get('/preferences', [NotificationController::class, 'preferences']);
+        Route::put('/preferences', [NotificationController::class, 'updatePreferences']);
     });
 
     // Note: AI Manager status endpoints moved to public routes above
@@ -163,9 +208,123 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
 
     // Rentals Admin (admin only)
     Route::prefix('admin/rentals')->middleware(['role:admin'])->group(function () {
+        // Legacy endpoints (kept for backward compatibility)
         Route::get('/payments', [RentalController::class, 'adminPayments']);
         Route::post('/payments/{uuid}/verify', [RentalController::class, 'adminVerifyPayment']);
         Route::post('/payments/{uuid}/reject', [RentalController::class, 'adminRejectPayment']);
         Route::get('/stats', [RentalController::class, 'adminStats']);
+
+        // User Rental Management - จัดการ rentals ของผู้ใช้
+        Route::get('/', [AdminRentalController::class, 'index']);
+        Route::get('/{id}', [AdminRentalController::class, 'show']);
+        Route::put('/{id}', [AdminRentalController::class, 'update']);
+        Route::post('/{id}/extend', [AdminRentalController::class, 'extend']);
+        Route::post('/{id}/suspend', [AdminRentalController::class, 'suspend']);
+        Route::post('/{id}/reactivate', [AdminRentalController::class, 'reactivate']);
+        Route::post('/create-manual', [AdminRentalController::class, 'createManual']);
+
+        // Refund Management - จัดการการคืนเงิน
+        Route::post('/payments/{id}/refund', [AdminRentalController::class, 'processRefund']);
+        Route::post('/refunds/{id}/complete', [AdminRentalController::class, 'completeRefund']);
+
+        // Package Management - จัดการแพ็กเกจ
+        Route::get('/packages/all', [AdminRentalController::class, 'listPackages']);
+        Route::post('/packages', [AdminRentalController::class, 'createPackage']);
+        Route::put('/packages/{id}', [AdminRentalController::class, 'updatePackage']);
+        Route::post('/packages/{id}/toggle-active', [AdminRentalController::class, 'togglePackageActive']);
+
+        // Reports & Analytics - รายงานและวิเคราะห์
+        Route::get('/reports/revenue', [AdminRentalController::class, 'revenueReport']);
+        Route::get('/reports/users', [AdminRentalController::class, 'userReport']);
+        Route::get('/reports/dashboard', [AdminRentalController::class, 'dashboard']);
     });
+
+    // Account Creation - ระบบสร้างบัญชี Social Media อัตโนมัติ
+    Route::prefix('account-creation')->group(function () {
+        // Tasks
+        Route::get('/tasks', [AccountCreationController::class, 'listTasks']);
+        Route::post('/tasks', [AccountCreationController::class, 'createTask']);
+        Route::post('/tasks/bulk', [AccountCreationController::class, 'createBulkTasks']);
+        Route::get('/tasks/{task}', [AccountCreationController::class, 'getTask']);
+        Route::post('/tasks/{task}/retry', [AccountCreationController::class, 'retryTask']);
+        Route::post('/tasks/{task}/cancel', [AccountCreationController::class, 'cancelTask']);
+
+        // Statistics and Resources
+        Route::get('/statistics', [AccountCreationController::class, 'getStatistics']);
+        Route::get('/resources/check', [AccountCreationController::class, 'checkResources']);
+
+        // Phone Numbers
+        Route::get('/phone-numbers', [AccountCreationController::class, 'listPhoneNumbers']);
+        Route::post('/phone-numbers', [AccountCreationController::class, 'addPhoneNumber']);
+        Route::delete('/phone-numbers/{phone}', [AccountCreationController::class, 'deletePhoneNumber']);
+
+        // Email Accounts
+        Route::get('/email-accounts', [AccountCreationController::class, 'listEmailAccounts']);
+        Route::post('/email-accounts', [AccountCreationController::class, 'addEmailAccount']);
+        Route::delete('/email-accounts/{email}', [AccountCreationController::class, 'deleteEmailAccount']);
+
+        // Proxy Servers
+        Route::get('/proxies', [AccountCreationController::class, 'listProxies']);
+        Route::post('/proxies', [AccountCreationController::class, 'addProxy']);
+        Route::delete('/proxies/{proxy}', [AccountCreationController::class, 'deleteProxy']);
+        Route::post('/proxies/{proxy}/test', [AccountCreationController::class, 'testProxy']);
+    });
+
+    // Web Learning - ระบบเรียนรู้และจดจำ workflow อัตโนมัติ
+    Route::prefix('web-learning')->group(function () {
+        // Workflows CRUD
+        Route::get('/workflows', [WebLearningController::class, 'index']);
+        Route::get('/workflows/{workflow}', [WebLearningController::class, 'show']);
+        Route::put('/workflows/{workflow}', [WebLearningController::class, 'update']);
+        Route::delete('/workflows/{workflow}', [WebLearningController::class, 'destroy']);
+        Route::get('/workflows/{workflow}/steps', [WebLearningController::class, 'getSteps']);
+
+        // Teaching Sessions - สอน workflow ใหม่ด้วยการสาธิต
+        Route::post('/teaching/start', [WebLearningController::class, 'startTeachingSession']);
+        Route::post('/teaching/{workflow}/record-step', [WebLearningController::class, 'recordStep']);
+        Route::post('/teaching/{workflow}/complete', [WebLearningController::class, 'completeTeachingSession']);
+        Route::post('/teaching/{workflow}/cancel', [WebLearningController::class, 'cancelTeachingSession']);
+
+        // Workflow Testing - ทดสอบ workflow
+        Route::post('/workflows/{workflow}/test', [WebLearningController::class, 'testWorkflow']);
+        Route::get('/workflows/{workflow}/test-history', [WebLearningController::class, 'testHistory']);
+
+        // Execution - รัน workflow
+        Route::post('/workflows/{workflow}/execute', [WebLearningController::class, 'executeWorkflow']);
+        Route::get('/executions', [WebLearningController::class, 'listExecutions']);
+        Route::get('/executions/{execution}', [WebLearningController::class, 'getExecution']);
+        Route::post('/executions/{execution}/cancel', [WebLearningController::class, 'cancelExecution']);
+
+        // AI Analysis - วิเคราะห์หน้าเว็บด้วย AI
+        Route::post('/ai/analyze-page', [WebLearningController::class, 'analyzePageWithAI']);
+        Route::post('/ai/generate-workflow', [WebLearningController::class, 'generateWorkflowFromAI']);
+        Route::post('/ai/suggest-selectors', [WebLearningController::class, 'suggestSelectors']);
+
+        // Optimization - ปรับปรุง workflow
+        Route::post('/workflows/{workflow}/optimize', [WebLearningController::class, 'optimizeWorkflow']);
+        Route::post('/workflows/{workflow}/clone', [WebLearningController::class, 'cloneWorkflow']);
+        Route::post('/workflows/{workflow}/merge', [WebLearningController::class, 'mergeWorkflows']);
+
+        // Statistics
+        Route::get('/statistics', [WebLearningController::class, 'statistics']);
+        Route::get('/statistics/by-platform', [WebLearningController::class, 'statisticsByPlatform']);
+    });
+
+    // Web Learning Admin (admin only)
+    Route::prefix('web-learning')->middleware(['role:admin'])->group(function () {
+        Route::post('/workflows/import', [WebLearningController::class, 'importWorkflows']);
+        Route::get('/workflows/export', [WebLearningController::class, 'exportWorkflows']);
+        Route::post('/reset-learning', [WebLearningController::class, 'resetLearning']);
+    });
+});
+
+// Internal API Routes - สำหรับ C# Core และ internal services
+Route::prefix('internal')->middleware(['internal.auth'])->group(function () {
+    // Usage Tracking - ติดตามการใช้งาน
+    Route::post('/usage/increment', [UsageTrackingController::class, 'increment']);
+    Route::post('/usage/check', [UsageTrackingController::class, 'check']);
+    Route::get('/usage/{userId}', [UsageTrackingController::class, 'status']);
+
+    // Validate API key
+    Route::post('/validate-key', [UsageTrackingController::class, 'validateKey']);
 });

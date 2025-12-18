@@ -5,6 +5,9 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
 $app = Application::configure(basePath: dirname(__DIR__))
+    ->withProviders([
+        \App\Providers\AuthServiceProvider::class,
+    ])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
@@ -20,6 +23,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+            'rental.active' => \App\Http\Middleware\CheckActiveRental::class,
+            'rental.limit' => \App\Http\Middleware\CheckRentalLimits::class,
+            'internal.auth' => \App\Http\Middleware\InternalApiAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

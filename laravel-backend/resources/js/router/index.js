@@ -31,6 +31,9 @@ import AdminRentals from '../views/admin/Rentals.vue'
 import AdminPromoCodes from '../views/admin/PromoCodes.vue'
 import AdminSystem from '../views/admin/System.vue'
 
+// Error Pages
+import NotFound from '../views/NotFound.vue'
+
 const routes = [
     // Auth Routes (ไม่ต้อง login)
     {
@@ -78,8 +81,8 @@ const routes = [
         ]
     },
 
-    // 404 Redirect
-    { path: '/:pathMatch(.*)*', redirect: '/' }
+    // 404 Page
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFound }
 ]
 
 const router = createRouter({

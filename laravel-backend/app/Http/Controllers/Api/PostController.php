@@ -250,4 +250,188 @@ class PostController extends Controller
             'metrics' => $post->fresh()->metrics,
         ]);
     }
+
+    /**
+     * Bulk delete posts
+     */
+    public function bulkDelete(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'post_ids' => 'required|array|min:1|max:100',
+            'post_ids.*' => 'integer|exists:posts,id',
+        ]);
+
+        $userId = $request->user()->id;
+        $postIds = $validated['post_ids'];
+
+        // Verify ownership of all posts
+        $posts = Post::where('user_id', $userId)
+            ->whereIn('id', $postIds)
+            ->get();
+
+        if ($posts->count() !== count($postIds)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Some posts do not belong to you or do not exist',
+            ], 403);
+        }
+
+        // Delete from platform if published
+        foreach ($posts as $post) {
+            if ($post->isPublished() && $post->platform_post_id) {
+                $this->aiManager->deletePost($post);
+            }
+        }
+
+        $deletedCount = Post::whereIn('id', $postIds)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully deleted {$deletedCount} posts",
+            'deleted_count' => $deletedCount,
+        ]);
+    }
+
+    /**
+     * Bulk update post status
+     */
+    public function bulkUpdateStatus(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'post_ids' => 'required|array|min:1|max:100',
+            'post_ids.*' => 'integer|exists:posts,id',
+            'status' => 'required|string|in:draft,pending,scheduled',
+        ]);
+
+        $userId = $request->user()->id;
+        $postIds = $validated['post_ids'];
+
+        // Verify ownership and editable status
+        $posts = Post::where('user_id', $userId)
+            ->whereIn('id', $postIds)
+            ->get();
+
+        if ($posts->count() !== count($postIds)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Some posts do not belong to you or do not exist',
+            ], 403);
+        }
+
+        $nonEditable = $posts->filter(fn($p) => !$p->canBeEdited());
+        if ($nonEditable->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Some posts cannot be edited in their current status',
+                'non_editable_ids' => $nonEditable->pluck('id'),
+            ], 400);
+        }
+
+        $updatedCount = Post::whereIn('id', $postIds)->update([
+            'status' => $validated['status'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully updated {$updatedCount} posts",
+            'updated_count' => $updatedCount,
+        ]);
+    }
+
+    /**
+     * Bulk publish posts
+     */
+    public function bulkPublish(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'post_ids' => 'required|array|min:1|max:50',
+            'post_ids.*' => 'integer|exists:posts,id',
+        ]);
+
+        $userId = $request->user()->id;
+        $postIds = $validated['post_ids'];
+
+        $posts = Post::where('user_id', $userId)
+            ->whereIn('id', $postIds)
+            ->whereIn('status', [Post::STATUS_DRAFT, Post::STATUS_PENDING, Post::STATUS_SCHEDULED])
+            ->get();
+
+        if ($posts->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No publishable posts found',
+            ], 400);
+        }
+
+        $queuedCount = 0;
+        foreach ($posts as $post) {
+            PublishPost::dispatch($post);
+            $post->update(['status' => Post::STATUS_PUBLISHING]);
+            $queuedCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Queued {$queuedCount} posts for publishing",
+            'queued_count' => $queuedCount,
+        ]);
+    }
+
+    /**
+     * Bulk schedule posts
+     */
+    public function bulkSchedule(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'post_ids' => 'required|array|min:1|max:100',
+            'post_ids.*' => 'integer|exists:posts,id',
+            'scheduled_at' => 'required|date|after:now',
+            'interval_minutes' => 'nullable|integer|min:5|max:1440',
+        ]);
+
+        $userId = $request->user()->id;
+        $postIds = $validated['post_ids'];
+        $intervalMinutes = $validated['interval_minutes'] ?? 0;
+
+        $posts = Post::where('user_id', $userId)
+            ->whereIn('id', $postIds)
+            ->get();
+
+        if ($posts->count() !== count($postIds)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Some posts do not belong to you or do not exist',
+            ], 403);
+        }
+
+        $nonEditable = $posts->filter(fn($p) => !$p->canBeEdited());
+        if ($nonEditable->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Some posts cannot be scheduled in their current status',
+                'non_editable_ids' => $nonEditable->pluck('id'),
+            ], 400);
+        }
+
+        $scheduledAt = \Carbon\Carbon::parse($validated['scheduled_at']);
+        $scheduledCount = 0;
+
+        foreach ($posts as $index => $post) {
+            $postScheduleTime = $intervalMinutes > 0
+                ? $scheduledAt->copy()->addMinutes($index * $intervalMinutes)
+                : $scheduledAt;
+
+            $post->update([
+                'scheduled_at' => $postScheduleTime,
+                'status' => Post::STATUS_SCHEDULED,
+            ]);
+            $scheduledCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully scheduled {$scheduledCount} posts",
+            'scheduled_count' => $scheduledCount,
+        ]);
+    }
 }

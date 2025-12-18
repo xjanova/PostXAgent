@@ -176,16 +176,23 @@ class RentalPackage extends Model
      */
     public function getPricePerDay(): float
     {
-        $days = match ($this->duration_type) {
-            'hourly' => $this->duration_value / 24,
-            'daily' => $this->duration_value,
-            'weekly' => $this->duration_value * 7,
-            'monthly' => $this->duration_value * 30,
-            'yearly' => $this->duration_value * 365,
+        $days = $this->getDurationInDays();
+        return $days > 0 ? $this->price / $days : $this->price;
+    }
+
+    /**
+     * Get duration in days
+     */
+    public function getDurationInDays(): int
+    {
+        return match ($this->duration_type) {
+            'hourly' => max(1, (int) ceil($this->duration_value / 24)),
+            'daily', 'days' => $this->duration_value,
+            'weekly', 'weeks' => $this->duration_value * 7,
+            'monthly', 'months' => $this->duration_value * 30,
+            'yearly', 'years' => $this->duration_value * 365,
             default => $this->duration_value,
         };
-
-        return $days > 0 ? $this->price / $days : $this->price;
     }
 
     /**

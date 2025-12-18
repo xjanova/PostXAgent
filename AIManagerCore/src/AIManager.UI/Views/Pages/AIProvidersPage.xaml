@@ -3,72 +3,303 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
       Title="AI Providers">
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <ScrollViewer Margin="20">
+        <StackPanel>
+            <TextBlock Text="AI Providers" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
 
-        <TextBlock Grid.Row="0" Text="AI Providers" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+            <!-- Tab Selector -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                <RadioButton x:Name="TabProviders" Content="AI Providers" IsChecked="True"
+                             Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                             Checked="Tab_Changed" Margin="0,0,10,0"/>
+                <RadioButton x:Name="TabHuggingFace" Content="HuggingFace"
+                             Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                             Checked="Tab_Changed" Margin="0,0,10,0"/>
+                <RadioButton x:Name="TabGpuRental" Content="GPU Rental"
+                             Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                             Checked="Tab_Changed"/>
+            </StackPanel>
 
-        <ItemsControl Grid.Row="1" x:Name="ProvidersList">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <WrapPanel/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <materialDesign:Card Width="280" Height="180" Margin="10" Padding="15">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+            <!-- AI Providers Panel -->
+            <StackPanel x:Name="ProvidersPanel">
+                <ItemsControl x:Name="ProvidersList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <materialDesign:Card Width="280" Height="180" Margin="10" Padding="15">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                            <StackPanel Grid.Row="0" Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="{Binding Icon}" Width="32" Height="32" VerticalAlignment="Center"/>
-                                <StackPanel Margin="10,0,0,0">
-                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding PriceTag}" FontSize="10" FontWeight="Bold"
-                                               Foreground="{Binding PriceColor}"/>
-                                </StackPanel>
-                            </StackPanel>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="{Binding Icon}" Width="32" Height="32" VerticalAlignment="Center"/>
+                                        <StackPanel Margin="10,0,0,0">
+                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding PriceTag}" FontSize="10" FontWeight="Bold"
+                                                       Foreground="{Binding PriceColor}"/>
+                                        </StackPanel>
+                                    </StackPanel>
 
-                            <TextBlock Grid.Row="1" Text="{Binding Description}" TextWrapping="Wrap"
-                                       Foreground="Gray" Margin="0,10,0,0"/>
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}" TextWrapping="Wrap"
+                                               Foreground="Gray" Margin="0,10,0,0"/>
 
-                            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                                <Ellipse Width="10" Height="10" Margin="0,0,8,0">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="#F44336"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsConfigured}" Value="True">
-                                                    <Setter Property="Fill" Value="#4CAF50"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock>
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="Not Configured"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsConfigured}" Value="True">
-                                                    <Setter Property="Text" Value="Configured"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Margin="0,0,8,0">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="#F44336"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsConfigured}" Value="True">
+                                                            <Setter Property="Fill" Value="#4CAF50"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                        <TextBlock>
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="Not Configured"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsConfigured}" Value="True">
+                                                            <Setter Property="Text" Value="Configured"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </materialDesign:Card>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- HuggingFace Panel -->
+            <StackPanel x:Name="HuggingFacePanel" Visibility="Collapsed">
+                <!-- HuggingFace Token Section -->
+                <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <materialDesign:PackIcon Kind="Github" Width="28" Height="28" VerticalAlignment="Center"/>
+                            <TextBlock Text="HuggingFace Authentication" FontSize="18" FontWeight="Bold"
+                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,15" Foreground="Gray">
+                            HuggingFace Token ใช้สำหรับเข้าถึง Private Models และ Gated Models (เช่น Llama, Flux)
+                            สามารถสร้าง Token ได้ที่: https://huggingface.co/settings/tokens
+                        </TextBlock>
+
+                        <Grid Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <PasswordBox x:Name="TxtHFToken"
+                                         materialDesign:HintAssist.Hint="HuggingFace Token (hf_xxx...)"
+                                         materialDesign:TextFieldAssist.HasClearButton="True"
+                                         Style="{StaticResource MaterialDesignOutlinedPasswordBox}"/>
+                            <Button Grid.Column="1" Content="Validate" Click="ValidateHFToken_Click"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Margin="10,0,0,0" Width="100" x:Name="BtnValidateHF"/>
                         </Grid>
-                    </materialDesign:Card>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-    </Grid>
+
+                        <!-- Token Status -->
+                        <Border x:Name="HFStatusBorder" Background="#F5F5F5" CornerRadius="8" Padding="12">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="HFStatusIndicator" Width="10" Height="10" Fill="#9E9E9E" Margin="0,0,10,0"/>
+                                <TextBlock x:Name="TxtHFStatus" Text="No token configured"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Save Token Button -->
+                        <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                            <Button Content="Save Token" Click="SaveHFToken_Click"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,10,0"/>
+                            <Button Content="Get Token" Click="GetHFToken_Click"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- HuggingFace Features -->
+                <materialDesign:Card Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="Token Benefits" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <materialDesign:PackIcon Kind="Check" Foreground="#4CAF50" Margin="0,0,8,0"/>
+                            <TextBlock Text="Access to Gated Models (Llama 3.1, Llama 3.2, Flux, etc.)"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <materialDesign:PackIcon Kind="Check" Foreground="#4CAF50" Margin="0,0,8,0"/>
+                            <TextBlock Text="Download Private Repositories"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <materialDesign:PackIcon Kind="Check" Foreground="#4CAF50" Margin="0,0,8,0"/>
+                            <TextBlock Text="Access to HuggingFace Spaces (ZeroGPU)"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <materialDesign:PackIcon Kind="Check" Foreground="#4CAF50" Margin="0,0,8,0"/>
+                            <TextBlock Text="Higher Rate Limits for API Calls"/>
+                        </StackPanel>
+                    </StackPanel>
+                </materialDesign:Card>
+            </StackPanel>
+
+            <!-- GPU Rental Panel -->
+            <StackPanel x:Name="GpuRentalPanel" Visibility="Collapsed">
+                <!-- Info Banner -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15" Background="#E3F2FD">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Information" Width="24" Height="24" Foreground="#1976D2" Margin="0,0,10,0"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="#1565C0">
+                            GPU Rental Services ช่วยให้คุณรันโมเดล AI ขนาดใหญ่ได้ แม้ไม่มี GPU ในเครื่อง
+                            เราแนะนำบริการฟรีก่อน เช่น Kaggle (30 ชม./สัปดาห์) หรือ Google Colab
+                        </TextBlock>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Free Services -->
+                <TextBlock Text="Free Services (แนะนำ)" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                <ItemsControl x:Name="FreeGpuList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <materialDesign:Card Width="340" Margin="0,0,15,15" Padding="15">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                                        <materialDesign:PackIcon Kind="Gpu" Width="28" Height="28"
+                                                                 Foreground="#4CAF50" VerticalAlignment="Center"/>
+                                        <StackPanel Margin="10,0,0,0">
+                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding GpuType}" FontSize="11" Foreground="Gray"/>
+                                        </StackPanel>
+                                        <Border Background="#C8E6C9" CornerRadius="4" Padding="6,2" Margin="10,0,0,0"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="FREE" FontSize="10" Foreground="#2E7D32" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Description -->
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}" TextWrapping="Wrap"
+                                               Foreground="Gray" Margin="0,0,0,10"/>
+
+                                    <!-- Features -->
+                                    <ItemsControl Grid.Row="2" ItemsSource="{Binding Features}" Margin="0,0,0,10">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                    <materialDesign:PackIcon Kind="CheckCircle" Width="14" Height="14"
+                                                                             Foreground="#4CAF50" Margin="0,0,5,0"/>
+                                                    <TextBlock Text="{Binding}" FontSize="11"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Actions -->
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal">
+                                        <Button Content="Setup" Click="SetupGpuProvider_Click" Tag="{Binding Id}"
+                                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                                Margin="0,0,10,0" Height="28" Padding="10,0"/>
+                                        <Button Content="Docs" Click="OpenGpuDocs_Click" Tag="{Binding DocumentationUrl}"
+                                                Style="{StaticResource MaterialDesignFlatButton}"
+                                                Height="28" Padding="10,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </materialDesign:Card>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Paid Services -->
+                <TextBlock Text="Paid Services" FontSize="16" FontWeight="Bold" Margin="0,20,0,10"/>
+                <ItemsControl x:Name="PaidGpuList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <materialDesign:Card Width="340" Margin="0,0,15,15" Padding="15">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header -->
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                                        <materialDesign:PackIcon Kind="Gpu" Width="28" Height="28"
+                                                                 Foreground="#FF9800" VerticalAlignment="Center"/>
+                                        <StackPanel Margin="10,0,0,0">
+                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding GpuType}" FontSize="11" Foreground="Gray"/>
+                                        </StackPanel>
+                                        <Border Background="#FFF3E0" CornerRadius="4" Padding="6,2" Margin="10,0,0,0"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding PriceDisplay}" FontSize="10" Foreground="#E65100" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Description -->
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}" TextWrapping="Wrap"
+                                               Foreground="Gray" Margin="0,0,0,10"/>
+
+                                    <!-- Features -->
+                                    <ItemsControl Grid.Row="2" ItemsSource="{Binding Features}" Margin="0,0,0,10">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                    <materialDesign:PackIcon Kind="CheckCircle" Width="14" Height="14"
+                                                                             Foreground="#FF9800" Margin="0,0,5,0"/>
+                                                    <TextBlock Text="{Binding}" FontSize="11"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Actions -->
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal">
+                                        <Button Content="Setup" Click="SetupGpuProvider_Click" Tag="{Binding Id}"
+                                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                                Margin="0,0,10,0" Height="28" Padding="10,0"/>
+                                        <Button Content="Docs" Click="OpenGpuDocs_Click" Tag="{Binding DocumentationUrl}"
+                                                Style="{StaticResource MaterialDesignFlatButton}"
+                                                Height="28" Padding="10,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </materialDesign:Card>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
 </Page>
