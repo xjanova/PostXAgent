@@ -1,0 +1,284 @@
+<Page x:Class="AIManager.UI.Views.Pages.StrategiesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      Title="Posting Strategies">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Margin="20,20,20,10">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <materialDesign:PackIcon Kind="Strategy" Width="32" Height="32" VerticalAlignment="Center" Foreground="White" Margin="0,0,15,0"/>
+                <TextBlock Text="Posting Strategies" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="Configure and customize your posting strategies for different campaigns and goals."
+                       FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" Margin="20,0,20,20" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="900">
+
+                <!-- Quick Select Strategy -->
+                <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Quick Select Strategy" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <WrapPanel Margin="0,0,0,10">
+                            <RadioButton x:Name="StrategyOrganic" Content="Organic Growth" GroupName="QuickStrategy"
+                                         Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                         IsChecked="True" Checked="Strategy_Changed" Margin="0,0,10,10" Tag="organic"/>
+                            <RadioButton x:Name="StrategyAggressive" Content="Aggressive" GroupName="QuickStrategy"
+                                         Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                         Checked="Strategy_Changed" Margin="0,0,10,10" Tag="aggressive"/>
+                            <RadioButton x:Name="StrategyBrand" Content="Brand Building" GroupName="QuickStrategy"
+                                         Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                         Checked="Strategy_Changed" Margin="0,0,10,10" Tag="brand_building"/>
+                            <RadioButton x:Name="StrategyLaunch" Content="Product Launch" GroupName="QuickStrategy"
+                                         Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                         Checked="Strategy_Changed" Margin="0,0,10,10" Tag="product_launch"/>
+                            <RadioButton x:Name="StrategyCommunity" Content="Community" GroupName="QuickStrategy"
+                                         Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                         Checked="Strategy_Changed" Margin="0,0,10,10" Tag="community"/>
+                        </WrapPanel>
+
+                        <Border x:Name="StrategyDescriptionPanel" Background="#1A1A2E" CornerRadius="8" Padding="15">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtStrategyName" Text="Organic Growth" FontSize="14" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                <TextBlock x:Name="TxtStrategyDescription" Text="Natural posting for quality engagement" Foreground="#BBBBBB"
+                                           TextWrapping="Wrap" Margin="0,5,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Strategy Details -->
+                <materialDesign:Card x:Name="StrategyDetailsCard" Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Strategy Settings" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <Grid Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Posts Per Day -->
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock Text="Posts Per Day" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="SliderPostsPerDay" Minimum="1" Maximum="10" Value="3" Width="150"
+                                            TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SliderPostsPerDay_Changed"/>
+                                    <TextBlock x:Name="TxtPostsPerDay" Text="3" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Min Interval -->
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Min Interval (minutes)" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="SliderMinInterval" Minimum="30" Maximum="480" Value="120" Width="150"
+                                            TickFrequency="30" IsSnapToTickEnabled="True" ValueChanged="SliderMinInterval_Changed"/>
+                                    <TextBlock x:Name="TxtMinInterval" Text="120" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Optimal Times -->
+                        <TextBlock Text="Optimal Posting Times" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                        <WrapPanel x:Name="OptimalTimesPanel" Margin="0,0,0,15">
+                            <CheckBox x:Name="Time06" Content="06:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time07" Content="07:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time08" Content="08:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time09" Content="09:00" IsChecked="True" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time10" Content="10:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time11" Content="11:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time12" Content="12:00" IsChecked="True" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time13" Content="13:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time14" Content="14:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time15" Content="15:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time16" Content="16:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time17" Content="17:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time18" Content="18:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time19" Content="19:00" IsChecked="True" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time20" Content="20:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time21" Content="21:00" Margin="0,0,15,5"/>
+                            <CheckBox x:Name="Time22" Content="22:00" Margin="0,0,15,5"/>
+                        </WrapPanel>
+
+                        <!-- Content Mix -->
+                        <TextBlock Text="Content Mix" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Margin="0,0,10,10">
+                                <TextBlock Text="Promotional" FontSize="11" Foreground="#888"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="SliderPromotional" Minimum="0" Maximum="100" Value="20" Width="120"
+                                            ValueChanged="ContentMix_Changed"/>
+                                    <TextBlock x:Name="TxtPromotional" Text="20%" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="0,0,0,10">
+                                <TextBlock Text="Educational" FontSize="11" Foreground="#888"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="SliderEducational" Minimum="0" Maximum="100" Value="40" Width="120"
+                                            ValueChanged="ContentMix_Changed"/>
+                                    <TextBlock x:Name="TxtEducational" Text="40%" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Margin="0,0,10,0">
+                                <TextBlock Text="Entertaining" FontSize="11" Foreground="#888"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="SliderEntertaining" Minimum="0" Maximum="100" Value="30" Width="120"
+                                            ValueChanged="ContentMix_Changed"/>
+                                    <TextBlock x:Name="TxtEntertaining" Text="30%" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="1">
+                                <TextBlock Text="Engagement" FontSize="11" Foreground="#888"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="SliderEngagement" Minimum="0" Maximum="100" Value="10" Width="120"
+                                            ValueChanged="ContentMix_Changed"/>
+                                    <TextBlock x:Name="TxtEngagement" Text="10%" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Background="#2D2D44" CornerRadius="4" Padding="10" Margin="0,0,0,15">
+                            <TextBlock x:Name="TxtContentMixTotal" Text="Total: 100%" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Hashtag Strategy -->
+                        <TextBlock Text="Hashtag Strategy" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                        <TextBox x:Name="TxtHashtagStrategy"
+                                 Text="Use 5-10 relevant hashtags"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 TextWrapping="Wrap" AcceptsReturn="True" MinHeight="60"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Platform-Specific Settings -->
+                <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Platform-Specific Adjustments" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                        <!-- Facebook -->
+                        <Expander Header="Facebook" Margin="0,0,0,10">
+                            <StackPanel Margin="10">
+                                <CheckBox x:Name="ChkFbEnabled" Content="Enable Facebook posting" IsChecked="True" Margin="0,0,0,10"/>
+                                <TextBlock Text="Best times: 9 AM - 3 PM on weekdays" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1-2 posts/day, focus on video content" FontSize="11" Foreground="#888"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Instagram -->
+                        <Expander Header="Instagram" Margin="0,0,0,10">
+                            <StackPanel Margin="10">
+                                <CheckBox x:Name="ChkIgEnabled" Content="Enable Instagram posting" IsChecked="True" Margin="0,0,0,10"/>
+                                <TextBlock Text="Best times: 11 AM - 1 PM, 7-9 PM" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1-3 posts/day, Stories daily, Reels 3-5x/week" FontSize="11" Foreground="#888"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- TikTok -->
+                        <Expander Header="TikTok" Margin="0,0,0,10">
+                            <StackPanel Margin="10">
+                                <CheckBox x:Name="ChkTikTokEnabled" Content="Enable TikTok posting" IsChecked="True" Margin="0,0,0,10"/>
+                                <TextBlock Text="Best times: 7-9 PM daily" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1-4 posts/day, trend-following content" FontSize="11" Foreground="#888"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Twitter/X -->
+                        <Expander Header="Twitter/X" Margin="0,0,0,10">
+                            <StackPanel Margin="10">
+                                <CheckBox x:Name="ChkTwitterEnabled" Content="Enable Twitter posting" IsChecked="True" Margin="0,0,0,10"/>
+                                <TextBlock Text="Best times: 8 AM, 12 PM, 5-6 PM" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 3-5 tweets/day, engage with trending topics" FontSize="11" Foreground="#888"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- LINE -->
+                        <Expander Header="LINE Official" Margin="0,0,0,10">
+                            <StackPanel Margin="10">
+                                <CheckBox x:Name="ChkLineEnabled" Content="Enable LINE posting" IsChecked="True" Margin="0,0,0,10"/>
+                                <TextBlock Text="Best times: 12 PM, 6-8 PM" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1 broadcast/day max to avoid spam" FontSize="11" Foreground="#888"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Content Templates -->
+                <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <TextBlock Text="Content Templates" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Button Content="Add Template" Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Click="AddTemplate_Click" Margin="20,0,0,0" Height="30"/>
+                        </StackPanel>
+
+                        <ItemsControl x:Name="TemplatesPanel">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#1A1A2E" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
+                                                <TextBlock Text="{Binding TemplateType}" FontSize="11" Foreground="#8B5CF6"/>
+                                                <TextBlock Text="{Binding Content}" FontSize="12" Foreground="#AAAAAA"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="500"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <Button Style="{StaticResource MaterialDesignIconButton}"
+                                                        ToolTip="Edit" Click="EditTemplate_Click" Tag="{Binding Id}">
+                                                    <materialDesign:PackIcon Kind="Pencil" Width="18" Height="18"/>
+                                                </Button>
+                                                <Button Style="{StaticResource MaterialDesignIconButton}"
+                                                        ToolTip="Delete" Click="DeleteTemplate_Click" Tag="{Binding Id}">
+                                                    <materialDesign:PackIcon Kind="Delete" Width="18" Height="18"/>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock x:Name="TxtNoTemplates" Text="No templates yet. Click 'Add Template' to create one."
+                                   Foreground="#888" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Action Buttons -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,20">
+                    <Button Content="Reset to Default" Style="{StaticResource MaterialDesignOutlinedButton}"
+                            Click="ResetStrategy_Click" Margin="0,0,10,0"/>
+                    <Button Content="Save Strategy" Style="{StaticResource MaterialDesignRaisedButton}"
+                            Click="SaveStrategy_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

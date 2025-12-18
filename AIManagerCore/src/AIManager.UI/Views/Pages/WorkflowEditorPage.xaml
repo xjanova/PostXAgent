@@ -1,0 +1,185 @@
+<Page x:Class="AIManager.UI.Views.Pages.WorkflowEditorPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      xmlns:nodeEditor="clr-namespace:AIManager.UI.Controls.NodeEditor"
+      mc:Ignorable="d"
+      d:DesignHeight="700" d:DesignWidth="1200"
+      Title="Workflow Editor">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260" MinWidth="200" MaxWidth="400"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="300" MinWidth="200" MaxWidth="500"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- LEFT PANEL - Node Palette & Workflow List                               -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Border Grid.Column="0" Background="#25FFFFFF" CornerRadius="12,0,0,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Border Grid.Row="0" Padding="15,15,15,10">
+                    <StackPanel>
+                        <TextBlock Text="NODE PALETTE" FontWeight="Bold" FontSize="11" Foreground="#CCFFFFFF"/>
+                        <TextBlock Text="Drag nodes to canvas" FontSize="11" Foreground="#99FFFFFF" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Node Palette -->
+                <nodeEditor:NodePalette x:Name="NodePalette" Grid.Row="1"
+                                        NodeDragStarted="NodePalette_NodeDragStarted"/>
+
+                <!-- Workflow Actions -->
+                <Border Grid.Row="2" Padding="10" Background="#15FFFFFF">
+                    <StackPanel>
+                        <TextBlock Text="WORKFLOW" FontWeight="Bold" FontSize="10" Foreground="#99FFFFFF" Margin="5,0,0,10"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0" Content="New" Click="NewWorkflow_Click"
+                                    Margin="0,0,5,0" Padding="10,8">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+                                        <Setter Property="BorderBrush" Value="#408B5CF6"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Grid.Column="1" Content="Open" Click="OpenWorkflow_Click"
+                                    Margin="5,0,0,0" Padding="10,8">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+                                        <Setter Property="BorderBrush" Value="#4006B6D4"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+
+                        <Button Content="Save Workflow" Click="SaveWorkflow_Click"
+                                Margin="0,10,0,0" Padding="10,8">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatMidBgButton}">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#8B5CF6" Offset="0"/>
+                                                <GradientStop Color="#EC4899" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Column="1" Width="3" Background="#20FFFFFF"
+                      HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- CENTER - Node Editor Canvas                                              -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <nodeEditor:NodeEditorCanvas x:Name="EditorCanvas" Grid.Column="2"
+                                     NodeSelected="EditorCanvas_NodeSelected"
+                                     WorkflowChanged="EditorCanvas_WorkflowChanged"
+                                     ExecuteRequested="EditorCanvas_ExecuteRequested"
+                                     StopRequested="EditorCanvas_StopRequested"/>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Column="3" Width="3" Background="#20FFFFFF"
+                      HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- RIGHT PANEL - Properties & Log                                          -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Border Grid.Column="4" Background="#25FFFFFF" CornerRadius="0,12,12,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="200" MinHeight="100"/>
+                </Grid.RowDefinitions>
+
+                <!-- Properties Panel -->
+                <Border Grid.Row="0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <Border Grid.Row="0" Padding="15">
+                            <StackPanel>
+                                <TextBlock Text="PROPERTIES" FontWeight="Bold" FontSize="11" Foreground="#CCFFFFFF"/>
+                                <TextBlock x:Name="SelectedNodeName" Text="Select a node" FontSize="11" Foreground="#99FFFFFF" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Properties Content -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="15,0">
+                            <StackPanel x:Name="PropertiesPanel">
+                                <TextBlock Text="No node selected" Foreground="#66FFFFFF"
+                                           HorizontalAlignment="Center" Margin="0,50,0,0"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Splitter -->
+                <GridSplitter Grid.Row="1" Height="3" Background="#30FFFFFF"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+
+                <!-- Log Panel -->
+                <Border Grid.Row="2">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <Border Grid.Row="0" Padding="15,10" Background="#15FFFFFF">
+                            <Grid>
+                                <TextBlock Text="EXECUTION LOG" FontWeight="Bold" FontSize="11" Foreground="#CCFFFFFF"
+                                           VerticalAlignment="Center"/>
+                                <Button Content="Clear" Click="ClearLog_Click"
+                                        HorizontalAlignment="Right"
+                                        Style="{StaticResource MaterialDesignFlatButton}"
+                                        Foreground="#AAFFFFFF"
+                                        Padding="8,2" FontSize="10"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Log Content -->
+                        <ScrollViewer Grid.Row="1" x:Name="LogScroller"
+                                      VerticalScrollBarVisibility="Auto" Padding="10,5">
+                            <TextBlock x:Name="LogText" TextWrapping="Wrap"
+                                       FontFamily="Consolas" FontSize="11" Foreground="#CCFFFFFF"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>
