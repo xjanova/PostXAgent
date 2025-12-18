@@ -214,6 +214,18 @@ public class ElementPosition
 }
 
 /// <summary>
+/// ขนาด Element
+/// </summary>
+public class ElementSize
+{
+    [JsonProperty("width")]
+    public double Width { get; set; }
+
+    [JsonProperty("height")]
+    public double Height { get; set; }
+}
+
+/// <summary>
 /// เงื่อนไขสำเร็จ
 /// </summary>
 public class SuccessCondition
@@ -364,11 +376,17 @@ public class RecordedElement
     [JsonProperty("css_selector")]
     public string? CssSelector { get; set; }
 
+    [JsonProperty("parent_id")]
+    public string? ParentId { get; set; }
+
     [JsonProperty("attributes")]
     public Dictionary<string, string> Attributes { get; set; } = new();
 
     [JsonProperty("position")]
     public ElementPosition? Position { get; set; }
+
+    [JsonProperty("size")]
+    public ElementSize? Size { get; set; }
 
     [JsonProperty("computed_styles")]
     public Dictionary<string, string>? ComputedStyles { get; set; }

@@ -5,7 +5,135 @@
       Title="Settings">
     <ScrollViewer Margin="20">
         <StackPanel MaxWidth="600">
-            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Foreground="White" Margin="0,0,0,20"/>
+
+            <!-- Theme Settings -->
+            <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <materialDesign:PackIcon Kind="Brightness6" Width="24" Height="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="Appearance" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Theme Mode" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <RadioButton x:Name="RbDarkTheme" Content="Dark" GroupName="Theme"
+                                     Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                     Checked="ThemeMode_Changed" IsChecked="True" Margin="0,0,10,0"/>
+                        <RadioButton x:Name="RbLightTheme" Content="Light" GroupName="Theme"
+                                     Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                     Checked="ThemeMode_Changed" Margin="0,0,10,0"/>
+                        <RadioButton x:Name="RbAutoTheme" Content="Auto (System)" GroupName="Theme"
+                                     Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                     Checked="ThemeMode_Changed"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Accent Color" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <RadioButton x:Name="AccentPurple" GroupName="AccentColor" IsChecked="True"
+                                     Checked="AccentColor_Changed" Margin="0,0,8,0">
+                            <RadioButton.Template>
+                                <ControlTemplate>
+                                    <Border Width="32" Height="32" CornerRadius="16" Background="#8B5CF6" Cursor="Hand"
+                                            BorderThickness="3" BorderBrush="{TemplateBinding Tag}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="White"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+                        <RadioButton x:Name="AccentPink" GroupName="AccentColor" Checked="AccentColor_Changed" Margin="0,0,8,0">
+                            <RadioButton.Template>
+                                <ControlTemplate>
+                                    <Border Width="32" Height="32" CornerRadius="16" Background="#EC4899" Cursor="Hand"
+                                            BorderThickness="3">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="White"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+                        <RadioButton x:Name="AccentCyan" GroupName="AccentColor" Checked="AccentColor_Changed" Margin="0,0,8,0">
+                            <RadioButton.Template>
+                                <ControlTemplate>
+                                    <Border Width="32" Height="32" CornerRadius="16" Background="#06B6D4" Cursor="Hand"
+                                            BorderThickness="3">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="White"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+                        <RadioButton x:Name="AccentGreen" GroupName="AccentColor" Checked="AccentColor_Changed" Margin="0,0,8,0">
+                            <RadioButton.Template>
+                                <ControlTemplate>
+                                    <Border Width="32" Height="32" CornerRadius="16" Background="#10B981" Cursor="Hand"
+                                            BorderThickness="3">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="White"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+                        <RadioButton x:Name="AccentOrange" GroupName="AccentColor" Checked="AccentColor_Changed">
+                            <RadioButton.Template>
+                                <ControlTemplate>
+                                    <Border Width="32" Height="32" CornerRadius="16" Background="#F59E0B" Cursor="Hand"
+                                            BorderThickness="3">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="White"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <ToggleButton x:Name="TglAnimations" IsChecked="True" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                      Checked="Animations_Changed" Unchecked="Animations_Changed"/>
+                        <TextBlock Text="Enable animations" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </materialDesign:Card>
 
             <!-- Server Settings -->
             <materialDesign:Card Padding="20" Margin="0,0,0,15">
@@ -26,16 +154,270 @@
                 </StackPanel>
             </materialDesign:Card>
 
+            <!-- Connection Status Overview -->
+            <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <materialDesign:PackIcon Kind="Connection" Width="24" Height="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="Service Connections" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button x:Name="BtnRefreshAll" Content="Refresh All" Click="RefreshAllConnections_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Margin="20,0,0,0" Height="28"/>
+                    </StackPanel>
+
+                    <!-- Laravel Backend Status -->
+                    <Border x:Name="BackendStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Ellipse x:Name="BackendStatusIndicator" Width="10" Height="10" Fill="#9E9E9E"
+                                     VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Laravel Backend" FontWeight="Bold" FontSize="13" Foreground="#333"/>
+                                <TextBlock x:Name="TxtBackendStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="TxtBackendUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#555"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Ollama Status -->
+                    <Border x:Name="OllamaStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Ellipse x:Name="OllamaStatusIndicator" Width="10" Height="10" Fill="#9E9E9E"
+                                     VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Ollama (LLM)" FontWeight="Bold" FontSize="13" Foreground="#333"/>
+                                <TextBlock x:Name="TxtOllamaServiceStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="TxtOllamaModelsLoaded" Text="" FontSize="11" Foreground="#555"
+                                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <Button x:Name="BtnStartOllama" Content="Start" Click="StartOllama_Click"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                                        Visibility="Collapsed" Height="26" Padding="8,0"/>
+                                <Button x:Name="BtnStopOllama" Content="Stop" Click="StopOllama_Click"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}" Height="26" Padding="8,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- ComfyUI Status -->
+                    <Border x:Name="ComfyStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Ellipse x:Name="ComfyStatusIndicator" Width="10" Height="10" Fill="#9E9E9E"
+                                     VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="ComfyUI (Image/Video)" FontWeight="Bold" FontSize="13" Foreground="#333"/>
+                                <TextBlock x:Name="TxtComfyStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="TxtComfyUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#555"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Redis Status -->
+                    <Border x:Name="RedisStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Ellipse x:Name="RedisStatusIndicator" Width="10" Height="10" Fill="#9E9E9E"
+                                     VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Redis (Cache/Queue)" FontWeight="Bold" FontSize="13" Foreground="#333"/>
+                                <TextBlock x:Name="TxtRedisStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="TxtRedisUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#555"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </materialDesign:Card>
+
+            <!-- AI Learning Database Settings -->
+            <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <materialDesign:PackIcon Kind="Database" Width="24" Height="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="AI Learning Database" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Database stores AI learning data, posting strategies, and content templates."
+                               FontSize="12" Foreground="#888" Margin="0,0,0,15" TextWrapping="Wrap"/>
+
+                    <!-- Database Provider Selection -->
+                    <TextBlock Text="Database Provider" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <RadioButton x:Name="RbSqlite" Content="SQLite (Built-in)" GroupName="DbProvider"
+                                     Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                     IsChecked="True" Checked="DbProvider_Changed" Margin="0,0,10,0"/>
+                        <RadioButton x:Name="RbMySql" Content="MySQL" GroupName="DbProvider"
+                                     Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                     Checked="DbProvider_Changed" Margin="0,0,10,0"/>
+                        <RadioButton x:Name="RbMsSql" Content="SQL Server" GroupName="DbProvider"
+                                     Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
+                                     Checked="DbProvider_Changed"/>
+                    </StackPanel>
+
+                    <!-- SQLite Settings (Default) -->
+                    <StackPanel x:Name="SqliteSettings" Visibility="Visible" Margin="0,0,0,10">
+                        <Border Background="#F5F5F5" CornerRadius="8" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="SQLite is built-in and requires no installation."
+                                           FontSize="12" Foreground="#555" Margin="0,0,0,8"/>
+                                <TextBox x:Name="TxtSqliteFile" Text="ai_learning.db"
+                                         materialDesign:HintAssist.Hint="Database File"
+                                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- External Database Settings -->
+                    <StackPanel x:Name="ExternalDbSettings" Visibility="Collapsed">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtDbHost" Text="localhost"
+                                     materialDesign:HintAssist.Hint="Host / IP Address"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,10,0"/>
+                            <TextBox x:Name="TxtDbPort" Text="3306"
+                                     materialDesign:HintAssist.Hint="Port"
+                                     Grid.Column="1"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                        </Grid>
+
+                        <TextBox x:Name="TxtDbName" Text="ai_learning"
+                                 materialDesign:HintAssist.Hint="Database Name"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,10"/>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtDbUsername"
+                                     materialDesign:HintAssist.Hint="Username"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,10,0"/>
+                            <PasswordBox x:Name="TxtDbPassword"
+                                         materialDesign:HintAssist.Hint="Password"
+                                         Grid.Column="1"
+                                         Style="{StaticResource MaterialDesignOutlinedPasswordBox}"/>
+                        </Grid>
+
+                        <CheckBox x:Name="ChkTrustCertificate" Content="Trust Server Certificate (SQL Server)"
+                                  IsChecked="True" Margin="0,0,0,10"/>
+                    </StackPanel>
+
+                    <!-- Database Status -->
+                    <Border x:Name="DbStatusBorder" Background="#F5F5F5" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Ellipse x:Name="DbStatusIndicator" Width="10" Height="10" Fill="#9E9E9E"
+                                     VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock x:Name="TxtDbConnectionStatus" Text="Not connected" FontWeight="Bold"
+                                           FontSize="13" Foreground="#333"/>
+                                <TextBlock x:Name="TxtDbStats" Text="" FontSize="11" Foreground="#555"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Database Actions -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="BtnTestDbConnection" Content="Test Connection" Click="TestDbConnection_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0"/>
+                        <Button x:Name="BtnBuildDatabase" Content="Build Database" Click="BuildDatabase_Click"
+                                Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,10,0"/>
+                        <Button x:Name="BtnClearData" Content="Clear Data" Click="ClearDbData_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Foreground="#F44336" BorderBrush="#F44336"/>
+                    </StackPanel>
+
+                    <TextBlock x:Name="TxtDbOperationStatus" Text="" FontSize="12" Foreground="#555" TextWrapping="Wrap"/>
+                </StackPanel>
+            </materialDesign:Card>
+
             <!-- AI Settings -->
             <materialDesign:Card Padding="20" Margin="0,0,0,15">
                 <StackPanel>
-                    <TextBlock Text="AI Configuration" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+                    <TextBlock Text="AI Configuration (Ollama)" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
 
                     <TextBox x:Name="TxtOllamaUrl" materialDesign:HintAssist.Hint="Ollama Base URL"
                              Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,10"/>
 
-                    <TextBox x:Name="TxtOllamaModel" materialDesign:HintAssist.Hint="Ollama Model"
-                             Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                    <!-- System Resources -->
+                    <Border Background="#F5F5F5" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="System Resources" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="TxtSystemResources" Text="Detecting..." FontSize="12" Foreground="#555" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Ollama Model" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                    <ComboBox x:Name="CboOllamaModel"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                              Margin="0,0,0,10"
+                              IsEditable="True"
+                              materialDesign:HintAssist.Hint="Select or type model name">
+                        <ComboBoxItem Content="auto" Tag="Auto - เลือกอัตโนมัติตามทรัพยากรระบบ" IsSelected="True"/>
+                        <ComboBoxItem Content="llama4:maverick" Tag="Llama 4 Maverick - คุณภาพสูงสุด (ต้องการ 48GB RAM, 24GB VRAM)"/>
+                        <ComboBoxItem Content="llama4:scout" Tag="Llama 4 Scout - สมดุล (ต้องการ 32GB RAM, 16GB VRAM)"/>
+                        <ComboBoxItem Content="llama4" Tag="Llama 4 - มาตรฐาน (ต้องการ 24GB RAM, 12GB VRAM)"/>
+                        <ComboBoxItem Content="llama3.3:70b" Tag="Llama 3.3 70B - ใหญ่มาก (ต้องการ 48GB RAM)"/>
+                        <ComboBoxItem Content="llama3.1:8b" Tag="Llama 3.1 8B - สมดุล (ต้องการ 8GB RAM)"/>
+                        <ComboBoxItem Content="llama3.2:3b" Tag="Llama 3.2 3B - เบา เร็ว (ต้องการ 4GB RAM)"/>
+                        <ComboBoxItem Content="qwen2.5:7b" Tag="Qwen 2.5 7B - รองรับไทย (ต้องการ 8GB RAM)"/>
+                        <ComboBoxItem Content="mistral" Tag="Mistral 7B - เร็ว (ต้องการ 8GB RAM)"/>
+                        <ComboBoxItem Content="llama2" Tag="Llama 2 - Legacy (ต้องการ 4GB RAM)"/>
+                        <ComboBoxItem Content="codellama" Tag="Code Llama - สำหรับ coding"/>
+                    </ComboBox>
+                    <TextBlock x:Name="TxtModelDescription" Text="" FontSize="11" Foreground="Gray" Margin="0,0,0,5" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TxtAutoSelectedModel" Text="" FontSize="12" Foreground="#2196F3" FontWeight="Bold" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
+                        <Button x:Name="BtnDetectResources" Content="Detect Resources" Click="DetectResources_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0"/>
+                        <Button x:Name="BtnTestOllama" Content="Test Connection" Click="TestOllama_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0"/>
+                        <Button x:Name="BtnPullModel" Content="Pull Model" Click="PullModel_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                    </StackPanel>
+
+                    <TextBlock x:Name="TxtOllamaStatus" Text="" FontSize="12" Margin="0,0,0,5" TextWrapping="Wrap"/>
                 </StackPanel>
             </materialDesign:Card>
 

@@ -26,6 +26,11 @@ class UserRental extends Model
         'payment_reference',
         'posts_used',
         'ai_generations_used',
+        'usage_posts',
+        'usage_ai_generations',
+        'usage_brands',
+        'usage_platforms',
+        'usage_team_members',
         'usage_stats',
         'auto_renew',
         'next_renewal_at',
@@ -74,6 +79,14 @@ class UserRental extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get usage logs for this rental
+     */
+    public function usageLogs(): HasMany
+    {
+        return $this->hasMany(UsageLog::class);
     }
 
     /**

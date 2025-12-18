@@ -4,181 +4,454 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+        xmlns:controls="clr-namespace:AIManager.UI.Controls"
         mc:Ignorable="d"
         Title="PostXAgent - AI Manager Dashboard"
         Height="900" Width="1400"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource MaterialDesign.Brush.Background}"
-        TextElement.Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        TextElement.Foreground="White"
         TextElement.FontWeight="Regular"
         TextElement.FontSize="13"
         TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextRenderingMode="Auto"
-        FontFamily="{DynamicResource MaterialDesignFont}">
+        FontFamily="{DynamicResource MaterialDesignFont}"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+    <Window.Resources>
+        <Style TargetType="Window">
+            <Setter Property="WindowChrome.WindowChrome">
+                <Setter.Value>
+                    <WindowChrome CaptionHeight="0"
+                                  CornerRadius="20"
+                                  GlassFrameThickness="0"
+                                  ResizeBorderThickness="5"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
 
-        <!-- Sidebar Navigation -->
-        <Border Grid.Column="0"
-                Background="{DynamicResource MaterialDesign.Brush.Primary.Dark}"
-                CornerRadius="0,20,20,0">
+    <Border CornerRadius="20" ClipToBounds="True">
+        <Grid>
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- LAVA LAMP BACKGROUND                                    -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <controls:LavaLampBackground x:Name="LavaBackground"/>
+
+            <!-- Main Content Grid -->
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <!-- Logo & Title -->
-                <StackPanel Grid.Row="0" Margin="20,30,20,30">
-                    <materialDesign:PackIcon Kind="RobotExcited"
-                                             Width="60" Height="60"
-                                             HorizontalAlignment="Center"
-                                             Foreground="White"/>
-                    <TextBlock Text="PostXAgent"
-                               FontSize="24" FontWeight="Bold"
-                               HorizontalAlignment="Center"
-                               Foreground="White" Margin="0,10,0,0"/>
-                    <TextBlock Text="AI Manager"
-                               FontSize="14"
-                               HorizontalAlignment="Center"
-                               Foreground="#B0B0B0"/>
-                </StackPanel>
-
-                <!-- Navigation Menu -->
-                <StackPanel Grid.Row="1" Margin="15,0">
-                    <Button x:Name="BtnDashboard" Click="NavButton_Click" Tag="Dashboard"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" HorizontalContentAlignment="Left"
-                            Margin="0,5" Padding="15,12">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="ViewDashboard" Width="24" Height="24"/>
-                            <TextBlock Text="Dashboard" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="BtnWorkers" Click="NavButton_Click" Tag="Workers"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" HorizontalContentAlignment="Left"
-                            Margin="0,5" Padding="15,12">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="AccountGroup" Width="24" Height="24"/>
-                            <TextBlock Text="Workers" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="BtnTasks" Click="NavButton_Click" Tag="Tasks"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" HorizontalContentAlignment="Left"
-                            Margin="0,5" Padding="15,12">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="FormatListBulleted" Width="24" Height="24"/>
-                            <TextBlock Text="Tasks Queue" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="BtnPlatforms" Click="NavButton_Click" Tag="Platforms"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" HorizontalContentAlignment="Left"
-                            Margin="0,5" Padding="15,12">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="ShareVariant" Width="24" Height="24"/>
-                            <TextBlock Text="Platforms" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="BtnAIProviders" Click="NavButton_Click" Tag="AIProviders"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" HorizontalContentAlignment="Left"
-                            Margin="0,5" Padding="15,12">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Brain" Width="24" Height="24"/>
-                            <TextBlock Text="AI Providers" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="BtnLogs" Click="NavButton_Click" Tag="Logs"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" HorizontalContentAlignment="Left"
-                            Margin="0,5" Padding="15,12">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="TextBox" Width="24" Height="24"/>
-                            <TextBlock Text="Logs" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="BtnSettings" Click="NavButton_Click" Tag="Settings"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" HorizontalContentAlignment="Left"
-                            Margin="0,5" Padding="15,12">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Cog" Width="24" Height="24"/>
-                            <TextBlock Text="Settings" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-
-                <!-- Server Status -->
-                <Border Grid.Row="2" Background="#2A2A3E" CornerRadius="15" Margin="15,10,15,20" Padding="15">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="12" Height="12" Fill="#4CAF50" x:Name="StatusIndicator"/>
-                            <TextBlock Text="Server Running" Foreground="White" Margin="10,0,0,0"
-                                       x:Name="StatusText"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <Button Content="Start"
-                                    Style="{StaticResource MaterialDesignRaisedButton}"
-                                    Background="#4CAF50" Foreground="White"
-                                    Click="StartButton_Click" x:Name="BtnStart"
-                                    Margin="0,0,10,0" Width="80"/>
-                            <Button Content="Stop"
-                                    Style="{StaticResource MaterialDesignRaisedButton}"
-                                    Background="#F44336" Foreground="White"
-                                    Click="StopButton_Click" x:Name="BtnStop"
-                                    Width="80"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
-        </Border>
-
-        <!-- Main Content Area -->
-        <Grid Grid.Column="1" Margin="20">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- Header -->
-            <Grid Grid.Row="0" Margin="0,0,0,20">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="280"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Dashboard" FontSize="28" FontWeight="Bold" x:Name="PageTitle"/>
-                    <TextBlock Text="Real-time monitoring of AI Manager system"
-                               Foreground="#808080" Margin="0,5,0,0"/>
-                </StackPanel>
+                <!-- ═══════════════════════════════════════════════════════ -->
+                <!-- SIDEBAR (Glass Effect)                                  -->
+                <!-- ═══════════════════════════════════════════════════════ -->
+                <Border Grid.Column="0" CornerRadius="0,20,20,0">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#40000000" Offset="0"/>
+                            <GradientStop Color="#60000000" Offset="0.5"/>
+                            <GradientStop Color="#40000000" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="5" Direction="0" Opacity="0.5"/>
+                    </Border.Effect>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding CurrentTime, StringFormat='{}{0:HH:mm:ss}'}"
-                               FontSize="24" Margin="0,0,20,0" x:Name="ClockDisplay"/>
-                    <Button Style="{StaticResource MaterialDesignIconButton}">
-                        <materialDesign:PackIcon Kind="Bell" Width="24" Height="24"/>
-                    </Button>
-                </StackPanel>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- ═══════════════════════════════════════════════ -->
+                        <!-- LOGO & TITLE                                    -->
+                        <!-- ═══════════════════════════════════════════════ -->
+                        <StackPanel Grid.Row="0" Margin="20,30,20,30">
+                            <!-- RGB Glow Ring around Logo -->
+                            <Border x:Name="RgbGlowRing" Width="90" Height="90" CornerRadius="45" HorizontalAlignment="Center">
+                                <!-- RGB Glow Effect -->
+                                <Border.Effect>
+                                    <DropShadowEffect x:Name="RgbGlowEffect" Color="#8B5CF6" BlurRadius="30" ShadowDepth="0" Opacity="0.9"/>
+                                </Border.Effect>
+                                <Border.Background>
+                                    <LinearGradientBrush x:Name="RgbGradient" StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop x:Name="RgbColor1" Color="#FF0000" Offset="0"/>
+                                        <GradientStop x:Name="RgbColor2" Color="#00FF00" Offset="0.5"/>
+                                        <GradientStop x:Name="RgbColor3" Color="#0000FF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+
+                                <!-- Inner Logo Container - fits exactly inside the glow ring -->
+                                <Border x:Name="LogoContainer" Width="80" Height="80" CornerRadius="40"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        ClipToBounds="True" Background="Transparent">
+                                    <Grid>
+                                        <!-- Custom Logo Image - Full circle crop -->
+                                        <Border x:Name="LogoImageContainer" CornerRadius="40" ClipToBounds="True" Visibility="Collapsed">
+                                            <Image x:Name="CustomLogoImage"
+                                                   Width="80" Height="80"
+                                                   Stretch="UniformToFill"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                        </Border>
+                                        <!-- Fallback Icon with background -->
+                                        <Border x:Name="FallbackLogoBg" CornerRadius="40" Visibility="Visible">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#1a1a2e" Offset="0"/>
+                                                    <GradientStop Color="#16213e" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon x:Name="FallbackLogoIcon"
+                                                                     Kind="RobotExcited"
+                                                                     Width="45" Height="45"
+                                                                     HorizontalAlignment="Center"
+                                                                     VerticalAlignment="Center"
+                                                                     Foreground="White"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </Border>
+
+                            <TextBlock Text="PostXAgent" Style="{StaticResource GradientText}"
+                                       HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBlock Text="AI Manager Dashboard"
+                                       FontSize="12" Opacity="0.6"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- ═══════════════════════════════════════════════ -->
+                        <!-- NAVIGATION MENU                                 -->
+                        <!-- ═══════════════════════════════════════════════ -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="10,0">
+                            <StackPanel>
+                                <!-- Dashboard -->
+                                <Button x:Name="BtnDashboard" Click="NavButton_Click" Tag="Dashboard"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#208B5CF6">
+                                            <materialDesign:PackIcon Kind="ViewDashboard" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#8B5CF6"/>
+                                        </Border>
+                                        <TextBlock Text="Dashboard" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Workers -->
+                                <Button x:Name="BtnWorkers" Click="NavButton_Click" Tag="Workers"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#2006B6D4">
+                                            <materialDesign:PackIcon Kind="AccountGroup" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#06B6D4"/>
+                                        </Border>
+                                        <TextBlock Text="Workers" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Tasks -->
+                                <Button x:Name="BtnTasks" Click="NavButton_Click" Tag="Tasks"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#2010B981">
+                                            <materialDesign:PackIcon Kind="FormatListBulleted" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#10B981"/>
+                                        </Border>
+                                        <TextBlock Text="Tasks Queue" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Platforms -->
+                                <Button x:Name="BtnPlatforms" Click="NavButton_Click" Tag="Platforms"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#20EC4899">
+                                            <materialDesign:PackIcon Kind="ShareVariant" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#EC4899"/>
+                                        </Border>
+                                        <TextBlock Text="Platforms" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Separator -->
+                                <Border Height="1" Background="#20FFFFFF" Margin="15,15"/>
+
+                                <!-- AI Section Label -->
+                                <TextBlock Text="AI TOOLS" FontSize="10" Opacity="0.4"
+                                           Margin="20,5,0,10" FontWeight="SemiBold"/>
+
+                                <!-- AI Providers -->
+                                <Button x:Name="BtnAIProviders" Click="NavButton_Click" Tag="AIProviders"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#20F59E0B">
+                                            <materialDesign:PackIcon Kind="Brain" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#F59E0B"/>
+                                        </Border>
+                                        <TextBlock Text="AI Providers" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- AI Chat -->
+                                <Button x:Name="BtnChat" Click="NavButton_Click" Tag="Chat"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#208B5CF6" Offset="0"/>
+                                                    <GradientStop Color="#20EC4899" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="Chat" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#A78BFA"/>
+                                        </Border>
+                                        <TextBlock Text="AI Chat" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#EC4899" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
+                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Image/Video Generator -->
+                                <Button x:Name="BtnImageGen" Click="NavButton_Click" Tag="ImageGenerator"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#2006B6D4" Offset="0"/>
+                                                    <GradientStop Color="#2010B981" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="ImageMultiple" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#22D3EE"/>
+                                        </Border>
+                                        <TextBlock Text="Image/Video" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Model Manager -->
+                                <Button x:Name="BtnModels" Click="NavButton_Click" Tag="ModelManager"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#203B82F6">
+                                            <materialDesign:PackIcon Kind="PackageDown" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#3B82F6"/>
+                                        </Border>
+                                        <TextBlock Text="Model Manager" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Workflow Editor -->
+                                <Button x:Name="BtnWorkflow" Click="NavButton_Click" Tag="WorkflowEditor"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#20EF4444" Offset="0"/>
+                                                    <GradientStop Color="#20F97316" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="Sitemap" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#FB923C"/>
+                                        </Border>
+                                        <TextBlock Text="Workflow Editor" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#F97316" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Posting Strategies -->
+                                <Button x:Name="BtnStrategies" Click="NavButton_Click" Tag="Strategies"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#2010B981" Offset="0"/>
+                                                    <GradientStop Color="#208B5CF6" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="Strategy" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#34D399"/>
+                                        </Border>
+                                        <TextBlock Text="Strategies" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#10B981" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
+                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Separator -->
+                                <Border Height="1" Background="#20FFFFFF" Margin="15,15"/>
+
+                                <!-- System Label -->
+                                <TextBlock Text="SYSTEM" FontSize="10" Opacity="0.4"
+                                           Margin="20,5,0,10" FontWeight="SemiBold"/>
+
+                                <!-- Logs -->
+                                <Button x:Name="BtnLogs" Click="NavButton_Click" Tag="Logs"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#20808080">
+                                            <materialDesign:PackIcon Kind="TextBox" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#9CA3AF"/>
+                                        </Border>
+                                        <TextBlock Text="Logs" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Settings -->
+                                <Button x:Name="BtnSettings" Click="NavButton_Click" Tag="Settings"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#20808080">
+                                            <materialDesign:PackIcon Kind="Cog" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#9CA3AF"/>
+                                        </Border>
+                                        <TextBlock Text="Settings" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- ═══════════════════════════════════════════════ -->
+                        <!-- SERVER STATUS (Glass Card)                      -->
+                        <!-- ═══════════════════════════════════════════════ -->
+                        <Border Grid.Row="2" Style="{StaticResource GlassCardDark}" Margin="15,10,15,20">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="12" Height="12" CornerRadius="6" x:Name="StatusIndicatorBorder">
+                                        <Border.Background>
+                                            <SolidColorBrush Color="#4CAF50"/>
+                                        </Border.Background>
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="#4CAF50" BlurRadius="8" ShadowDepth="0" Opacity="0.8"/>
+                                        </Border.Effect>
+                                    </Border>
+                                    <TextBlock x:Name="StatusText" Text="Server Running"
+                                               Margin="10,0,0,0" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0" Content="Start" x:Name="BtnStart"
+                                            Click="StartButton_Click"
+                                            Style="{StaticResource NeonButtonCyan}"
+                                            Padding="0,8" Margin="0,0,5,0"/>
+                                    <Button Grid.Column="1" Content="Stop" x:Name="BtnStop"
+                                            Click="StopButton_Click"
+                                            Style="{StaticResource NeonButtonPink}"
+                                            Padding="0,8" Margin="5,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- ═══════════════════════════════════════════════════════ -->
+                <!-- MAIN CONTENT AREA                                       -->
+                <!-- ═══════════════════════════════════════════════════════ -->
+                <Grid Grid.Column="1" Margin="20,20,20,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- ═══════════════════════════════════════════════ -->
+                    <!-- HEADER                                          -->
+                    <!-- ═══════════════════════════════════════════════ -->
+                    <Grid Grid.Row="0" Margin="0,10,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock x:Name="PageTitle" Text="Dashboard" Style="{StaticResource HeadingXL}"/>
+                            <TextBlock Text="Real-time monitoring of AI Manager system"
+                                       Style="{StaticResource BodyText}" Margin="0,5,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
+                            <!-- Clock Display -->
+                            <Border Style="{StaticResource GlassCardDark}" Padding="15,8" CornerRadius="10">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Clock" Width="18" Height="18"
+                                                             VerticalAlignment="Center" Opacity="0.6"/>
+                                    <TextBlock x:Name="ClockDisplay" Text="00:00:00"
+                                               FontSize="18" FontWeight="SemiBold" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Window Controls -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Click="MinimizeButton_Click"
+                                    Style="{StaticResource MaterialDesignIconButton}"
+                                    Width="36" Height="36" Margin="0,0,5,0">
+                                <materialDesign:PackIcon Kind="WindowMinimize" Width="18" Height="18"/>
+                            </Button>
+                            <Button Click="MaximizeButton_Click"
+                                    Style="{StaticResource MaterialDesignIconButton}"
+                                    Width="36" Height="36" Margin="0,0,5,0">
+                                <materialDesign:PackIcon Kind="WindowMaximize" Width="18" Height="18" x:Name="MaximizeIcon"/>
+                            </Button>
+                            <Button Click="CloseButton_Click" Width="36" Height="36">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#E53935"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                                <materialDesign:PackIcon Kind="Close" Width="18" Height="18"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ═══════════════════════════════════════════════ -->
+                    <!-- CONTENT FRAME (Glass Container)                 -->
+                    <!-- ═══════════════════════════════════════════════ -->
+                    <Border Grid.Row="1" Style="{StaticResource GlassCard}" Padding="0" Margin="0,0,0,10">
+                        <Frame x:Name="ContentFrame" NavigationUIVisibility="Hidden"/>
+                    </Border>
+
+                    <!-- ═══════════════════════════════════════════════ -->
+                    <!-- STATUS BAR                                      -->
+                    <!-- ═══════════════════════════════════════════════ -->
+                    <controls:StatusBar x:Name="AppStatusBar" Grid.Row="2" Margin="-20,0,-20,0"/>
+                </Grid>
             </Grid>
-
-            <!-- Content Frame -->
-            <Frame Grid.Row="1" x:Name="ContentFrame" NavigationUIVisibility="Hidden"/>
         </Grid>
-    </Grid>
+    </Border>
 </Window>

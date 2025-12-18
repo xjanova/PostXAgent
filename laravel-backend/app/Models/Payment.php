@@ -16,6 +16,8 @@ class Payment extends Model
         'uuid',
         'user_id',
         'user_rental_id',
+        'original_payment_id',
+        'type',
         'amount',
         'fee',
         'net_amount',
@@ -35,9 +37,11 @@ class Payment extends Model
         'verified_at',
         'verified_by',
         'description',
+        'notes',
         'metadata',
         'admin_notes',
         'failed_reason',
+        'refund_details',
     ];
 
     protected $casts = [
@@ -46,6 +50,7 @@ class Payment extends Model
         'net_amount' => 'decimal:2',
         'gateway_response' => 'array',
         'metadata' => 'array',
+        'refund_details' => 'array',
         'paid_at' => 'datetime',
         'verified_at' => 'datetime',
     ];

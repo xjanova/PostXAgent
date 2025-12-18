@@ -1,0 +1,153 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class WorkflowExecution extends Model
+{
+    use HasFactory;
+
+    // Status constants
+    const STATUS_PENDING = 'pending';
+    const STATUS_RUNNING = 'running';
+    const STATUS_SUCCESS = 'success';
+    const STATUS_FAILED = 'failed';
+    const STATUS_CANCELLED = 'cancelled';
+
+    protected $fillable = [
+        'learned_workflow_id',
+        'user_id',
+        'brand_id',
+        'post_id',
+        'status',
+        'started_at',
+        'completed_at',
+        'failed_at_step',
+        'error_message',
+        'error_screenshot',
+        'step_results',
+        'content_used',
+        'duration_ms',
+        'metadata',
+    ];
+
+    protected $casts = [
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'failed_at_step' => 'integer',
+        'step_results' => 'array',
+        'content_used' => 'array',
+        'duration_ms' => 'integer',
+        'metadata' => 'array',
+    ];
+
+    // Relationships
+    public function workflow(): BelongsTo
+    {
+        return $this->belongsTo(LearnedWorkflow::class, 'learned_workflow_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    public function post(): BelongsTo
+    {
+        return $this->belongsTo(Post::class);
+    }
+
+    // Scopes
+    public function scopeSuccessful($query)
+    {
+        return $query->where('status', self::STATUS_SUCCESS);
+    }
+
+    public function scopeFailed($query)
+    {
+        return $query->where('status', self::STATUS_FAILED);
+    }
+
+    public function scopeRecent($query, int $hours = 24)
+    {
+        return $query->where('created_at', '>=', now()->subHours($hours));
+    }
+
+    // Helpers
+    public function isSuccess(): bool
+    {
+        return $this->status === self::STATUS_SUCCESS;
+    }
+
+    public function start(): void
+    {
+        $this->update([
+            'status' => self::STATUS_RUNNING,
+            'started_at' => now(),
+        ]);
+    }
+
+    public function complete(): void
+    {
+        $this->update([
+            'status' => self::STATUS_SUCCESS,
+            'completed_at' => now(),
+            'duration_ms' => $this->started_at
+                ? now()->diffInMilliseconds($this->started_at)
+                : null,
+        ]);
+
+        $this->workflow->recordSuccess();
+    }
+
+    public function fail(int $step, string $error, ?string $screenshot = null): void
+    {
+        $this->update([
+            'status' => self::STATUS_FAILED,
+            'completed_at' => now(),
+            'failed_at_step' => $step,
+            'error_message' => $error,
+            'error_screenshot' => $screenshot,
+            'duration_ms' => $this->started_at
+                ? now()->diffInMilliseconds($this->started_at)
+                : null,
+        ]);
+
+        $this->workflow->recordFailure();
+    }
+
+    public function addStepResult(int $stepOrder, bool $success, ?string $error = null): void
+    {
+        $results = $this->step_results ?? [];
+        $results[] = [
+            'step' => $stepOrder,
+            'success' => $success,
+            'error' => $error,
+            'timestamp' => now()->toIso8601String(),
+        ];
+        $this->update(['step_results' => $results]);
+    }
+
+    public function getDurationSeconds(): ?float
+    {
+        return $this->duration_ms ? $this->duration_ms / 1000 : null;
+    }
+
+    public function getSuccessfulStepsCount(): int
+    {
+        return collect($this->step_results ?? [])->where('success', true)->count();
+    }
+
+    public function getTotalStepsCount(): int
+    {
+        return count($this->step_results ?? []);
+    }
+}

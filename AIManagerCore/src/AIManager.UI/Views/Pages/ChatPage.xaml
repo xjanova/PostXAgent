@@ -1,0 +1,150 @@
+<Page x:Class="AIManager.UI.Views.Pages.ChatPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      Title="AI Chat">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <materialDesign:Card Grid.Row="0" Padding="15" Margin="20,20,20,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Robot" Width="28" Height="28" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="AI Chat - Ollama" FontSize="18" FontWeight="Bold"/>
+                        <TextBlock x:Name="TxtStatus" Text="Connecting..." FontSize="12" Foreground="#AAAAAA"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,15,0">
+                    <TextBlock Text="Model:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="CboModel" Width="180"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                              SelectionChanged="CboModel_SelectionChanged"/>
+                </StackPanel>
+
+                <Button Grid.Column="2" Content="Clear Chat" Click="ClearChat_Click"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"/>
+            </Grid>
+        </materialDesign:Card>
+
+        <!-- Chat Messages -->
+        <ScrollViewer x:Name="ChatScroller" Grid.Row="1" Margin="20,0,20,10"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="MessagesPanel" Margin="0,0,10,0">
+                <!-- Welcome Message -->
+                <Border Background="#E3F2FD" CornerRadius="12" Padding="15" Margin="0,0,80,10" HorizontalAlignment="Left">
+                    <StackPanel>
+                        <TextBlock Text="AI Assistant" FontWeight="Bold" FontSize="12" Foreground="#1976D2" Margin="0,0,0,5"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="14">
+                            สวัสดีครับ! ผมคือ AI Assistant พร้อมช่วยเหลือคุณ
+                            <LineBreak/>
+                            <LineBreak/>
+                            คุณสามารถ:
+                            <LineBreak/>
+                            - ถามคำถามทั่วไป
+                            <LineBreak/>
+                            - แนบรูปภาพเพื่อให้วิเคราะห์ (ต้องใช้ vision model)
+                            <LineBreak/>
+                            - ค้นหาข้อมูลจากเว็บ (คลิกปุ่ม Search)
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Image Preview (when attached) -->
+        <Border x:Name="ImagePreviewPanel" Grid.Row="2" Background="#F5F5F5"
+                Visibility="Collapsed" Margin="20,0,20,10" CornerRadius="8" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Image x:Name="PreviewImage" Grid.Column="0" Width="80" Height="80"
+                       Stretch="UniformToFill" Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1" x:Name="TxtImageName" VerticalAlignment="Center"
+                           Text="image.png" FontSize="12"/>
+                <Button Grid.Column="2" Click="RemoveImage_Click"
+                        Style="{StaticResource MaterialDesignIconButton}"
+                        ToolTip="Remove image">
+                    <materialDesign:PackIcon Kind="Close" Width="20" Height="20"/>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Input Area -->
+        <materialDesign:Card Grid.Row="3" Padding="15" Margin="20,0,20,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0">
+                    <Button x:Name="BtnAttachImage" Click="AttachImage_Click"
+                            Style="{StaticResource MaterialDesignIconButton}"
+                            ToolTip="Attach Image">
+                        <materialDesign:PackIcon Kind="Image" Width="24" Height="24"/>
+                    </Button>
+
+                    <Button x:Name="BtnWebSearch" Click="WebSearch_Click"
+                            Style="{StaticResource MaterialDesignIconButton}"
+                            ToolTip="Search Web">
+                        <materialDesign:PackIcon Kind="Web" Width="24" Height="24"/>
+                    </Button>
+                </StackPanel>
+
+                <TextBox x:Name="TxtMessage" Grid.Column="1"
+                         materialDesign:HintAssist.Hint="พิมพ์ข้อความ... (Enter ส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         MaxHeight="100"
+                         VerticalScrollBarVisibility="Auto"
+                         KeyDown="TxtMessage_KeyDown"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0">
+                    <Button x:Name="BtnSend" Click="Send_Click"
+                            Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
+                            Background="#2196F3" Foreground="White"
+                            ToolTip="Send (Ctrl+Enter)">
+                        <materialDesign:PackIcon Kind="Send" Width="20" Height="20"/>
+                    </Button>
+
+                    <Button x:Name="BtnStop" Click="Stop_Click" Visibility="Collapsed"
+                            Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
+                            Background="#F44336" Foreground="White" Margin="5,0,0,0"
+                            ToolTip="Stop">
+                        <materialDesign:PackIcon Kind="Stop" Width="20" Height="20"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+
+        <!-- Loading Overlay -->
+        <Border x:Name="LoadingOverlay" Grid.RowSpan="4" Background="#80000000" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Style="{StaticResource MaterialDesignCircularProgressBar}"
+                             Width="50" Height="50"/>
+                <TextBlock x:Name="TxtLoadingMessage" Text="กำลังโหลด..." Foreground="White" Margin="0,15,0,0" FontSize="14"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>
