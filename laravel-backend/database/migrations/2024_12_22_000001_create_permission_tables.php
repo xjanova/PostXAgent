@@ -12,28 +12,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $tableNames = config('permission.table_names');
-        $columnNames = config('permission.column_names');
-        $teams = config('permission.teams');
+        // Always use hardcoded values to avoid config loading issues in tests
+        $tableNames = [
+            'roles' => 'roles',
+            'permissions' => 'permissions',
+            'model_has_permissions' => 'model_has_permissions',
+            'model_has_roles' => 'model_has_roles',
+            'role_has_permissions' => 'role_has_permissions',
+        ];
 
-        if (empty($tableNames)) {
-            $tableNames = [
-                'roles' => 'roles',
-                'permissions' => 'permissions',
-                'model_has_permissions' => 'model_has_permissions',
-                'model_has_roles' => 'model_has_roles',
-                'role_has_permissions' => 'role_has_permissions',
-            ];
-        }
+        $columnNames = [
+            'role_pivot_key' => 'role_id',
+            'permission_pivot_key' => 'permission_id',
+            'model_morph_key' => 'model_id',
+            'team_foreign_key' => 'team_id',
+        ];
 
-        if (empty($columnNames)) {
-            $columnNames = [
-                'role_pivot_key' => 'role_id',
-                'permission_pivot_key' => 'permission_id',
-                'model_morph_key' => 'model_id',
-                'team_foreign_key' => 'team_id',
-            ];
-        }
+        $teams = false;
 
         // Permissions table
         Schema::create($tableNames['permissions'] ?? 'permissions', function (Blueprint $table) {
@@ -130,11 +125,6 @@ return new class extends Migration
 
             $table->primary([$columnNames['permission_pivot_key'], $columnNames['role_pivot_key']], 'role_has_permissions_permission_id_role_id_primary');
         });
-
-        // Clear cache
-        app('cache')
-            ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
-            ->forget(config('permission.cache.key'));
     }
 
     /**
@@ -142,22 +132,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $tableNames = config('permission.table_names');
-
-        if (empty($tableNames)) {
-            $tableNames = [
-                'roles' => 'roles',
-                'permissions' => 'permissions',
-                'model_has_permissions' => 'model_has_permissions',
-                'model_has_roles' => 'model_has_roles',
-                'role_has_permissions' => 'role_has_permissions',
-            ];
-        }
-
-        Schema::dropIfExists($tableNames['role_has_permissions'] ?? 'role_has_permissions');
-        Schema::dropIfExists($tableNames['model_has_roles'] ?? 'model_has_roles');
-        Schema::dropIfExists($tableNames['model_has_permissions'] ?? 'model_has_permissions');
-        Schema::dropIfExists($tableNames['roles'] ?? 'roles');
-        Schema::dropIfExists($tableNames['permissions'] ?? 'permissions');
+        Schema::dropIfExists('role_has_permissions');
+        Schema::dropIfExists('model_has_roles');
+        Schema::dropIfExists('model_has_permissions');
+        Schema::dropIfExists('roles');
+        Schema::dropIfExists('permissions');
     }
 };
