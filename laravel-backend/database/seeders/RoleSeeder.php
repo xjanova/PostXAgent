@@ -16,87 +16,168 @@ class RoleSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create permissions
+        // Create permissions by category
         $permissions = [
-            // User permissions
+            // Brand permissions
             'view brands',
             'create brands',
             'edit brands',
             'delete brands',
+
+            // Post permissions
             'view posts',
             'create posts',
             'edit posts',
             'delete posts',
             'publish posts',
+            'schedule posts',
+
+            // Campaign permissions
             'view campaigns',
             'create campaigns',
             'edit campaigns',
             'delete campaigns',
+            'run campaigns',
+
+            // Social Account permissions
             'view social accounts',
             'manage social accounts',
+            'connect social accounts',
+
+            // Analytics permissions
             'view analytics',
+            'export analytics',
+
+            // AI permissions
             'generate ai content',
+            'generate ai images',
+            'use ai assistant',
+
+            // Automation permissions
             'use web automation',
-            // Admin permissions
+            'create workflows',
+            'manage workflows',
+            'use seek and post',
+
+            // Comment permissions
+            'view comments',
+            'reply comments',
+            'manage comments',
+
+            // Account Pool permissions
+            'view account pools',
+            'manage account pools',
+
+            // User management (admin)
             'view users',
+            'create users',
+            'edit users',
+            'delete users',
             'manage users',
+            'assign roles',
+
+            // Payment/Rental management (admin)
+            'view payments',
             'verify payments',
             'manage rentals',
             'manage promo codes',
+            'process refunds',
+
+            // System permissions (admin)
             'view system stats',
             'manage ai manager',
+            'manage settings',
+            'view audit logs',
+            'export audit logs',
+
+            // Role management (super-admin)
+            'manage roles',
+            'manage permissions',
         ];
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
         }
 
-        // Create roles and assign permissions
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $adminRole->givePermissionTo(Permission::all());
+        // SUPER ADMIN - Full system access
+        $superAdminRole = Role::firstOrCreate([
+            'name' => 'super-admin',
+            'guard_name' => 'web',
+        ]);
+        $superAdminRole->givePermissionTo(Permission::all());
 
-        $userRole = Role::firstOrCreate(['name' => 'user']);
-        $userRole->givePermissionTo([
+        // ADMIN - System management without role management
+        $adminRole = Role::firstOrCreate([
+            'name' => 'admin',
+            'guard_name' => 'web',
+        ]);
+        $adminRole->syncPermissions(
+            Permission::whereNotIn('name', ['manage roles', 'manage permissions'])->get()
+        );
+
+        // MODERATOR - Content moderation
+        $moderatorRole = Role::firstOrCreate([
+            'name' => 'moderator',
+            'guard_name' => 'web',
+        ]);
+        $moderatorRole->syncPermissions([
             'view brands',
-            'create brands',
-            'edit brands',
-            'delete brands',
             'view posts',
-            'create posts',
             'edit posts',
             'delete posts',
-            'publish posts',
             'view campaigns',
-            'create campaigns',
-            'edit campaigns',
-            'delete campaigns',
-            'view social accounts',
-            'manage social accounts',
+            'view comments',
+            'reply comments',
+            'manage comments',
+            'view users',
             'view analytics',
-            'generate ai content',
+            'view system stats',
         ]);
 
-        // Premium user role with web automation
-        $premiumRole = Role::firstOrCreate(['name' => 'premium']);
-        $premiumRole->givePermissionTo([
-            'view brands',
-            'create brands',
-            'edit brands',
-            'delete brands',
-            'view posts',
-            'create posts',
-            'edit posts',
-            'delete posts',
-            'publish posts',
-            'view campaigns',
-            'create campaigns',
-            'edit campaigns',
-            'delete campaigns',
-            'view social accounts',
-            'manage social accounts',
+        // PREMIUM - Full user features including automation
+        $premiumRole = Role::firstOrCreate([
+            'name' => 'premium',
+            'guard_name' => 'web',
+        ]);
+        $premiumRole->syncPermissions([
+            'view brands', 'create brands', 'edit brands', 'delete brands',
+            'view posts', 'create posts', 'edit posts', 'delete posts', 'publish posts', 'schedule posts',
+            'view campaigns', 'create campaigns', 'edit campaigns', 'delete campaigns', 'run campaigns',
+            'view social accounts', 'manage social accounts', 'connect social accounts',
+            'view analytics', 'export analytics',
+            'generate ai content', 'generate ai images', 'use ai assistant',
+            'use web automation', 'create workflows', 'manage workflows', 'use seek and post',
+            'view comments', 'reply comments', 'manage comments',
+            'view account pools', 'manage account pools',
+        ]);
+
+        // USER - Basic features
+        $userRole = Role::firstOrCreate([
+            'name' => 'user',
+            'guard_name' => 'web',
+        ]);
+        $userRole->syncPermissions([
+            'view brands', 'create brands', 'edit brands', 'delete brands',
+            'view posts', 'create posts', 'edit posts', 'delete posts', 'publish posts', 'schedule posts',
+            'view campaigns', 'create campaigns', 'edit campaigns', 'delete campaigns',
+            'view social accounts', 'manage social accounts', 'connect social accounts',
             'view analytics',
             'generate ai content',
-            'use web automation',
+            'view comments', 'reply comments',
+        ]);
+
+        // TRIAL - Limited trial features
+        $trialRole = Role::firstOrCreate([
+            'name' => 'trial',
+            'guard_name' => 'web',
+        ]);
+        $trialRole->syncPermissions([
+            'view brands', 'create brands',
+            'view posts', 'create posts', 'edit posts',
+            'view campaigns',
+            'view social accounts', 'connect social accounts',
+            'view analytics',
+            'generate ai content',
         ]);
     }
 }

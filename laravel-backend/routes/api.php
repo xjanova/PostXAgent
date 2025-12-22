@@ -508,3 +508,39 @@ Route::prefix('v1/sms-gateway')->middleware(['auth:sanctum', 'throttle:api'])->g
     // Generate API Credentials for Mobile App integration
     Route::post('/generate-credentials', [PaymentGatewayController::class, 'generateApiCredentials']);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// RBAC & AUDIT LOG - Role-Based Access Control and Activity Logging
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\AuditLogController;
+
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+    // Roles Management (admin only)
+    Route::prefix('admin/roles')->middleware(['role:admin'])->group(function () {
+        Route::get('/', [RoleController::class, 'index']);
+        Route::get('/permissions', [RoleController::class, 'permissions']);
+        Route::post('/', [RoleController::class, 'store']);
+        Route::get('/{role}', [RoleController::class, 'show']);
+        Route::put('/{role}', [RoleController::class, 'update']);
+        Route::delete('/{role}', [RoleController::class, 'destroy']);
+        Route::post('/{role}/assign', [RoleController::class, 'assignToUser']);
+        Route::post('/{role}/remove', [RoleController::class, 'removeFromUser']);
+    });
+
+    // Audit Logs (admin only)
+    Route::prefix('admin/audit-logs')->middleware(['role:admin'])->group(function () {
+        Route::get('/', [AuditLogController::class, 'index']);
+        Route::get('/stats', [AuditLogController::class, 'stats']);
+        Route::get('/log-names', [AuditLogController::class, 'logNames']);
+        Route::get('/export', [AuditLogController::class, 'export']);
+        Route::get('/user/{userId}', [AuditLogController::class, 'userActivity']);
+        Route::get('/{activity}', [AuditLogController::class, 'show']);
+    });
+
+    // User's own activity (for regular users)
+    Route::get('/my-activity', function () {
+        return app(AuditLogController::class)->userActivity(request(), auth()->id());
+    });
+});
