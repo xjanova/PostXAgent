@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Brand;
 use App\Models\Post;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\UserRental;
 use App\Models\RentalPackage;
@@ -16,6 +17,7 @@ class PostControllerTest extends TestCase
 
     private User $user;
     private Brand $brand;
+    private SocialAccount $socialAccount;
 
     protected function setUp(): void
     {
@@ -23,10 +25,14 @@ class PostControllerTest extends TestCase
 
         $this->user = User::factory()->create();
         $this->brand = Brand::factory()->create(['user_id' => $this->user->id]);
+        $this->socialAccount = SocialAccount::factory()->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'platform' => 'facebook',
+        ]);
 
         // Create rental package and active rental for user
         $package = RentalPackage::factory()->create([
-            'name' => 'Test Package',
             'posts_limit' => 100,
             'brands_limit' => 5,
             'ai_generations_limit' => 500,
@@ -52,30 +58,28 @@ class PostControllerTest extends TestCase
         $response = $this->actingAs($this->user, 'sanctum')
             ->getJson('/api/v1/posts');
 
-        $response->assertStatus(200)
+        // PostController::index returns raw paginator without wrapper
+        $response->assertOk()
             ->assertJsonStructure([
                 'data' => [
                     '*' => ['id', 'content_text', 'platform', 'status'],
                 ],
+                'current_page',
+                'last_page',
             ]);
     }
 
     public function test_user_can_create_post(): void
     {
-        // Create social account for the user
-        $socialAccount = \App\Models\SocialAccount::factory()->create([
-            'user_id' => $this->user->id,
-            'platform' => 'facebook',
-        ]);
-
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/posts', [
                 'brand_id' => $this->brand->id,
-                'social_account_id' => $socialAccount->id,
+                'social_account_id' => $this->socialAccount->id,
                 'content_text' => 'Test post content',
                 'content_type' => 'text',
             ]);
 
+        // PostController::store returns raw Post model
         $response->assertStatus(201)
             ->assertJsonPath('content_text', 'Test post content')
             ->assertJsonPath('platform', 'facebook');
@@ -96,7 +100,8 @@ class PostControllerTest extends TestCase
         $response = $this->actingAs($this->user, 'sanctum')
             ->getJson("/api/v1/posts/{$post->id}");
 
-        $response->assertStatus(200)
+        // PostController::show returns raw Post model
+        $response->assertOk()
             ->assertJsonPath('id', $post->id);
     }
 
@@ -113,11 +118,12 @@ class PostControllerTest extends TestCase
                 'content_text' => 'Updated content',
             ]);
 
-        $response->assertStatus(200)
+        // PostController::update returns raw Post model
+        $response->assertOk()
             ->assertJsonPath('content_text', 'Updated content');
     }
 
-    public function test_user_can_schedule_post(): void
+    public function test_user_can_set_scheduled_at(): void
     {
         $post = Post::factory()->create([
             'user_id' => $this->user->id,
@@ -132,9 +138,7 @@ class PostControllerTest extends TestCase
                 'scheduled_at' => $scheduledAt,
             ]);
 
-        $response->assertStatus(200);
-
-        // Verify scheduled_at was set (status change is not automatic in update)
+        $response->assertOk();
         $post->refresh();
         $this->assertNotNull($post->scheduled_at);
     }
@@ -149,8 +153,9 @@ class PostControllerTest extends TestCase
         $response = $this->actingAs($this->user, 'sanctum')
             ->deleteJson("/api/v1/posts/{$post->id}");
 
-        $response->assertStatus(200)
-            ->assertJson(['message' => 'Post deleted']);
+        // PostController::destroy returns {message: 'Post deleted'}
+        $response->assertOk()
+            ->assertJsonPath('message', 'Post deleted');
 
         $this->assertSoftDeleted('posts', ['id' => $post->id]);
     }
@@ -167,20 +172,15 @@ class PostControllerTest extends TestCase
         $response = $this->actingAs($this->user, 'sanctum')
             ->getJson("/api/v1/posts/{$post->id}");
 
-        $response->assertStatus(403);
+        $response->assertForbidden();
     }
 
     public function test_post_requires_content(): void
     {
-        $socialAccount = \App\Models\SocialAccount::factory()->create([
-            'user_id' => $this->user->id,
-            'platform' => 'facebook',
-        ]);
-
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/posts', [
                 'brand_id' => $this->brand->id,
-                'social_account_id' => $socialAccount->id,
+                'social_account_id' => $this->socialAccount->id,
                 'content_type' => 'text',
             ]);
 
@@ -216,11 +216,34 @@ class PostControllerTest extends TestCase
                 'post_ids' => $postIds,
             ]);
 
-        $response->assertStatus(200)
-            ->assertJson(['success' => true]);
+        // PostController::bulkDelete returns {success, message, deleted_count}
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('deleted_count', 3);
 
         foreach ($postIds as $id) {
             $this->assertSoftDeleted('posts', ['id' => $id]);
         }
+    }
+
+    public function test_user_can_filter_posts_by_status(): void
+    {
+        Post::factory()->count(2)->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'status' => 'published',
+        ]);
+
+        Post::factory()->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v1/posts?status=published');
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
     }
 }

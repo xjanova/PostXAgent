@@ -34,26 +34,29 @@ class AccountPoolControllerTest extends TestCase
 
         $response = $this->getJson('/api/v1/account-pools?brand_id=' . $this->brand->id);
 
+        // AccountPoolController::index returns {success, data: [pools]} (not paginated)
         $response->assertOk()
+            ->assertJsonPath('success', true)
             ->assertJsonStructure([
                 'success',
                 'data' => [
                     '*' => ['id', 'name', 'platform', 'rotation_strategy'],
                 ],
             ]);
+
+        $this->assertCount(3, $response->json('data'));
     }
 
     public function test_can_create_account_pool(): void
     {
-        $data = [
+        $response = $this->postJson('/api/v1/account-pools', [
             'brand_id' => $this->brand->id,
             'name' => 'Facebook Pool',
             'platform' => 'facebook',
             'rotation_strategy' => 'round_robin',
-        ];
+        ]);
 
-        $response = $this->postJson('/api/v1/account-pools', $data);
-
+        // AccountPoolController::store returns {success, data, message}
         $response->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.name', 'Facebook Pool');
@@ -69,6 +72,7 @@ class AccountPoolControllerTest extends TestCase
 
         $response = $this->getJson("/api/v1/account-pools/{$pool->id}");
 
+        // AccountPoolController::show returns {success, data: pool with statistics}
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.id', $pool->id);
@@ -86,9 +90,15 @@ class AccountPoolControllerTest extends TestCase
             'rotation_strategy' => 'random',
         ]);
 
+        // AccountPoolController::update returns {success, data, message}
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.name', 'Updated Name');
+
+        $this->assertDatabaseHas('account_pools', [
+            'id' => $pool->id,
+            'name' => 'Updated Name',
+        ]);
     }
 
     public function test_can_delete_account_pool(): void
@@ -99,9 +109,11 @@ class AccountPoolControllerTest extends TestCase
 
         $response = $this->deleteJson("/api/v1/account-pools/{$pool->id}");
 
+        // AccountPoolController::destroy returns {success, message}
         $response->assertOk()
             ->assertJsonPath('success', true);
 
+        // Model uses SoftDeletes
         $this->assertSoftDeleted('account_pools', ['id' => $pool->id]);
     }
 
@@ -124,6 +136,7 @@ class AccountPoolControllerTest extends TestCase
             'weight' => 100,
         ]);
 
+        // AccountPoolController::addAccount returns {success, data, message}
         $response->assertCreated()
             ->assertJsonPath('success', true);
 
@@ -137,11 +150,13 @@ class AccountPoolControllerTest extends TestCase
     {
         $pool = AccountPool::factory()->create([
             'brand_id' => $this->brand->id,
+            'platform' => 'facebook',
         ]);
 
         $account = SocialAccount::factory()->create([
             'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
+            'platform' => 'facebook',
         ]);
 
         AccountPoolMember::factory()->create([
@@ -151,6 +166,7 @@ class AccountPoolControllerTest extends TestCase
 
         $response = $this->deleteJson("/api/v1/account-pools/{$pool->id}/accounts/{$account->id}");
 
+        // AccountPoolController::removeAccount returns {success, message}
         $response->assertOk()
             ->assertJsonPath('success', true);
 
@@ -174,9 +190,10 @@ class AccountPoolControllerTest extends TestCase
 
         $response = $this->getJson('/api/v1/account-pools?brand_id=' . $this->brand->id . '&platform=facebook');
 
-        $response->assertOk();
-        $data = $response->json('data');
-        $this->assertCount(2, $data);
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertCount(2, $response->json('data'));
     }
 
     public function test_can_get_pool_statistics(): void
@@ -187,8 +204,13 @@ class AccountPoolControllerTest extends TestCase
 
         $response = $this->getJson("/api/v1/account-pools/{$pool->id}/statistics");
 
+        // AccountPoolController::statistics returns {success, data: statistics}
         $response->assertOk()
-            ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'success',
+                'data',
+            ]);
     }
 
     public function test_validation_requires_name(): void
@@ -244,7 +266,8 @@ class AccountPoolControllerTest extends TestCase
             'social_account_id' => $account->id,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
     }
 
     public function test_cannot_add_duplicate_account_to_pool(): void
@@ -269,6 +292,33 @@ class AccountPoolControllerTest extends TestCase
             'social_account_id' => $account->id,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_index_requires_brand_id(): void
+    {
+        $response = $this->getJson('/api/v1/account-pools');
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['brand_id']);
+    }
+
+    public function test_cannot_create_duplicate_pool_name(): void
+    {
+        AccountPool::factory()->create([
+            'brand_id' => $this->brand->id,
+            'platform' => 'facebook',
+            'name' => 'My Pool',
+        ]);
+
+        $response = $this->postJson('/api/v1/account-pools', [
+            'brand_id' => $this->brand->id,
+            'name' => 'My Pool',
+            'platform' => 'facebook',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
     }
 }

@@ -33,6 +33,7 @@ class CampaignControllerTest extends TestCase
 
         $response = $this->getJson('/api/v1/campaigns');
 
+        // CampaignController::index returns {success, data: paginated}
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonStructure([
@@ -41,26 +42,25 @@ class CampaignControllerTest extends TestCase
                     'data' => [
                         '*' => ['id', 'name', 'status'],
                     ],
+                    'current_page',
+                    'last_page',
                 ],
             ]);
     }
 
     public function test_can_create_campaign(): void
     {
-        $data = [
+        $response = $this->postJson('/api/v1/campaigns', [
             'brand_id' => $this->brand->id,
             'name' => 'New Campaign',
             'description' => 'Campaign description',
             'type' => 'promotion',
-            'goal' => 'Increase engagement',
             'target_platforms' => ['facebook', 'instagram'],
-            'content_themes' => ['tech', 'innovation'],
-            'budget' => 5000,
-            'status' => 'draft',
-        ];
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+        ]);
 
-        $response = $this->postJson('/api/v1/campaigns', $data);
-
+        // CampaignController::store returns {success, message, data: Campaign}
         $response->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.name', 'New Campaign');
@@ -77,6 +77,7 @@ class CampaignControllerTest extends TestCase
 
         $response = $this->getJson("/api/v1/campaigns/{$campaign->id}");
 
+        // CampaignController::show returns {success, data: Campaign, stats}
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.id', $campaign->id);
@@ -93,7 +94,8 @@ class CampaignControllerTest extends TestCase
 
         $response = $this->getJson("/api/v1/campaigns/{$campaign->id}");
 
-        $response->assertForbidden();
+        $response->assertForbidden()
+            ->assertJsonPath('success', false);
     }
 
     public function test_can_update_campaign(): void
@@ -106,9 +108,9 @@ class CampaignControllerTest extends TestCase
 
         $response = $this->putJson("/api/v1/campaigns/{$campaign->id}", [
             'name' => 'Updated Name',
-            'budget' => 10000,
         ]);
 
+        // CampaignController::update returns {success, message, data: Campaign}
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.name', 'Updated Name');
@@ -128,6 +130,7 @@ class CampaignControllerTest extends TestCase
 
         $response = $this->deleteJson("/api/v1/campaigns/{$campaign->id}");
 
+        // CampaignController::destroy returns {success, message}
         $response->assertOk()
             ->assertJsonPath('success', true);
 
@@ -151,8 +154,8 @@ class CampaignControllerTest extends TestCase
         $response = $this->getJson('/api/v1/campaigns?status=active');
 
         $response->assertOk();
-        $data = $response->json('data.data');
-        $this->assertCount(2, $data);
+        // Paginated response: data.data contains the items
+        $this->assertCount(2, $response->json('data.data'));
     }
 
     public function test_can_filter_campaigns_by_brand(): void
@@ -172,8 +175,7 @@ class CampaignControllerTest extends TestCase
         $response = $this->getJson("/api/v1/campaigns?brand_id={$this->brand->id}");
 
         $response->assertOk();
-        $data = $response->json('data.data');
-        $this->assertCount(3, $data);
+        $this->assertCount(3, $response->json('data.data'));
     }
 
     public function test_can_start_campaign(): void
@@ -186,6 +188,7 @@ class CampaignControllerTest extends TestCase
 
         $response = $this->postJson("/api/v1/campaigns/{$campaign->id}/start");
 
+        // CampaignController::start returns {success, message, data: Campaign}
         $response->assertOk()
             ->assertJsonPath('success', true);
 
@@ -210,11 +213,31 @@ class CampaignControllerTest extends TestCase
         $this->assertEquals('paused', $campaign->status);
     }
 
+    public function test_can_stop_campaign(): void
+    {
+        $campaign = Campaign::factory()->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'status' => 'active',
+        ]);
+
+        $response = $this->postJson("/api/v1/campaigns/{$campaign->id}/stop");
+
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+
+        $campaign->refresh();
+        $this->assertEquals('cancelled', $campaign->status);
+    }
+
     public function test_validation_requires_name(): void
     {
         $response = $this->postJson('/api/v1/campaigns', [
             'brand_id' => $this->brand->id,
-            'status' => 'draft',
+            'type' => 'promotion',
+            'target_platforms' => ['facebook'],
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
         ]);
 
         $response->assertUnprocessable()
@@ -225,10 +248,69 @@ class CampaignControllerTest extends TestCase
     {
         $response = $this->postJson('/api/v1/campaigns', [
             'name' => 'Test Campaign',
-            'status' => 'draft',
+            'type' => 'promotion',
+            'target_platforms' => ['facebook'],
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
         ]);
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['brand_id']);
+    }
+
+    public function test_validation_requires_type(): void
+    {
+        $response = $this->postJson('/api/v1/campaigns', [
+            'brand_id' => $this->brand->id,
+            'name' => 'Test Campaign',
+            'target_platforms' => ['facebook'],
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['type']);
+    }
+
+    public function test_validation_requires_target_platforms(): void
+    {
+        $response = $this->postJson('/api/v1/campaigns', [
+            'brand_id' => $this->brand->id,
+            'name' => 'Test Campaign',
+            'type' => 'promotion',
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['target_platforms']);
+    }
+
+    public function test_cannot_start_already_active_campaign(): void
+    {
+        $campaign = Campaign::factory()->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'status' => 'active',
+        ]);
+
+        $response = $this->postJson("/api/v1/campaigns/{$campaign->id}/start");
+
+        $response->assertStatus(400)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_cannot_pause_non_active_campaign(): void
+    {
+        $campaign = Campaign::factory()->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'status' => 'draft',
+        ]);
+
+        $response = $this->postJson("/api/v1/campaigns/{$campaign->id}/pause");
+
+        $response->assertStatus(400)
+            ->assertJsonPath('success', false);
     }
 }
