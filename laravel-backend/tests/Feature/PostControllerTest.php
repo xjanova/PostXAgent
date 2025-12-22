@@ -54,30 +54,35 @@ class PostControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'success',
                 'data' => [
-                    '*' => ['id', 'content', 'platforms', 'status'],
+                    '*' => ['id', 'content_text', 'platform', 'status'],
                 ],
             ]);
     }
 
     public function test_user_can_create_post(): void
     {
+        // Create social account for the user
+        $socialAccount = \App\Models\SocialAccount::factory()->create([
+            'user_id' => $this->user->id,
+            'platform' => 'facebook',
+        ]);
+
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/posts', [
                 'brand_id' => $this->brand->id,
-                'content' => 'Test post content',
-                'platforms' => ['facebook', 'instagram'],
+                'social_account_id' => $socialAccount->id,
+                'content_text' => 'Test post content',
+                'content_type' => 'text',
             ]);
 
         $response->assertStatus(201)
             ->assertJsonStructure([
-                'success',
-                'data' => ['id', 'content', 'platforms', 'status'],
+                'id', 'content_text', 'platform', 'status',
             ]);
 
         $this->assertDatabaseHas('posts', [
-            'content' => 'Test post content',
+            'content_text' => 'Test post content',
             'user_id' => $this->user->id,
         ]);
     }
@@ -93,10 +98,7 @@ class PostControllerTest extends TestCase
             ->getJson("/api/v1/posts/{$post->id}");
 
         $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'data' => ['id' => $post->id],
-            ]);
+            ->assertJsonPath('id', $post->id);
     }
 
     public function test_user_can_update_draft_post(): void
@@ -109,14 +111,11 @@ class PostControllerTest extends TestCase
 
         $response = $this->actingAs($this->user, 'sanctum')
             ->putJson("/api/v1/posts/{$post->id}", [
-                'content' => 'Updated content',
+                'content_text' => 'Updated content',
             ]);
 
         $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'data' => ['content' => 'Updated content'],
-            ]);
+            ->assertJsonPath('content_text', 'Updated content');
     }
 
     public function test_user_can_schedule_post(): void
@@ -153,7 +152,7 @@ class PostControllerTest extends TestCase
             ->deleteJson("/api/v1/posts/{$post->id}");
 
         $response->assertStatus(200)
-            ->assertJson(['success' => true]);
+            ->assertJson(['message' => 'Post deleted']);
 
         $this->assertSoftDeleted('posts', ['id' => $post->id]);
     }
@@ -175,27 +174,34 @@ class PostControllerTest extends TestCase
 
     public function test_post_requires_content(): void
     {
+        $socialAccount = \App\Models\SocialAccount::factory()->create([
+            'user_id' => $this->user->id,
+            'platform' => 'facebook',
+        ]);
+
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/posts', [
                 'brand_id' => $this->brand->id,
-                'platforms' => ['facebook'],
+                'social_account_id' => $socialAccount->id,
+                'content_type' => 'text',
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['content']);
+            ->assertJsonValidationErrors(['content_text']);
     }
 
-    public function test_post_requires_valid_platforms(): void
+    public function test_post_requires_valid_social_account(): void
     {
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/posts', [
                 'brand_id' => $this->brand->id,
-                'content' => 'Test content',
-                'platforms' => ['invalid_platform'],
+                'content_text' => 'Test content',
+                'content_type' => 'text',
+                'social_account_id' => 99999,
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['platforms.0']);
+            ->assertJsonValidationErrors(['social_account_id']);
     }
 
     public function test_bulk_delete_posts(): void
@@ -205,16 +211,17 @@ class PostControllerTest extends TestCase
             'brand_id' => $this->brand->id,
         ]);
 
-        $ids = $posts->pluck('id')->toArray();
+        $postIds = $posts->pluck('id')->toArray();
 
         $response = $this->actingAs($this->user, 'sanctum')
             ->deleteJson('/api/v1/posts/bulk', [
-                'ids' => $ids,
+                'post_ids' => $postIds,
             ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertJson(['success' => true]);
 
-        foreach ($ids as $id) {
+        foreach ($postIds as $id) {
             $this->assertSoftDeleted('posts', ['id' => $id]);
         }
     }

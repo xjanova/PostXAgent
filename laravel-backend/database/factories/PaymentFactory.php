@@ -19,15 +19,20 @@ class PaymentFactory extends Factory
      */
     public function definition(): array
     {
+        $amount = fake()->randomFloat(2, 99, 9999);
+        $fee = fake()->randomFloat(2, 0, 50);
+
         return [
+            'uuid' => fake()->uuid(),
             'user_id' => User::factory(),
             'user_rental_id' => UserRental::factory(),
-            'amount' => fake()->randomFloat(2, 99, 9999),
+            'amount' => $amount,
+            'fee' => $fee,
+            'net_amount' => $amount - $fee,
             'currency' => 'THB',
-            'payment_method' => fake()->randomElement(['bank_transfer', 'promptpay', 'credit_card', 'qr_code']),
+            'payment_method' => fake()->randomElement(['bank_transfer', 'promptpay', 'credit_card']),
             'status' => 'pending',
-            'reference_number' => 'REF-' . fake()->uuid(),
-            'transaction_id' => null,
+            'gateway_reference' => null,
             'gateway_response' => null,
             'paid_at' => null,
             'metadata' => [],
@@ -35,14 +40,14 @@ class PaymentFactory extends Factory
     }
 
     /**
-     * Indicate that the payment is confirmed.
+     * Indicate that the payment is completed.
      */
-    public function confirmed(): static
+    public function completed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'confirmed',
+            'status' => 'completed',
             'paid_at' => now(),
-            'transaction_id' => 'TXN-' . fake()->uuid(),
+            'gateway_reference' => 'TXN-' . fake()->uuid(),
         ]);
     }
 

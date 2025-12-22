@@ -68,12 +68,12 @@ class AccountPoolMemberFactory extends Factory
     }
 
     /**
-     * Indicate that the member is disabled.
+     * Indicate that the member is suspended.
      */
-    public function disabled(): static
+    public function suspended(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'disabled',
+            'status' => 'suspended',
         ]);
     }
 
