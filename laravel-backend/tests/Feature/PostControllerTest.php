@@ -27,12 +27,10 @@ class PostControllerTest extends TestCase
         // Create rental package and active rental for user
         $package = RentalPackage::factory()->create([
             'name' => 'Test Package',
-            'limits' => [
-                'posts' => 100,
-                'brands' => 5,
-                'ai_generations' => 500,
-                'platforms' => 9,
-            ],
+            'posts_limit' => 100,
+            'brands_limit' => 5,
+            'ai_generations_limit' => 500,
+            'platforms_limit' => 9,
         ]);
 
         UserRental::factory()->create([
