@@ -37,7 +37,10 @@ class AuthController extends Controller
             'is_active' => true,
         ]);
 
-        $user->assignRole('user');
+        // Assign default role if it exists
+        if (\Spatie\Permission\Models\Role::where('name', 'user')->exists()) {
+            $user->assignRole('user');
+        }
 
         $token = $user->createToken('auth-token')->plainTextToken;
 

@@ -56,11 +56,8 @@ class PublishPost implements ShouldQueue
                 throw new \Exception('Social account token has expired');
             }
 
-            // Prepare payload for AI Manager
-            $payload = $this->post->toWorkerPayload();
-
             // Send to AI Manager for publishing
-            $result = $aiManager->publishPost($payload);
+            $result = $aiManager->publishPost($this->post);
 
             if ($result['success']) {
                 // Update post with platform info
