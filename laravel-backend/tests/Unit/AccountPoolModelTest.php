@@ -40,15 +40,18 @@ class AccountPoolModelTest extends TestCase
             'brand_id' => $this->brand->id,
         ]);
 
-        $socialAccount = SocialAccount::factory()->create([
+        // Create 3 different social accounts for 3 members
+        $socialAccounts = SocialAccount::factory()->count(3)->create([
             'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
-        AccountPoolMember::factory()->count(3)->create([
-            'account_pool_id' => $pool->id,
-            'social_account_id' => $socialAccount->id,
-        ]);
+        foreach ($socialAccounts as $account) {
+            AccountPoolMember::factory()->create([
+                'account_pool_id' => $pool->id,
+                'social_account_id' => $account->id,
+            ]);
+        }
 
         $this->assertCount(3, $pool->members);
         $this->assertInstanceOf(AccountPoolMember::class, $pool->members->first());
