@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserRental;
 use App\Models\RentalPackage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class PostControllerTest extends TestCase
@@ -58,12 +59,15 @@ class PostControllerTest extends TestCase
 
     public function test_user_can_create_post(): void
     {
+        Queue::fake();
+
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/posts', [
                 'brand_id' => $this->brand->id,
                 'social_account_id' => $this->socialAccount->id,
                 'content_text' => 'Test post content',
                 'content_type' => 'text',
+                'scheduled_at' => now()->addDay()->toIso8601String(),
             ]);
 
         $response->assertStatus(201)
