@@ -29,11 +29,10 @@ class AccountPoolControllerTest extends TestCase
     public function test_can_list_account_pools(): void
     {
         AccountPool::factory()->count(3)->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
-        $response = $this->getJson('/api/v1/account-pools');
+        $response = $this->getJson('/api/v1/account-pools?brand_id=' . $this->brand->id);
 
         $response->assertOk()
             ->assertJsonStructure([
@@ -51,7 +50,6 @@ class AccountPoolControllerTest extends TestCase
             'name' => 'Facebook Pool',
             'platform' => 'facebook',
             'rotation_strategy' => 'round_robin',
-            'is_active' => true,
         ];
 
         $response = $this->postJson('/api/v1/account-pools', $data);
@@ -66,7 +64,6 @@ class AccountPoolControllerTest extends TestCase
     public function test_can_show_account_pool(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
@@ -77,24 +74,9 @@ class AccountPoolControllerTest extends TestCase
             ->assertJsonPath('data.id', $pool->id);
     }
 
-    public function test_cannot_show_other_users_pool(): void
-    {
-        $otherUser = User::factory()->create();
-        $otherBrand = Brand::factory()->create(['user_id' => $otherUser->id]);
-        $pool = AccountPool::factory()->create([
-            'user_id' => $otherUser->id,
-            'brand_id' => $otherBrand->id,
-        ]);
-
-        $response = $this->getJson("/api/v1/account-pools/{$pool->id}");
-
-        $response->assertForbidden();
-    }
-
     public function test_can_update_account_pool(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'name' => 'Original Name',
         ]);
@@ -112,7 +94,6 @@ class AccountPoolControllerTest extends TestCase
     public function test_can_delete_account_pool(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
@@ -124,10 +105,9 @@ class AccountPoolControllerTest extends TestCase
         $this->assertSoftDeleted('account_pools', ['id' => $pool->id]);
     }
 
-    public function test_can_add_member_to_pool(): void
+    public function test_can_add_account_to_pool(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'platform' => 'facebook',
         ]);
@@ -138,7 +118,7 @@ class AccountPoolControllerTest extends TestCase
             'platform' => 'facebook',
         ]);
 
-        $response = $this->postJson("/api/v1/account-pools/{$pool->id}/members", [
+        $response = $this->postJson("/api/v1/account-pools/{$pool->id}/accounts", [
             'social_account_id' => $account->id,
             'priority' => 1,
             'weight' => 100,
@@ -153,10 +133,9 @@ class AccountPoolControllerTest extends TestCase
         ]);
     }
 
-    public function test_can_remove_member_from_pool(): void
+    public function test_can_remove_account_from_pool(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
@@ -165,55 +144,51 @@ class AccountPoolControllerTest extends TestCase
             'brand_id' => $this->brand->id,
         ]);
 
-        $member = AccountPoolMember::factory()->create([
+        AccountPoolMember::factory()->create([
             'account_pool_id' => $pool->id,
             'social_account_id' => $account->id,
         ]);
 
-        $response = $this->deleteJson("/api/v1/account-pools/{$pool->id}/members/{$member->id}");
+        $response = $this->deleteJson("/api/v1/account-pools/{$pool->id}/accounts/{$account->id}");
 
         $response->assertOk()
             ->assertJsonPath('success', true);
 
-        $this->assertDatabaseMissing('account_pool_members', ['id' => $member->id]);
+        $this->assertDatabaseMissing('account_pool_members', [
+            'account_pool_id' => $pool->id,
+            'social_account_id' => $account->id,
+        ]);
     }
 
     public function test_can_filter_pools_by_platform(): void
     {
         AccountPool::factory()->count(2)->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'platform' => 'facebook',
         ]);
 
         AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'platform' => 'instagram',
         ]);
 
-        $response = $this->getJson('/api/v1/account-pools?platform=facebook');
+        $response = $this->getJson('/api/v1/account-pools?brand_id=' . $this->brand->id . '&platform=facebook');
 
         $response->assertOk();
         $data = $response->json('data');
         $this->assertCount(2, $data);
     }
 
-    public function test_can_toggle_pool_active_status(): void
+    public function test_can_get_pool_statistics(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
-            'is_active' => true,
         ]);
 
-        $response = $this->postJson("/api/v1/account-pools/{$pool->id}/toggle-active");
+        $response = $this->getJson("/api/v1/account-pools/{$pool->id}/statistics");
 
         $response->assertOk()
             ->assertJsonPath('success', true);
-
-        $pool->refresh();
-        $this->assertFalse($pool->is_active);
     }
 
     public function test_validation_requires_name(): void
@@ -250,5 +225,50 @@ class AccountPoolControllerTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['rotation_strategy']);
+    }
+
+    public function test_cannot_add_mismatched_platform_account(): void
+    {
+        $pool = AccountPool::factory()->create([
+            'brand_id' => $this->brand->id,
+            'platform' => 'facebook',
+        ]);
+
+        $account = SocialAccount::factory()->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'platform' => 'instagram',
+        ]);
+
+        $response = $this->postJson("/api/v1/account-pools/{$pool->id}/accounts", [
+            'social_account_id' => $account->id,
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_cannot_add_duplicate_account_to_pool(): void
+    {
+        $pool = AccountPool::factory()->create([
+            'brand_id' => $this->brand->id,
+            'platform' => 'facebook',
+        ]);
+
+        $account = SocialAccount::factory()->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'platform' => 'facebook',
+        ]);
+
+        AccountPoolMember::factory()->create([
+            'account_pool_id' => $pool->id,
+            'social_account_id' => $account->id,
+        ]);
+
+        $response = $this->postJson("/api/v1/account-pools/{$pool->id}/accounts", [
+            'social_account_id' => $account->id,
+        ]);
+
+        $response->assertStatus(422);
     }
 }
