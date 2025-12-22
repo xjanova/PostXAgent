@@ -42,13 +42,15 @@ class UserRentalFactory extends Factory
 
     /**
      * Indicate that the rental is pending.
+     * Note: starts_at and expires_at are NOT nullable in migration,
+     * so we set them to future dates for pending rentals
      */
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
             'status' => UserRental::STATUS_PENDING,
-            'starts_at' => null,
-            'expires_at' => null,
+            'starts_at' => now(),
+            'expires_at' => now()->addMonth(),
         ]);
     }
 

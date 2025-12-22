@@ -101,11 +101,9 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'data' => [
-                    'id' => $user->id,
-                    'email' => $user->email,
-                ],
-            ]);
+            ])
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonPath('data.user.email', $user->email);
     }
 
     public function test_unauthenticated_user_cannot_access_protected_routes(): void
