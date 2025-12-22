@@ -34,10 +34,10 @@ class CheckRentalLimits
         }
 
         // Get active rental
-        $rental = UserRental::with('package')
+        $rental = UserRental::with('rentalPackage')
             ->where('user_id', $user->id)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('expires_at', '>', now())
             ->first();
 
         if (!$rental) {
@@ -50,7 +50,7 @@ class CheckRentalLimits
             ], 402);
         }
 
-        $package = $rental->package;
+        $package = $rental->rentalPackage;
         $limitExceeded = false;
         $limitMessage = '';
         $usageInfo = [];

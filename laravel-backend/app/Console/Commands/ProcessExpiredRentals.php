@@ -26,9 +26,9 @@ class ProcessExpiredRentals extends Command
         $expiredCount = 0;
 
         // Find all active rentals that have expired
-        $expiredRentals = UserRental::with(['user', 'package'])
+        $expiredRentals = UserRental::with(['user', 'rentalPackage'])
             ->where('status', 'active')
-            ->where('ends_at', '<=', now())
+            ->where('expires_at', '<=', now())
             ->get();
 
         foreach ($expiredRentals as $rental) {
@@ -46,7 +46,7 @@ class ProcessExpiredRentals extends Command
                 Log::info("Rental expired", [
                     'rental_id' => $rental->id,
                     'user_id' => $rental->user_id,
-                    'package' => $rental->package->name ?? 'Unknown',
+                    'package' => $rental->rentalPackage->name ?? 'Unknown',
                 ]);
             } catch (\Exception $e) {
                 Log::error("Failed to process expired rental", [

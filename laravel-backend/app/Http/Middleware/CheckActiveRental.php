@@ -33,18 +33,18 @@ class CheckActiveRental
         }
 
         // Get active rental
-        $rental = UserRental::with('package')
+        $rental = UserRental::with('rentalPackage')
             ->where('user_id', $user->id)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('expires_at', '>', now())
             ->first();
 
         if (!$rental) {
             // Check if user has an expired rental
-            $expiredRental = UserRental::with('package')
+            $expiredRental = UserRental::with('rentalPackage')
                 ->where('user_id', $user->id)
                 ->where('status', 'active')
-                ->where('ends_at', '<=', now())
+                ->where('expires_at', '<=', now())
                 ->first();
 
             if ($expiredRental) {
@@ -55,14 +55,14 @@ class CheckActiveRental
                     'action' => 'renew_required',
                     'redirect' => '/pricing',
                     'expired_package' => [
-                        'name' => $expiredRental->package->name,
-                        'expired_at' => $expiredRental->ends_at->toIso8601String(),
+                        'name' => $expiredRental->rentalPackage->name,
+                        'expired_at' => $expiredRental->expires_at->toIso8601String(),
                     ],
                 ], 402);
             }
 
             // Check if user has a pending payment
-            $pendingRental = UserRental::with(['package', 'payments'])
+            $pendingRental = UserRental::with(['rentalPackage', 'payments'])
                 ->where('user_id', $user->id)
                 ->where('status', 'pending')
                 ->first();
@@ -79,7 +79,7 @@ class CheckActiveRental
                     'action' => 'complete_payment',
                     'redirect' => $pendingPayment ? "/payment/{$pendingPayment->uuid}" : '/pricing',
                     'pending_package' => [
-                        'name' => $pendingRental->package->name,
+                        'name' => $pendingRental->rentalPackage->name,
                         'payment_uuid' => $pendingPayment?->uuid,
                     ],
                 ], 402);
@@ -95,7 +95,7 @@ class CheckActiveRental
         }
 
         // Check if rental is about to expire (within 3 days)
-        $daysUntilExpiry = now()->diffInDays($rental->ends_at, false);
+        $daysUntilExpiry = now()->diffInDays($rental->expires_at, false);
         $expiringWarning = null;
 
         if ($daysUntilExpiry <= 3 && $daysUntilExpiry >= 0) {
@@ -103,14 +103,14 @@ class CheckActiveRental
                 'message' => $daysUntilExpiry <= 1
                     ? 'แพ็กเกจของคุณจะหมดอายุภายในวันนี้!'
                     : "แพ็กเกจของคุณจะหมดอายุใน {$daysUntilExpiry} วัน",
-                'expires_at' => $rental->ends_at->toIso8601String(),
+                'expires_at' => $rental->expires_at->toIso8601String(),
                 'days_remaining' => $daysUntilExpiry,
             ];
         }
 
         // Attach rental info to request
         $request->attributes->set('current_rental', $rental);
-        $request->attributes->set('current_package', $rental->package);
+        $request->attributes->set('current_package', $rental->rentalPackage);
         $request->attributes->set('rental_expiring_warning', $expiringWarning);
 
         return $next($request);

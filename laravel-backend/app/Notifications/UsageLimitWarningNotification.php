@@ -32,7 +32,7 @@ class UsageLimitWarningNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $packageName = $this->rental->package->name ?? 'แพ็กเกจ';
+        $packageName = $this->rental->rentalPackage->name ?? 'แพ็กเกจ';
         $typeLabel = $this->usageType === 'posts' ? 'โพสต์' : 'AI Generation';
         $remaining = $this->limit - $this->used;
 

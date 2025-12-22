@@ -25,9 +25,9 @@ class SendRentalExpiryReminders extends Command
         $remindersSent = 0;
 
         // Rentals expiring in 3 days
-        $expiringIn3Days = UserRental::with(['user', 'package'])
+        $expiringIn3Days = UserRental::with(['user', 'rentalPackage'])
             ->where('status', 'active')
-            ->whereDate('ends_at', now()->addDays(3)->toDateString())
+            ->whereDate('expires_at', now()->addDays(3)->toDateString())
             ->get();
 
         foreach ($expiringIn3Days as $rental) {
@@ -36,9 +36,9 @@ class SendRentalExpiryReminders extends Command
         }
 
         // Rentals expiring in 1 day
-        $expiringIn1Day = UserRental::with(['user', 'package'])
+        $expiringIn1Day = UserRental::with(['user', 'rentalPackage'])
             ->where('status', 'active')
-            ->whereDate('ends_at', now()->addDay()->toDateString())
+            ->whereDate('expires_at', now()->addDay()->toDateString())
             ->get();
 
         foreach ($expiringIn1Day as $rental) {
@@ -47,9 +47,9 @@ class SendRentalExpiryReminders extends Command
         }
 
         // Rentals expiring today
-        $expiringToday = UserRental::with(['user', 'package'])
+        $expiringToday = UserRental::with(['user', 'rentalPackage'])
             ->where('status', 'active')
-            ->whereDate('ends_at', now()->toDateString())
+            ->whereDate('expires_at', now()->toDateString())
             ->get();
 
         foreach ($expiringToday as $rental) {
