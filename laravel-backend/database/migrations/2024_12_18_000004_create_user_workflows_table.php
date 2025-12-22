@@ -28,32 +28,11 @@ return new class extends Migration
             $table->index('is_active');
         });
 
-        // Workflow execution history
-        Schema::create('workflow_executions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_workflow_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('template_id')->nullable()->constrained('workflow_templates')->nullOnDelete();
-            $table->string('status')->default('pending'); // pending, running, completed, failed, cancelled
-            $table->json('variables')->nullable(); // variables used in this execution
-            $table->json('node_outputs')->nullable(); // output from each node
-            $table->text('error_message')->nullable();
-            $table->json('execution_log')->nullable(); // detailed step-by-step log
-            $table->integer('nodes_executed')->default(0);
-            $table->integer('total_nodes')->default(0);
-            $table->integer('duration_ms')->nullable();
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
-            $table->timestamps();
-
-            $table->index('status');
-            $table->index('user_id');
-        });
+        // Note: workflow_executions table is created in 2024_12_17_000007_create_workflow_executions_table.php
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('workflow_executions');
         Schema::dropIfExists('user_workflows');
     }
 };
