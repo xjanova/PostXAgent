@@ -77,9 +77,8 @@ class PostControllerTest extends TestCase
             ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure([
-                'id', 'content_text', 'platform', 'status',
-            ]);
+            ->assertJsonPath('content_text', 'Test post content')
+            ->assertJsonPath('platform', 'facebook');
 
         $this->assertDatabaseHas('posts', [
             'content_text' => 'Test post content',

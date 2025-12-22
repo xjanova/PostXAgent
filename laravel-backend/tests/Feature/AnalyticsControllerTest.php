@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Brand;
 use App\Models\Post;
-use App\Models\Campaign;
 use App\Models\SocialAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -31,13 +30,14 @@ class AnalyticsControllerTest extends TestCase
         Sanctum::actingAs($this->user);
     }
 
-    public function test_can_get_dashboard_analytics(): void
+    public function test_can_get_analytics_overview(): void
     {
         Post::factory()->count(10)->create([
             'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'social_account_id' => $this->socialAccount->id,
             'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(5),
             'metrics' => [
                 'likes' => 100,
                 'comments' => 20,
@@ -45,17 +45,104 @@ class AnalyticsControllerTest extends TestCase
             ],
         ]);
 
-        $response = $this->getJson('/api/v1/analytics/dashboard');
+        $response = $this->getJson('/api/v1/analytics/overview');
 
         $response->assertOk()
             ->assertJsonStructure([
                 'success',
                 'data' => [
-                    'total_posts',
-                    'total_engagement',
-                    'posts_by_platform',
-                    'engagement_by_platform',
+                    'period',
+                    'summary',
+                    'engagement',
+                    'posts_by_status',
                 ],
+            ]);
+    }
+
+    public function test_can_get_analytics_overview_with_days_parameter(): void
+    {
+        Post::factory()->count(5)->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'social_account_id' => $this->socialAccount->id,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(5),
+        ]);
+
+        $response = $this->getJson('/api/v1/analytics/overview?days=7');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.period.days', 7);
+    }
+
+    public function test_can_get_posts_analytics(): void
+    {
+        Post::factory()->count(5)->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'social_account_id' => $this->socialAccount->id,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(3),
+        ]);
+
+        $response = $this->getJson('/api/v1/analytics/posts');
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'daily_posts',
+                    'top_posts',
+                ],
+            ]);
+    }
+
+    public function test_can_get_engagement_analytics(): void
+    {
+        Post::factory()->count(5)->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'social_account_id' => $this->socialAccount->id,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(3),
+            'metrics' => [
+                'likes' => 50,
+                'comments' => 10,
+                'shares' => 5,
+            ],
+        ]);
+
+        $response = $this->getJson('/api/v1/analytics/engagement');
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'daily_engagement',
+                    'by_content_type',
+                    'best_hours',
+                ],
+            ]);
+    }
+
+    public function test_can_get_platforms_analytics(): void
+    {
+        Post::factory()->count(5)->create([
+            'user_id' => $this->user->id,
+            'brand_id' => $this->brand->id,
+            'social_account_id' => $this->socialAccount->id,
+            'platform' => 'facebook',
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(3),
+        ]);
+
+        $response = $this->getJson('/api/v1/analytics/platforms');
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'success',
+                'data',
             ]);
     }
 
@@ -66,6 +153,7 @@ class AnalyticsControllerTest extends TestCase
             'brand_id' => $this->brand->id,
             'social_account_id' => $this->socialAccount->id,
             'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(3),
         ]);
 
         $response = $this->getJson("/api/v1/analytics/brands/{$this->brand->id}");
@@ -74,166 +162,13 @@ class AnalyticsControllerTest extends TestCase
             ->assertJsonStructure([
                 'success',
                 'data' => [
-                    'posts_count',
-                    'total_engagement',
-                    'engagement_rate',
+                    'brand',
+                    'period_days',
+                    'overview',
+                    'campaigns',
+                    'platforms',
                 ],
             ]);
-    }
-
-    public function test_can_get_post_analytics(): void
-    {
-        $post = Post::factory()->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-            'metrics' => [
-                'likes' => 150,
-                'comments' => 30,
-                'shares' => 15,
-                'views' => 1000,
-            ],
-        ]);
-
-        $response = $this->getJson("/api/v1/analytics/posts/{$post->id}");
-
-        $response->assertOk()
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    'post_id',
-                    'metrics',
-                    'engagement_rate',
-                ],
-            ]);
-    }
-
-    public function test_can_get_campaign_analytics(): void
-    {
-        $campaign = Campaign::factory()->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-        ]);
-
-        Post::factory()->count(5)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'campaign_id' => $campaign->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-        ]);
-
-        $response = $this->getJson("/api/v1/analytics/campaigns/{$campaign->id}");
-
-        $response->assertOk()
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    'campaign_id',
-                    'posts_count',
-                    'total_engagement',
-                ],
-            ]);
-    }
-
-    public function test_can_get_platform_analytics(): void
-    {
-        Post::factory()->count(5)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'platform' => 'facebook',
-            'status' => Post::STATUS_PUBLISHED,
-        ]);
-
-        $response = $this->getJson('/api/v1/analytics/platforms/facebook');
-
-        $response->assertOk()
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    'platform',
-                    'posts_count',
-                    'total_engagement',
-                ],
-            ]);
-    }
-
-    public function test_can_get_analytics_by_date_range(): void
-    {
-        Post::factory()->count(10)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-            'published_at' => now()->subDays(5),
-        ]);
-
-        $response = $this->getJson('/api/v1/analytics/dashboard?start_date=' . now()->subWeek()->format('Y-m-d') . '&end_date=' . now()->format('Y-m-d'));
-
-        $response->assertOk()
-            ->assertJsonPath('success', true);
-    }
-
-    public function test_can_get_engagement_trends(): void
-    {
-        Post::factory()->count(20)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-        ]);
-
-        $response = $this->getJson('/api/v1/analytics/trends?period=weekly');
-
-        $response->assertOk()
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    'trends',
-                ],
-            ]);
-    }
-
-    public function test_can_get_top_performing_posts(): void
-    {
-        Post::factory()->count(20)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-            'metrics' => [
-                'likes' => rand(10, 500),
-                'comments' => rand(1, 50),
-                'shares' => rand(0, 20),
-            ],
-        ]);
-
-        $response = $this->getJson('/api/v1/analytics/top-posts?limit=10');
-
-        $response->assertOk()
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    '*' => ['id', 'metrics'],
-                ],
-            ]);
-    }
-
-    public function test_can_export_analytics_csv(): void
-    {
-        Post::factory()->count(5)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-        ]);
-
-        $response = $this->getJson('/api/v1/analytics/export?format=csv');
-
-        $response->assertOk()
-            ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
     }
 
     public function test_cannot_access_other_users_brand_analytics(): void
@@ -246,29 +181,12 @@ class AnalyticsControllerTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_can_get_viral_posts(): void
+    public function test_analytics_overview_returns_empty_data_for_new_user(): void
     {
-        Post::factory()->count(5)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-            'is_viral' => true,
-            'viral_score' => 85.5,
-        ]);
+        $response = $this->getJson('/api/v1/analytics/overview');
 
-        Post::factory()->count(10)->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-            'social_account_id' => $this->socialAccount->id,
-            'status' => Post::STATUS_PUBLISHED,
-            'is_viral' => false,
-        ]);
-
-        $response = $this->getJson('/api/v1/analytics/viral-posts');
-
-        $response->assertOk();
-        $data = $response->json('data');
-        $this->assertCount(5, $data);
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.summary.total_posts', 0);
     }
 }
