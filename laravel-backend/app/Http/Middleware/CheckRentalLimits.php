@@ -109,7 +109,7 @@ class CheckRentalLimits
             case 'platforms':
                 // Check if the requested platform is allowed
                 $requestedPlatform = $request->input('platform');
-                $allowedPlatforms = $package->platforms ?? [];
+                $allowedPlatforms = $package->included_platforms ?? [];
                 $usageInfo = [
                     'type' => 'platforms',
                     'allowed' => $allowedPlatforms,
@@ -150,7 +150,6 @@ class CheckRentalLimits
                 'current_package' => [
                     'id' => $package->id,
                     'name' => $package->name,
-                    'slug' => $package->slug,
                 ],
             ], 403);
         }

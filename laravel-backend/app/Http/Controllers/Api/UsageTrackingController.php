@@ -173,7 +173,7 @@ class UsageTrackingController extends Controller
 
             case 'platforms':
                 $platform = $validated['platform'] ?? null;
-                $allowedPlatforms = $package->platforms ?? [];
+                $allowedPlatforms = $package->included_platforms ?? [];
                 $usage = [
                     'type' => 'platforms',
                     'allowed_platforms' => $allowedPlatforms,
@@ -258,7 +258,6 @@ class UsageTrackingController extends Controller
                 'package' => [
                     'id' => $package->id,
                     'name' => $package->name,
-                    'slug' => $package->slug,
                 ],
                 'status' => $rental->status,
                 'starts_at' => $rental->starts_at?->toIso8601String(),
@@ -278,7 +277,7 @@ class UsageTrackingController extends Controller
                 ],
                 'limits' => [
                     'brands' => $package->brands_limit,
-                    'platforms' => $package->platforms ?? [],
+                    'platforms' => $package->included_platforms ?? [],
                     'team_members' => $package->team_members_limit,
                 ],
             ],
