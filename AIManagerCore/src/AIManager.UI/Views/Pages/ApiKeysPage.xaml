@@ -21,7 +21,7 @@
                 <StackPanel>
                     <TextBlock Text="API Keys Management" FontSize="24" FontWeight="Bold" Foreground="White"/>
                     <TextBlock Text="Manage API keys for external system authentication"
-                               FontSize="12" Foreground="#888" Margin="0,5,0,0"/>
+                               FontSize="12" Foreground="#B8B8D0" Margin="0,5,0,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -221,7 +221,7 @@
                     </Border>
 
                     <TextBlock Text="Your API Key:" FontWeight="Bold" Margin="0,0,0,8"/>
-                    <Border Background="#F5F5F5" CornerRadius="4" Padding="12" Margin="0,0,0,15">
+                    <Border Background="#252540" CornerRadius="4" Padding="12" Margin="0,0,0,15">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -229,7 +229,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="TxtGeneratedKey" IsReadOnly="True"
                                      FontFamily="Consolas" FontSize="13"
-                                     BorderThickness="0" Background="Transparent"/>
+                                     BorderThickness="0" Background="Transparent" Foreground="White"/>
                             <Button Grid.Column="1" Content="Copy" Click="CopyKey_Click"
                                     Style="{StaticResource MaterialDesignOutlinedButton}"
                                     Height="30" Padding="10,0"/>
@@ -237,7 +237,7 @@
                     </Border>
 
                     <TextBlock Text="Usage Example:" FontWeight="Bold" Margin="0,0,0,8"/>
-                    <Border Background="#F5F5F5" CornerRadius="4" Padding="12" Margin="0,0,0,20">
+                    <Border Background="#252540" CornerRadius="4" Padding="12" Margin="0,0,0,20">
                         <TextBlock FontFamily="Consolas" FontSize="12" TextWrapping="Wrap">
                             <Run Text="curl -H &quot;X-API-Key: "/>
                             <Run x:Name="RunKeyExample" FontWeight="Bold"/>
@@ -262,8 +262,8 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock x:Name="TxtStatus" Text="Ready" Foreground="#888" VerticalAlignment="Center"/>
-                <TextBlock x:Name="TxtKeyCount" Grid.Column="1" Foreground="#888" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtStatus" Text="Ready" Foreground="#B8B8D0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtKeyCount" Grid.Column="1" Foreground="#B8B8D0" VerticalAlignment="Center"/>
             </Grid>
         </Border>
     </Grid>

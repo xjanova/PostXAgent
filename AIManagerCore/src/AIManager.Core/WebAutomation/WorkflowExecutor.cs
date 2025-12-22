@@ -351,62 +351,22 @@ public class WorkflowExecutor
 
     private async Task<bool> SelectOptionAsync(ElementSelector selector, string value, CancellationToken ct)
     {
-        var script = $@"
-            (function() {{
-                const select = document.querySelector('{selector.Value}');
-                if (select) {{
-                    select.value = '{value}';
-                    select.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    return true;
-                }}
-                return false;
-            }})()";
-
-        return await _browser.ExecuteScriptAsync(script, ct) == "true";
+        return await _browser.SelectOptionAsync(selector, value, ct);
     }
 
     private async Task<bool> ScrollAsync(ElementSelector selector, CancellationToken ct)
     {
-        var script = $@"
-            (function() {{
-                const element = document.querySelector('{selector.Value}');
-                if (element) {{
-                    element.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-                    return true;
-                }}
-                window.scrollBy(0, 300);
-                return true;
-            }})()";
-
-        return await _browser.ExecuteScriptAsync(script, ct) == "true";
+        return await _browser.ScrollToElementAsync(selector, ct);
     }
 
     private async Task<bool> HoverAsync(ElementSelector selector, CancellationToken ct)
     {
-        var script = $@"
-            (function() {{
-                const element = document.querySelector('{selector.Value}');
-                if (element) {{
-                    element.dispatchEvent(new MouseEvent('mouseenter', {{ bubbles: true }}));
-                    element.dispatchEvent(new MouseEvent('mouseover', {{ bubbles: true }}));
-                    return true;
-                }}
-                return false;
-            }})()";
-
-        return await _browser.ExecuteScriptAsync(script, ct) == "true";
+        return await _browser.HoverAsync(selector, ct);
     }
 
     private async Task<bool> PressKeyAsync(string key, CancellationToken ct)
     {
-        var script = $@"
-            (function() {{
-                document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {{ key: '{key}' }}));
-                document.activeElement.dispatchEvent(new KeyboardEvent('keyup', {{ key: '{key}' }}));
-                return true;
-            }})()";
-
-        return await _browser.ExecuteScriptAsync(script, ct) == "true";
+        return await _browser.PressKeyAsync(key, ct);
     }
 
     private async Task<bool> ExecuteScriptAsync(string script, CancellationToken ct)

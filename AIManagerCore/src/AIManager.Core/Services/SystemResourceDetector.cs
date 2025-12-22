@@ -55,62 +55,19 @@ public class SystemResourceDetector
 
     /// <summary>
     /// รายการ Model และความต้องการทรัพยากร
+    /// เรียงตาม Priority - models ที่รองรับภาษาไทยดีจะมี priority สูง
     /// </summary>
     private static readonly ModelRecommendation[] ModelSpecs = new[]
     {
+        // Qwen models - รองรับภาษาไทยดีที่สุด (Priority 1-3)
         new ModelRecommendation
         {
-            ModelName = "llama4:maverick",
-            DisplayName = "Llama 4 Maverick",
-            RequiredRamMB = 48000,  // 48GB RAM
-            RequiredVramMB = 24000, // 24GB VRAM (RTX 4090/A100)
+            ModelName = "qwen3:8b",
+            DisplayName = "Qwen 3 8B",
+            RequiredRamMB = 8000,
+            RequiredVramMB = 6000,
             Priority = 1,
-            Reason = "คุณภาพสูงสุด สำหรับเครื่องที่มี GPU แรง"
-        },
-        new ModelRecommendation
-        {
-            ModelName = "llama4:scout",
-            DisplayName = "Llama 4 Scout",
-            RequiredRamMB = 32000,  // 32GB RAM
-            RequiredVramMB = 16000, // 16GB VRAM (RTX 4080/4090)
-            Priority = 2,
-            Reason = "สมดุลระหว่างคุณภาพและความเร็ว"
-        },
-        new ModelRecommendation
-        {
-            ModelName = "llama4",
-            DisplayName = "Llama 4",
-            RequiredRamMB = 24000,  // 24GB RAM
-            RequiredVramMB = 12000, // 12GB VRAM
-            Priority = 3,
-            Reason = "Llama 4 เวอร์ชันมาตรฐาน"
-        },
-        new ModelRecommendation
-        {
-            ModelName = "llama3.3:70b",
-            DisplayName = "Llama 3.3 70B",
-            RequiredRamMB = 48000,
-            RequiredVramMB = 40000,
-            Priority = 4,
-            Reason = "Model ขนาดใหญ่ คุณภาพสูง"
-        },
-        new ModelRecommendation
-        {
-            ModelName = "llama3.1:8b",
-            DisplayName = "Llama 3.1 8B",
-            RequiredRamMB = 8000,   // 8GB RAM
-            RequiredVramMB = 6000,  // 6GB VRAM
-            Priority = 5,
-            Reason = "สมดุลสำหรับเครื่องทั่วไป"
-        },
-        new ModelRecommendation
-        {
-            ModelName = "llama3.2:3b",
-            DisplayName = "Llama 3.2 3B",
-            RequiredRamMB = 4000,   // 4GB RAM
-            RequiredVramMB = 3000,  // 3GB VRAM
-            Priority = 6,
-            Reason = "เร็ว ใช้ทรัพยากรน้อย"
+            Reason = "รองรับภาษาไทยดีที่สุด คุณภาพสูง"
         },
         new ModelRecommendation
         {
@@ -118,8 +75,73 @@ public class SystemResourceDetector
             DisplayName = "Qwen 2.5 7B",
             RequiredRamMB = 8000,
             RequiredVramMB = 6000,
-            Priority = 7,
+            Priority = 2,
             Reason = "รองรับภาษาไทยดี"
+        },
+        new ModelRecommendation
+        {
+            ModelName = "qwen2.5:14b",
+            DisplayName = "Qwen 2.5 14B",
+            RequiredRamMB = 16000,
+            RequiredVramMB = 12000,
+            Priority = 3,
+            Reason = "รองรับภาษาไทยดี คุณภาพสูงขึ้น"
+        },
+        // Llama 4 models (Priority 4-6)
+        new ModelRecommendation
+        {
+            ModelName = "llama4:maverick",
+            DisplayName = "Llama 4 Maverick",
+            RequiredRamMB = 48000,
+            RequiredVramMB = 24000,
+            Priority = 4,
+            Reason = "คุณภาพสูงสุด สำหรับเครื่องที่มี GPU แรง"
+        },
+        new ModelRecommendation
+        {
+            ModelName = "llama4:scout",
+            DisplayName = "Llama 4 Scout",
+            RequiredRamMB = 32000,
+            RequiredVramMB = 16000,
+            Priority = 5,
+            Reason = "สมดุลระหว่างคุณภาพและความเร็ว"
+        },
+        new ModelRecommendation
+        {
+            ModelName = "llama4",
+            DisplayName = "Llama 4",
+            RequiredRamMB = 24000,
+            RequiredVramMB = 12000,
+            Priority = 6,
+            Reason = "Llama 4 เวอร์ชันมาตรฐาน"
+        },
+        // Other models (Priority 7+)
+        new ModelRecommendation
+        {
+            ModelName = "llama3.3:70b",
+            DisplayName = "Llama 3.3 70B",
+            RequiredRamMB = 48000,
+            RequiredVramMB = 40000,
+            Priority = 7,
+            Reason = "Model ขนาดใหญ่ คุณภาพสูง"
+        },
+        new ModelRecommendation
+        {
+            ModelName = "llama3.1:8b",
+            DisplayName = "Llama 3.1 8B",
+            RequiredRamMB = 8000,
+            RequiredVramMB = 6000,
+            Priority = 8,
+            Reason = "สมดุลสำหรับเครื่องทั่วไป"
+        },
+        new ModelRecommendation
+        {
+            ModelName = "llama3.2:3b",
+            DisplayName = "Llama 3.2 3B",
+            RequiredRamMB = 4000,
+            RequiredVramMB = 3000,
+            Priority = 9,
+            Reason = "เร็ว ใช้ทรัพยากรน้อย"
         },
         new ModelRecommendation
         {
@@ -127,7 +149,7 @@ public class SystemResourceDetector
             DisplayName = "Mistral 7B",
             RequiredRamMB = 8000,
             RequiredVramMB = 6000,
-            Priority = 8,
+            Priority = 10,
             Reason = "เร็ว ประสิทธิภาพดี"
         },
         new ModelRecommendation
@@ -136,7 +158,7 @@ public class SystemResourceDetector
             DisplayName = "Llama 2",
             RequiredRamMB = 4000,
             RequiredVramMB = 4000,
-            Priority = 9,
+            Priority = 11,
             Reason = "รองรับเครื่องรุ่นเก่า"
         }
     };
@@ -195,6 +217,7 @@ public class SystemResourceDetector
 
     /// <summary>
     /// เลือก Model ที่ดีที่สุดสำหรับทรัพยากรที่มี
+    /// จะตรวจสอบ models ที่ติดตั้งไว้ใน Ollama ก่อน
     /// </summary>
     public ModelRecommendation GetBestModel(SystemResources? resources = null)
     {
@@ -207,21 +230,62 @@ public class SystemResourceDetector
         _logger?.LogDebug("Selecting model for RAM: {Ram}MB, VRAM: {Vram}MB, HasGPU: {HasGpu}",
             availableRam, availableVram, hasGpu);
 
+        // Get installed models from Ollama
+        var installedModels = GetInstalledOllamaModels();
+
         // Sort by priority and filter by available resources
         var candidates = ModelSpecs
             .OrderBy(m => m.Priority)
             .ToList();
 
+        // First pass: prefer installed models
         foreach (var model in candidates)
         {
-            // Check if we have enough resources
-            bool ramOk = resources.TotalRamMB >= model.RequiredRamMB * 0.8; // 80% margin
-            bool vramOk = !hasGpu || availableVram >= model.RequiredVramMB * 0.7; // 70% margin for GPU
+            // Check if this model is installed in Ollama
+            var isInstalled = installedModels.Any(m =>
+                m.Equals(model.ModelName, StringComparison.OrdinalIgnoreCase) ||
+                m.StartsWith(model.ModelName.Split(':')[0], StringComparison.OrdinalIgnoreCase));
 
-            // For CPU-only, need more RAM
+            if (!isInstalled) continue;
+
+            // Check if we have enough resources
+            bool ramOk = resources.TotalRamMB >= model.RequiredRamMB * 0.8;
+            bool vramOk = !hasGpu || availableVram >= model.RequiredVramMB * 0.7;
+
             if (!hasGpu)
             {
-                ramOk = resources.TotalRamMB >= model.RequiredRamMB * 1.2; // Need 20% more RAM without GPU
+                ramOk = resources.TotalRamMB >= model.RequiredRamMB * 1.2;
+            }
+
+            if (ramOk && (vramOk || !hasGpu))
+            {
+                var recommendation = new ModelRecommendation
+                {
+                    ModelName = model.ModelName,
+                    DisplayName = model.DisplayName,
+                    RequiredRamMB = model.RequiredRamMB,
+                    RequiredVramMB = model.RequiredVramMB,
+                    Priority = model.Priority,
+                    IsRecommended = true,
+                    Reason = BuildRecommendationReason(model, resources, hasGpu) + " (installed)"
+                };
+
+                _logger?.LogInformation("Recommended installed model: {Model} - {Reason}",
+                    recommendation.ModelName, recommendation.Reason);
+
+                return recommendation;
+            }
+        }
+
+        // Second pass: any model that fits (may need to download)
+        foreach (var model in candidates)
+        {
+            bool ramOk = resources.TotalRamMB >= model.RequiredRamMB * 0.8;
+            bool vramOk = !hasGpu || availableVram >= model.RequiredVramMB * 0.7;
+
+            if (!hasGpu)
+            {
+                ramOk = resources.TotalRamMB >= model.RequiredRamMB * 1.2;
             }
 
             if (ramOk && (vramOk || !hasGpu))
@@ -237,7 +301,7 @@ public class SystemResourceDetector
                     Reason = BuildRecommendationReason(model, resources, hasGpu)
                 };
 
-                _logger?.LogInformation("Recommended model: {Model} - {Reason}",
+                _logger?.LogInformation("Recommended model (may need download): {Model} - {Reason}",
                     recommendation.ModelName, recommendation.Reason);
 
                 return recommendation;
@@ -256,6 +320,44 @@ public class SystemResourceDetector
             IsRecommended = true,
             Reason = "ทรัพยากรจำกัด - ใช้ model ขนาดเล็ก"
         };
+    }
+
+    /// <summary>
+    /// รับรายการ models ที่ติดตั้งไว้ใน Ollama
+    /// </summary>
+    private List<string> GetInstalledOllamaModels()
+    {
+        var models = new List<string>();
+        try
+        {
+            using var client = new System.Net.Http.HttpClient();
+            client.Timeout = TimeSpan.FromSeconds(5);
+
+            var response = client.GetAsync("http://localhost:11434/api/tags").Result;
+            if (response.IsSuccessStatusCode)
+            {
+                var json = response.Content.ReadAsStringAsync().Result;
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+
+                if (doc.RootElement.TryGetProperty("models", out var modelsArray))
+                {
+                    foreach (var model in modelsArray.EnumerateArray())
+                    {
+                        if (model.TryGetProperty("name", out var nameProp))
+                        {
+                            models.Add(nameProp.GetString() ?? "");
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get installed Ollama models");
+        }
+
+        _logger?.LogDebug("Installed Ollama models: {Models}", string.Join(", ", models));
+        return models;
     }
 
     /// <summary>

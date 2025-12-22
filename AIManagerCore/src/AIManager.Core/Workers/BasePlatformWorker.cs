@@ -69,9 +69,13 @@ public abstract class BasePlatformWorker : IPlatformWorker
             var generator = new ImageGeneratorService();
             var image = await generator.GenerateAsync(
                 task.Payload.Prompt ?? "",
-                task.Payload.Style ?? "modern",
-                task.Payload.Size,
-                task.Payload.Provider,
+                new ImageGenerationOptions
+                {
+                    Style = task.Payload.Style ?? "modern",
+                    Width = ParseWidth(task.Payload.Size),
+                    Height = ParseHeight(task.Payload.Size),
+                    Provider = task.Payload.Provider ?? "auto"
+                },
                 ct
             );
 
@@ -135,5 +139,19 @@ public abstract class BasePlatformWorker : IPlatformWorker
     {
         // Override in subclasses for platform-specific optimization
         return content;
+    }
+
+    private static int ParseWidth(string? size)
+    {
+        if (string.IsNullOrEmpty(size)) return 1024;
+        var parts = size.Split('x');
+        return parts.Length >= 1 && int.TryParse(parts[0], out var w) ? w : 1024;
+    }
+
+    private static int ParseHeight(string? size)
+    {
+        if (string.IsNullOrEmpty(size)) return 1024;
+        var parts = size.Split('x');
+        return parts.Length >= 2 && int.TryParse(parts[1], out var h) ? h : 1024;
     }
 }

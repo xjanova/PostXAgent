@@ -1,18 +1,45 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using AIManager.Core.Services;
+using AIManager.Core.NodeEditor;
 using Newtonsoft.Json;
 
 namespace AIManager.UI.Views.Pages;
 
+/// <summary>
+/// ViewModel for linked workflow display
+/// </summary>
+public class LinkedWorkflowViewModel
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = "";
+    public string WorkflowFilePath { get; set; } = "";
+    public bool IsEnabled { get; set; } = true;
+    public DateTime? NextScheduledAt { get; set; }
+    public string NextScheduledDisplay => NextScheduledAt?.ToLocalTime().ToString("dd/MM HH:mm") ?? "Not scheduled";
+}
+
+/// <summary>
+/// ViewModel for available workflow display
+/// </summary>
+public class AvailableWorkflowViewModel
+{
+    public string Name { get; set; } = "";
+    public string FilePath { get; set; } = "";
+}
+
 public partial class StrategiesPage : Page
 {
     private readonly AILearningDatabaseService _dbService;
+    private WorkflowSchedulerService? _schedulerService;
     private List<PostingStrategy> _strategies = new();
     private List<ContentTemplate> _templates = new();
+    private List<LinkedWorkflowViewModel> _linkedWorkflows = new();
+    private List<AvailableWorkflowViewModel> _availableWorkflows = new();
     private PostingStrategy? _currentStrategy;
 
     public StrategiesPage()
@@ -30,7 +57,291 @@ public partial class StrategiesPage : Page
             await InitializeDatabaseAsync();
             await LoadStrategiesAsync();
             await LoadTemplatesAsync();
+            await LoadAvailableWorkflowsAsync();
+            await LoadLinkedWorkflowsAsync();
         };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WORKFLOW MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private async Task LoadAvailableWorkflowsAsync()
+    {
+        try
+        {
+            _availableWorkflows.Clear();
+
+            var workflowsDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "PostXAgent", "Workflows");
+
+            if (Directory.Exists(workflowsDir))
+            {
+                var files = Directory.GetFiles(workflowsDir, "*.workflow")
+                    .Concat(Directory.GetFiles(workflowsDir, "*.json"));
+
+                foreach (var file in files)
+                {
+                    _availableWorkflows.Add(new AvailableWorkflowViewModel
+                    {
+                        Name = Path.GetFileNameWithoutExtension(file),
+                        FilePath = file
+                    });
+                }
+            }
+
+            CboAvailableWorkflows.ItemsSource = _availableWorkflows;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to load workflows: {ex.Message}");
+        }
+    }
+
+    private async Task LoadLinkedWorkflowsAsync()
+    {
+        try
+        {
+            if (_currentStrategy == null)
+            {
+                _linkedWorkflows.Clear();
+                LinkedWorkflowsPanel.ItemsSource = null;
+                TxtNoLinkedWorkflows.Visibility = Visibility.Visible;
+                return;
+            }
+
+            // Load from learning records
+            var records = await _dbService.GetLearningRecordsByCategoryAsync($"strategy_workflows_{_currentStrategy.Id}");
+
+            _linkedWorkflows = records.Select(r =>
+            {
+                try
+                {
+                    return JsonConvert.DeserializeObject<LinkedWorkflowViewModel>(r.Value);
+                }
+                catch
+                {
+                    return null;
+                }
+            }).Where(w => w != null).Cast<LinkedWorkflowViewModel>().ToList();
+
+            LinkedWorkflowsPanel.ItemsSource = _linkedWorkflows;
+            TxtNoLinkedWorkflows.Visibility = _linkedWorkflows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch
+        {
+            _linkedWorkflows.Clear();
+            LinkedWorkflowsPanel.ItemsSource = null;
+            TxtNoLinkedWorkflows.Visibility = Visibility.Visible;
+        }
+    }
+
+    private async void LinkWorkflow_Click(object sender, RoutedEventArgs e)
+    {
+        if (CboAvailableWorkflows.SelectedItem is not AvailableWorkflowViewModel selected)
+        {
+            MessageBox.Show("Please select a workflow to link.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (_currentStrategy == null)
+        {
+            MessageBox.Show("Please select a strategy first.", "No Strategy", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Check if already linked
+        if (_linkedWorkflows.Any(w => w.WorkflowFilePath == selected.FilePath))
+        {
+            MessageBox.Show("This workflow is already linked to this strategy.", "Already Linked", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Parse strategy times for scheduling
+        DateTime? nextScheduled = null;
+        if (!string.IsNullOrEmpty(_currentStrategy.OptimalTimes))
+        {
+            try
+            {
+                var times = JsonConvert.DeserializeObject<List<string>>(_currentStrategy.OptimalTimes);
+                if (times != null && times.Count > 0)
+                {
+                    var now = DateTime.Now;
+                    foreach (var timeStr in times.OrderBy(t => t))
+                    {
+                        if (TimeSpan.TryParse(timeStr, out var time))
+                        {
+                            var scheduled = now.Date.Add(time);
+                            if (scheduled > now)
+                            {
+                                nextScheduled = scheduled;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!nextScheduled.HasValue && TimeSpan.TryParse(times.OrderBy(t => t).First(), out var firstTime))
+                    {
+                        nextScheduled = now.Date.AddDays(1).Add(firstTime);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        var linkedWorkflow = new LinkedWorkflowViewModel
+        {
+            Id = DateTime.UtcNow.Ticks,
+            Name = selected.Name,
+            WorkflowFilePath = selected.FilePath,
+            IsEnabled = true,
+            NextScheduledAt = nextScheduled
+        };
+
+        // Save to database
+        try
+        {
+            var record = new LearningRecord
+            {
+                Category = $"strategy_workflows_{_currentStrategy.Id}",
+                Key = linkedWorkflow.Id.ToString(),
+                Value = JsonConvert.SerializeObject(linkedWorkflow),
+                Metadata = linkedWorkflow.Name
+            };
+
+            await _dbService.SaveLearningRecordAsync(record);
+            await LoadLinkedWorkflowsAsync();
+
+            MessageBox.Show($"Workflow '{selected.Name}' linked to strategy successfully!",
+                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to link workflow: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void RemoveLinkedWorkflow_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is long workflowId && _currentStrategy != null)
+        {
+            var result = MessageBox.Show("Remove this workflow from the strategy?",
+                "Confirm Remove", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    // Mark as inactive in database
+                    var record = new LearningRecord
+                    {
+                        Category = $"strategy_workflows_{_currentStrategy.Id}",
+                        Key = workflowId.ToString(),
+                        Value = "", // Empty = deleted
+                        Confidence = 0
+                    };
+
+                    // Just reload - the empty value will be filtered out
+                    _linkedWorkflows.RemoveAll(w => w.Id == workflowId);
+                    await LoadLinkedWorkflowsAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to remove workflow: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
+    private void OpenWorkflowEditor_Click(object sender, RoutedEventArgs e)
+    {
+        // Navigate to Workflow Editor page
+        if (Application.Current.MainWindow is MainWindow mainWindow)
+        {
+            mainWindow.NavigateToPage("WorkflowEditor");
+        }
+    }
+
+    private async void RunAllWorkflows_Click(object sender, RoutedEventArgs e)
+    {
+        if (_linkedWorkflows.Count == 0)
+        {
+            MessageBox.Show("No workflows linked to run.", "No Workflows", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var enabledWorkflows = _linkedWorkflows.Where(w => w.IsEnabled).ToList();
+        if (enabledWorkflows.Count == 0)
+        {
+            MessageBox.Show("All linked workflows are disabled.", "No Enabled Workflows", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"Run {enabledWorkflows.Count} workflow(s) now?\n\nThis will execute all enabled workflows linked to this strategy.",
+            "Confirm Run",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            // Initialize scheduler service if needed
+            if (_schedulerService == null)
+            {
+                try
+                {
+                    var loggerFactory = App.Services?.GetService<ILoggerFactory>();
+                    var contentGen = App.Services?.GetService<ContentGeneratorService>();
+                    var imageGen = App.Services?.GetService<ImageGeneratorService>();
+
+                    if (loggerFactory != null && contentGen != null && imageGen != null)
+                    {
+                        var nodeRegistry = new NodeRegistry();
+                        var workflowEngine = new WorkflowEngine(
+                            loggerFactory.CreateLogger<WorkflowEngine>(),
+                            nodeRegistry, contentGen, imageGen);
+
+                        _schedulerService = new WorkflowSchedulerService(
+                            loggerFactory.CreateLogger<WorkflowSchedulerService>(),
+                            workflowEngine, _dbService);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to initialize workflow engine: {ex.Message}",
+                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+
+            // Execute workflows
+            var successCount = 0;
+            var failCount = 0;
+
+            foreach (var workflow in enabledWorkflows)
+            {
+                try
+                {
+                    var history = await _schedulerService!.ExecuteWorkflowByPathAsync(workflow.WorkflowFilePath);
+
+                    if (history.Status == WorkflowExecutionStatus.Completed)
+                        successCount++;
+                    else
+                        failCount++;
+                }
+                catch
+                {
+                    failCount++;
+                }
+            }
+
+            MessageBox.Show(
+                $"Execution complete!\n\nSuccess: {successCount}\nFailed: {failCount}",
+                "Results",
+                MessageBoxButton.OK,
+                successCount > 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
     }
 
     private async Task InitializeDatabaseAsync()
@@ -158,13 +469,16 @@ public partial class StrategiesPage : Page
         };
     }
 
-    private void Strategy_Changed(object sender, RoutedEventArgs e)
+    private async void Strategy_Changed(object sender, RoutedEventArgs e)
     {
         if (sender is RadioButton rb && rb.Tag is string strategyType)
         {
             _currentStrategy = _strategies.FirstOrDefault(s => s.StrategyType == strategyType)
                                ?? CreateDefaultStrategy(strategyType);
             ApplyStrategyToUI(_currentStrategy);
+
+            // Reload linked workflows for the new strategy
+            await LoadLinkedWorkflowsAsync();
         }
     }
 

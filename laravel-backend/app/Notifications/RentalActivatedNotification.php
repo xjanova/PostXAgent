@@ -28,10 +28,10 @@ class RentalActivatedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $packageName = $this->rental->package->name ?? 'แพ็กเกจ';
-        $expiryDate = $this->rental->ends_at->format('d/m/Y H:i');
-        $postsLimit = $this->rental->package->posts_limit ?? 'ไม่จำกัด';
-        $aiLimit = $this->rental->package->ai_generations_limit ?? 'ไม่จำกัด';
+        $packageName = $this->rental->rentalPackage->name ?? 'แพ็กเกจ';
+        $expiryDate = $this->rental->expires_at->format('d/m/Y H:i');
+        $postsLimit = $this->rental->rentalPackage->posts_limit ?? 'ไม่จำกัด';
+        $aiLimit = $this->rental->rentalPackage->ai_generations_limit ?? 'ไม่จำกัด';
 
         return (new MailMessage)
             ->subject("ยินดีต้อนรับ! แพ็กเกจ {$packageName} พร้อมใช้งานแล้ว")
@@ -53,9 +53,9 @@ class RentalActivatedNotification extends Notification implements ShouldQueue
         return [
             'type' => 'rental_activated',
             'rental_id' => $this->rental->id,
-            'package_name' => $this->rental->package->name ?? 'แพ็กเกจ',
+            'package_name' => $this->rental->rentalPackage->name ?? 'แพ็กเกจ',
             'starts_at' => $this->rental->starts_at?->toIso8601String(),
-            'ends_at' => $this->rental->ends_at->toIso8601String(),
+            'expires_at' => $this->rental->expires_at->toIso8601String(),
             'message' => 'แพ็กเกจของคุณพร้อมใช้งานแล้ว!',
         ];
     }

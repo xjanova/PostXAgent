@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AIManager.Core.Services;
 
 namespace AIManager.API.Middleware;
@@ -5,22 +6,26 @@ namespace AIManager.API.Middleware;
 /// <summary>
 /// API Key Authentication Middleware
 /// ตรวจสอบ API Key ในทุก request ที่เข้ามา
+/// พร้อม logging การใช้งานและแจ้งเตือน
 /// </summary>
 public class ApiKeyAuthMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ApiKeyService _apiKeyService;
+    private readonly CoreDatabaseService _coreDb;
     private readonly ILogger<ApiKeyAuthMiddleware> _logger;
     private readonly string[] _excludedPaths;
 
     public ApiKeyAuthMiddleware(
         RequestDelegate next,
         ApiKeyService apiKeyService,
+        CoreDatabaseService coreDb,
         ILogger<ApiKeyAuthMiddleware> logger,
         IConfiguration configuration)
     {
         _next = next;
         _apiKeyService = apiKeyService;
+        _coreDb = coreDb;
         _logger = logger;
 
         // Paths that don't require authentication
@@ -30,13 +35,17 @@ public class ApiKeyAuthMiddleware
                 "/swagger",
                 "/health",
                 "/api/status/health",
-                "/hub/aimanager/negotiate"
+                "/hub/aimanager/negotiate",
+                "/api/apikeys/setup",
+                "/api/apitest",     // API Test page for development
+                "/api/setupwizard"  // Setup wizard for first-time installation
             };
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path.Value?.ToLower() ?? "";
+        var stopwatch = Stopwatch.StartNew();
 
         // Check if path is excluded
         if (_excludedPaths.Any(p => path.StartsWith(p.ToLower())))
@@ -47,11 +56,19 @@ public class ApiKeyAuthMiddleware
 
         // Get API key from header or query
         var apiKey = GetApiKey(context);
+        var clientIp = GetClientIp(context);
+        var userAgent = context.Request.Headers["User-Agent"].FirstOrDefault();
+        var method = context.Request.Method;
+        var endpoint = context.Request.Path.Value ?? "/";
 
         if (string.IsNullOrEmpty(apiKey))
         {
-            _logger.LogWarning("API request without key from {IP}", GetClientIp(context));
+            _logger.LogWarning("API request without key from {IP}", clientIp);
             await WriteUnauthorizedResponse(context, "API key is required. Use header 'X-API-Key' or query parameter 'api_key'");
+
+            // Log failed attempt
+            stopwatch.Stop();
+            _ = _coreDb.LogApiKeyUsageAsync("none", "No Key", clientIp, endpoint, method, 401, stopwatch.ElapsedMilliseconds, userAgent);
             return;
         }
 
@@ -59,7 +76,6 @@ public class ApiKeyAuthMiddleware
         var requiredScope = GetRequiredScope(context);
 
         // Validate key
-        var clientIp = GetClientIp(context);
         var result = _apiKeyService.ValidateKey(apiKey, clientIp, requiredScope);
 
         if (!result.IsValid)
@@ -67,6 +83,13 @@ public class ApiKeyAuthMiddleware
             _logger.LogWarning("Invalid API key attempt from {IP}: {Error}",
                 clientIp, result.ErrorMessage);
             await WriteUnauthorizedResponse(context, result.ErrorMessage ?? "Invalid API key");
+
+            // Log failed attempt
+            stopwatch.Stop();
+            _ = _coreDb.LogApiKeyUsageAsync(
+                apiKey[..Math.Min(8, apiKey.Length)],
+                "Invalid Key",
+                clientIp, endpoint, method, 401, stopwatch.ElapsedMilliseconds, userAgent);
             return;
         }
 
@@ -74,11 +97,32 @@ public class ApiKeyAuthMiddleware
         context.Items["ApiKeyInfo"] = result.KeyInfo;
         context.Items["ApiKeyId"] = result.KeyInfo?.Id;
         context.Items["ApiKeyName"] = result.KeyInfo?.Name;
+        context.Items["RequestStartTime"] = stopwatch;
 
         _logger.LogDebug("API request authenticated: {KeyName} ({KeyId})",
             result.KeyInfo?.Name, result.KeyInfo?.Id);
 
-        await _next(context);
+        // Track connection
+        _coreDb.RecordConnection();
+
+        try
+        {
+            await _next(context);
+        }
+        finally
+        {
+            stopwatch.Stop();
+            _coreDb.RecordDisconnection();
+
+            // Log successful request
+            _ = _coreDb.LogApiKeyUsageAsync(
+                result.KeyInfo?.Id ?? "unknown",
+                result.KeyInfo?.Name ?? "unknown",
+                clientIp, endpoint, method,
+                context.Response.StatusCode,
+                stopwatch.ElapsedMilliseconds,
+                userAgent);
+        }
     }
 
     private string? GetApiKey(HttpContext context)

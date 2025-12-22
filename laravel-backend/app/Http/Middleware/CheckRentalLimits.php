@@ -34,10 +34,10 @@ class CheckRentalLimits
         }
 
         // Get active rental
-        $rental = UserRental::with('package')
+        $rental = UserRental::with('rentalPackage')
             ->where('user_id', $user->id)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('expires_at', '>', now())
             ->first();
 
         if (!$rental) {
@@ -50,7 +50,7 @@ class CheckRentalLimits
             ], 402);
         }
 
-        $package = $rental->package;
+        $package = $rental->rentalPackage;
         $limitExceeded = false;
         $limitMessage = '';
         $usageInfo = [];
@@ -109,7 +109,7 @@ class CheckRentalLimits
             case 'platforms':
                 // Check if the requested platform is allowed
                 $requestedPlatform = $request->input('platform');
-                $allowedPlatforms = $package->platforms ?? [];
+                $allowedPlatforms = $package->included_platforms ?? [];
                 $usageInfo = [
                     'type' => 'platforms',
                     'allowed' => $allowedPlatforms,
@@ -150,7 +150,6 @@ class CheckRentalLimits
                 'current_package' => [
                     'id' => $package->id,
                     'name' => $package->name,
-                    'slug' => $package->slug,
                 ],
             ], 403);
         }

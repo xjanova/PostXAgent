@@ -29,8 +29,8 @@ class RentalExpiringNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $packageName = $this->rental->package->name ?? 'แพ็กเกจ';
-        $expiryDate = $this->rental->ends_at->format('d/m/Y H:i');
+        $packageName = $this->rental->rentalPackage->name ?? 'แพ็กเกจ';
+        $expiryDate = $this->rental->expires_at->format('d/m/Y H:i');
 
         $subject = match (true) {
             $this->daysRemaining <= 0 => "ด่วน! แพ็กเกจของคุณจะหมดอายุวันนี้!",
@@ -60,8 +60,8 @@ class RentalExpiringNotification extends Notification implements ShouldQueue
         return [
             'type' => 'rental_expiring',
             'rental_id' => $this->rental->id,
-            'package_name' => $this->rental->package->name ?? 'แพ็กเกจ',
-            'expires_at' => $this->rental->ends_at->toIso8601String(),
+            'package_name' => $this->rental->rentalPackage->name ?? 'แพ็กเกจ',
+            'expires_at' => $this->rental->expires_at->toIso8601String(),
             'days_remaining' => $this->daysRemaining,
             'message' => $this->daysRemaining <= 0
                 ? 'แพ็กเกจของคุณจะหมดอายุวันนี้!'

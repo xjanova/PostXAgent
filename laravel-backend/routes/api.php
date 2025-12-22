@@ -18,6 +18,13 @@ use App\Http\Controllers\Api\AccountCreationController;
 use App\Http\Controllers\Api\WebLearningController;
 use App\Http\Controllers\Api\UsageTrackingController;
 use App\Http\Controllers\Api\AdminRentalController;
+use App\Http\Controllers\Api\WorkflowTemplateController;
+use App\Http\Controllers\Api\UserWorkflowController;
+use App\Http\Controllers\Api\SeekAndPostController;
+use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\Api\ResponseToneController;
+use App\Http\Controllers\Api\ViralAnalysisController;
+use App\Http\Controllers\Api\PaymentGatewayController;
 
 /*
 |--------------------------------------------------------------------------
@@ -327,4 +334,213 @@ Route::prefix('internal')->middleware(['internal.auth'])->group(function () {
 
     // Validate API key
     Route::post('/validate-key', [UsageTrackingController::class, 'validateKey']);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// WORKFLOW TEMPLATES & SEEK AND POST SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+Route::prefix('v1')->group(function () {
+    // Public Workflow Templates (read-only)
+    Route::get('/workflow-templates', [WorkflowTemplateController::class, 'index']);
+    Route::get('/workflow-templates/categories', [WorkflowTemplateController::class, 'byCategory']);
+    Route::get('/workflow-templates/{template}', [WorkflowTemplateController::class, 'show']);
+});
+
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+    // Workflow Templates Admin (admin only)
+    Route::prefix('admin/workflow-templates')->middleware(['role:admin'])->group(function () {
+        Route::post('/', [WorkflowTemplateController::class, 'store']);
+        Route::put('/{template}', [WorkflowTemplateController::class, 'update']);
+        Route::delete('/{template}', [WorkflowTemplateController::class, 'destroy']);
+        Route::post('/{template}/toggle-active', [WorkflowTemplateController::class, 'toggleActive']);
+        Route::get('/statistics', [WorkflowTemplateController::class, 'statistics']);
+    });
+
+    // User Workflows - Custom workflows created by users
+    Route::prefix('workflows')->group(function () {
+        Route::get('/', [UserWorkflowController::class, 'index']);
+        Route::post('/', [UserWorkflowController::class, 'store']);
+        Route::post('/from-template', [UserWorkflowController::class, 'createFromTemplate']);
+        Route::get('/node-types', [UserWorkflowController::class, 'nodeTypes']);
+        Route::post('/validate', [UserWorkflowController::class, 'validateWorkflow']);
+        Route::get('/{workflow}', [UserWorkflowController::class, 'show']);
+        Route::put('/{workflow}', [UserWorkflowController::class, 'update']);
+        Route::delete('/{workflow}', [UserWorkflowController::class, 'destroy']);
+        Route::post('/{workflow}/duplicate', [UserWorkflowController::class, 'duplicate']);
+        Route::post('/{workflow}/toggle-active', [UserWorkflowController::class, 'toggleActive']);
+        Route::post('/{workflow}/execute', [UserWorkflowController::class, 'execute']);
+        Route::get('/{workflow}/executions', [UserWorkflowController::class, 'executions']);
+    });
+
+    // Workflow Executions
+    Route::prefix('workflow-executions')->group(function () {
+        Route::get('/{execution}', [UserWorkflowController::class, 'executionShow']);
+        Route::post('/{execution}/cancel', [UserWorkflowController::class, 'cancelExecution']);
+    });
+
+    // Seek and Post - Intelligent Group Discovery and Automated Posting
+    Route::prefix('seek-and-post')->group(function () {
+        // Tasks
+        Route::get('/', [SeekAndPostController::class, 'index']);
+        Route::post('/', [SeekAndPostController::class, 'store']);
+        Route::get('/statistics', [SeekAndPostController::class, 'statistics']);
+        Route::get('/{task}', [SeekAndPostController::class, 'show']);
+        Route::put('/{task}', [SeekAndPostController::class, 'update']);
+        Route::delete('/{task}', [SeekAndPostController::class, 'destroy']);
+        Route::post('/{task}/start', [SeekAndPostController::class, 'start']);
+        Route::post('/{task}/pause', [SeekAndPostController::class, 'pause']);
+        Route::post('/{task}/resume', [SeekAndPostController::class, 'resume']);
+
+        // Groups
+        Route::get('/groups/list', [SeekAndPostController::class, 'groups']);
+        Route::get('/groups/search', [SeekAndPostController::class, 'searchGroups']);
+        Route::get('/groups/recommended', [SeekAndPostController::class, 'recommendedGroups']);
+        Route::get('/groups/statistics', [SeekAndPostController::class, 'groupStatistics']);
+        Route::get('/groups/{group}', [SeekAndPostController::class, 'groupShow']);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // COMMENT MANAGEMENT & AUTO-REPLY SYSTEM
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    // Post Comments - อ่านและตอบคอมเมนต์อัตโนมัติ
+    Route::prefix('posts/{post}/comments')->group(function () {
+        Route::get('/', [CommentController::class, 'index']);
+        Route::post('/fetch', [CommentController::class, 'fetch']);
+        Route::post('/auto-reply', [CommentController::class, 'autoReply']);
+        Route::get('/stats', [CommentController::class, 'stats']);
+    });
+
+    // Individual Comment Actions
+    Route::prefix('comments/{comment}')->group(function () {
+        Route::post('/reply', [CommentController::class, 'reply']);
+        Route::post('/analyze', [CommentController::class, 'analyzeSentiment']);
+        Route::post('/skip', [CommentController::class, 'skip']);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // RESPONSE TONE & PERSONALITY CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    // Response Tones - กำหนดบุคลิก/โทนในการตอบ
+    Route::prefix('response-tones')->group(function () {
+        Route::get('/', [ResponseToneController::class, 'index']);
+        Route::get('/presets', [ResponseToneController::class, 'presets']);
+        Route::post('/', [ResponseToneController::class, 'store']);
+        Route::get('/{responseTone}', [ResponseToneController::class, 'show']);
+        Route::put('/{responseTone}', [ResponseToneController::class, 'update']);
+        Route::delete('/{responseTone}', [ResponseToneController::class, 'destroy']);
+        Route::post('/{responseTone}/clone', [ResponseToneController::class, 'clone']);
+        Route::post('/{responseTone}/test', [ResponseToneController::class, 'test']);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // VIRAL ANALYSIS & TRENDING KEYWORDS
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    // Viral Analysis - วิเคราะห์และทำนายเนื้อหา Viral
+    Route::prefix('viral')->group(function () {
+        Route::get('/dashboard', [ViralAnalysisController::class, 'dashboard']);
+        Route::post('/analyze', [ViralAnalysisController::class, 'analyzeContent']);
+        Route::get('/keywords/trending', [ViralAnalysisController::class, 'trendingKeywords']);
+        Route::post('/keywords/track', [ViralAnalysisController::class, 'trackKeyword']);
+        Route::post('/keywords/update', [ViralAnalysisController::class, 'updateKeywordMetrics']);
+        Route::get('/posts/{post}/analyze', [ViralAnalysisController::class, 'analyzePost']);
+        Route::get('/posts/{post}/velocity', [ViralAnalysisController::class, 'velocity']);
+        Route::get('/suggestions', [ViralAnalysisController::class, 'suggestions']);
+        Route::post('/compare', [ViralAnalysisController::class, 'compare']);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // PAYMENT GATEWAY - SMS-Based Payment System
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    // Payment Gateway - ระบบรับชำระเงินผ่าน SMS
+    Route::prefix('payment-gateway')->group(function () {
+        // Dashboard
+        Route::get('/dashboard', [PaymentGatewayController::class, 'dashboard']);
+        Route::get('/statistics', [PaymentGatewayController::class, 'statistics']);
+
+        // Payments (SMS-detected)
+        Route::get('/payments', [PaymentGatewayController::class, 'payments']);
+        Route::get('/payments/{id}', [PaymentGatewayController::class, 'showPayment']);
+        Route::post('/payments/{id}/approve', [PaymentGatewayController::class, 'approvePayment']);
+        Route::post('/payments/{id}/reject', [PaymentGatewayController::class, 'rejectPayment']);
+        Route::post('/payments/{id}/match', [PaymentGatewayController::class, 'matchPayment']);
+        Route::post('/payments/{id}/link', [PaymentGatewayController::class, 'linkPaymentToOrder']);
+
+        // Orders
+        Route::get('/orders', [PaymentGatewayController::class, 'orders']);
+        Route::post('/orders', [PaymentGatewayController::class, 'createOrder']);
+        Route::get('/orders/{id}', [PaymentGatewayController::class, 'showOrder']);
+        Route::post('/orders/{id}/cancel', [PaymentGatewayController::class, 'cancelOrder']);
+
+        // Mobile Devices
+        Route::get('/devices', [PaymentGatewayController::class, 'devices']);
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// PAYMENT GATEWAY - Mobile Device API (No Auth Required)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+Route::prefix('v1/payment-gateway/mobile')->middleware('throttle:mobile')->group(function () {
+    // Device Registration & Heartbeat
+    Route::post('/register', [PaymentGatewayController::class, 'registerDevice']);
+    Route::post('/heartbeat', [PaymentGatewayController::class, 'deviceHeartbeat']);
+
+    // SMS Payment Submission
+    Route::post('/submit-payment', [PaymentGatewayController::class, 'submitSmsPayment']);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// SMS GATEWAY WEBHOOK - Multi-Website Integration (No Auth - Uses HMAC Signature)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+Route::prefix('v1/sms-gateway')->middleware('throttle:webhooks')->group(function () {
+    // Universal Webhook Endpoint
+    // Security: API Key + Secret Key + HMAC-SHA256 Signature
+    Route::post('/webhook', [PaymentGatewayController::class, 'smsWebhook']);
+});
+
+Route::prefix('v1/sms-gateway')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+    // Generate API Credentials for Mobile App integration
+    Route::post('/generate-credentials', [PaymentGatewayController::class, 'generateApiCredentials']);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// RBAC & AUDIT LOG - Role-Based Access Control and Activity Logging
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\AuditLogController;
+
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+    // Roles Management (admin only)
+    Route::prefix('admin/roles')->middleware(['role:admin'])->group(function () {
+        Route::get('/', [RoleController::class, 'index']);
+        Route::get('/permissions', [RoleController::class, 'permissions']);
+        Route::post('/', [RoleController::class, 'store']);
+        Route::get('/{role}', [RoleController::class, 'show']);
+        Route::put('/{role}', [RoleController::class, 'update']);
+        Route::delete('/{role}', [RoleController::class, 'destroy']);
+        Route::post('/{role}/assign', [RoleController::class, 'assignToUser']);
+        Route::post('/{role}/remove', [RoleController::class, 'removeFromUser']);
+    });
+
+    // Audit Logs (admin only)
+    Route::prefix('admin/audit-logs')->middleware(['role:admin'])->group(function () {
+        Route::get('/', [AuditLogController::class, 'index']);
+        Route::get('/stats', [AuditLogController::class, 'stats']);
+        Route::get('/log-names', [AuditLogController::class, 'logNames']);
+        Route::get('/export', [AuditLogController::class, 'export']);
+        Route::get('/user/{userId}', [AuditLogController::class, 'userActivity']);
+        Route::get('/{activity}', [AuditLogController::class, 'show']);
+    });
+
+    // User's own activity (for regular users)
+    Route::get('/my-activity', function () {
+        return app(AuditLogController::class)->userActivity(request(), auth()->id());
+    });
 });

@@ -26,11 +26,6 @@ class UserRental extends Model
         'payment_reference',
         'posts_used',
         'ai_generations_used',
-        'usage_posts',
-        'usage_ai_generations',
-        'usage_brands',
-        'usage_platforms',
-        'usage_team_members',
         'usage_stats',
         'auto_renew',
         'next_renewal_at',
@@ -120,6 +115,9 @@ class UserRental extends Model
      */
     public function getIsActiveAttribute(): bool
     {
+        if (!$this->expires_at) {
+            return false;
+        }
         return $this->status === self::STATUS_ACTIVE
             && $this->expires_at->isFuture();
     }
@@ -129,6 +127,9 @@ class UserRental extends Model
      */
     public function getIsExpiredAttribute(): bool
     {
+        if (!$this->expires_at) {
+            return false;
+        }
         return $this->expires_at->isPast();
     }
 
@@ -137,7 +138,7 @@ class UserRental extends Model
      */
     public function getDaysRemainingAttribute(): int
     {
-        if ($this->is_expired) {
+        if (!$this->expires_at || $this->is_expired) {
             return 0;
         }
 

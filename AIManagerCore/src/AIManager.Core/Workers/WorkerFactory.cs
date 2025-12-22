@@ -29,6 +29,25 @@ public class WorkerFactory
     }
 
     /// <summary>
+    /// Get worker for a specific platform by name
+    /// </summary>
+    public IPlatformWorker? GetWorker(string platformName)
+    {
+        if (Enum.TryParse<SocialPlatform>(platformName, true, out var platform))
+        {
+            try
+            {
+                return CreateWorker(platform);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Create worker for a specific platform (static method)
     /// </summary>
     public static IPlatformWorker CreateWorker(SocialPlatform platform)

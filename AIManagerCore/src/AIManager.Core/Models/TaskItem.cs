@@ -88,6 +88,54 @@ public class TaskPayload
     // Metrics
     [JsonProperty("post_ids")]
     public List<string>? PostIds { get; set; }
+
+    // Comment operations
+    [JsonProperty("comment_id")]
+    public string? CommentId { get; set; }
+
+    [JsonProperty("limit")]
+    public int? Limit { get; set; }
+
+    [JsonProperty("next_page_token")]
+    public string? NextPageToken { get; set; }
+
+    // Group operations
+    [JsonProperty("group_id")]
+    public string? GroupId { get; set; }
+
+    [JsonProperty("group_ids")]
+    public List<string>? GroupIds { get; set; }
+
+    // Tone configuration for auto-reply
+    [JsonProperty("tone_config")]
+    public ToneConfig? ToneConfig { get; set; }
+}
+
+/// <summary>
+/// Tone configuration for comment replies
+/// </summary>
+public class ToneConfig
+{
+    [JsonProperty("name")]
+    public string Name { get; set; } = "friendly";
+
+    [JsonProperty("friendly")]
+    public int Friendly { get; set; } = 70;
+
+    [JsonProperty("formal")]
+    public int Formal { get; set; } = 30;
+
+    [JsonProperty("humor")]
+    public int Humor { get; set; } = 40;
+
+    [JsonProperty("emoji_usage")]
+    public int EmojiUsage { get; set; } = 50;
+
+    [JsonProperty("use_particles")]
+    public bool UseParticles { get; set; } = true;
+
+    [JsonProperty("custom_instructions")]
+    public string? CustomInstructions { get; set; }
 }
 
 /// <summary>
@@ -97,6 +145,9 @@ public class BrandInfo
 {
     [JsonProperty("name")]
     public string Name { get; set; } = "";
+
+    [JsonProperty("description")]
+    public string? Description { get; set; }
 
     [JsonProperty("industry")]
     public string? Industry { get; set; }

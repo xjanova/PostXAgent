@@ -49,10 +49,33 @@ public class LearnedWorkflow
     [JsonProperty("metadata")]
     public Dictionary<string, object>? Metadata { get; set; }
 
+    [JsonProperty("task_type")]
+    public string TaskType { get; set; } = "";
+
+    [JsonProperty("is_human_trained")]
+    public bool IsHumanTrained { get; set; }
+
     public double GetSuccessRate()
     {
         var total = SuccessCount + FailureCount;
         return total > 0 ? (double)SuccessCount / total : 0.5;
+    }
+
+    public string ToJson()
+    {
+        return JsonConvert.SerializeObject(this, Formatting.Indented);
+    }
+
+    public static LearnedWorkflow? FromJson(string json)
+    {
+        try
+        {
+            return JsonConvert.DeserializeObject<LearnedWorkflow>(json);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
 

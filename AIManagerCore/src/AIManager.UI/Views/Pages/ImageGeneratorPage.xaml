@@ -203,14 +203,14 @@
             </StackPanel>
 
             <!-- Preview Area -->
-            <Border Grid.Row="1" Background="#F5F5F5" CornerRadius="8">
+            <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="8">
                 <Grid>
                     <!-- Placeholder -->
                     <StackPanel x:Name="PlaceholderPanel" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <materialDesign:PackIcon Kind="ImageArea" Width="100" Height="100"
-                                                 HorizontalAlignment="Center" Foreground="#CCC"/>
+                                                 HorizontalAlignment="Center" Foreground="#5D5D7A"/>
                         <TextBlock Text="Generated image will appear here" FontSize="14"
-                                   Foreground="#999" HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                                   Foreground="#9090A8" HorizontalAlignment="Center" Margin="0,15,0,0"/>
                     </StackPanel>
 
                     <!-- Generated Image -->
@@ -221,14 +221,14 @@
                                   Stretch="Uniform" Margin="20" Visibility="Collapsed"/>
 
                     <!-- Progress Overlay -->
-                    <Border x:Name="ProgressOverlay" Background="#E0FFFFFF" Visibility="Collapsed">
+                    <Border x:Name="ProgressOverlay" Background="#E01E1E2E" Visibility="Collapsed">
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <ProgressBar x:Name="GenerationProgress" IsIndeterminate="True"
                                          Style="{StaticResource MaterialDesignCircularProgressBar}"
                                          Width="60" Height="60"/>
-                            <TextBlock x:Name="TxtProgressStatus" Text="Generating..." FontSize="14"
+                            <TextBlock x:Name="TxtProgressStatus" Text="Generating..." FontSize="14" Foreground="White"
                                        HorizontalAlignment="Center" Margin="0,15,0,0"/>
-                            <TextBlock x:Name="TxtProgressDetail" Text="" FontSize="12" Foreground="#888"
+                            <TextBlock x:Name="TxtProgressDetail" Text="" FontSize="12" Foreground="#B8B8D0"
                                        HorizontalAlignment="Center" Margin="0,5,0,0"/>
                         </StackPanel>
                     </Border>

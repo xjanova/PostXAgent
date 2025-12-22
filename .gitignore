@@ -1,0 +1,60 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# NuGet packages
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workspace
+AIManagerCore/workspace/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Node modules (if any outside laravel)
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.env.local
+
+# Mobile app build
+AIManagerMobile/android/app/build/
+AIManagerMobile/ios/Pods/
+AIManagerMobile/.gradle/
+
+# Downloaded models
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth

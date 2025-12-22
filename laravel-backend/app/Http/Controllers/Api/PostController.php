@@ -90,8 +90,12 @@ class PostController extends Controller
             }
         }
 
+        // Get platform from social account
+        $socialAccount = \App\Models\SocialAccount::findOrFail($validated['social_account_id']);
+
         $post = Post::create([
             'user_id' => $user->id,
+            'platform' => $socialAccount->platform,
             ...$validated,
             'status' => $request->scheduled_at ? Post::STATUS_SCHEDULED : Post::STATUS_PENDING,
         ]);

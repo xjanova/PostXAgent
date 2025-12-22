@@ -69,7 +69,7 @@
 
                             <!-- Posts Per Day -->
                             <StackPanel Margin="0,0,10,0">
-                                <TextBlock Text="Posts Per Day" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                                <TextBlock Text="Posts Per Day" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,5"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SliderPostsPerDay" Minimum="1" Maximum="10" Value="3" Width="150"
                                             TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SliderPostsPerDay_Changed"/>
@@ -79,7 +79,7 @@
 
                             <!-- Min Interval -->
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Min Interval (minutes)" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                                <TextBlock Text="Min Interval (minutes)" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,5"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SliderMinInterval" Minimum="30" Maximum="480" Value="120" Width="150"
                                             TickFrequency="30" IsSnapToTickEnabled="True" ValueChanged="SliderMinInterval_Changed"/>
@@ -89,7 +89,7 @@
                         </Grid>
 
                         <!-- Optimal Times -->
-                        <TextBlock Text="Optimal Posting Times" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                        <TextBlock Text="Optimal Posting Times" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,8"/>
                         <WrapPanel x:Name="OptimalTimesPanel" Margin="0,0,0,15">
                             <CheckBox x:Name="Time06" Content="06:00" Margin="0,0,15,5"/>
                             <CheckBox x:Name="Time07" Content="07:00" Margin="0,0,15,5"/>
@@ -111,7 +111,7 @@
                         </WrapPanel>
 
                         <!-- Content Mix -->
-                        <TextBlock Text="Content Mix" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                        <TextBlock Text="Content Mix" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,8"/>
                         <Grid Margin="0,0,0,15">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -123,7 +123,7 @@
                             </Grid.RowDefinitions>
 
                             <StackPanel Margin="0,0,10,10">
-                                <TextBlock Text="Promotional" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Promotional" FontSize="11" Foreground="#B8B8D0"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SliderPromotional" Minimum="0" Maximum="100" Value="20" Width="120"
                                             ValueChanged="ContentMix_Changed"/>
@@ -132,7 +132,7 @@
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" Margin="0,0,0,10">
-                                <TextBlock Text="Educational" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Educational" FontSize="11" Foreground="#B8B8D0"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SliderEducational" Minimum="0" Maximum="100" Value="40" Width="120"
                                             ValueChanged="ContentMix_Changed"/>
@@ -141,7 +141,7 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="1" Margin="0,0,10,0">
-                                <TextBlock Text="Entertaining" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Entertaining" FontSize="11" Foreground="#B8B8D0"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SliderEntertaining" Minimum="0" Maximum="100" Value="30" Width="120"
                                             ValueChanged="ContentMix_Changed"/>
@@ -150,7 +150,7 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="1" Grid.Column="1">
-                                <TextBlock Text="Engagement" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Engagement" FontSize="11" Foreground="#B8B8D0"/>
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="SliderEngagement" Minimum="0" Maximum="100" Value="10" Width="120"
                                             ValueChanged="ContentMix_Changed"/>
@@ -164,7 +164,7 @@
                         </Border>
 
                         <!-- Hashtag Strategy -->
-                        <TextBlock Text="Hashtag Strategy" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                        <TextBlock Text="Hashtag Strategy" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,5"/>
                         <TextBox x:Name="TxtHashtagStrategy"
                                  Text="Use 5-10 relevant hashtags"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}"
@@ -181,8 +181,8 @@
                         <Expander Header="Facebook" Margin="0,0,0,10">
                             <StackPanel Margin="10">
                                 <CheckBox x:Name="ChkFbEnabled" Content="Enable Facebook posting" IsChecked="True" Margin="0,0,0,10"/>
-                                <TextBlock Text="Best times: 9 AM - 3 PM on weekdays" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
-                                <TextBlock Text="Recommended: 1-2 posts/day, focus on video content" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Best times: 9 AM - 3 PM on weekdays" FontSize="11" Foreground="#B8B8D0" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1-2 posts/day, focus on video content" FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
                         </Expander>
 
@@ -190,8 +190,8 @@
                         <Expander Header="Instagram" Margin="0,0,0,10">
                             <StackPanel Margin="10">
                                 <CheckBox x:Name="ChkIgEnabled" Content="Enable Instagram posting" IsChecked="True" Margin="0,0,0,10"/>
-                                <TextBlock Text="Best times: 11 AM - 1 PM, 7-9 PM" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
-                                <TextBlock Text="Recommended: 1-3 posts/day, Stories daily, Reels 3-5x/week" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Best times: 11 AM - 1 PM, 7-9 PM" FontSize="11" Foreground="#B8B8D0" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1-3 posts/day, Stories daily, Reels 3-5x/week" FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
                         </Expander>
 
@@ -199,8 +199,8 @@
                         <Expander Header="TikTok" Margin="0,0,0,10">
                             <StackPanel Margin="10">
                                 <CheckBox x:Name="ChkTikTokEnabled" Content="Enable TikTok posting" IsChecked="True" Margin="0,0,0,10"/>
-                                <TextBlock Text="Best times: 7-9 PM daily" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
-                                <TextBlock Text="Recommended: 1-4 posts/day, trend-following content" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Best times: 7-9 PM daily" FontSize="11" Foreground="#B8B8D0" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1-4 posts/day, trend-following content" FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
                         </Expander>
 
@@ -208,8 +208,8 @@
                         <Expander Header="Twitter/X" Margin="0,0,0,10">
                             <StackPanel Margin="10">
                                 <CheckBox x:Name="ChkTwitterEnabled" Content="Enable Twitter posting" IsChecked="True" Margin="0,0,0,10"/>
-                                <TextBlock Text="Best times: 8 AM, 12 PM, 5-6 PM" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
-                                <TextBlock Text="Recommended: 3-5 tweets/day, engage with trending topics" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Best times: 8 AM, 12 PM, 5-6 PM" FontSize="11" Foreground="#B8B8D0" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 3-5 tweets/day, engage with trending topics" FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
                         </Expander>
 
@@ -217,10 +217,116 @@
                         <Expander Header="LINE Official" Margin="0,0,0,10">
                             <StackPanel Margin="10">
                                 <CheckBox x:Name="ChkLineEnabled" Content="Enable LINE posting" IsChecked="True" Margin="0,0,0,10"/>
-                                <TextBlock Text="Best times: 12 PM, 6-8 PM" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
-                                <TextBlock Text="Recommended: 1 broadcast/day max to avoid spam" FontSize="11" Foreground="#888"/>
+                                <TextBlock Text="Best times: 12 PM, 6-8 PM" FontSize="11" Foreground="#B8B8D0" Margin="0,0,0,5"/>
+                                <TextBlock Text="Recommended: 1 broadcast/day max to avoid spam" FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
                         </Expander>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Workflow Automation -->
+                <materialDesign:Card Padding="20" Margin="0,0,0,15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <materialDesign:PackIcon Kind="Workflow" Width="24" Height="24" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#8B5CF6"/>
+                            <TextBlock Text="Workflow Automation" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Link workflows to this strategy for automated execution at optimal times."
+                                   FontSize="12" Foreground="#AAAAAA" Margin="0,0,0,15" TextWrapping="Wrap"/>
+
+                        <!-- Linked Workflows -->
+                        <TextBlock Text="Linked Workflows" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,8"/>
+                        <Border Background="#1A1A2E" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                            <StackPanel>
+                                <ItemsControl x:Name="LinkedWorkflowsPanel">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#25FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <materialDesign:PackIcon Kind="Workflow" Width="20" Height="20"
+                                                                             Foreground="#8B5CF6" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="Next: " FontSize="11" Foreground="#B8B8D0"/>
+                                                            <TextBlock Text="{Binding NextScheduledDisplay}" FontSize="11" Foreground="#8B5CF6"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+
+                                                    <ToggleButton Grid.Column="2" IsChecked="{Binding IsEnabled}"
+                                                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                                                  ToolTip="Enable/Disable" Margin="10,0"/>
+
+                                                    <Button Grid.Column="3" Style="{StaticResource MaterialDesignIconButton}"
+                                                            ToolTip="Remove" Click="RemoveLinkedWorkflow_Click" Tag="{Binding Id}">
+                                                        <materialDesign:PackIcon Kind="Close" Width="18" Height="18"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock x:Name="TxtNoLinkedWorkflows" Text="No workflows linked to this strategy."
+                                           Foreground="#9090A8" HorizontalAlignment="Center" Margin="0,10,0,10"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Add Workflow -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <ComboBox x:Name="CboAvailableWorkflows"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                      materialDesign:HintAssist.Hint="Select a workflow to link..."
+                                      DisplayMemberPath="Name"/>
+
+                            <Button Grid.Column="1" Content="Link Workflow" Click="LinkWorkflow_Click"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Margin="10,0,0,0" Padding="15,8"/>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                            <Button Content="Open Workflow Editor" Click="OpenWorkflowEditor_Click"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0">
+                                <Button.ContentTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="OpenInNew" Width="18" Height="18" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </Button.ContentTemplate>
+                            </Button>
+                            <Button Content="Run All Now" Click="RunAllWorkflows_Click"
+                                    Foreground="#10B981">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+                                        <Setter Property="BorderBrush" Value="#10B981"/>
+                                    </Style>
+                                </Button.Style>
+                                <Button.ContentTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Play" Width="18" Height="18" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </Button.ContentTemplate>
+                            </Button>
+                        </StackPanel>
                     </StackPanel>
                 </materialDesign:Card>
 
@@ -267,7 +373,7 @@
                         </ItemsControl>
 
                         <TextBlock x:Name="TxtNoTemplates" Text="No templates yet. Click 'Add Template' to create one."
-                                   Foreground="#888" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                                   Foreground="#9090A8" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                     </StackPanel>
                 </materialDesign:Card>
 

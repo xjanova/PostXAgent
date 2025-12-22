@@ -391,9 +391,13 @@ public class WorkflowEngine
         // Use the actual GenerateAsync method signature
         var result = await _imageGenerator.GenerateAsync(
             fullPrompt,
-            "default", // style
-            $"{width}x{height}", // size
-            provider,
+            new ImageGenerationOptions
+            {
+                Style = "default",
+                Width = width,
+                Height = height,
+                Provider = provider
+            },
             ct);
 
         return new Dictionary<string, object?>

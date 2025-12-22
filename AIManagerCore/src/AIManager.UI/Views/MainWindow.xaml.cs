@@ -74,6 +74,7 @@ public partial class MainWindow : Window
         AppStatusBar.HuggingFaceClicked += (s, e) => NavigateTo("AIProviders");
         AppStatusBar.GpuClicked += (s, e) => NavigateTo("AIProviders");
         AppStatusBar.BackendClicked += (s, e) => NavigateTo("Settings");
+        AppStatusBar.ClaudeClicked += (s, e) => OpenClaudeChatWindow();
 
         // Navigate to dashboard
         NavigateTo("Dashboard");
@@ -281,6 +282,14 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Public method to navigate to a specific page - for use from other pages
+    /// </summary>
+    public void NavigateToPage(string pageName)
+    {
+        NavigateTo(pageName);
+    }
+
     private void NavigateTo(string pageName)
     {
         PageTitle.Text = pageName;
@@ -288,14 +297,17 @@ public partial class MainWindow : Window
         Page? page = pageName switch
         {
             "Dashboard" => new DashboardPage(_orchestrator),
-            "Workers" => new WorkersPage(_orchestrator),
+            "Workers" => new WorkersPage(),
             "Tasks" => new TasksPage(_orchestrator),
             "Platforms" => new PlatformsPage(),
             "AIProviders" => new AIProvidersPage(),
+            "ContentCreator" => new ContentCreatorPage(),
             "Chat" => new ChatPage(),
             "ImageGenerator" => new ImageGeneratorPage(),
             "ModelManager" => new ModelManagerPage(),
             "WorkflowEditor" => new WorkflowEditorPage(),
+            "WorkflowMonitor" => new WorkflowMonitorPage(),
+            "WebLearning" => new WebLearningPage(),
             "Strategies" => new StrategiesPage(),
             "ApiKeys" => new ApiKeysPage(),
             "Logs" => new LogsPage(),
@@ -403,6 +415,18 @@ public partial class MainWindow : Window
     private void OnWorkerStatusChanged(object? sender, WorkerEventArgs e)
     {
         // Update worker status display
+    }
+
+    /// <summary>
+    /// Open Claude Chat Window for AI-Claude communication
+    /// </summary>
+    private void OpenClaudeChatWindow()
+    {
+        var chatWindow = new ClaudeChatWindow
+        {
+            Owner = this
+        };
+        chatWindow.Show();
     }
 
     /// <summary>

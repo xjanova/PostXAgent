@@ -28,7 +28,7 @@ class RentalExpiredNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $packageName = $this->rental->package->name ?? 'แพ็กเกจ';
+        $packageName = $this->rental->rentalPackage->name ?? 'แพ็กเกจ';
 
         return (new MailMessage)
             ->subject('แพ็กเกจของคุณหมดอายุแล้ว')
@@ -45,8 +45,8 @@ class RentalExpiredNotification extends Notification implements ShouldQueue
         return [
             'type' => 'rental_expired',
             'rental_id' => $this->rental->id,
-            'package_name' => $this->rental->package->name ?? 'แพ็กเกจ',
-            'expired_at' => $this->rental->ends_at->toIso8601String(),
+            'package_name' => $this->rental->rentalPackage->name ?? 'แพ็กเกจ',
+            'expired_at' => $this->rental->expires_at->toIso8601String(),
             'message' => 'แพ็กเกจของคุณหมดอายุแล้ว กรุณาซื้อแพ็กเกจใหม่',
         ];
     }

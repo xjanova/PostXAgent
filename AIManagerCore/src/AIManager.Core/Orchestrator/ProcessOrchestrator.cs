@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using AIManager.Core.Models;
 using AIManager.Core.Workers;
+using AIManager.Core.Services;
 
 namespace AIManager.Core.Orchestrator;
 
@@ -13,6 +14,7 @@ namespace AIManager.Core.Orchestrator;
 public class ProcessOrchestrator : IDisposable
 {
     private readonly ILogger<ProcessOrchestrator> _logger;
+    private readonly DebugLogger _debugLog = DebugLogger.Instance;
     private readonly OrchestratorConfig _config;
     private readonly CancellationTokenSource _cts;
 
@@ -76,6 +78,7 @@ public class ProcessOrchestrator : IDisposable
         if (IsRunning) return;
 
         _logger.LogInformation("Starting ProcessOrchestrator...");
+        _debugLog.LogInfo("Orchestrator", "Starting ProcessOrchestrator...");
         IsRunning = true;
         _stats.StartTime = DateTime.UtcNow;
 
@@ -123,6 +126,7 @@ public class ProcessOrchestrator : IDisposable
         _ = Task.Run(() => ReportStatsAsync(_cts.Token));
 
         _logger.LogInformation("ProcessOrchestrator started with {Workers} workers", _workers.Count);
+        _debugLog.LogInfo("Orchestrator", $"Started with {_workers.Count} workers across {platformCount} platforms");
 
         await Task.CompletedTask;
     }
@@ -237,6 +241,7 @@ public class ProcessOrchestrator : IDisposable
                 {
                     _logger.LogError(ex, "Worker {WorkerName} error processing task {TaskId}",
                         worker.Name, task.Id);
+                    _debugLog.LogError("Worker", $"Worker {worker.Name} error on task {task.Id}: {ex.Message}", ex);
 
                     await _resultChannel.Writer.WriteAsync(new TaskResult
                     {

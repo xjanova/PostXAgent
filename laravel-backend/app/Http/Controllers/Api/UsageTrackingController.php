@@ -37,10 +37,10 @@ class UsageTrackingController extends Controller
         $amount = $validated['amount'] ?? 1;
 
         // Get active rental
-        $rental = UserRental::with('package')
+        $rental = UserRental::with('rentalPackage')
             ->where('user_id', $userId)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('expires_at', '>', now())
             ->first();
 
         if (!$rental) {
@@ -51,7 +51,7 @@ class UsageTrackingController extends Controller
             ], 404);
         }
 
-        $package = $rental->package;
+        $package = $rental->rentalPackage;
         $field = $type === 'posts' ? 'posts_used' : 'ai_generations_used';
         $limitField = $type === 'posts' ? 'posts_limit' : 'ai_generations_limit';
 
@@ -116,10 +116,10 @@ class UsageTrackingController extends Controller
         $amount = $validated['amount'] ?? 1;
 
         // Get active rental
-        $rental = UserRental::with('package')
+        $rental = UserRental::with('rentalPackage')
             ->where('user_id', $userId)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('expires_at', '>', now())
             ->first();
 
         if (!$rental) {
@@ -131,7 +131,7 @@ class UsageTrackingController extends Controller
             ]);
         }
 
-        $package = $rental->package;
+        $package = $rental->rentalPackage;
         $allowed = true;
         $reason = null;
         $usage = [];
@@ -173,7 +173,7 @@ class UsageTrackingController extends Controller
 
             case 'platforms':
                 $platform = $validated['platform'] ?? null;
-                $allowedPlatforms = $package->platforms ?? [];
+                $allowedPlatforms = $package->included_platforms ?? [];
                 $usage = [
                     'type' => 'platforms',
                     'allowed_platforms' => $allowedPlatforms,
@@ -212,7 +212,7 @@ class UsageTrackingController extends Controller
             'rental' => [
                 'id' => $rental->id,
                 'package' => $package->name,
-                'ends_at' => $rental->ends_at->toIso8601String(),
+                'expires_at' => $rental->expires_at->toIso8601String(),
             ],
         ]);
     }
@@ -234,10 +234,10 @@ class UsageTrackingController extends Controller
         }
 
         // Get active rental
-        $rental = UserRental::with('package')
+        $rental = UserRental::with('rentalPackage')
             ->where('user_id', $userId)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('expires_at', '>', now())
             ->first();
 
         if (!$rental) {
@@ -248,7 +248,7 @@ class UsageTrackingController extends Controller
             ]);
         }
 
-        $package = $rental->package;
+        $package = $rental->rentalPackage;
 
         return response()->json([
             'success' => true,
@@ -258,12 +258,11 @@ class UsageTrackingController extends Controller
                 'package' => [
                     'id' => $package->id,
                     'name' => $package->name,
-                    'slug' => $package->slug,
                 ],
                 'status' => $rental->status,
                 'starts_at' => $rental->starts_at?->toIso8601String(),
-                'ends_at' => $rental->ends_at->toIso8601String(),
-                'days_remaining' => now()->diffInDays($rental->ends_at, false),
+                'expires_at' => $rental->expires_at->toIso8601String(),
+                'days_remaining' => now()->diffInDays($rental->expires_at, false),
                 'usage' => [
                     'posts' => [
                         'used' => $rental->posts_used,
@@ -278,7 +277,7 @@ class UsageTrackingController extends Controller
                 ],
                 'limits' => [
                     'brands' => $package->brands_limit,
-                    'platforms' => $package->platforms ?? [],
+                    'platforms' => $package->included_platforms ?? [],
                     'team_members' => $package->team_members_limit,
                 ],
             ],

@@ -76,7 +76,17 @@ public class ImageGeneratorService
         _logger = logger;
     }
 
-    public async Task<GeneratedImage> GenerateAsync(
+    public async Task<GeneratedImageResult> GenerateAsync(
+        string prompt,
+        ImageGenerationOptions? options = null,
+        CancellationToken ct = default)
+    {
+        options ??= new ImageGenerationOptions();
+        var size = $"{options.Width}x{options.Height}";
+        return await GenerateWithOptionsAsync(prompt, options.Style, size, options.Provider, ct);
+    }
+
+    public async Task<GeneratedImageResult> GenerateWithOptionsAsync(
         string prompt,
         string style,
         string size,
@@ -227,7 +237,7 @@ public class ImageGeneratorService
         return results;
     }
 
-    private async Task<GeneratedImage?> GenerateWithDallEAsync(
+    private async Task<GeneratedImageResult?> GenerateWithDallEAsync(
         string prompt, string style, string size, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(_config.OpenAIApiKey)) return null;
@@ -259,7 +269,7 @@ public class ImageGeneratorService
 
         var (width, height) = ParseSize(size);
 
-        return new GeneratedImage
+        return new GeneratedImageResult
         {
             Url = imageUrl ?? "",
             Provider = "dalle",
@@ -268,7 +278,7 @@ public class ImageGeneratorService
         };
     }
 
-    private async Task<GeneratedImage?> GenerateWithStableDiffusionAsync(
+    private async Task<GeneratedImageResult?> GenerateWithStableDiffusionAsync(
         string prompt, string style, string size, CancellationToken ct)
     {
         var sdUrl = Environment.GetEnvironmentVariable("SD_API_URL") ?? "http://localhost:7860";
@@ -302,7 +312,7 @@ public class ImageGeneratorService
 
             var base64Image = images[0].GetString();
 
-            return new GeneratedImage
+            return new GeneratedImageResult
             {
                 Base64Data = base64Image ?? "",
                 Provider = "stable_diffusion",
@@ -319,7 +329,7 @@ public class ImageGeneratorService
     /// <summary>
     /// สร้างรูปด้วย ComfyUI (FREE - Local)
     /// </summary>
-    private async Task<GeneratedImage?> GenerateWithComfyUIAsync(
+    private async Task<GeneratedImageResult?> GenerateWithComfyUIAsync(
         string prompt, string style, string size, CancellationToken ct)
     {
         var comfyUrl = Environment.GetEnvironmentVariable("COMFYUI_URL") ?? "http://localhost:8188";
@@ -368,7 +378,7 @@ public class ImageGeneratorService
                                 var imageBytes = await _httpClient.GetByteArrayAsync(imageUrl, ct);
                                 var base64 = Convert.ToBase64String(imageBytes);
 
-                                return new GeneratedImage
+                                return new GeneratedImageResult
                                 {
                                     Base64Data = base64,
                                     Provider = "comfyui",
@@ -468,7 +478,7 @@ public class ImageGeneratorService
     /// <summary>
     /// สร้างรูปด้วย Hugging Face Inference API (FREE)
     /// </summary>
-    private async Task<GeneratedImage?> GenerateWithHuggingFaceAsync(
+    private async Task<GeneratedImageResult?> GenerateWithHuggingFaceAsync(
         string prompt, string style, string size, CancellationToken ct)
     {
         var hfToken = Environment.GetEnvironmentVariable("HF_TOKEN");
@@ -521,7 +531,7 @@ public class ImageGeneratorService
             var imageBytes = await response.Content.ReadAsByteArrayAsync(ct);
             var base64 = Convert.ToBase64String(imageBytes);
 
-            return new GeneratedImage
+            return new GeneratedImageResult
             {
                 Base64Data = base64,
                 Provider = "huggingface",
@@ -539,7 +549,7 @@ public class ImageGeneratorService
     /// <summary>
     /// สร้างรูปด้วย fal.ai (FREE tier)
     /// </summary>
-    private async Task<GeneratedImage?> GenerateWithFalAiAsync(
+    private async Task<GeneratedImageResult?> GenerateWithFalAiAsync(
         string prompt, string style, string size, CancellationToken ct)
     {
         var falKey = Environment.GetEnvironmentVariable("FAL_KEY");
@@ -584,7 +594,7 @@ public class ImageGeneratorService
             var imageBytes = await _httpClient.GetByteArrayAsync(imageUrl!, ct);
             var base64 = Convert.ToBase64String(imageBytes);
 
-            return new GeneratedImage
+            return new GeneratedImageResult
             {
                 Url = imageUrl ?? "",
                 Base64Data = base64,
@@ -642,11 +652,49 @@ public class AvailableProvider
     public string? Note { get; set; }
 }
 
-public class GeneratedImage
+public class GeneratedImageResult
 {
     public string Url { get; set; } = "";
     public string Base64Data { get; set; } = "";
     public string Provider { get; set; } = "";
     public int Width { get; set; }
     public int Height { get; set; }
+    public string? LocalPath { get; set; }
+
+    /// <summary>
+    /// Save image to local file
+    /// </summary>
+    public async Task<string> SaveToFileAsync(string directory, string filename)
+    {
+        if (!Directory.Exists(directory))
+            Directory.CreateDirectory(directory);
+
+        var filePath = Path.Combine(directory, filename);
+
+        if (!string.IsNullOrEmpty(Base64Data))
+        {
+            var bytes = Convert.FromBase64String(Base64Data);
+            await File.WriteAllBytesAsync(filePath, bytes);
+        }
+        else if (!string.IsNullOrEmpty(Url))
+        {
+            using var client = new HttpClient();
+            var bytes = await client.GetByteArrayAsync(Url);
+            await File.WriteAllBytesAsync(filePath, bytes);
+        }
+
+        LocalPath = filePath;
+        return filePath;
+    }
+}
+
+/// <summary>
+/// Image Generation Options
+/// </summary>
+public class ImageGenerationOptions
+{
+    public int Width { get; set; } = 1024;
+    public int Height { get; set; } = 1024;
+    public string Style { get; set; } = "realistic";
+    public string Provider { get; set; } = "auto";
 }
