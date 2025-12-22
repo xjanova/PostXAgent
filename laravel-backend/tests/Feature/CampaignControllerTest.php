@@ -34,10 +34,13 @@ class CampaignControllerTest extends TestCase
         $response = $this->getJson('/api/v1/campaigns');
 
         $response->assertOk()
+            ->assertJsonPath('success', true)
             ->assertJsonStructure([
                 'success',
                 'data' => [
-                    '*' => ['id', 'name', 'status'],
+                    'data' => [
+                        '*' => ['id', 'name', 'status'],
+                    ],
                 ],
             ]);
     }
@@ -148,7 +151,7 @@ class CampaignControllerTest extends TestCase
         $response = $this->getJson('/api/v1/campaigns?status=active');
 
         $response->assertOk();
-        $data = $response->json('data');
+        $data = $response->json('data.data');
         $this->assertCount(2, $data);
     }
 
@@ -169,11 +172,11 @@ class CampaignControllerTest extends TestCase
         $response = $this->getJson("/api/v1/campaigns?brand_id={$this->brand->id}");
 
         $response->assertOk();
-        $data = $response->json('data');
+        $data = $response->json('data.data');
         $this->assertCount(3, $data);
     }
 
-    public function test_can_activate_campaign(): void
+    public function test_can_start_campaign(): void
     {
         $campaign = Campaign::factory()->create([
             'user_id' => $this->user->id,
@@ -181,7 +184,7 @@ class CampaignControllerTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $response = $this->postJson("/api/v1/campaigns/{$campaign->id}/activate");
+        $response = $this->postJson("/api/v1/campaigns/{$campaign->id}/start");
 
         $response->assertOk()
             ->assertJsonPath('success', true);
