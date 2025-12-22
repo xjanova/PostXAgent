@@ -25,7 +25,7 @@ class RentalPackageFactory extends Factory
             'duration_type' => fake()->randomElement(['daily', 'weekly', 'monthly', 'yearly']),
             'duration_value' => fake()->randomElement([1, 7, 30, 365]),
             'price' => fake()->randomFloat(2, 99, 9999),
-            'original_price' => null,
+            'original_price' => 0,
             'currency' => 'THB',
             'posts_limit' => fake()->randomElement([100, 500, 1000, -1]),
             'brands_limit' => fake()->randomElement([1, 5, 10, -1]),
@@ -33,7 +33,7 @@ class RentalPackageFactory extends Factory
             'ai_generations_limit' => fake()->randomElement([100, 500, 2000, -1]),
             'accounts_per_platform' => fake()->randomElement([1, 3, 5, 10]),
             'scheduled_posts_limit' => fake()->randomElement([10, 50, 100, -1]),
-            'team_members_limit' => fake()->randomElement([1, 5, 10, null]),
+            'team_members_limit' => fake()->randomElement([1, 5, 10]),
             'features' => ['basic_posting', 'ai_content', 'scheduling'],
             'included_platforms' => ['facebook', 'instagram', 'twitter'],
             'is_active' => true,
@@ -41,7 +41,7 @@ class RentalPackageFactory extends Factory
             'is_popular' => false,
             'sort_order' => fake()->numberBetween(1, 10),
             'has_trial' => false,
-            'trial_days' => null,
+            'trial_days' => 0,
         ];
     }
 

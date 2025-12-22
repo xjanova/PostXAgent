@@ -24,21 +24,9 @@ class AccountPoolModelTest extends TestCase
         $this->brand = Brand::factory()->create(['user_id' => $this->user->id]);
     }
 
-    public function test_account_pool_belongs_to_user(): void
-    {
-        $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
-            'brand_id' => $this->brand->id,
-        ]);
-
-        $this->assertInstanceOf(User::class, $pool->user);
-        $this->assertEquals($this->user->id, $pool->user->id);
-    }
-
     public function test_account_pool_belongs_to_brand(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
@@ -49,7 +37,6 @@ class AccountPoolModelTest extends TestCase
     public function test_account_pool_has_members_relationship(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
@@ -70,7 +57,6 @@ class AccountPoolModelTest extends TestCase
     public function test_account_pool_fillable_attributes(): void
     {
         $pool = AccountPool::create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'name' => 'Test Pool',
             'platform' => 'facebook',
@@ -87,48 +73,52 @@ class AccountPoolModelTest extends TestCase
     public function test_account_pool_scope_active(): void
     {
         AccountPool::factory()->count(2)->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'is_active' => true,
         ]);
 
         AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
             'is_active' => false,
         ]);
 
-        $this->assertCount(2, AccountPool::where('is_active', true)->get());
+        $this->assertCount(2, AccountPool::active()->get());
     }
 
-    public function test_account_pool_casts_settings_to_array(): void
+    public function test_account_pool_scope_for_platform(): void
     {
-        $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
+        AccountPool::factory()->count(2)->create([
             'brand_id' => $this->brand->id,
-            'settings' => ['max_posts' => 10, 'cooldown' => 30],
+            'platform' => 'facebook',
         ]);
 
-        $this->assertIsArray($pool->settings);
-        $this->assertEquals(10, $pool->settings['max_posts']);
+        AccountPool::factory()->create([
+            'brand_id' => $this->brand->id,
+            'platform' => 'instagram',
+        ]);
+
+        $this->assertCount(2, AccountPool::forPlatform('facebook')->get());
+        $this->assertCount(1, AccountPool::forPlatform('instagram')->get());
     }
 
-    public function test_account_pool_casts_metadata_to_array(): void
+    public function test_account_pool_scope_for_brand(): void
     {
-        $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
+        $otherBrand = Brand::factory()->create(['user_id' => $this->user->id]);
+
+        AccountPool::factory()->count(2)->create([
             'brand_id' => $this->brand->id,
-            'metadata' => ['key' => 'value'],
         ]);
 
-        $this->assertIsArray($pool->metadata);
-        $this->assertEquals('value', $pool->metadata['key']);
+        AccountPool::factory()->create([
+            'brand_id' => $otherBrand->id,
+        ]);
+
+        $this->assertCount(2, AccountPool::forBrand($this->brand->id)->get());
     }
 
     public function test_account_pool_soft_deletes(): void
     {
         $pool = AccountPool::factory()->create([
-            'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);
 
@@ -137,5 +127,30 @@ class AccountPoolModelTest extends TestCase
         $this->assertSoftDeleted('account_pools', ['id' => $pool->id]);
         $this->assertNull(AccountPool::find($pool->id));
         $this->assertNotNull(AccountPool::withTrashed()->find($pool->id));
+    }
+
+    public function test_account_pool_casts_booleans(): void
+    {
+        $pool = AccountPool::factory()->create([
+            'brand_id' => $this->brand->id,
+            'auto_failover' => 1,
+            'is_active' => 1,
+        ]);
+
+        $this->assertIsBool($pool->auto_failover);
+        $this->assertIsBool($pool->is_active);
+        $this->assertTrue($pool->auto_failover);
+        $this->assertTrue($pool->is_active);
+    }
+
+    public function test_account_pool_get_strategies(): void
+    {
+        $strategies = AccountPool::getStrategies();
+
+        $this->assertIsArray($strategies);
+        $this->assertContains('round_robin', $strategies);
+        $this->assertContains('random', $strategies);
+        $this->assertContains('least_used', $strategies);
+        $this->assertContains('priority', $strategies);
     }
 }

@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\AccountPool;
-use App\Models\User;
 use App\Models\Brand;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -20,17 +19,15 @@ class AccountPoolFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
             'brand_id' => Brand::factory(),
             'name' => fake()->words(3, true) . ' Pool',
+            'description' => fake()->sentence(),
             'platform' => fake()->randomElement(['facebook', 'instagram', 'twitter', 'tiktok']),
-            'rotation_strategy' => fake()->randomElement(['round_robin', 'random', 'least_used', 'weighted']),
+            'rotation_strategy' => fake()->randomElement(['round_robin', 'random', 'least_used', 'priority']),
+            'cooldown_minutes' => 30,
+            'max_posts_per_day' => 10,
+            'auto_failover' => true,
             'is_active' => true,
-            'settings' => [
-                'max_posts_per_account_per_day' => 10,
-                'cooldown_minutes' => 30,
-            ],
-            'metadata' => [],
         ];
     }
 
