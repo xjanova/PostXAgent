@@ -65,11 +65,6 @@ class User extends Authenticatable
         return $this->hasMany(Post::class);
     }
 
-    public function subscriptions()
-    {
-        return $this->hasMany(Subscription::class);
-    }
-
     /**
      * Get user's rental subscriptions (Thai market)
      */
@@ -116,14 +111,18 @@ class User extends Authenticatable
     // Helpers
     public function hasActiveSubscription(): bool
     {
-        return $this->subscribed('default');
+        return $this->hasActiveRental();
     }
 
+    /**
+     * Get usage quota from active rental package
+     */
     public function getUsageQuota(): array
     {
-        $subscription = $this->subscription('default');
+        $rental = $this->activeRental();
 
-        if (!$subscription) {
+        if (!$rental || !$rental->rentalPackage) {
+            // Default quota for users without active rental
             return [
                 'posts_per_month' => 10,
                 'brands' => 1,
@@ -132,33 +131,13 @@ class User extends Authenticatable
             ];
         }
 
-        $plan = $subscription->stripe_price;
+        $package = $rental->rentalPackage;
 
-        return match($plan) {
-            'price_starter' => [
-                'posts_per_month' => 100,
-                'brands' => 3,
-                'platforms' => 5,
-                'ai_generations' => 500,
-            ],
-            'price_professional' => [
-                'posts_per_month' => 500,
-                'brands' => 10,
-                'platforms' => 9,
-                'ai_generations' => 2000,
-            ],
-            'price_enterprise' => [
-                'posts_per_month' => -1, // Unlimited
-                'brands' => -1,
-                'platforms' => 9,
-                'ai_generations' => -1,
-            ],
-            default => [
-                'posts_per_month' => 10,
-                'brands' => 1,
-                'platforms' => 2,
-                'ai_generations' => 50,
-            ],
-        };
+        return [
+            'posts_per_month' => $package->posts_limit,
+            'brands' => $package->brands_limit,
+            'platforms' => $package->platforms_limit,
+            'ai_generations' => $package->ai_generations_limit,
+        ];
     }
 }
