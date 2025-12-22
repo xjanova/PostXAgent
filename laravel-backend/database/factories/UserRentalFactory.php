@@ -32,11 +32,6 @@ class UserRentalFactory extends Factory
             'payment_reference' => 'PAY-' . fake()->uuid(),
             'posts_used' => 0,
             'ai_generations_used' => 0,
-            'usage_posts' => 0,
-            'usage_ai_generations' => 0,
-            'usage_brands' => 0,
-            'usage_platforms' => 0,
-            'usage_team_members' => 0,
             'usage_stats' => [],
             'auto_renew' => false,
             'next_renewal_at' => null,
@@ -124,8 +119,6 @@ class UserRentalFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'posts_used' => $posts,
             'ai_generations_used' => $aiGenerations,
-            'usage_posts' => $posts,
-            'usage_ai_generations' => $aiGenerations,
         ]);
     }
 }
