@@ -90,10 +90,24 @@
                                 <!-- Inner Logo Container - fits exactly inside the glow ring -->
                                 <Border x:Name="LogoContainer" Width="80" Height="80" CornerRadius="40"
                                         HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        ClipToBounds="True" Background="Transparent">
+                                        ClipToBounds="True">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#1a1a2e" Offset="0"/>
+                                            <GradientStop Color="#16213e" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
                                     <Grid>
-                                        <!-- Custom Logo Image - Full circle crop -->
-                                        <Border x:Name="LogoImageContainer" CornerRadius="40" ClipToBounds="True" Visibility="Collapsed">
+                                        <!-- Custom Logo Image - Full circle crop with proper clipping -->
+                                        <Border x:Name="LogoImageContainer" CornerRadius="40" ClipToBounds="True" Visibility="Collapsed"
+                                                Width="80" Height="80">
+                                            <Border.OpacityMask>
+                                                <VisualBrush>
+                                                    <VisualBrush.Visual>
+                                                        <Ellipse Width="80" Height="80" Fill="White"/>
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Border.OpacityMask>
                                             <Image x:Name="CustomLogoImage"
                                                    Width="80" Height="80"
                                                    Stretch="UniformToFill"
@@ -101,13 +115,8 @@
                                                    VerticalAlignment="Center"/>
                                         </Border>
                                         <!-- Fallback Icon with background -->
-                                        <Border x:Name="FallbackLogoBg" CornerRadius="40" Visibility="Visible">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#1a1a2e" Offset="0"/>
-                                                    <GradientStop Color="#16213e" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Border.Background>
+                                        <Border x:Name="FallbackLogoBg" CornerRadius="40" Visibility="Visible"
+                                                Width="80" Height="80">
                                             <materialDesign:PackIcon x:Name="FallbackLogoIcon"
                                                                      Kind="RobotExcited"
                                                                      Width="45" Height="45"
@@ -203,6 +212,28 @@
                                     </StackPanel>
                                 </Button>
 
+                                <!-- Content Creator -->
+                                <Button x:Name="BtnContentCreator" Click="NavButton_Click" Tag="ContentCreator"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#208B5CF6" Offset="0"/>
+                                                    <GradientStop Color="#2010B981" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="Creation" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#8B5CF6"/>
+                                        </Border>
+                                        <TextBlock Text="Content Creator" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#8B5CF6" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
                                 <!-- AI Chat -->
                                 <Button x:Name="BtnChat" Click="NavButton_Click" Tag="Chat"
                                         Style="{StaticResource FuturisticNavButton}" Margin="5,3">
@@ -219,9 +250,6 @@
                                                                      Foreground="#A78BFA"/>
                                         </Border>
                                         <TextBlock Text="AI Chat" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#EC4899" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
-                                        </Border>
                                     </StackPanel>
                                 </Button>
 
@@ -297,6 +325,50 @@
                                         <TextBlock Text="Strategies" Margin="12,0,0,0" VerticalAlignment="Center"/>
                                         <Border Background="#10B981" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
                                             <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Workflow Monitor -->
+                                <Button x:Name="BtnWorkflowMonitor" Click="NavButton_Click" Tag="WorkflowMonitor"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#2006B6D4" Offset="0"/>
+                                                    <GradientStop Color="#2022D3EE" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="MonitorEye" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#22D3EE"/>
+                                        </Border>
+                                        <TextBlock Text="Workflow Monitor" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#06B6D4" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
+                                            <TextBlock Text="LIVE" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Web Learning -->
+                                <Button x:Name="BtnWebLearning" Click="NavButton_Click" Tag="WebLearning"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#20FF6B6B" Offset="0"/>
+                                                    <GradientStop Color="#204ECDC4" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="School" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#FF6B6B"/>
+                                        </Border>
+                                        <TextBlock Text="Web Learning" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#FF6B6B" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
+                                            <TextBlock Text="TEACH" FontSize="9" FontWeight="Bold"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>

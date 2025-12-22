@@ -21,7 +21,7 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Timestamp}" Foreground="#808080" Width="180"/>
+                            <TextBlock Text="{Binding Timestamp}" Foreground="#B8B8D0" Width="180"/>
                             <TextBlock Text="{Binding Level}" Foreground="{Binding LevelColor}" Width="60" FontWeight="Bold"/>
                             <TextBlock Text="{Binding Message}" Foreground="White"/>
                         </StackPanel>

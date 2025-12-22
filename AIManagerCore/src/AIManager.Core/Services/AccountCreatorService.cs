@@ -161,11 +161,15 @@ public class AccountCreatorService
         try
         {
             var imageResult = await _imageGenerator.GenerateAsync(
-                prompt: prompt,
-                style: "realistic portrait",
-                size: "512x512",
-                provider: "stable_diffusion",
-                ct: ct);
+                prompt,
+                new ImageGenerationOptions
+                {
+                    Style = "realistic portrait",
+                    Width = 512,
+                    Height = 512,
+                    Provider = "stable_diffusion"
+                },
+                ct);
 
             return !string.IsNullOrEmpty(imageResult.Url)
                 ? imageResult.Url

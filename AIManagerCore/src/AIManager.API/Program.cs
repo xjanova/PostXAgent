@@ -58,6 +58,96 @@ builder.Services.AddSingleton<ProcessOrchestrator>();
 // API Key Service
 builder.Services.AddSingleton<ApiKeyService>();
 
+// Core Database Service (SQLite + MySQL failover)
+builder.Services.AddSingleton<CoreDatabaseService>();
+
+// AI Learning Database Service (for SeekAndPost)
+builder.Services.AddSingleton<AILearningDatabaseService>();
+
+// Content Generator Service
+builder.Services.AddSingleton<ContentGeneratorService>();
+
+// Seek and Post Service
+builder.Services.AddSingleton<SeekAndPostService>();
+
+// Group Search and Post Publisher Services
+builder.Services.AddSingleton<GroupSearchService>();
+builder.Services.AddSingleton<PostPublisherService>();
+
+// Comment Management Services
+builder.Services.AddSingleton<CommentMonitorService>();
+builder.Services.AddSingleton<CommentReplyService>();
+builder.Services.AddSingleton<TonePersonalityService>();
+
+// Viral Analysis Service
+builder.Services.AddSingleton<ViralAnalysisService>();
+
+// Image Generator Service
+builder.Services.AddSingleton<ImageGeneratorService>();
+
+// Content Workflow Services
+builder.Services.AddSingleton<CloudDriveService>();
+builder.Services.AddSingleton<VideoScriptGeneratorService>();
+builder.Services.AddSingleton<AudioGeneratorService>();
+builder.Services.AddSingleton<VideoAssemblyService>();
+builder.Services.AddSingleton<ContentWorkflowOrchestrator>();
+
+// Worker Manager (for managing all workers)
+builder.Services.AddSingleton<WorkerManager>();
+
+// Knowledge Base (shared knowledge between workers)
+builder.Services.AddSingleton<KnowledgeBase>();
+
+// Human Training Service (for human-in-the-loop training)
+builder.Services.AddSingleton<HumanTrainingService>();
+
+// Workflow Runtime Manager (workflow versioning and job management)
+builder.Services.AddSingleton<WorkflowRuntimeManager>();
+
+// AI Code Generation Configuration
+var aiCodeConfig = new AIManager.Core.Models.AICodeGenerationConfig();
+builder.Configuration.GetSection("AICodeGeneration").Bind(aiCodeConfig);
+builder.Services.AddSingleton(aiCodeConfig);
+
+// Self-Healing Configuration
+var selfHealingConfig = new AIManager.Core.Models.SelfHealingConfig();
+builder.Configuration.GetSection("SelfHealing").Bind(selfHealingConfig);
+builder.Services.AddSingleton(selfHealingConfig);
+
+// Claude Desktop Configuration
+var claudeDesktopConfig = new AIManager.Core.Models.ClaudeDesktopConfig();
+builder.Configuration.GetSection("ClaudeDesktop").Bind(claudeDesktopConfig);
+builder.Services.AddSingleton(claudeDesktopConfig);
+
+// Claude Desktop Service (for Local AI <-> Claude Desktop integration)
+builder.Services.AddSingleton<ClaudeDesktopService>();
+
+// Claude Code Integration Service (uses user's Claude account via CLI)
+builder.Services.AddSingleton<ClaudeCodeIntegrationService>();
+
+// AI Code Generator Service (for dynamic JS code generation)
+builder.Services.AddSingleton<AICodeGeneratorService>();
+
+// Dynamic Code Executor (optional - requires WebView)
+// Note: DynamicCodeExecutor requires BrowserController which needs UI context
+// It will be null in API-only mode
+builder.Services.AddSingleton<DynamicCodeExecutor?>(sp =>
+{
+    try
+    {
+        var browserController = sp.GetService<BrowserController>();
+        if (browserController != null)
+        {
+            return new DynamicCodeExecutor(browserController);
+        }
+    }
+    catch { }
+    return null;
+});
+
+// Self-Healing Worker Factory
+builder.Services.AddSingleton<SelfHealingWorker>();
+
 var app = builder.Build();
 
 // Generate master key if no keys exist (for initial setup)
@@ -72,6 +162,26 @@ if (masterKey != null)
     logger.LogWarning("SAVE THIS KEY! It won't be shown again!");
     logger.LogWarning("========================================");
 }
+
+// Initialize Core Database (SQLite auto-creates, MySQL if configured)
+var coreDb = app.Services.GetRequiredService<CoreDatabaseService>();
+
+// Configure MySQL from settings if available
+coreDb.MysqlHost = builder.Configuration.GetValue<string>("Database:MySQL:Host");
+coreDb.MysqlPort = builder.Configuration.GetValue<int>("Database:MySQL:Port", 3306);
+coreDb.MysqlDatabase = builder.Configuration.GetValue<string>("Database:MySQL:Database");
+coreDb.MysqlUsername = builder.Configuration.GetValue<string>("Database:MySQL:Username");
+coreDb.MysqlPassword = builder.Configuration.GetValue<string>("Database:MySQL:Password");
+
+await coreDb.InitializeAsync();
+
+// Initialize Knowledge Base schema
+var knowledgeBase = app.Services.GetRequiredService<KnowledgeBase>();
+await knowledgeBase.InitializeSchemaAsync();
+
+// Initialize Workflow Runtime Manager (load all workflows)
+var workflowRuntime = app.Services.GetRequiredService<WorkflowRuntimeManager>();
+await workflowRuntime.LoadAllWorkflowsAsync();
 
 // Configure pipeline
 if (app.Environment.IsDevelopment())

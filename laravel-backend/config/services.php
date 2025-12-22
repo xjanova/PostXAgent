@@ -142,6 +142,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | AI Manager Core (C#)
+    |--------------------------------------------------------------------------
+    | Connection settings for the C# AI Manager Core service
+    */
+
+    'ai_manager' => [
+        'host' => env('AI_MANAGER_HOST', 'localhost'),
+        'api_port' => env('AI_MANAGER_API_PORT', 5000),
+        'websocket_port' => env('AI_MANAGER_WEBSOCKET_PORT', 5001),
+        'signalr_port' => env('AI_MANAGER_SIGNALR_PORT', 5002),
+        'api_key' => env('AI_MANAGER_API_KEY'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Internal API Authentication
     |--------------------------------------------------------------------------
     | Used for C# Core and internal services to communicate with Laravel
@@ -149,5 +164,19 @@ return [
 
     'internal_api_key' => env('INTERNAL_API_KEY', 'change-this-in-production'),
     'internal_allowed_ips' => explode(',', env('INTERNAL_ALLOWED_IPS', '127.0.0.1,::1')),
+
+    /*
+    |--------------------------------------------------------------------------
+    | SMS Gateway (Multi-Website Integration)
+    |--------------------------------------------------------------------------
+    | Configuration for receiving webhooks from the SMS Gateway Mobile App
+    | This allows the mobile app to send payment notifications to multiple websites
+    */
+
+    'sms_gateway' => [
+        'api_key' => env('SMS_GATEWAY_API_KEY'),
+        'secret_key' => env('SMS_GATEWAY_SECRET_KEY'),
+        'signature_tolerance' => env('SMS_GATEWAY_SIGNATURE_TOLERANCE', 300), // seconds
+    ],
 
 ];

@@ -2,7 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             StartupUri="Views/MainWindow.xaml">
+             xmlns:converters="clr-namespace:AIManager.UI.Converters"
+             ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -15,6 +16,13 @@
                 <ResourceDictionary Source="Styles/Controls.xaml" />
                 <ResourceDictionary Source="Styles/FuturisticStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Global Converters -->
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+            <converters:SuccessRateColorConverter x:Key="SuccessRateColorConverter"/>
+            <converters:BoolToStatusConverter x:Key="BoolToStatusConverter"/>
+            <converters:WorkerStateColorConverter x:Key="WorkerStateColorConverter"/>
+            <converters:PlatformColorConverter x:Key="PlatformColorConverter"/>
 
             <!-- Global Styles -->
             <Style TargetType="Window" BasedOn="{StaticResource MaterialDesignWindow}"/>

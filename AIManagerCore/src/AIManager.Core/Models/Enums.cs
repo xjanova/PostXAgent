@@ -21,14 +21,60 @@ public enum SocialPlatform
 /// </summary>
 public enum TaskType
 {
+    // Content Generation
     GenerateContent,
     GenerateImage,
+
+    // Posting
     PostContent,
     SchedulePost,
+    PostToGroup,
+    PostToMultipleGroups,
+
+    // Metrics & Analytics
     AnalyzeMetrics,
     MonitorEngagement,
+    AnalyzeViralPotential,
+    TrackTrendingKeywords,
+
+    // Comment Management
+    FetchComments,
+    ReplyToComment,
+    AutoReplyComments,
+    AnalyzeCommentSentiment,
+
+    // Account Management
     DeletePost,
-    RefreshToken
+    RefreshToken,
+
+    // Group Discovery
+    SearchGroups,
+    JoinGroup,
+    AnalyzeGroupActivity
+}
+
+/// <summary>
+/// Sentiment types for comment analysis
+/// </summary>
+public enum SentimentType
+{
+    Positive,
+    Neutral,
+    Negative,
+    Question,
+    Complaint,
+    Praise
+}
+
+/// <summary>
+/// Comment priority levels
+/// </summary>
+public enum CommentPriority
+{
+    Low = 0,
+    Normal = 1,
+    High = 2,
+    Urgent = 3
 }
 
 /// <summary>

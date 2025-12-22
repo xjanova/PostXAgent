@@ -69,5 +69,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('status', function (Request $request) {
             return Limit::perMinute(120)->by($request->ip());
         });
+
+        // Rate limit for mobile device API: 60 requests per minute per device
+        RateLimiter::for('mobile', function (Request $request) {
+            $deviceId = $request->input('device_id') ?? $request->ip();
+            return Limit::perMinute(60)->by($deviceId);
+        });
     }
 }

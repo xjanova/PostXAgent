@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,27 +13,38 @@ class WorkflowExecution extends Model
     use HasFactory;
 
     // Status constants
-    const STATUS_PENDING = 'pending';
-    const STATUS_RUNNING = 'running';
-    const STATUS_SUCCESS = 'success';
-    const STATUS_FAILED = 'failed';
-    const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_RUNNING = 'running';
+    public const STATUS_SUCCESS = 'success';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_FAILED = 'failed';
+    public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
+        // Legacy fields (for web learning)
         'learned_workflow_id',
-        'user_id',
         'brand_id',
         'post_id',
-        'status',
-        'started_at',
-        'completed_at',
         'failed_at_step',
-        'error_message',
         'error_screenshot',
         'step_results',
         'content_used',
-        'duration_ms',
         'metadata',
+
+        // New fields (for node workflow editor)
+        'user_id',
+        'user_workflow_id',
+        'template_id',
+        'status',
+        'variables',
+        'node_outputs',
+        'error_message',
+        'execution_log',
+        'nodes_executed',
+        'total_nodes',
+        'duration_ms',
+        'started_at',
+        'completed_at',
     ];
 
     protected $casts = [
@@ -42,12 +55,28 @@ class WorkflowExecution extends Model
         'content_used' => 'array',
         'duration_ms' => 'integer',
         'metadata' => 'array',
+        // New casts
+        'variables' => 'array',
+        'node_outputs' => 'array',
+        'execution_log' => 'array',
+        'nodes_executed' => 'integer',
+        'total_nodes' => 'integer',
     ];
 
     // Relationships
     public function workflow(): BelongsTo
     {
         return $this->belongsTo(LearnedWorkflow::class, 'learned_workflow_id');
+    }
+
+    public function userWorkflow(): BelongsTo
+    {
+        return $this->belongsTo(UserWorkflow::class);
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(WorkflowTemplate::class, 'template_id');
     }
 
     public function user(): BelongsTo

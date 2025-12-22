@@ -13,8 +13,8 @@
 
     <!-- Text Colors -->
     <SolidColorBrush x:Key="PrimaryText" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="SecondaryText" Color="#808080"/>
-    <SolidColorBrush x:Key="MutedText" Color="#606060"/>
+    <SolidColorBrush x:Key="SecondaryText" Color="#B8B8D0"/>
+    <SolidColorBrush x:Key="MutedText" Color="#9090A8"/>
 
     <!-- Status Colors -->
     <SolidColorBrush x:Key="SuccessColor" Color="#4CAF50"/>

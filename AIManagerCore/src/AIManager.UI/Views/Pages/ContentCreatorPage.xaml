@@ -1,0 +1,366 @@
+<Page x:Class="AIManager.UI.Views.Pages.ContentCreatorPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      Title="Content Creator">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Panel - Content Generation -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                <!-- Header -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                    <materialDesign:PackIcon Kind="Creation" Width="28" Height="28" VerticalAlignment="Center" Foreground="#8B5CF6"/>
+                    <StackPanel Margin="10,0,0,0">
+                        <TextBlock Text="Content Creator" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="สร้างเนื้อหาด้วย AI สำหรับ Social Media" FontSize="12" Foreground="#B8B8D0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- AI Provider Selection -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="AI Provider" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <ComboBox x:Name="CboProvider" Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                  SelectionChanged="CboProvider_SelectionChanged">
+                            <ComboBoxItem Content="Auto (ใช้ตัวที่พร้อม)" Tag="auto" IsSelected="True"/>
+                            <ComboBoxItem Content="Ollama (Local, Free)" Tag="ollama"/>
+                            <ComboBoxItem Content="Google Gemini (Free)" Tag="google"/>
+                            <ComboBoxItem Content="HuggingFace (Free)" Tag="huggingface"/>
+                            <ComboBoxItem Content="OpenAI GPT-4" Tag="openai"/>
+                            <ComboBoxItem Content="Claude (Anthropic)" Tag="anthropic"/>
+                        </ComboBox>
+                        <TextBlock x:Name="TxtProviderStatus" Text="Checking..." FontSize="11" Foreground="#B8B8D0" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Platform Selection -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Platform" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <ComboBox x:Name="CboPlatform" Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                            <ComboBoxItem IsSelected="True">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Facebook" Width="20" Height="20" Foreground="#1877F2" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Facebook" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Instagram" Width="20" Height="20" Foreground="#E4405F" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Instagram" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Twitter" Width="20" Height="20" Foreground="#1DA1F2" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Twitter/X" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="MusicNote" Width="20" Height="20" Foreground="#FF0050" Margin="0,0,8,0"/>
+                                    <TextBlock Text="TikTok" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Linkedin" Width="20" Height="20" Foreground="#0A66C2" Margin="0,0,8,0"/>
+                                    <TextBlock Text="LinkedIn" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Youtube" Width="20" Height="20" Foreground="#FF0000" Margin="0,0,8,0"/>
+                                    <TextBlock Text="YouTube" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="At" Width="20" Height="20" Foreground="#000000" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Threads" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Message" Width="20" Height="20" Foreground="#00B900" Margin="0,0,8,0"/>
+                                    <TextBlock Text="LINE" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                        </ComboBox>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Brand Info -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="Brand Info" FontWeight="Bold"/>
+                            <TextBlock Text="(Optional)" FontSize="11" Foreground="#B8B8D0" Margin="8,2,0,0"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Brand Name" FontSize="12" Margin="0,0,0,5"/>
+                        <TextBox x:Name="TxtBrandName"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 materialDesign:HintAssist.Hint="ชื่อแบรนด์/ธุรกิจ"
+                                 Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Industry" FontSize="12" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="CboIndustry" Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,0,0,10">
+                            <ComboBoxItem Content="E-Commerce" IsSelected="True"/>
+                            <ComboBoxItem Content="Food &amp; Beverage"/>
+                            <ComboBoxItem Content="Fashion"/>
+                            <ComboBoxItem Content="Technology"/>
+                            <ComboBoxItem Content="Health &amp; Beauty"/>
+                            <ComboBoxItem Content="Education"/>
+                            <ComboBoxItem Content="Real Estate"/>
+                            <ComboBoxItem Content="Travel"/>
+                            <ComboBoxItem Content="Entertainment"/>
+                            <ComboBoxItem Content="Finance"/>
+                            <ComboBoxItem Content="Other"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Tone" FontSize="12" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="CboTone" Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                            <ComboBoxItem Content="Professional" IsSelected="True"/>
+                            <ComboBoxItem Content="Casual/Friendly"/>
+                            <ComboBoxItem Content="Humorous"/>
+                            <ComboBoxItem Content="Inspirational"/>
+                            <ComboBoxItem Content="Formal"/>
+                            <ComboBoxItem Content="Playful"/>
+                        </ComboBox>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Content Prompt -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Content Prompt" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBox x:Name="TxtPrompt" AcceptsReturn="True" TextWrapping="Wrap"
+                                 Height="120" VerticalScrollBarVisibility="Auto"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 materialDesign:HintAssist.Hint="อธิบายเนื้อหาที่ต้องการ เช่น &#x0a;- โปรโมทสินค้าใหม่&#x0a;- ประกาศโปรโมชั่น&#x0a;- แชร์ tips"
+                                 Text="สร้างโพสต์โปรโมทสินค้าใหม่ เน้นคุณภาพและความคุ้มค่า"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <TextBlock Text="Language:" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <RadioButton x:Name="RbThai" Content="ไทย" IsChecked="True" GroupName="Lang" Margin="0,0,15,0"/>
+                            <RadioButton x:Name="RbEnglish" Content="English" GroupName="Lang"/>
+                        </StackPanel>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Quick Templates -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Quick Templates" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <WrapPanel>
+                            <Button Content="Promotion" Click="Template_Click" Tag="promotion"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Height="28" Padding="10,0" Margin="0,0,5,5"/>
+                            <Button Content="New Product" Click="Template_Click" Tag="new_product"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Height="28" Padding="10,0" Margin="0,0,5,5"/>
+                            <Button Content="Tips &amp; Tricks" Click="Template_Click" Tag="tips"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Height="28" Padding="10,0" Margin="0,0,5,5"/>
+                            <Button Content="Behind the Scenes" Click="Template_Click" Tag="bts"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Height="28" Padding="10,0" Margin="0,0,5,5"/>
+                            <Button Content="Q&amp;A" Click="Template_Click" Tag="qa"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Height="28" Padding="10,0" Margin="0,0,5,5"/>
+                            <Button Content="Testimonial" Click="Template_Click" Tag="testimonial"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Height="28" Padding="10,0" Margin="0,0,5,5"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Generate Button -->
+                <Button x:Name="BtnGenerate" Content="Generate Content" Click="Generate_Click"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        Background="#8B5CF6" Foreground="White" Height="45" FontSize="16">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="AutoFix" Width="20" Height="20" Margin="0,0,8,0"/>
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Right Panel - Preview & Actions -->
+        <Grid Grid.Column="1" Margin="0,20,20,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Preview Header -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="Content Preview" FontSize="18" FontWeight="Bold"/>
+                <Border x:Name="ProviderBadge" Background="#10B981" CornerRadius="8" Padding="8,2" Margin="15,0,0,0" Visibility="Collapsed">
+                    <TextBlock x:Name="TxtProviderBadge" Text="Ollama" FontSize="10" FontWeight="Bold"/>
+                </Border>
+            </StackPanel>
+
+            <!-- Preview Area -->
+            <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="12" Padding="20">
+                <Grid>
+                    <!-- Placeholder -->
+                    <StackPanel x:Name="PlaceholderPanel" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="TextBoxEdit" Width="80" Height="80"
+                                                 HorizontalAlignment="Center" Foreground="#5D5D7A"/>
+                        <TextBlock Text="Generated content will appear here" FontSize="14"
+                                   Foreground="#9090A8" HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                        <TextBlock Text="กรอกข้อมูลและกด Generate" FontSize="12"
+                                   Foreground="#6D6D8A" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    </StackPanel>
+
+                    <!-- Content Preview -->
+                    <ScrollViewer x:Name="ContentPreview" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- Platform Header -->
+                            <Border Background="#252540" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon x:Name="PlatformIcon" Kind="Facebook" Width="24" Height="24" Foreground="#1877F2"/>
+                                    <TextBlock x:Name="TxtPlatformName" Text="Facebook Post" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Generated Text -->
+                            <TextBox x:Name="TxtGeneratedContent" AcceptsReturn="True" TextWrapping="Wrap"
+                                     MinHeight="200" VerticalScrollBarVisibility="Auto"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     FontSize="14" Foreground="White"/>
+
+                            <!-- Hashtags -->
+                            <StackPanel x:Name="HashtagsPanel" Margin="0,15,0,0" Visibility="Collapsed">
+                                <TextBlock Text="Hashtags" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <WrapPanel x:Name="HashtagsWrap">
+                                    <!-- Hashtags will be added dynamically -->
+                                </WrapPanel>
+                            </StackPanel>
+
+                            <!-- Character Count -->
+                            <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                                <TextBlock Text="Characters: " Foreground="#B8B8D0" FontSize="12"/>
+                                <TextBlock x:Name="TxtCharCount" Text="0" FontSize="12"/>
+                                <TextBlock x:Name="TxtCharLimit" Text="" Foreground="#B8B8D0" FontSize="12" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Progress Overlay -->
+                    <Border x:Name="ProgressOverlay" Background="#E01E1E2E" Visibility="Collapsed">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <ProgressBar IsIndeterminate="True"
+                                         Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                         Width="60" Height="60"/>
+                            <TextBlock x:Name="TxtProgressStatus" Text="Generating content..." FontSize="14" Foreground="White"
+                                       HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBlock x:Name="TxtProgressProvider" Text="" FontSize="12" Foreground="#B8B8D0"
+                                       HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Action Buttons -->
+            <Grid Grid.Row="2" Margin="0,15,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Regenerate -->
+                <Button x:Name="BtnRegenerate" Grid.Column="0" Content="Regenerate" Click="Regenerate_Click"
+                        Style="{StaticResource MaterialDesignOutlinedButton}" IsEnabled="False"
+                        HorizontalAlignment="Left">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+
+                <!-- Copy -->
+                <Button x:Name="BtnCopy" Grid.Column="1" Content="Copy" Click="Copy_Click"
+                        Style="{StaticResource MaterialDesignOutlinedButton}" IsEnabled="False" Margin="0,0,10,0">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ContentCopy" Width="18" Height="18" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+
+                <!-- Save Draft -->
+                <Button x:Name="BtnSaveDraft" Grid.Column="2" Content="Save Draft" Click="SaveDraft_Click"
+                        Style="{StaticResource MaterialDesignOutlinedButton}" IsEnabled="False" Margin="0,0,10,0">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+
+                <!-- Schedule -->
+                <Button x:Name="BtnSchedule" Grid.Column="3" Content="Schedule" Click="Schedule_Click"
+                        Style="{StaticResource MaterialDesignOutlinedButton}" IsEnabled="False" Margin="0,0,10,0">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ClockOutline" Width="18" Height="18" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+
+                <!-- Post Now -->
+                <Button x:Name="BtnPostNow" Grid.Column="4" Content="Post Now" Click="PostNow_Click"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        Background="#10B981" Foreground="White" IsEnabled="False">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Send" Width="18" Height="18" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+            </Grid>
+        </Grid>
+
+        <!-- Loading Overlay -->
+        <Border x:Name="LoadingOverlay" Grid.ColumnSpan="2" Background="#80000000" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Style="{StaticResource MaterialDesignCircularProgressBar}"
+                             Width="50" Height="50"/>
+                <TextBlock x:Name="TxtLoadingMessage" Text="Processing..." Foreground="White" Margin="0,15,0,0" FontSize="14"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>

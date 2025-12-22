@@ -4,6 +4,7 @@
 
     <!-- Converters -->
     <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+    <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
 
     <!-- Card Style -->
     <Style x:Key="DashboardCard" TargetType="Border">

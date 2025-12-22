@@ -15,7 +15,7 @@
                         <TextBlock Text="Appearance" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <TextBlock Text="Theme Mode" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                    <TextBlock Text="Theme Mode" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,8"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                         <RadioButton x:Name="RbDarkTheme" Content="Dark" GroupName="Theme"
                                      Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
@@ -28,7 +28,7 @@
                                      Checked="ThemeMode_Changed"/>
                     </StackPanel>
 
-                    <TextBlock Text="Accent Color" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                    <TextBlock Text="Accent Color" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,8"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <RadioButton x:Name="AccentPurple" GroupName="AccentColor" IsChecked="True"
                                      Checked="AccentColor_Changed" Margin="0,0,8,0">
@@ -165,7 +165,7 @@
                     </StackPanel>
 
                     <!-- Laravel Backend Status -->
-                    <Border x:Name="BackendStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                    <Border x:Name="BackendStatusBorder" Background="#252540" CornerRadius="8" Padding="12" Margin="0,0,0,10">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -177,17 +177,17 @@
                                      VerticalAlignment="Center" Margin="0,0,10,0"/>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Laravel Backend" FontWeight="Bold" FontSize="13" Foreground="#333"/>
-                                <TextBlock x:Name="TxtBackendStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                                <TextBlock Text="Laravel Backend" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                                <TextBlock x:Name="TxtBackendStatus" Text="Checking..." FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
 
-                            <TextBlock x:Name="TxtBackendUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#555"
+                            <TextBlock x:Name="TxtBackendUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#B8B8D0"
                                        VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
                     <!-- Ollama Status -->
-                    <Border x:Name="OllamaStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                    <Border x:Name="OllamaStatusBorder" Background="#252540" CornerRadius="8" Padding="12" Margin="0,0,0,10">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -199,12 +199,12 @@
                                      VerticalAlignment="Center" Margin="0,0,10,0"/>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Ollama (LLM)" FontWeight="Bold" FontSize="13" Foreground="#333"/>
-                                <TextBlock x:Name="TxtOllamaServiceStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                                <TextBlock Text="Ollama (LLM)" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                                <TextBlock x:Name="TxtOllamaServiceStatus" Text="Checking..." FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock x:Name="TxtOllamaModelsLoaded" Text="" FontSize="11" Foreground="#555"
+                                <TextBlock x:Name="TxtOllamaModelsLoaded" Text="" FontSize="11" Foreground="#B8B8D0"
                                            VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <Button x:Name="BtnStartOllama" Content="Start" Click="StartOllama_Click"
                                         Style="{StaticResource MaterialDesignOutlinedButton}"
@@ -216,7 +216,7 @@
                     </Border>
 
                     <!-- ComfyUI Status -->
-                    <Border x:Name="ComfyStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                    <Border x:Name="ComfyStatusBorder" Background="#252540" CornerRadius="8" Padding="12" Margin="0,0,0,10">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -228,17 +228,17 @@
                                      VerticalAlignment="Center" Margin="0,0,10,0"/>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="ComfyUI (Image/Video)" FontWeight="Bold" FontSize="13" Foreground="#333"/>
-                                <TextBlock x:Name="TxtComfyStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                                <TextBlock Text="ComfyUI (Image/Video)" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                                <TextBlock x:Name="TxtComfyStatus" Text="Checking..." FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
 
-                            <TextBlock x:Name="TxtComfyUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#555"
+                            <TextBlock x:Name="TxtComfyUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#B8B8D0"
                                        VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
                     <!-- Redis Status -->
-                    <Border x:Name="RedisStatusBorder" Background="#EEEEEE" CornerRadius="8" Padding="12">
+                    <Border x:Name="RedisStatusBorder" Background="#252540" CornerRadius="8" Padding="12">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -250,11 +250,11 @@
                                      VerticalAlignment="Center" Margin="0,0,10,0"/>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Redis (Cache/Queue)" FontWeight="Bold" FontSize="13" Foreground="#333"/>
-                                <TextBlock x:Name="TxtRedisStatus" Text="Checking..." FontSize="11" Foreground="#555"/>
+                                <TextBlock Text="Redis (Cache/Queue)" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                                <TextBlock x:Name="TxtRedisStatus" Text="Checking..." FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
 
-                            <TextBlock x:Name="TxtRedisUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#555"
+                            <TextBlock x:Name="TxtRedisUrl" Grid.Column="2" Text="--" FontSize="11" Foreground="#B8B8D0"
                                        VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
@@ -270,10 +270,10 @@
                     </StackPanel>
 
                     <TextBlock Text="Database stores AI learning data, posting strategies, and content templates."
-                               FontSize="12" Foreground="#888" Margin="0,0,0,15" TextWrapping="Wrap"/>
+                               FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,15" TextWrapping="Wrap"/>
 
                     <!-- Database Provider Selection -->
-                    <TextBlock Text="Database Provider" FontSize="12" Foreground="Gray" Margin="0,0,0,8"/>
+                    <TextBlock Text="Database Provider" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,8"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                         <RadioButton x:Name="RbSqlite" Content="SQLite (Built-in)" GroupName="DbProvider"
                                      Style="{StaticResource MaterialDesignChoiceChipPrimaryOutlineRadioButton}"
@@ -288,10 +288,10 @@
 
                     <!-- SQLite Settings (Default) -->
                     <StackPanel x:Name="SqliteSettings" Visibility="Visible" Margin="0,0,0,10">
-                        <Border Background="#F5F5F5" CornerRadius="8" Padding="12">
+                        <Border Background="#252540" CornerRadius="8" Padding="12">
                             <StackPanel>
                                 <TextBlock Text="SQLite is built-in and requires no installation."
-                                           FontSize="12" Foreground="#555" Margin="0,0,0,8"/>
+                                           FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,8"/>
                                 <TextBox x:Name="TxtSqliteFile" Text="ai_learning.db"
                                          materialDesign:HintAssist.Hint="Database File"
                                          Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
@@ -338,7 +338,7 @@
                     </StackPanel>
 
                     <!-- Database Status -->
-                    <Border x:Name="DbStatusBorder" Background="#F5F5F5" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                    <Border x:Name="DbStatusBorder" Background="#252540" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -350,8 +350,8 @@
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock x:Name="TxtDbConnectionStatus" Text="Not connected" FontWeight="Bold"
-                                           FontSize="13" Foreground="#333"/>
-                                <TextBlock x:Name="TxtDbStats" Text="" FontSize="11" Foreground="#555"/>
+                                           FontSize="13" Foreground="White"/>
+                                <TextBlock x:Name="TxtDbStats" Text="" FontSize="11" Foreground="#B8B8D0"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -367,7 +367,7 @@
                                 Foreground="#F44336" BorderBrush="#F44336"/>
                     </StackPanel>
 
-                    <TextBlock x:Name="TxtDbOperationStatus" Text="" FontSize="12" Foreground="#555" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TxtDbOperationStatus" Text="" FontSize="12" Foreground="#B8B8D0" TextWrapping="Wrap"/>
                 </StackPanel>
             </materialDesign:Card>
 
@@ -380,14 +380,14 @@
                              Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,10"/>
 
                     <!-- System Resources -->
-                    <Border Background="#F5F5F5" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                    <Border Background="#252540" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="System Resources" FontWeight="Bold" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="TxtSystemResources" Text="Detecting..." FontSize="12" Foreground="#555" TextWrapping="Wrap"/>
+                            <TextBlock Text="System Resources" FontWeight="Bold" Foreground="White" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="TxtSystemResources" Text="Detecting..." FontSize="12" Foreground="#B8B8D0" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
-                    <TextBlock Text="Ollama Model" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                    <TextBlock Text="Ollama Model" FontSize="12" Foreground="#B8B8D0" Margin="0,0,0,5"/>
                     <ComboBox x:Name="CboOllamaModel"
                               Style="{StaticResource MaterialDesignOutlinedComboBox}"
                               Margin="0,0,0,10"
@@ -405,7 +405,7 @@
                         <ComboBoxItem Content="llama2" Tag="Llama 2 - Legacy (ต้องการ 4GB RAM)"/>
                         <ComboBoxItem Content="codellama" Tag="Code Llama - สำหรับ coding"/>
                     </ComboBox>
-                    <TextBlock x:Name="TxtModelDescription" Text="" FontSize="11" Foreground="Gray" Margin="0,0,0,5" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TxtModelDescription" Text="" FontSize="11" Foreground="#B8B8D0" Margin="0,0,0,5" TextWrapping="Wrap"/>
                     <TextBlock x:Name="TxtAutoSelectedModel" Text="" FontSize="12" Foreground="#2196F3" FontWeight="Bold" Margin="0,0,0,10" TextWrapping="Wrap"/>
 
                     <StackPanel Orientation="Horizontal" Margin="0,5,0,10">

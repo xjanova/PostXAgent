@@ -1,11 +1,12 @@
 using AIManager.Core.WebAutomation.Models;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
+using Microsoft.Playwright;
+using System.Text.Json;
 
 namespace AIManager.Core.WebAutomation;
 
 /// <summary>
-/// Browser Controller - ควบคุม Browser ผ่าน Playwright หรือ Puppeteer
+/// Browser Controller - ควบคุม Browser ผ่าน Playwright
 /// สำหรับ Web Automation และ Recording
 /// </summary>
 public class BrowserController : IAsyncDisposable
@@ -13,21 +14,51 @@ public class BrowserController : IAsyncDisposable
     private readonly ILogger<BrowserController> _logger;
     private readonly BrowserConfig _config;
 
-    private Process? _browserProcess;
-    private HttpClient? _cdpClient;
+    private IPlaywright? _playwright;
+    private IBrowser? _browser;
+    private IBrowserContext? _context;
+    private IPage? _page;
     private bool _isConnected;
+    private bool _isInitialized;
 
     // Event handlers
     public event Func<string, Task>? OnPageNavigated;
+    public event Func<RecordedStep, Task>? OnStepRecorded;
 
     public bool IsRecording { get; private set; }
-    public string? CurrentUrl { get; private set; }
+    public string? CurrentUrl => _page?.Url;
     public string SessionId { get; } = Guid.NewGuid().ToString();
+
+    // Recording state
+    private readonly List<RecordedStep> _recordedSteps = new();
+    private bool _recordingScriptInjected;
 
     public BrowserController(ILogger<BrowserController> logger, BrowserConfig? config = null)
     {
         _logger = logger;
         _config = config ?? new BrowserConfig();
+    }
+
+    /// <summary>
+    /// Initialize Playwright (call once at startup)
+    /// </summary>
+    public async Task InitializeAsync(CancellationToken ct = default)
+    {
+        if (_isInitialized) return;
+
+        _logger.LogInformation("Initializing Playwright...");
+
+        try
+        {
+            _playwright = await Playwright.CreateAsync();
+            _isInitialized = true;
+            _logger.LogInformation("Playwright initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize Playwright. Run 'pwsh bin/Debug/net8.0/playwright.ps1 install' to install browsers");
+            throw;
+        }
     }
 
     /// <summary>
@@ -39,62 +70,66 @@ public class BrowserController : IAsyncDisposable
 
         try
         {
-            var browserPath = FindBrowserPath();
-            if (string.IsNullOrEmpty(browserPath))
+            if (!_isInitialized)
             {
-                _logger.LogError("Browser not found");
-                return false;
+                await InitializeAsync(ct);
             }
 
-            // เปิด browser ในโหมด debug
-            var port = _config.DebugPort;
-            var args = new List<string>
+            var launchOptions = new BrowserTypeLaunchOptions
             {
-                $"--remote-debugging-port={port}",
-                "--no-first-run",
-                "--no-default-browser-check"
-            };
-
-            if (_config.Headless)
-            {
-                args.Add("--headless=new");
-            }
-
-            if (!string.IsNullOrEmpty(_config.UserDataDir))
-            {
-                args.Add($"--user-data-dir={_config.UserDataDir}");
-            }
-
-            if (_config.DisableGpu)
-            {
-                args.Add("--disable-gpu");
-            }
-
-            // Window size
-            args.Add($"--window-size={_config.WindowWidth},{_config.WindowHeight}");
-
-            _browserProcess = new Process
-            {
-                StartInfo = new ProcessStartInfo
+                Headless = _config.Headless,
+                SlowMo = _config.SlowMo,
+                Args = new[]
                 {
-                    FileName = browserPath,
-                    Arguments = string.Join(" ", args),
-                    UseShellExecute = false,
-                    CreateNoWindow = _config.Headless
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    $"--window-size={_config.WindowWidth},{_config.WindowHeight}"
                 }
             };
 
-            _browserProcess.Start();
+            // Choose browser type
+            _browser = _config.BrowserType.ToLower() switch
+            {
+                "firefox" => await _playwright!.Firefox.LaunchAsync(launchOptions),
+                "webkit" => await _playwright!.Webkit.LaunchAsync(launchOptions),
+                _ => await _playwright!.Chromium.LaunchAsync(launchOptions)
+            };
 
-            // รอให้ browser พร้อม
-            await Task.Delay(2000, ct);
+            // Create context with custom settings
+            var contextOptions = new BrowserNewContextOptions
+            {
+                ViewportSize = new ViewportSize
+                {
+                    Width = _config.WindowWidth,
+                    Height = _config.WindowHeight
+                },
+                UserAgent = _config.UserAgent,
+                Locale = "th-TH",
+                TimezoneId = "Asia/Bangkok"
+            };
 
-            // เชื่อมต่อผ่าน CDP
-            _cdpClient = new HttpClient();
-            var response = await _cdpClient.GetStringAsync($"http://localhost:{port}/json/version", ct);
+            if (!string.IsNullOrEmpty(_config.ProxyServer))
+            {
+                contextOptions.Proxy = new Proxy { Server = _config.ProxyServer };
+            }
+
+            _context = await _browser.NewContextAsync(contextOptions);
+            _page = await _context.NewPageAsync();
+
+            // Set default timeout
+            _page.SetDefaultTimeout(_config.DefaultTimeout);
+
+            // Listen for navigation
+            _page.FrameNavigated += async (_, frame) =>
+            {
+                if (frame == _page.MainFrame && OnPageNavigated != null)
+                {
+                    await OnPageNavigated.Invoke(frame.Url);
+                }
+            };
 
             _isConnected = true;
-            _logger.LogInformation("Browser launched successfully");
+            _logger.LogInformation("Browser launched successfully - {BrowserType}", _config.BrowserType);
 
             return true;
         }
@@ -110,7 +145,7 @@ public class BrowserController : IAsyncDisposable
     /// </summary>
     public async Task<bool> NavigateAsync(string url, CancellationToken ct = default)
     {
-        if (!_isConnected)
+        if (!_isConnected || _page == null)
         {
             _logger.LogWarning("Browser not connected");
             return false;
@@ -120,12 +155,13 @@ public class BrowserController : IAsyncDisposable
 
         try
         {
-            // ใช้ CDP command เพื่อ navigate
-            // ในการใช้งานจริงควรใช้ Playwright API
-            CurrentUrl = url;
-            await OnPageNavigated?.Invoke(url)!;
+            var response = await _page.GotoAsync(url, new PageGotoOptions
+            {
+                WaitUntil = WaitUntilState.DOMContentLoaded,
+                Timeout = _config.DefaultTimeout
+            });
 
-            return true;
+            return response?.Ok ?? false;
         }
         catch (Exception ex)
         {
@@ -139,23 +175,41 @@ public class BrowserController : IAsyncDisposable
     /// </summary>
     public async Task<string?> ExecuteScriptAsync(string script, CancellationToken ct = default)
     {
-        if (!_isConnected)
+        if (!_isConnected || _page == null)
         {
             return null;
         }
 
         try
         {
-            // Execute script via CDP
-            // In real implementation, use Playwright
-            _logger.LogDebug("Executing script: {Script}", script.Substring(0, Math.Min(100, script.Length)));
+            var result = await _page.EvaluateAsync<JsonElement>(script);
+            return result.ValueKind == JsonValueKind.Undefined ? null : result.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Script execution failed: {Script}", script.Substring(0, Math.Min(100, script.Length)));
+            return null;
+        }
+    }
 
-            return null; // Return result from CDP
+    /// <summary>
+    /// รัน JavaScript และคืนค่า typed result
+    /// </summary>
+    public async Task<T?> ExecuteScriptAsync<T>(string script, CancellationToken ct = default)
+    {
+        if (!_isConnected || _page == null)
+        {
+            return default;
+        }
+
+        try
+        {
+            return await _page.EvaluateAsync<T>(script);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Script execution failed");
-            return null;
+            return default;
         }
     }
 
@@ -170,47 +224,70 @@ public class BrowserController : IAsyncDisposable
             return;
         }
 
+        if (_page == null)
+        {
+            _logger.LogWarning("Browser not ready for recording");
+            return;
+        }
+
         _logger.LogInformation("Starting recording session {SessionId}", SessionId);
 
-        // Inject recording script
-        var recordingScript = GetRecordingScript();
-        await ExecuteScriptAsync(recordingScript, ct);
-
+        _recordedSteps.Clear();
         IsRecording = true;
+
+        // Inject recording script if not already injected
+        if (!_recordingScriptInjected)
+        {
+            await _page.AddInitScriptAsync(GetRecordingScript());
+            _recordingScriptInjected = true;
+        }
+
+        // Also inject into current page
+        await ExecuteScriptAsync(GetRecordingScript(), ct);
+
+        // Set up listener for recorded steps
+        await _page.ExposeFunctionAsync("__postXAgentRecordStep", (string stepJson) =>
+        {
+            if (!string.IsNullOrEmpty(stepJson) && IsRecording)
+            {
+                try
+                {
+                    var step = JsonSerializer.Deserialize<RecordedStep>(stepJson, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (step != null)
+                    {
+                        _recordedSteps.Add(step);
+                        _logger.LogDebug("Recorded step: {Action} on {Element}", step.Action, step.Element?.TagName);
+
+                        // Fire event on UI thread if needed
+                        OnStepRecorded?.Invoke(step);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse recorded step");
+                }
+            }
+        });
     }
 
     /// <summary>
     /// หยุดการ Recording
     /// </summary>
-    public async Task<List<RecordedStep>> StopRecordingAsync(CancellationToken ct = default)
+    public Task<List<RecordedStep>> StopRecordingAsync(CancellationToken ct = default)
     {
         if (!IsRecording)
         {
-            return new List<RecordedStep>();
+            return Task.FromResult(new List<RecordedStep>());
         }
 
-        _logger.LogInformation("Stopping recording session {SessionId}", SessionId);
-
-        // Get recorded steps from page
-        var stepsJson = await ExecuteScriptAsync("return window.__postXAgentRecordedSteps || []", ct);
-
+        _logger.LogInformation("Stopping recording session {SessionId}. Total steps: {Count}", SessionId, _recordedSteps.Count);
         IsRecording = false;
 
-        // Parse steps
-        if (!string.IsNullOrEmpty(stepsJson))
-        {
-            try
-            {
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<List<RecordedStep>>(stepsJson)
-                       ?? new List<RecordedStep>();
-            }
-            catch
-            {
-                return new List<RecordedStep>();
-            }
-        }
-
-        return new List<RecordedStep>();
+        return Task.FromResult(_recordedSteps.ToList());
     }
 
     /// <summary>
@@ -221,20 +298,21 @@ public class BrowserController : IAsyncDisposable
         int timeout = 10000,
         CancellationToken ct = default)
     {
+        if (_page == null) return false;
+
         _logger.LogDebug("Clicking element: {Selector}", selector.Value);
 
-        var script = $@"
-            (function() {{
-                const element = {GetSelectorScript(selector)};
-                if (element) {{
-                    element.click();
-                    return true;
-                }}
-                return false;
-            }})()";
-
-        var result = await ExecuteScriptAsync(script, ct);
-        return result == "true";
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.ClickAsync(new LocatorClickOptions { Timeout = timeout });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Click failed on selector: {Selector}", selector.Value);
+            return false;
+        }
     }
 
     /// <summary>
@@ -247,26 +325,60 @@ public class BrowserController : IAsyncDisposable
         int delay = 50,
         CancellationToken ct = default)
     {
+        if (_page == null) return false;
+
         _logger.LogDebug("Typing into element: {Selector}", selector.Value);
 
-        var escapedText = text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n");
+        try
+        {
+            var locator = GetLocator(selector);
 
-        var script = $@"
-            (function() {{
-                const element = {GetSelectorScript(selector)};
-                if (element) {{
-                    element.focus();
-                    {(clear ? "element.value = '';" : "")}
-                    element.value = '{escapedText}';
-                    element.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    element.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    return true;
-                }}
-                return false;
-            }})()";
+            if (clear)
+            {
+                await locator.ClearAsync();
+            }
 
-        var result = await ExecuteScriptAsync(script, ct);
-        return result == "true";
+            await locator.FillAsync(text);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Type failed on selector: {Selector}", selector.Value);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// พิมพ์ข้อความแบบ human-like (ทีละตัวอักษร)
+    /// </summary>
+    public async Task<bool> TypeHumanLikeAsync(
+        ElementSelector selector,
+        string text,
+        int minDelay = 30,
+        int maxDelay = 100,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.ClearAsync();
+
+            var random = new Random();
+            foreach (var c in text)
+            {
+                await locator.PressAsync(c.ToString());
+                await Task.Delay(random.Next(minDelay, maxDelay), ct);
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Human-like type failed");
+            return false;
+        }
     }
 
     /// <summary>
@@ -277,12 +389,44 @@ public class BrowserController : IAsyncDisposable
         string filePath,
         CancellationToken ct = default)
     {
+        if (_page == null) return false;
+
         _logger.LogDebug("Uploading file: {Path}", filePath);
 
-        // File upload requires special handling via CDP
-        // In real implementation, use Playwright's setInputFiles
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.SetInputFilesAsync(filePath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "File upload failed");
+            return false;
+        }
+    }
 
-        return false; // Placeholder
+    /// <summary>
+    /// อัพโหลดหลายไฟล์
+    /// </summary>
+    public async Task<bool> UploadFilesAsync(
+        ElementSelector selector,
+        IEnumerable<string> filePaths,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.SetInputFilesAsync(filePaths.ToArray());
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Multiple file upload failed");
+            return false;
+        }
     }
 
     /// <summary>
@@ -293,41 +437,155 @@ public class BrowserController : IAsyncDisposable
         int timeout = 10000,
         CancellationToken ct = default)
     {
-        var startTime = DateTime.UtcNow;
-        var interval = 100;
+        if (_page == null) return false;
 
-        while ((DateTime.UtcNow - startTime).TotalMilliseconds < timeout)
+        try
         {
-            ct.ThrowIfCancellationRequested();
-
-            var script = $@"
-                (function() {{
-                    const element = {GetSelectorScript(selector)};
-                    return element !== null;
-                }})()";
-
-            var result = await ExecuteScriptAsync(script, ct);
-            if (result == "true")
+            var locator = GetLocator(selector);
+            await locator.WaitForAsync(new LocatorWaitForOptions
             {
-                return true;
-            }
-
-            await Task.Delay(interval, ct);
+                State = WaitForSelectorState.Visible,
+                Timeout = timeout
+            });
+            return true;
         }
-
-        return false;
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
-    /// ถ่าย Screenshot
+    /// รอ Element หายไป
+    /// </summary>
+    public async Task<bool> WaitForElementHiddenAsync(
+        ElementSelector selector,
+        int timeout = 10000,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.WaitForAsync(new LocatorWaitForOptions
+            {
+                State = WaitForSelectorState.Hidden,
+                Timeout = timeout
+            });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// เลือกค่าใน dropdown
+    /// </summary>
+    public async Task<bool> SelectOptionAsync(
+        ElementSelector selector,
+        string value,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.SelectOptionAsync(value);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Select option failed");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Check/Uncheck checkbox
+    /// </summary>
+    public async Task<bool> SetCheckedAsync(
+        ElementSelector selector,
+        bool isChecked,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.SetCheckedAsync(isChecked);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Set checked failed");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Hover over element
+    /// </summary>
+    public async Task<bool> HoverAsync(
+        ElementSelector selector,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.HoverAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Hover failed");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Scroll to element
+    /// </summary>
+    public async Task<bool> ScrollToElementAsync(
+        ElementSelector selector,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            await locator.ScrollIntoViewIfNeededAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Scroll failed");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// ถ่าย Screenshot (returns base64)
     /// </summary>
     public async Task<string?> TakeScreenshotAsync(CancellationToken ct = default)
     {
+        if (_page == null) return null;
+
         try
         {
-            // Use CDP to capture screenshot
-            // Returns base64 encoded image
-            return null; // Placeholder
+            var bytes = await _page.ScreenshotAsync(new PageScreenshotOptions
+            {
+                Type = ScreenshotType.Png,
+                FullPage = false
+            });
+            return Convert.ToBase64String(bytes);
         }
         catch (Exception ex)
         {
@@ -337,11 +595,119 @@ public class BrowserController : IAsyncDisposable
     }
 
     /// <summary>
+    /// ถ่าย Screenshot และบันทึกไฟล์
+    /// </summary>
+    public async Task<bool> SaveScreenshotAsync(string filePath, bool fullPage = false, CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            await _page.ScreenshotAsync(new PageScreenshotOptions
+            {
+                Path = filePath,
+                Type = ScreenshotType.Png,
+                FullPage = fullPage
+            });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Save screenshot failed");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// ถ่าย Screenshot ของ Element
+    /// </summary>
+    public async Task<string?> TakeElementScreenshotAsync(
+        ElementSelector selector,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return null;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            var bytes = await locator.ScreenshotAsync();
+            return Convert.ToBase64String(bytes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Element screenshot failed");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// ดึง HTML ของหน้า
     /// </summary>
     public async Task<string?> GetPageHtmlAsync(CancellationToken ct = default)
     {
-        return await ExecuteScriptAsync("return document.documentElement.outerHTML", ct);
+        if (_page == null) return null;
+        return await _page.ContentAsync();
+    }
+
+    /// <summary>
+    /// ดึงข้อความจาก Element
+    /// </summary>
+    public async Task<string?> GetTextAsync(
+        ElementSelector selector,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return null;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            return await locator.TextContentAsync();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// ดึง attribute จาก Element
+    /// </summary>
+    public async Task<string?> GetAttributeAsync(
+        ElementSelector selector,
+        string attributeName,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return null;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            return await locator.GetAttributeAsync(attributeName);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// ตรวจสอบว่า Element มองเห็นได้หรือไม่
+    /// </summary>
+    public async Task<bool> IsElementVisibleAsync(
+        ElementSelector selector,
+        CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            var locator = GetLocator(selector);
+            return await locator.IsVisibleAsync();
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -351,47 +717,44 @@ public class BrowserController : IAsyncDisposable
         ElementSelector selector,
         CancellationToken ct = default)
     {
-        var script = $@"
-            (function() {{
-                const element = {GetSelectorScript(selector)};
-                if (!element) return null;
+        if (_page == null) return null;
 
-                const rect = element.getBoundingClientRect();
-                const computed = window.getComputedStyle(element);
-
-                return JSON.stringify({{
-                    tagName: element.tagName.toLowerCase(),
-                    id: element.id || null,
-                    className: element.className || null,
-                    name: element.name || null,
-                    type: element.type || null,
-                    placeholder: element.placeholder || null,
-                    textContent: element.textContent?.trim().substring(0, 200) || null,
-                    innerHtml: element.innerHTML?.substring(0, 500) || null,
-                    attributes: Object.fromEntries([...element.attributes].map(a => [a.name, a.value])),
-                    position: {{
-                        x: Math.round(rect.x),
-                        y: Math.round(rect.y),
-                        width: Math.round(rect.width),
-                        height: Math.round(rect.height)
-                    }}
-                }});
-            }})()";
-
-        var result = await ExecuteScriptAsync(script, ct);
-        if (!string.IsNullOrEmpty(result))
+        try
         {
-            try
-            {
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<RecordedElement>(result);
-            }
-            catch
-            {
-                return null;
-            }
-        }
+            var script = $@"
+                (() => {{
+                    const element = {GetSelectorScript(selector)};
+                    if (!element) return null;
 
-        return null;
+                    const rect = element.getBoundingClientRect();
+                    const computed = window.getComputedStyle(element);
+
+                    return {{
+                        tagName: element.tagName.toLowerCase(),
+                        id: element.id || null,
+                        className: element.className || null,
+                        name: element.name || null,
+                        type: element.type || null,
+                        placeholder: element.placeholder || null,
+                        textContent: element.textContent?.trim().substring(0, 200) || null,
+                        innerHtml: element.innerHTML?.substring(0, 500) || null,
+                        attributes: Object.fromEntries([...element.attributes].map(a => [a.name, a.value])),
+                        position: {{
+                            x: Math.round(rect.x),
+                            y: Math.round(rect.y),
+                            width: Math.round(rect.width),
+                            height: Math.round(rect.height)
+                        }}
+                    }};
+                }})()";
+
+            return await _page.EvaluateAsync<RecordedElement>(script);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Get element info failed");
+            return null;
+        }
     }
 
     /// <summary>
@@ -399,8 +762,28 @@ public class BrowserController : IAsyncDisposable
     /// </summary>
     public async Task<List<BrowserCookie>> GetCookiesAsync(CancellationToken ct = default)
     {
-        // Get cookies via CDP
-        return new List<BrowserCookie>();
+        if (_context == null) return new List<BrowserCookie>();
+
+        try
+        {
+            var cookies = await _context.CookiesAsync();
+            return cookies.Select(c => new BrowserCookie
+            {
+                Name = c.Name,
+                Value = c.Value,
+                Domain = c.Domain,
+                Path = c.Path,
+                Expires = c.Expires > 0 ? DateTimeOffset.FromUnixTimeSeconds((long)c.Expires).DateTime : null,
+                HttpOnly = c.HttpOnly,
+                Secure = c.Secure,
+                SameSite = c.SameSite.ToString()
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Get cookies failed");
+            return new List<BrowserCookie>();
+        }
     }
 
     /// <summary>
@@ -408,7 +791,33 @@ public class BrowserController : IAsyncDisposable
     /// </summary>
     public async Task SetCookiesAsync(List<BrowserCookie> cookies, CancellationToken ct = default)
     {
-        // Set cookies via CDP
+        if (_context == null) return;
+
+        try
+        {
+            var playwrightCookies = cookies.Select(c => new Cookie
+            {
+                Name = c.Name,
+                Value = c.Value,
+                Domain = c.Domain,
+                Path = c.Path ?? "/",
+                Expires = c.Expires.HasValue ? ((DateTimeOffset)c.Expires.Value).ToUnixTimeSeconds() : -1,
+                HttpOnly = c.HttpOnly,
+                Secure = c.Secure,
+                SameSite = c.SameSite?.ToLower() switch
+                {
+                    "strict" => SameSiteAttribute.Strict,
+                    "lax" => SameSiteAttribute.Lax,
+                    _ => SameSiteAttribute.None
+                }
+            }).ToArray();
+
+            await _context.AddCookiesAsync(playwrightCookies);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Set cookies failed");
+        }
     }
 
     /// <summary>
@@ -419,19 +828,17 @@ public class BrowserController : IAsyncDisposable
         var cookies = await GetCookiesAsync(ct);
 
         var localStorageScript = @"
-            (function() {
+            (() => {
                 const items = {};
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
                     items[key] = localStorage.getItem(key);
                 }
-                return JSON.stringify(items);
+                return items;
             })()";
 
-        var localStorageJson = await ExecuteScriptAsync(localStorageScript, ct);
-        var localStorage = string.IsNullOrEmpty(localStorageJson)
-            ? new Dictionary<string, string>()
-            : Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(localStorageJson);
+        var localStorage = await ExecuteScriptAsync<Dictionary<string, string>>(localStorageScript, ct)
+                           ?? new Dictionary<string, string>();
 
         return new WebCredentials
         {
@@ -445,7 +852,7 @@ public class BrowserController : IAsyncDisposable
     /// </summary>
     public async Task RestoreSessionAsync(WebCredentials credentials, CancellationToken ct = default)
     {
-        if (credentials.Cookies != null)
+        if (credentials.Cookies != null && credentials.Cookies.Count > 0)
         {
             await SetCookiesAsync(credentials.Cookies, ct);
         }
@@ -454,10 +861,133 @@ public class BrowserController : IAsyncDisposable
         {
             foreach (var (key, value) in credentials.LocalStorage)
             {
-                var script = $"localStorage.setItem('{key}', '{value}')";
-                await ExecuteScriptAsync(script, ct);
+                var escapedKey = key.Replace("'", "\\'");
+                var escapedValue = value.Replace("'", "\\'");
+                await ExecuteScriptAsync($"localStorage.setItem('{escapedKey}', '{escapedValue}')", ct);
             }
         }
+    }
+
+    /// <summary>
+    /// บันทึก Storage State (สำหรับ reuse session)
+    /// </summary>
+    public async Task<string?> SaveStorageStateAsync(string filePath, CancellationToken ct = default)
+    {
+        if (_context == null) return null;
+
+        try
+        {
+            var state = await _context.StorageStateAsync(new BrowserContextStorageStateOptions
+            {
+                Path = filePath
+            });
+            return state;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Save storage state failed");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Go back
+    /// </summary>
+    public async Task<bool> GoBackAsync(CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            await _page.GoBackAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Go forward
+    /// </summary>
+    public async Task<bool> GoForwardAsync(CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            await _page.GoForwardAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Reload page
+    /// </summary>
+    public async Task<bool> ReloadAsync(CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            await _page.ReloadAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Press keyboard key
+    /// </summary>
+    public async Task<bool> PressKeyAsync(string key, CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+
+        try
+        {
+            await _page.Keyboard.PressAsync(key);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Get IPage for advanced operations
+    /// </summary>
+    public IPage? GetPage() => _page;
+
+    /// <summary>
+    /// Get IBrowserContext for advanced operations
+    /// </summary>
+    public IBrowserContext? GetContext() => _context;
+
+    private ILocator GetLocator(ElementSelector selector)
+    {
+        return selector.Type switch
+        {
+            SelectorType.Id => _page!.Locator($"#{selector.Value}"),
+            SelectorType.CSS => _page!.Locator(selector.Value),
+            SelectorType.XPath => _page!.Locator($"xpath={selector.Value}"),
+            SelectorType.Name => _page!.Locator($"[name=\"{selector.Value}\"]"),
+            SelectorType.ClassName => _page!.Locator($".{selector.Value}"),
+            SelectorType.TestId => _page!.Locator($"[data-testid=\"{selector.Value}\"]"),
+            SelectorType.AriaLabel => _page!.Locator($"[aria-label=\"{selector.Value}\"]"),
+            SelectorType.Placeholder => _page!.Locator($"[placeholder=\"{selector.Value}\"]"),
+            SelectorType.Text => _page!.GetByText(selector.Value, new PageGetByTextOptions { Exact = selector.Confidence >= 0.9 }),
+            SelectorType.Role => _page!.GetByRole(AriaRole.Button).Filter(new LocatorFilterOptions { HasText = selector.Value }),
+            _ => _page!.Locator(selector.Value)
+        };
     }
 
     private string GetSelectorScript(ElementSelector selector)
@@ -480,7 +1010,7 @@ public class BrowserController : IAsyncDisposable
     private string GetRecordingScript()
     {
         return @"
-            (function() {
+            (() => {
                 if (window.__postXAgentRecorder) return;
 
                 window.__postXAgentRecordedSteps = [];
@@ -535,14 +1065,21 @@ public class BrowserController : IAsyncDisposable
                 }
 
                 function recordStep(action, element, value) {
-                    window.__postXAgentRecordedSteps.push({
+                    const step = {
                         timestamp: new Date().toISOString(),
                         action: action,
                         element: element ? getElementInfo(element) : null,
                         value: value || null,
                         pageUrl: window.location.href,
                         pageTitle: document.title
-                    });
+                    };
+
+                    window.__postXAgentRecordedSteps.push(step);
+
+                    // Send to C# via exposed binding
+                    if (window.__postXAgentRecordStep) {
+                        window.__postXAgentRecordStep(JSON.stringify(step));
+                    }
                 }
 
                 // Listen for clicks
@@ -552,19 +1089,27 @@ public class BrowserController : IAsyncDisposable
 
                 // Listen for input
                 document.addEventListener('input', function(e) {
-                    recordStep('type', e.target, e.target.value);
+                    // Debounce input events
+                    clearTimeout(e.target.__inputTimeout);
+                    e.target.__inputTimeout = setTimeout(() => {
+                        recordStep('type', e.target, e.target.value);
+                    }, 300);
                 }, true);
 
                 // Listen for change (select, checkbox, etc)
                 document.addEventListener('change', function(e) {
-                    recordStep('change', e.target, e.target.value);
+                    if (e.target.type === 'file') {
+                        recordStep('upload', e.target, [...e.target.files].map(f => f.name).join(', '));
+                    } else if (e.target.type === 'checkbox' || e.target.type === 'radio') {
+                        recordStep('check', e.target, e.target.checked);
+                    } else if (e.target.tagName === 'SELECT') {
+                        recordStep('select', e.target, e.target.value);
+                    }
                 }, true);
 
-                // Listen for file uploads
-                document.addEventListener('change', function(e) {
-                    if (e.target.type === 'file' && e.target.files.length > 0) {
-                        recordStep('upload', e.target, [...e.target.files].map(f => f.name).join(', '));
-                    }
+                // Listen for form submission
+                document.addEventListener('submit', function(e) {
+                    recordStep('submit', e.target);
                 }, true);
 
                 console.log('PostXAgent recorder initialized');
@@ -572,46 +1117,24 @@ public class BrowserController : IAsyncDisposable
         ";
     }
 
-    private string FindBrowserPath()
-    {
-        var possiblePaths = new[]
-        {
-            // Windows Chrome
-            @"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            Environment.ExpandEnvironmentVariables(@"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
-
-            // Windows Edge
-            @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-
-            // Linux Chrome
-            "/usr/bin/google-chrome",
-            "/usr/bin/chromium-browser",
-
-            // macOS Chrome
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        };
-
-        foreach (var path in possiblePaths)
-        {
-            if (File.Exists(path))
-            {
-                return path;
-            }
-        }
-
-        return null!;
-    }
-
     public async ValueTask DisposeAsync()
     {
-        _cdpClient?.Dispose();
-
-        if (_browserProcess != null && !_browserProcess.HasExited)
+        if (_page != null)
         {
-            _browserProcess.Kill();
-            _browserProcess.Dispose();
+            await _page.CloseAsync();
         }
+
+        if (_context != null)
+        {
+            await _context.CloseAsync();
+        }
+
+        if (_browser != null)
+        {
+            await _browser.CloseAsync();
+        }
+
+        _playwright?.Dispose();
     }
 }
 
@@ -620,6 +1143,7 @@ public class BrowserController : IAsyncDisposable
 /// </summary>
 public class BrowserConfig
 {
+    public string BrowserType { get; set; } = "chromium"; // chromium, firefox, webkit
     public bool Headless { get; set; } = false;
     public int DebugPort { get; set; } = 9222;
     public string? UserDataDir { get; set; }
@@ -628,4 +1152,6 @@ public class BrowserConfig
     public bool DisableGpu { get; set; } = false;
     public string? ProxyServer { get; set; }
     public int DefaultTimeout { get; set; } = 30000;
+    public float SlowMo { get; set; } = 0; // Slow down operations by this many milliseconds
+    public string? UserAgent { get; set; }
 }

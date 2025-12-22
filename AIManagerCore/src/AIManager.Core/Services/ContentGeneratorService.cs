@@ -429,16 +429,91 @@ public class ContentGeneratorService
         // สร้าง options จาก CPU optimization
         var cpuOptions = _cpuOptimizer.GetModelfileOptions(_cpuConfig);
 
+        // สำหรับ qwen3 models ต้องปิด thinking mode โดยเพิ่ม /no_think
+        var isQwenModel = effectiveModel.Contains("qwen", StringComparison.OrdinalIgnoreCase);
+        var finalPrompt = isQwenModel ? prompt + " /no_think" : prompt;
+        var finalSystemPrompt = isQwenModel ? systemPrompt + " /no_think" : systemPrompt;
+
         var request = new
         {
             model = effectiveModel,
+            messages = new[]
+            {
+                new { role = "system", content = finalSystemPrompt },
+                new { role = "user", content = finalPrompt }
+            },
+            stream = false,
+            // CPU Optimization Options
+            options = new
+            {
+                num_thread = cpuOptions["num_thread"],
+                num_ctx = cpuOptions["num_ctx"],
+                num_batch = cpuOptions["num_batch"],
+                num_gpu = cpuOptions["num_gpu"],
+                use_mmap = cpuOptions["use_mmap"],
+                use_mlock = cpuOptions["use_mlock"]
+            }
+        };
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                $"{_config.OllamaBaseUrl}/api/chat",
+                request, ct);
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            var result = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+
+            // Get content from response
+            var content = result.GetProperty("message")
+                .GetProperty("content")
+                .GetString() ?? "";
+
+            // For qwen3, if content is empty, try to get from thinking field
+            if (string.IsNullOrWhiteSpace(content) && isQwenModel)
+            {
+                if (result.GetProperty("message").TryGetProperty("thinking", out var thinkingProp))
+                {
+                    var thinking = thinkingProp.GetString() ?? "";
+                    // If there's thinking but no content, the model failed to produce output
+                    // Try fallback to llama model
+                    return await GenerateWithFallbackModelAsync(prompt, brand, platform, language, ct);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return await GenerateWithFallbackModelAsync(prompt, brand, platform, language, ct);
+            }
+
+            return ParseContent(content);
+        }
+        catch
+        {
+            return null; // Ollama not available
+        }
+    }
+
+    /// <summary>
+    /// Fallback to llama3.2:3b when primary model fails
+    /// </summary>
+    private async Task<GeneratedContent?> GenerateWithFallbackModelAsync(
+        string prompt, BrandInfo? brand, string platform, string language, CancellationToken ct)
+    {
+        var systemPrompt = BuildSystemPrompt(brand, platform, language);
+        var cpuOptions = _cpuOptimizer.GetModelfileOptions(_cpuConfig);
+
+        // Try llama3.2:3b as fallback
+        var request = new
+        {
+            model = "llama3.2:3b",
             messages = new[]
             {
                 new { role = "system", content = systemPrompt },
                 new { role = "user", content = prompt }
             },
             stream = false,
-            // CPU Optimization Options
             options = new
             {
                 num_thread = cpuOptions["num_thread"],
@@ -467,13 +542,29 @@ public class ContentGeneratorService
         }
         catch
         {
-            return null; // Ollama not available
+            return null;
         }
     }
 
     private string BuildSystemPrompt(BrandInfo? brand, string platform, string language)
     {
-        var langInstruction = language == "th" ? "ตอบเป็นภาษาไทย" : $"Respond in {language}";
+        if (language == "th")
+        {
+            return $@"คุณคือผู้เชี่ยวชาญด้านการสร้างเนื้อหา Social Media สำหรับ {platform}
+สร้างเนื้อหาโปรโมทที่น่าสนใจและเหมาะกับแพลตฟอร์ม
+
+แบรนด์: {brand?.Name ?? "ไม่ระบุ"}
+ธุรกิจ: {brand?.Industry ?? "ทั่วไป"}
+กลุ่มเป้าหมาย: {brand?.TargetAudience ?? "ทั่วไป"}
+โทน: {brand?.Tone ?? "Professional"}
+
+กฎ:
+1. ตอบเป็นภาษาไทยเท่านั้น
+2. สร้างเนื้อหาสั้นกระชับ เหมาะกับ social media
+3. ใส่ hashtag ที่เกี่ยวข้องท้ายโพสต์
+4. ห้ามใช้ markdown formatting
+5. ตอบเฉพาะเนื้อหาโพสต์ ไม่ต้องอธิบายเพิ่มเติม";
+        }
 
         return $@"You are an expert social media content creator for {platform}.
 Create engaging promotional content optimized for the platform.
@@ -483,9 +574,12 @@ Industry: {brand?.Industry ?? "N/A"}
 Target Audience: {brand?.TargetAudience ?? "General"}
 Tone: {brand?.Tone ?? "Professional"}
 
-{langInstruction}
-
-Include relevant hashtags at the end.";
+Rules:
+1. Respond in {language} only
+2. Create concise content suitable for social media
+3. Include relevant hashtags at the end
+4. Do not use markdown formatting
+5. Only output the post content, no explanations";
     }
 
     private GeneratedContent ParseContent(string content)

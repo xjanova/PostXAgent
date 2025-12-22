@@ -69,8 +69,62 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Claude Code Status -->
+                <Border x:Name="ClaudeStatus" ToolTip="Claude Code (AI Assistant)" Margin="0,0,15,0" Cursor="Hand"
+                        MouseLeftButtonDown="ClaudeStatus_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="ClaudeIndicator" Width="8" Height="8" Fill="#9E9E9E"/>
+                        <TextBlock x:Name="TxtClaudeStatus" Text="Claude" FontSize="11" Margin="6,0,0,0" Opacity="0.8"/>
+                        <!-- Token Usage Badge -->
+                        <Border x:Name="TokenBadge" Background="#20FFFFFF" CornerRadius="8" Padding="6,1" Margin="4,0,0,0" Visibility="Collapsed">
+                            <TextBlock x:Name="TxtTokenUsage" Text="0%" FontSize="9" Opacity="0.7"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <!-- Separator -->
                 <Border Width="1" Height="16" Background="#30FFFFFF" Margin="5,0,15,0"/>
+
+                <!-- Database Status -->
+                <Border x:Name="DatabaseStatus" ToolTip="Database" Margin="0,0,10,0" Cursor="Hand">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="SqliteIndicator" Width="8" Height="8" Fill="#9E9E9E"/>
+                        <TextBlock Text="SQLite" FontSize="11" Margin="6,0,0,0" Opacity="0.8"/>
+                        <Border Background="#30FFFFFF" CornerRadius="3" Padding="4,1" Margin="4,0,0,0" Visibility="Collapsed" x:Name="MysqlBadge">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="MysqlIndicator" Width="6" Height="6" Fill="#9E9E9E"/>
+                                <TextBlock Text="MySQL" FontSize="9" Margin="3,0,0,0" Opacity="0.7"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Connections & Requests -->
+                <Border Background="#20FFFFFF" CornerRadius="10" Padding="8,2" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Connection" Width="12" Height="12" Opacity="0.6" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtConnections" Text="0" FontSize="10" Margin="3,0,0,0" Foreground="#4CAF50"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#20FFFFFF" CornerRadius="10" Padding="8,2" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="ArrowLeftRight" Width="12" Height="12" Opacity="0.6" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtRequests" Text="0" FontSize="10" Margin="3,0,0,0" Foreground="#2196F3"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Alerts Badge -->
+                <Border x:Name="AlertsBadge" Background="#F44336" CornerRadius="10" Padding="6,2" Visibility="Collapsed"
+                        Margin="0,0,10,0" Cursor="Hand" MouseLeftButtonDown="AlertsBadge_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="AlertCircle" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtAlerts" Text="0" FontSize="10" Margin="3,0,0,0" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Separator -->
+                <Border Width="1" Height="16" Background="#30FFFFFF" Margin="0,0,10,0"/>
 
                 <!-- Current Activity -->
                 <StackPanel Orientation="Horizontal" x:Name="ActivityPanel" Visibility="Collapsed">
@@ -100,8 +154,12 @@
                     <TextBlock x:Name="TxtVram" Text="-- MB" FontSize="11" Margin="4,0,0,0" Opacity="0.7"/>
                 </StackPanel>
 
-                <!-- Version -->
-                <TextBlock x:Name="TxtVersion" Text="v1.0.0" FontSize="10" Opacity="0.4" VerticalAlignment="Center"/>
+                <!-- Separator -->
+                <Border Width="1" Height="16" Background="#30FFFFFF" Margin="0,0,10,0"/>
+
+                <!-- Copyright & Version -->
+                <TextBlock Text="© 2025 Xman Studio" FontSize="10" Opacity="0.4" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock x:Name="TxtVersion" Text="v1.1.0" FontSize="10" Opacity="0.5" VerticalAlignment="Center" Foreground="#8B5CF6"/>
             </StackPanel>
         </Grid>
     </Border>

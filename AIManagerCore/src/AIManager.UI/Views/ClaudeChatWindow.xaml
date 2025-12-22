@@ -1,0 +1,408 @@
+<Window x:Class="AIManager.UI.Views.ClaudeChatWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="Claude Code - AI Communication"
+        Height="700" Width="900"
+        MinHeight="500" MinWidth="600"
+        WindowStartupLocation="CenterOwner"
+        Background="#1a1a2e"
+        TextElement.Foreground="White"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        FontFamily="{DynamicResource MaterialDesignFont}">
+
+    <Window.Resources>
+        <!-- Chat Message Styles -->
+        <Style x:Key="ClaudeMessageBorder" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#2D1B4E" Offset="0"/>
+                        <GradientStop Color="#1E1E3F" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="0,0,60,10"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="MaxWidth" Value="600"/>
+        </Style>
+
+        <Style x:Key="LocalAiMessageBorder" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#1B3D4E" Offset="0"/>
+                        <GradientStop Color="#1E2E3F" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="0,0,60,10"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="MaxWidth" Value="600"/>
+        </Style>
+
+        <Style x:Key="UserMessageBorder" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#2A4A3E" Offset="0"/>
+                        <GradientStop Color="#1E3F2E" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="60,0,0,10"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="MaxWidth" Value="600"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- HEADER                                                   -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <Border Grid.Row="0" Background="#12121f" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Title and Status -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Border Width="40" Height="40" CornerRadius="20" Margin="0,0,12,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#8B5CF6" Offset="0"/>
+                                <GradientStop Color="#EC4899" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <materialDesign:PackIcon Kind="CodeBraces" Width="24" Height="24"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                 Foreground="White"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Claude Code Communication" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="StatusIndicator" Width="8" Height="8" Fill="#4CAF50" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtStatus" Text="Connected - Workspace Ready" FontSize="11" Foreground="#B8B8D0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Pending Requests Badge -->
+                <Border x:Name="PendingBadge" Grid.Column="1" Background="#F59E0B" CornerRadius="12"
+                        Padding="12,4" VerticalAlignment="Center" Margin="0,0,15,0" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="AlertCircle" Width="14" Height="14" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtPendingCount" Text="0 pending" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="BtnRefresh" Click="Refresh_Click" ToolTip="Refresh Messages"
+                            Style="{StaticResource MaterialDesignIconButton}">
+                        <materialDesign:PackIcon Kind="Refresh" Width="20" Height="20"/>
+                    </Button>
+                    <Button x:Name="BtnOpenFolder" Click="OpenFolder_Click" ToolTip="Open Workspace Folder"
+                            Style="{StaticResource MaterialDesignIconButton}">
+                        <materialDesign:PackIcon Kind="FolderOpen" Width="20" Height="20"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- CHAT MESSAGES AREA                                       -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <Border Grid.Row="1" Background="#0f0f1a">
+            <ScrollViewer x:Name="ChatScroller" VerticalScrollBarVisibility="Auto" Padding="15">
+                <StackPanel x:Name="MessagesPanel">
+                    <!-- Welcome Message -->
+                    <Border Style="{StaticResource ClaudeMessageBorder}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Width="24" Height="24" CornerRadius="12" Background="#8B5CF6" Margin="0,0,8,0">
+                                    <materialDesign:PackIcon Kind="CodeBraces" Width="14" Height="14"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Claude Code" FontWeight="Bold" FontSize="12" Foreground="#A78BFA" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="13">
+                                สวัสดีครับ! ผมคือ Claude Code พร้อมช่วยเหลือในการแก้ไขโค้ดและปัญหาต่างๆ
+                                <LineBreak/>
+                                <LineBreak/>
+                                🔹 ใช้ <Run FontWeight="SemiBold">Claude CLI</Run> โดยตรง - ไม่มีค่าใช้จ่ายเพิ่ม (ใช้ Max Plan)
+                                <LineBreak/>
+                                🔹 พิมพ์คำถามหรือขอให้สร้าง/แก้ไขโค้ดได้เลย
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Foreground="#4CAF50">✓ Using your Max Plan subscription - No extra API costs!</Run>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- INPUT AREA                                               -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <Border Grid.Row="2" Background="#12121f" Padding="15">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Info Banner -->
+                <Border Grid.Row="0" Background="#1E3A2A" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="CheckCircle" Width="16" Height="16" Foreground="#4CAF50" VerticalAlignment="Center"/>
+                        <TextBlock Text="ใช้ Claude CLI โดยตรง - ไม่มีค่า API เพิ่มเติม (Max Plan)" Foreground="#4CAF50" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Message Input -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="TxtMessage" Grid.Column="0"
+                             materialDesign:HintAssist.Hint="พิมพ์คำถามหรือคำขอ... (Enter ส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             MinHeight="60"
+                             MaxHeight="150"
+                             VerticalScrollBarVisibility="Auto"
+                             Foreground="White"
+                             Background="#1a1a2e"
+                             KeyDown="TxtMessage_KeyDown"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Bottom">
+                        <Button x:Name="BtnSend" Click="Send_Click"
+                                Width="50" Height="50"
+                                ToolTip="Send Request (Enter)">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignFloatingActionButton}">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#8B5CF6" Offset="0"/>
+                                                <GradientStop Color="#EC4899" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                            <materialDesign:PackIcon Kind="Send" Width="24" Height="24"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Loading Overlay -->
+        <Border x:Name="LoadingOverlay" Grid.RowSpan="3" Background="#C0000000" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Style="{StaticResource MaterialDesignCircularProgressBar}"
+                             Width="50" Height="50"/>
+                <TextBlock x:Name="TxtLoadingMessage" Text="Sending request..." Foreground="White" Margin="0,15,0,0" FontSize="14"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Setup Overlay (for install/login) -->
+        <Border x:Name="SetupOverlay" Grid.RowSpan="3" Background="#F0000000" Visibility="Collapsed">
+            <Border Background="#1E1E2E" CornerRadius="16" MaxWidth="500" MaxHeight="600"
+                    VerticalAlignment="Center" HorizontalAlignment="Center" Padding="30">
+                <StackPanel>
+                    <!-- Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                        <Border Width="50" Height="50" CornerRadius="25">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#8B5CF6" Offset="0"/>
+                                    <GradientStop Color="#EC4899" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <materialDesign:PackIcon Kind="CodeBraces" Width="28" Height="28"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                        </Border>
+                        <StackPanel Margin="15,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Claude CLI Setup" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock x:Name="TxtSetupSubtitle" Text="Setting up Claude Code..." FontSize="12" Foreground="#B8B8D0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Status Panel -->
+                    <Border x:Name="SetupStatusPanel" Background="#252540" CornerRadius="12" Padding="20" Margin="0,0,0,20">
+                        <StackPanel>
+                            <!-- Node.js Status -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="IconNode" Kind="CheckCircle" Width="20" Height="20" Foreground="#4CAF50"/>
+                                <TextBlock Grid.Column="1" Text="Node.js" VerticalAlignment="Center" Margin="10,0" Foreground="White" FontWeight="Medium"/>
+                                <TextBlock x:Name="TxtNodeVersion" Grid.Column="2" Text="v20.x" Foreground="#B8B8D0" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- npm Status -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="IconNpm" Kind="CheckCircle" Width="20" Height="20" Foreground="#4CAF50"/>
+                                <TextBlock Grid.Column="1" Text="npm" VerticalAlignment="Center" Margin="10,0" Foreground="White" FontWeight="Medium"/>
+                                <TextBlock x:Name="TxtNpmVersion" Grid.Column="2" Text="v10.x" Foreground="#B8B8D0" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Claude CLI Status -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="IconClaude" Kind="CheckCircle" Width="20" Height="20" Foreground="#4CAF50"/>
+                                <TextBlock Grid.Column="1" Text="Claude CLI" VerticalAlignment="Center" Margin="10,0" Foreground="White" FontWeight="Medium"/>
+                                <TextBlock x:Name="TxtClaudeVersion" Grid.Column="2" Text="v2.0.x" Foreground="#B8B8D0" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Login Status -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="IconLogin" Kind="CheckCircle" Width="20" Height="20" Foreground="#4CAF50"/>
+                                <TextBlock Grid.Column="1" Text="Login Status" VerticalAlignment="Center" Margin="10,0" Foreground="White" FontWeight="Medium"/>
+                                <TextBlock x:Name="TxtLoginStatus" Grid.Column="2" Text="Logged In" Foreground="#B8B8D0" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Browser Session Info Panel -->
+                    <Border x:Name="CredentialsPanel" Background="#252540" CornerRadius="12" Padding="20" Margin="0,0,0,20" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="Browser Session Login" FontWeight="SemiBold" Margin="0,0,0,15" Foreground="White"/>
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#E0E0E0" Margin="0,0,0,15">
+                                <Run>Claude CLI uses your browser session for authentication.</Run>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Foreground="#81C784">If you're already logged into claude.ai in Chrome, just click "Use Browser Session"</Run>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Foreground="#B8B8D0">Otherwise, click to open the login page and sign in.</Run>
+                            </TextBlock>
+
+                            <TextBox x:Name="TxtEmail"
+                                     materialDesign:HintAssist.Hint="Email (optional - for reference)"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Foreground="White" Background="#1E1E3F" Margin="0,0,0,10"/>
+
+                            <PasswordBox x:Name="TxtPassword"
+                                         materialDesign:HintAssist.Hint="Password (not required for browser login)"
+                                         Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                                         Foreground="White" Background="#1E1E3F" Margin="0,0,0,10"
+                                         Visibility="Collapsed"/>
+
+                            <CheckBox x:Name="ChkRememberCredentials" Content="Remember email for reference"
+                                      IsChecked="True" Foreground="#E0E0E0" Visibility="Collapsed"/>
+
+                            <Border Background="#1E3A5A" CornerRadius="8" Padding="12" Margin="0,10,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="InformationOutline" Width="18" Height="18" Foreground="#64B5F6" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Your Max Plan subscription will be used - no extra API costs!"
+                                               Foreground="#64B5F6" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Progress/Message Panel -->
+                    <Border x:Name="SetupProgressPanel" Background="#1E3A2A" CornerRadius="8" Padding="15" Margin="0,0,0,20" Visibility="Collapsed">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ProgressBar x:Name="SetupProgress" IsIndeterminate="True"
+                                             Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                             Width="20" Height="20"/>
+                                <TextBlock x:Name="TxtSetupProgress" Text="Installing Claude CLI..." Foreground="#4CAF50" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Error Panel -->
+                    <Border x:Name="SetupErrorPanel" Background="#4A2020" CornerRadius="8" Padding="15" Margin="0,0,0,20" Visibility="Collapsed">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <materialDesign:PackIcon Kind="AlertCircle" Width="20" Height="20" Foreground="#FF6B6B"/>
+                                <TextBlock Text="Setup Error" FontWeight="SemiBold" Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TxtSetupError" Text="" Foreground="#FFB8B8" TextWrapping="Wrap" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Action Buttons -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button x:Name="BtnInstall" Content="Install Claude CLI" Click="Install_Click"
+                                Margin="0,0,10,0" Visibility="Collapsed"
+                                Style="{StaticResource MaterialDesignRaisedButton}"/>
+
+                        <Button x:Name="BtnLogin" Content="Use Browser Session" Click="Login_Click"
+                                Margin="0,0,10,0" Visibility="Collapsed">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#8B5CF6" Offset="0"/>
+                                                <GradientStop Color="#EC4899" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+
+                        <Button x:Name="BtnVerifyLogin" Content="Verify Login" Click="VerifyLogin_Click"
+                                Margin="0,0,10,0" Visibility="Collapsed"
+                                Style="{StaticResource MaterialDesignRaisedButton}"/>
+
+                        <Button x:Name="BtnRetry" Content="Retry" Click="Retry_Click"
+                                Margin="0,0,10,0" Visibility="Collapsed"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"/>
+
+                        <Button x:Name="BtnCloseSetup" Content="Close" Click="CloseSetup_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

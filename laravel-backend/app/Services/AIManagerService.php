@@ -488,6 +488,183 @@ class AIManagerService
         ];
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SEEK AND POST METHODS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Search for groups on a platform
+     */
+    public function seekGroups(array $params): array
+    {
+        $result = $this->callAIManagerApi('POST', '/api/seek-and-post/seek-groups', [
+            'platform' => $params['platform'] ?? 'facebook',
+            'keywords' => $params['keywords'] ?? [],
+            'excludeKeywords' => $params['excludeKeywords'] ?? [],
+            'minMembers' => $params['minMembers'] ?? 100,
+            'maxMembers' => $params['maxMembers'] ?? 1000000,
+            'limit' => $params['limit'] ?? 20,
+        ]);
+
+        if (!$result['success']) {
+            return [
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to seek groups',
+                'groups' => [],
+            ];
+        }
+
+        return [
+            'success' => true,
+            'groups' => $result['data']['groups'] ?? [],
+            'total_found' => $result['data']['totalFound'] ?? 0,
+        ];
+    }
+
+    /**
+     * Request to join a group
+     */
+    public function joinGroup(array $params): array
+    {
+        $result = $this->callAIManagerApi('POST', '/api/seek-and-post/join-group', [
+            'platform' => $params['platform'],
+            'groupId' => $params['groupId'],
+            'groupUrl' => $params['groupUrl'] ?? null,
+        ]);
+
+        if (!$result['success']) {
+            return [
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to join group',
+                'joined' => false,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'joined' => $result['data']['joined'] ?? false,
+            'requiresApproval' => $result['data']['requiresApproval'] ?? true,
+            'message' => $result['data']['message'] ?? null,
+        ];
+    }
+
+    /**
+     * Post content to a group
+     */
+    public function postToGroup(array $params): array
+    {
+        $result = $this->callAIManagerApi('POST', '/api/seek-and-post/post-to-group', [
+            'platform' => $params['platform'],
+            'groupId' => $params['groupId'],
+            'content' => $params['content'],
+            'mediaUrls' => $params['mediaUrls'] ?? [],
+        ]);
+
+        if (!$result['success']) {
+            return [
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to post to group',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'postId' => $result['data']['postId'] ?? null,
+            'postUrl' => $result['data']['postUrl'] ?? null,
+        ];
+    }
+
+    /**
+     * Execute a workflow template
+     */
+    public function executeWorkflow(array $params): array
+    {
+        $result = $this->callAIManagerApi('POST', '/api/seek-and-post/execute-workflow', [
+            'platform' => $params['platform'] ?? 'general',
+            'workflowJson' => $params['workflowJson'] ?? null,
+            'variables' => $params['variables'] ?? [],
+        ]);
+
+        if (!$result['success']) {
+            return [
+                'success' => false,
+                'error' => $result['error'] ?? 'Failed to execute workflow',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'output' => $result['data']['output'] ?? null,
+            'hashtags' => $result['data']['hashtags'] ?? [],
+            'provider' => $result['data']['provider'] ?? 'unknown',
+        ];
+    }
+
+    /**
+     * Call AI Manager Core API directly via HTTP
+     */
+    private function callAIManagerApi(string $method, string $endpoint, array $data = []): array
+    {
+        $host = config('services.ai_manager.host', 'localhost');
+        $port = config('services.ai_manager.api_port', 5000);
+        $apiKey = config('services.ai_manager.api_key');
+
+        $url = "http://{$host}:{$port}{$endpoint}";
+
+        try {
+            $client = new \GuzzleHttp\Client([
+                'timeout' => 60,
+                'http_errors' => false,
+            ]);
+
+            $options = [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ],
+            ];
+
+            if ($apiKey) {
+                $options['headers']['X-API-Key'] = $apiKey;
+            }
+
+            if ($method === 'POST' || $method === 'PUT') {
+                $options['json'] = $data;
+            } elseif (!empty($data)) {
+                $options['query'] = $data;
+            }
+
+            $response = $client->request($method, $url, $options);
+            $statusCode = $response->getStatusCode();
+            $body = json_decode($response->getBody()->getContents(), true);
+
+            if ($statusCode >= 200 && $statusCode < 300) {
+                return [
+                    'success' => $body['success'] ?? true,
+                    'data' => $body,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => $body['error'] ?? "HTTP Error: {$statusCode}",
+            ];
+
+        } catch (\GuzzleHttp\Exception\ConnectException $e) {
+            Log::error("AI Manager connection failed: {$e->getMessage()}");
+            return [
+                'success' => false,
+                'error' => 'AI Manager is not available',
+            ];
+        } catch (\Exception $e) {
+            Log::error("AI Manager API call failed: {$e->getMessage()}");
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
     /**
      * Wait for a task result from Redis
      */

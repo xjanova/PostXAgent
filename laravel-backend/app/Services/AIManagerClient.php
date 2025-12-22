@@ -239,4 +239,38 @@ class AIManagerClient
     {
         return $this->request('post', 'status/stop');
     }
+
+    /**
+     * Send a message via SignalR hub
+     */
+    public function sendSignalRMessage(string $method, array $data): bool
+    {
+        try {
+            // Send via REST API endpoint that broadcasts to SignalR
+            $this->request('post', 'signalr/broadcast', [
+                'method' => $method,
+                'data' => $data,
+            ]);
+            return true;
+        } catch (Exception $e) {
+            Log::warning("Failed to send SignalR message: {$e->getMessage()}");
+            return false;
+        }
+    }
+
+    /**
+     * Notify mobile device connected
+     */
+    public function notifyMobileConnected(array $deviceInfo): bool
+    {
+        return $this->sendSignalRMessage('MobileDeviceConnected', $deviceInfo);
+    }
+
+    /**
+     * Notify mobile device heartbeat
+     */
+    public function notifyMobileHeartbeat(array $heartbeatData): bool
+    {
+        return $this->sendSignalRMessage('MobileDeviceHeartbeat', $heartbeatData);
+    }
 }

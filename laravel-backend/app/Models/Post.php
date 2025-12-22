@@ -31,6 +31,16 @@ class Post extends Model
         'status',
         'error_message',
         'metrics',
+        // Viral analysis
+        'viral_score',
+        'viral_factors',
+        'is_viral',
+        'peak_engagement_at',
+        'engagement_velocity',
+        // Comment tracking
+        'comments_fetched_count',
+        'comments_replied_count',
+        'last_comment_check_at',
     ];
 
     protected $casts = [
@@ -40,6 +50,16 @@ class Post extends Model
         'scheduled_at' => 'datetime',
         'published_at' => 'datetime',
         'metrics' => 'array',
+        // Viral analysis
+        'viral_score' => 'float',
+        'viral_factors' => 'array',
+        'is_viral' => 'boolean',
+        'peak_engagement_at' => 'datetime',
+        'engagement_velocity' => 'float',
+        // Comment tracking
+        'comments_fetched_count' => 'integer',
+        'comments_replied_count' => 'integer',
+        'last_comment_check_at' => 'datetime',
     ];
 
     // Status constants
@@ -78,6 +98,16 @@ class Post extends Model
     public function socialAccount()
     {
         return $this->belongsTo(SocialAccount::class);
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class);
+    }
+
+    public function pendingComments()
+    {
+        return $this->hasMany(Comment::class)->pending();
     }
 
     // Scopes
@@ -148,6 +178,102 @@ class Post extends Model
                 'engagement_rate' => $metrics['engagement_rate'] ?? 0,
                 'updated_at' => now()->toIso8601String(),
             ]),
+        ]);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Viral Analysis
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Calculate viral score based on engagement metrics
+     */
+    public function calculateViralScore(): float
+    {
+        $metrics = $this->metrics ?? [];
+        $likes = $metrics['likes'] ?? 0;
+        $comments = $metrics['comments'] ?? 0;
+        $shares = $metrics['shares'] ?? 0;
+        $views = $metrics['views'] ?? 1;
+
+        // Engagement rate contribution
+        $engagementRate = ($likes + $comments * 2 + $shares * 3) / max($views, 1) * 100;
+
+        // Base score from engagement
+        $score = min($engagementRate * 10, 40);
+
+        // Velocity bonus (if engagement is growing fast)
+        if ($this->engagement_velocity > 0) {
+            $score += min($this->engagement_velocity * 5, 30);
+        }
+
+        // Share ratio bonus (shares indicate viral potential)
+        $shareRatio = $shares / max($likes + $comments, 1);
+        $score += min($shareRatio * 50, 20);
+
+        // Time decay (older posts score less)
+        if ($this->published_at) {
+            $hoursSincePublish = $this->published_at->diffInHours(now());
+            if ($hoursSincePublish < 6) {
+                $score += 10; // Recent post bonus
+            } elseif ($hoursSincePublish > 48) {
+                $score -= 10; // Old post penalty
+            }
+        }
+
+        return min(max($score, 0), 100);
+    }
+
+    /**
+     * Update viral analysis
+     */
+    public function updateViralAnalysis(): void
+    {
+        $score = $this->calculateViralScore();
+        $isViral = $score >= 70;
+
+        $this->update([
+            'viral_score' => $score,
+            'is_viral' => $isViral,
+            'viral_factors' => [
+                'engagement_rate' => $this->metrics['engagement_rate'] ?? 0,
+                'share_ratio' => ($this->metrics['shares'] ?? 0) / max(($this->metrics['likes'] ?? 0) + ($this->metrics['comments'] ?? 0), 1),
+                'velocity' => $this->engagement_velocity,
+                'calculated_at' => now()->toIso8601String(),
+            ],
+            'peak_engagement_at' => $isViral && !$this->peak_engagement_at ? now() : $this->peak_engagement_at,
+        ]);
+    }
+
+    /**
+     * Scope for viral posts
+     */
+    public function scopeViral($query)
+    {
+        return $query->where('is_viral', true);
+    }
+
+    /**
+     * Scope for posts needing comment check
+     */
+    public function scopeNeedsCommentCheck($query, int $minutesThreshold = 30)
+    {
+        return $query->published()
+            ->where(function ($q) use ($minutesThreshold) {
+                $q->whereNull('last_comment_check_at')
+                    ->orWhere('last_comment_check_at', '<', now()->subMinutes($minutesThreshold));
+            });
+    }
+
+    /**
+     * Mark comments as checked
+     */
+    public function markCommentsChecked(int $fetched = 0, int $replied = 0): void
+    {
+        $this->update([
+            'last_comment_check_at' => now(),
+            'comments_fetched_count' => $this->comments_fetched_count + $fetched,
+            'comments_replied_count' => $this->comments_replied_count + $replied,
         ]);
     }
 }

@@ -2,49 +2,360 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-      Title="Workers">
+      Title="Workers Dashboard">
+
+    <Page.Resources>
+        <!-- Status Color Converter -->
+        <Style x:Key="StateIndicator" TargetType="Ellipse">
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" BlurRadius="8" Color="LimeGreen" Opacity="0.8"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Progress Bar Style -->
+        <Style x:Key="WorkerProgressBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="4"/>
+            <Setter Property="Background" Value="#E0E0E0"/>
+            <Setter Property="Foreground" Value="#4CAF50"/>
+        </Style>
+
+        <!-- Platform Badge Style -->
+        <Style x:Key="PlatformBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Background" Value="#E3F2FD"/>
+        </Style>
+    </Page.Resources>
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Stats Cards -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,20">
-            <materialDesign:Card Padding="20" Margin="0,0,15,0" Width="200">
+        <!-- Header with Title and Actions -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                <materialDesign:PackIcon Kind="AccountGroup" Width="32" Height="32" VerticalAlignment="Center"/>
+                <TextBlock Text="Worker Manager" FontSize="24" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BtnRefresh" Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Margin="0,0,10,0" Click="BtnRefresh_Click" ToolTip="Refresh">
+                    <materialDesign:PackIcon Kind="Refresh"/>
+                </Button>
+                <Button x:Name="BtnPauseAll" Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Margin="0,0,10,0" Click="BtnPauseAll_Click" ToolTip="Pause All">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Pause" VerticalAlignment="Center"/>
+                        <TextBlock Text="Pause All" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="BtnResumeAll" Style="{StaticResource MaterialDesignFlatSecondaryButton}"
+                        Click="BtnResumeAll_Click" ToolTip="Resume All">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Play" VerticalAlignment="Center"/>
+                        <TextBlock Text="Resume All" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- System Stats Bar -->
+        <materialDesign:Card Grid.Row="1" Padding="15" Margin="0,0,0,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- CPU Usage -->
+                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                    <TextBlock Text="CPU Usage" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="Cpu64Bit" Foreground="#2196F3" VerticalAlignment="Center" Width="24" Height="24"/>
+                        <TextBlock x:Name="TxtCpuUsage" Text="0%" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ProgressBar x:Name="PbCpu" Value="0" Maximum="100" Height="4" Width="100" Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <!-- Memory Usage -->
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                    <TextBlock Text="Memory" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="Memory" Foreground="#9C27B0" VerticalAlignment="Center" Width="24" Height="24"/>
+                        <TextBlock x:Name="TxtMemory" Text="0 MB" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- CPU Cores -->
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                    <TextBlock Text="CPU Cores" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="Chip" Foreground="#FF9800" VerticalAlignment="Center" Width="24" Height="24"/>
+                        <TextBlock x:Name="TxtCores" Text="0" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Tasks Per Second -->
+                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                    <TextBlock Text="Tasks/sec" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="LightningBolt" Foreground="#F44336" VerticalAlignment="Center" Width="24" Height="24"/>
+                        <TextBlock x:Name="TxtTasksPerSec" Text="0" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+
+        <!-- Worker Stats Cards -->
+        <Grid Grid.Row="2" Margin="0,0,0,15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Total Workers -->
+            <materialDesign:Card Grid.Column="0" Padding="15" Margin="0,0,10,0">
                 <StackPanel>
-                    <TextBlock Text="Total Workers" Foreground="Gray"/>
-                    <TextBlock x:Name="TxtTotalWorkers" Text="0" FontSize="32" FontWeight="Bold"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Fill="#9E9E9E" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Total" Foreground="#B8B8D0" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TxtTotalWorkers" Text="0" FontSize="36" FontWeight="Bold"/>
                 </StackPanel>
             </materialDesign:Card>
-            <materialDesign:Card Padding="20" Width="200">
+
+            <!-- Running Workers -->
+            <materialDesign:Card Grid.Column="1" Padding="15" Margin="0,0,10,0">
                 <StackPanel>
-                    <TextBlock Text="Active Workers" Foreground="Gray"/>
-                    <TextBlock x:Name="TxtActiveWorkers" Text="0" FontSize="32" FontWeight="Bold" Foreground="#4CAF50"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Fill="#4CAF50" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Ellipse.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="6" Color="LimeGreen" Opacity="0.8"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <TextBlock Text="Running" Foreground="#B8B8D0" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TxtRunningWorkers" Text="0" FontSize="36" FontWeight="Bold" Foreground="#4CAF50"/>
                 </StackPanel>
             </materialDesign:Card>
-        </StackPanel>
+
+            <!-- Paused Workers -->
+            <materialDesign:Card Grid.Column="2" Padding="15" Margin="0,0,10,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Fill="#FFC107" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Ellipse.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="6" Color="Gold" Opacity="0.8"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <TextBlock Text="Paused" Foreground="#B8B8D0" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TxtPausedWorkers" Text="0" FontSize="36" FontWeight="Bold" Foreground="#FFC107"/>
+                </StackPanel>
+            </materialDesign:Card>
+
+            <!-- Stopped Workers -->
+            <materialDesign:Card Grid.Column="3" Padding="15" Margin="0,0,10,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Fill="#424242" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Stopped" Foreground="#B8B8D0" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TxtStoppedWorkers" Text="0" FontSize="36" FontWeight="Bold" Foreground="#9090A8"/>
+                </StackPanel>
+            </materialDesign:Card>
+
+            <!-- Error Workers -->
+            <materialDesign:Card Grid.Column="4" Padding="15">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Fill="#F44336" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Ellipse.Effect>
+                                <DropShadowEffect ShadowDepth="0" BlurRadius="6" Color="Red" Opacity="0.8"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <TextBlock Text="Error" Foreground="#B8B8D0" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TxtErrorWorkers" Text="0" FontSize="36" FontWeight="Bold" Foreground="#F44336"/>
+                </StackPanel>
+            </materialDesign:Card>
+        </Grid>
 
         <!-- Workers List -->
-        <materialDesign:Card Grid.Row="1" Padding="15">
-            <DataGrid x:Name="WorkersList" AutoGenerateColumns="False" IsReadOnly="True"
-                      HeadersVisibility="Column" GridLinesVisibility="Horizontal">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
-                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
-                    <DataGridTextColumn Header="Platform" Binding="{Binding Platform}" Width="100"/>
-                    <DataGridTemplateColumn Header="Status" Width="80">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Ellipse Width="12" Height="12"
-                                         Fill="{Binding IsActive, Converter={StaticResource BoolToColorConverter}}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="Tasks" Binding="{Binding TasksProcessed}" Width="80"/>
-                    <DataGridTextColumn Header="Current Task" Binding="{Binding CurrentTask}" Width="150"/>
-                </DataGrid.Columns>
-            </DataGrid>
+        <materialDesign:Card Grid.Row="3" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Filter Bar -->
+                <Border Grid.Row="0" Background="#252540" Padding="15">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Filter:" Foreground="#B8B8D0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <ComboBox x:Name="CbPlatformFilter" Width="150" Margin="0,0,15,0"
+                                  materialDesign:HintAssist.Hint="Platform" SelectionChanged="CbPlatformFilter_SelectionChanged">
+                            <ComboBoxItem Content="All Platforms" IsSelected="True"/>
+                            <ComboBoxItem Content="Facebook"/>
+                            <ComboBoxItem Content="Instagram"/>
+                            <ComboBoxItem Content="TikTok"/>
+                            <ComboBoxItem Content="Twitter"/>
+                            <ComboBoxItem Content="Line"/>
+                            <ComboBoxItem Content="YouTube"/>
+                            <ComboBoxItem Content="Threads"/>
+                            <ComboBoxItem Content="LinkedIn"/>
+                            <ComboBoxItem Content="Pinterest"/>
+                        </ComboBox>
+                        <ComboBox x:Name="CbStateFilter" Width="120"
+                                  materialDesign:HintAssist.Hint="State" SelectionChanged="CbStateFilter_SelectionChanged">
+                            <ComboBoxItem Content="All States" IsSelected="True"/>
+                            <ComboBoxItem Content="Running"/>
+                            <ComboBoxItem Content="Paused"/>
+                            <ComboBoxItem Content="Stopped"/>
+                            <ComboBoxItem Content="Error"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- DataGrid -->
+                <DataGrid x:Name="WorkersList" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          SelectionMode="Single" SelectionChanged="WorkersList_SelectionChanged">
+                    <DataGrid.Columns>
+                        <!-- State Indicator -->
+                        <DataGridTemplateColumn Header="" Width="40">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding StateEmoji}" FontSize="16" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Worker Name -->
+                        <DataGridTextColumn Header="Worker" Binding="{Binding Name}" Width="150"/>
+
+                        <!-- Platform -->
+                        <DataGridTemplateColumn Header="Platform" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="10" Padding="8,3" Background="#E3F2FD" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding Platform}" FontSize="11" Foreground="#1976D2"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- State -->
+                        <DataGridTextColumn Header="State" Binding="{Binding State}" Width="80"/>
+
+                        <!-- Current Task -->
+                        <DataGridTextColumn Header="Current Task" Binding="{Binding CurrentTask}" Width="200"/>
+
+                        <!-- Progress -->
+                        <DataGridTemplateColumn Header="Progress" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <ProgressBar Value="{Binding ProgressPercent}" Maximum="100" Height="4"/>
+                                        <TextBlock Text="{Binding ProgressPercent, StringFormat={}{0:F1}%}"
+                                                   FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- Tasks Processed -->
+                        <DataGridTextColumn Header="Tasks" Binding="{Binding TasksProcessed}" Width="60"/>
+
+                        <!-- Success Rate -->
+                        <DataGridTemplateColumn Header="Success" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding SuccessRate, StringFormat={}{0:F1}%}"
+                                               Foreground="{Binding SuccessRate, Converter={StaticResource SuccessRateColorConverter}}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- CPU Core -->
+                        <DataGridTextColumn Header="Core" Binding="{Binding PreferredCore}" Width="50"/>
+
+                        <!-- Actions -->
+                        <DataGridTemplateColumn Header="Actions" Width="150">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                                Width="30" Height="30" Margin="2"
+                                                Click="BtnPauseWorker_Click"
+                                                ToolTip="Pause" Tag="{Binding Id}">
+                                            <materialDesign:PackIcon Kind="Pause" Width="16" Height="16"/>
+                                        </Button>
+                                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                                Width="30" Height="30" Margin="2"
+                                                Click="BtnResumeWorker_Click"
+                                                ToolTip="Resume" Tag="{Binding Id}">
+                                            <materialDesign:PackIcon Kind="Play" Width="16" Height="16"/>
+                                        </Button>
+                                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                                Width="30" Height="30" Margin="2"
+                                                Click="BtnStopWorker_Click"
+                                                ToolTip="Stop" Tag="{Binding Id}" Foreground="#F44336">
+                                            <materialDesign:PackIcon Kind="Stop" Width="16" Height="16"/>
+                                        </Button>
+                                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                                Width="30" Height="30" Margin="2"
+                                                Click="BtnViewDetails_Click"
+                                                ToolTip="Details" Tag="{Binding Id}">
+                                            <materialDesign:PackIcon Kind="InformationOutline" Width="16" Height="16"/>
+                                        </Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
         </materialDesign:Card>
+
+        <!-- Recent Reports Panel -->
+        <Expander Grid.Row="4" Header="Recent Reports" Margin="0,15,0,0" IsExpanded="False">
+            <materialDesign:Card Padding="15" MaxHeight="200">
+                <ListView x:Name="ReportsList">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Time" Width="120" DisplayMemberBinding="{Binding ReportedAt, StringFormat={}{0:HH:mm:ss}}"/>
+                            <GridViewColumn Header="Worker" Width="150" DisplayMemberBinding="{Binding WorkerName}"/>
+                            <GridViewColumn Header="Task" Width="150" DisplayMemberBinding="{Binding TaskType}"/>
+                            <GridViewColumn Header="Status" Width="80">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Success, Converter={StaticResource BoolToStatusConverter}}"
+                                                   Foreground="{Binding Success, Converter={StaticResource BoolToColorConverter}}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Duration" Width="80" DisplayMemberBinding="{Binding ProcessingTimeMs, StringFormat={}{0}ms}"/>
+                            <GridViewColumn Header="Message" Width="250" DisplayMemberBinding="{Binding Message}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </materialDesign:Card>
+        </Expander>
     </Grid>
 </Page>
