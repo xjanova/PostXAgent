@@ -32,6 +32,8 @@ class AccountPoolMemberFactory extends Factory
             'consecutive_failures' => 0,
             'last_used_at' => null,
             'cooldown_until' => null,
+            'last_failure_at' => null,
+            'last_error' => null,
         ];
     }
 

@@ -32,10 +32,20 @@ class PaymentFactory extends Factory
             'currency' => 'THB',
             'payment_method' => fake()->randomElement(['bank_transfer', 'promptpay', 'credit_card']),
             'status' => 'pending',
+            'gateway' => null,
             'gateway_reference' => null,
+            'gateway_status' => null,
             'gateway_response' => null,
+            'promptpay_qr_url' => null,
+            'bank_account_number' => null,
+            'bank_name' => null,
+            'transfer_slip_url' => null,
             'paid_at' => null,
+            'verified_at' => null,
+            'verified_by' => null,
+            'description' => null,
             'metadata' => [],
+            'admin_notes' => null,
         ];
     }
 
