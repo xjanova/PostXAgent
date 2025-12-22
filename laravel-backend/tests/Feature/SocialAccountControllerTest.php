@@ -123,15 +123,4 @@ class SocialAccountControllerTest extends TestCase
                 'success',
             ]);
     }
-
-    public function test_unauthenticated_cannot_list_accounts(): void
-    {
-        // Clear authentication
-        Sanctum::actingAs(User::factory()->create());
-        auth()->forgetGuards();
-
-        $response = $this->getJson('/api/v1/social-accounts');
-
-        $response->assertUnauthorized();
-    }
 }

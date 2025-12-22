@@ -29,9 +29,9 @@ class AccountPoolMemberFactory extends Factory
             'total_posts' => 0,
             'success_count' => 0,
             'failure_count' => 0,
+            'consecutive_failures' => 0,
             'last_used_at' => null,
             'cooldown_until' => null,
-            'metadata' => [],
         ];
     }
 
