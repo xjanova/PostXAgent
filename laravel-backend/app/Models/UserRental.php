@@ -115,6 +115,9 @@ class UserRental extends Model
      */
     public function getIsActiveAttribute(): bool
     {
+        if (!$this->expires_at) {
+            return false;
+        }
         return $this->status === self::STATUS_ACTIVE
             && $this->expires_at->isFuture();
     }
@@ -124,6 +127,9 @@ class UserRental extends Model
      */
     public function getIsExpiredAttribute(): bool
     {
+        if (!$this->expires_at) {
+            return false;
+        }
         return $this->expires_at->isPast();
     }
 
@@ -132,7 +138,7 @@ class UserRental extends Model
      */
     public function getDaysRemainingAttribute(): int
     {
-        if ($this->is_expired) {
+        if (!$this->expires_at || $this->is_expired) {
             return 0;
         }
 

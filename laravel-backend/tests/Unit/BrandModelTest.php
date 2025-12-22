@@ -73,9 +73,8 @@ class BrandModelTest extends TestCase
             'logo_url' => 'https://example.com/logo.png',
             'industry' => 'technology',
             'target_audience' => 'Young adults',
-            'brand_voice' => 'Professional',
-            'primary_color' => '#FF0000',
-            'secondary_color' => '#0000FF',
+            'tone' => 'Professional',
+            'brand_colors' => ['#FF0000', '#0000FF'],
         ]);
 
         $this->assertEquals('Test Brand', $brand->name);
