@@ -1,4 +1,6 @@
 using AIManager.Core.Models;
+using AIManager.Core.Services;
+using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Workers;
 
@@ -7,8 +9,24 @@ namespace AIManager.Core.Workers;
 /// </summary>
 public class WorkerFactory
 {
+    // Lazy initialization of dependencies for media workers
+    private static readonly Lazy<(FFmpegService ffmpeg, VideoProcessor video, AudioProcessor audio)> _mediaServices = new(() =>
+    {
+        var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
+        var ffmpegLogger = loggerFactory.CreateLogger<FFmpegService>();
+        var videoLogger = loggerFactory.CreateLogger<VideoProcessor>();
+        var audioLogger = loggerFactory.CreateLogger<AudioProcessor>();
+
+        var ffmpegService = new FFmpegService(ffmpegLogger);
+        var videoProcessor = new VideoProcessor(ffmpegService, videoLogger);
+        var audioProcessor = new AudioProcessor(ffmpegService, audioLogger);
+
+        return (ffmpegService, videoProcessor, audioProcessor);
+    });
+
     private static readonly Dictionary<SocialPlatform, Func<IPlatformWorker>> _factories = new()
     {
+        // Social Media Platforms
         { SocialPlatform.Facebook, () => new FacebookWorker() },
         { SocialPlatform.Instagram, () => new InstagramWorker() },
         { SocialPlatform.TikTok, () => new TikTokWorker() },
@@ -18,6 +36,22 @@ public class WorkerFactory
         { SocialPlatform.Threads, () => new ThreadsWorker() },
         { SocialPlatform.LinkedIn, () => new LinkedInWorker() },
         { SocialPlatform.Pinterest, () => new PinterestWorker() },
+
+        // AI Video Generation Platforms
+        { SocialPlatform.Freepik, () => {
+            var services = _mediaServices.Value;
+            var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<FreepikWorker>();
+            return new FreepikWorker(logger, services.video);
+        }},
+
+        // AI Music Generation Platforms
+        { SocialPlatform.SunoAI, () => {
+            var services = _mediaServices.Value;
+            var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<SunoAIWorker>();
+            return new SunoAIWorker(logger, services.audio);
+        }},
+
+        // Note: Runway, PikaLabs, LumaAI workers can be added here as fallback video providers
     };
 
     /// <summary>

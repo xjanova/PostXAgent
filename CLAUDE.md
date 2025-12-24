@@ -134,6 +134,18 @@ Support all 9 platforms:
 2. **Leonardo.ai** (Free tier)
 3. **DALL-E 3** (Paid)
 
+#### Video Generation (Priority Order)
+1. **Freepik Pikaso AI** (PRIMARY) - Placeholder until API available
+2. **Runway ML** - Alternative (API available)
+3. **Pika Labs** - Alternative (API available)
+4. **Luma AI** - Alternative (API available)
+
+#### Music Generation (Priority Order)
+1. **Suno AI** (PRIMARY) - Placeholder until API available
+2. **Stable Audio** - Alternative (API available)
+3. **AudioCraft** (Meta) - Alternative (Open source)
+4. **MusicGen** - Alternative (Open source)
+
 ### 6. Environment Variables
 
 Required in `.env`:
@@ -274,6 +286,48 @@ public record Result<T>(bool Success, T? Data, string? Error);
 3. Add service method if needed
 4. Update Vue API client
 5. Add tests
+
+### Testing Media Generation APIs
+
+See detailed testing guide in `AIManagerCore/docs/API_TESTING.md`
+
+**Quick test endpoints**:
+```bash
+# Test video generation
+POST /api/MediaGeneration/test/quick-video
+{
+  "prompt": "A cat playing piano",
+  "duration": 5,
+  "aspectRatio": "Landscape_16_9"
+}
+
+# Test music generation
+POST /api/MediaGeneration/test/quick-music
+{
+  "prompt": "Upbeat electronic music",
+  "duration": 30,
+  "genre": "Electronic",
+  "mood": "Energetic"
+}
+```
+
+**Full workflow**:
+```bash
+# 1. Submit generation task
+POST /api/MediaGeneration/generate-video
+POST /api/MediaGeneration/generate-music
+
+# 2. Check task status
+GET /api/MediaGeneration/result/{taskId}
+
+# 3. Process video (optional)
+POST /api/MediaGeneration/process-video
+```
+
+**Media Processing Services**:
+- `VideoProcessor` - Mix audio, concatenate, resize, format conversion
+- `AudioProcessor` - Extract, trim, adjust volume, mix tracks, normalize
+- `FFmpegService` - Low-level FFmpeg operations
 
 ## Quick Commands
 

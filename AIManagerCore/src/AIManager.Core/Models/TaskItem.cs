@@ -109,6 +109,18 @@ public class TaskPayload
     // Tone configuration for auto-reply
     [JsonProperty("tone_config")]
     public ToneConfig? ToneConfig { get; set; }
+
+    // NEW: Video Generation Properties
+    [JsonProperty("video_config")]
+    public VideoGenerationConfig? VideoConfig { get; set; }
+
+    // NEW: Music Generation Properties
+    [JsonProperty("music_config")]
+    public MusicGenerationConfig? MusicConfig { get; set; }
+
+    // NEW: Media Processing Properties
+    [JsonProperty("processing_config")]
+    public MediaProcessingConfig? ProcessingConfig { get; set; }
 }
 
 /// <summary>

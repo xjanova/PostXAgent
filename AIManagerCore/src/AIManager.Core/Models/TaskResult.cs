@@ -184,6 +184,10 @@ public class ResultData
 
     [JsonProperty("generated_content")]
     public string? GeneratedContent { get; set; }
+
+    // NEW: Media generation results (Video/Music)
+    [JsonProperty("media_result")]
+    public MediaGenerationResult? MediaResult { get; set; }
 }
 
 /// <summary>
