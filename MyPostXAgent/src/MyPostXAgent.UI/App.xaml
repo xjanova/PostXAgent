@@ -1,0 +1,31 @@
+<Application x:Class="MyPostXAgent.UI.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:converters="clr-namespace:MyPostXAgent.UI.Converters"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Material Design -->
+                <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Lime" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
+
+                <!-- Custom Styles -->
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+
+            <!-- Global Styles -->
+            <Style TargetType="Window" x:Key="BaseWindowStyle">
+                <Setter Property="Background" Value="{DynamicResource MaterialDesign.Brush.Background}" />
+                <Setter Property="FontFamily" Value="Segoe UI, Tahoma" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,457 @@
+<Window x:Class="MyPostXAgent.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:controls="clr-namespace:MyPostXAgent.UI.Controls"
+        mc:Ignorable="d"
+        Title="MyPostXAgent - AI Social Media Automation"
+        Height="900" Width="1400"
+        MinHeight="700" MinWidth="1100"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        TextElement.Foreground="{StaticResource TextPrimaryBrush}"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="14"
+        FontFamily="Segoe UI, Inter, Arial">
+
+    <Window.Resources>
+        <!-- Navigation Item Style -->
+        <Style x:Key="NavItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="16,14"/>
+            <Setter Property="Margin" Value="8,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Border"
+                                Background="Transparent"
+                                CornerRadius="12"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="{TemplateBinding Margin}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource DarkBgHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                            <GradientStop Color="#2D1B4E" Offset="0"/>
+                                            <GradientStop Color="#1A1A2E" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="Border" Property="BorderThickness" Value="3,0,0,0"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource RgbGradientBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Main Border with RGB Glow Effect -->
+    <Border CornerRadius="16" Background="Transparent">
+        <Border.Effect>
+            <DropShadowEffect Color="#8B5CF6" BlurRadius="40" ShadowDepth="0" Opacity="0.3"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Firefly Background Layer (Behind everything) -->
+            <controls:FireflyBackground x:Name="FireflyBg"
+                                        Grid.ColumnSpan="2"
+                                        Grid.RowSpan="3"/>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- TITLE BAR -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <Border Grid.ColumnSpan="2" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Height="50">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="280"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Logo Area -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
+                        <!-- RGB Logo Icon -->
+                        <Border Width="36" Height="36" CornerRadius="10">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#8B5CF6" Offset="0"/>
+                                    <GradientStop Color="#EC4899" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <materialDesign:PackIcon Kind="RocketLaunch"
+                                                     Width="22" Height="22"
+                                                     Foreground="White"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock FontSize="16" FontWeight="Bold">
+                                <TextBlock.Text>MyPostXAgent</TextBlock.Text>
+                                <TextBlock.Foreground>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#00F5FF" Offset="0"/>
+                                        <GradientStop Color="#EC4899" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </TextBlock.Foreground>
+                            </TextBlock>
+                            <TextBlock Text="AI Social Automation" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Search Bar -->
+                    <Border Grid.Column="1"
+                            Background="{StaticResource DarkBg3Brush}"
+                            CornerRadius="25"
+                            Margin="20,8"
+                            MaxWidth="400"
+                            HorizontalAlignment="Left">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="Magnify"
+                                                     Foreground="{StaticResource TextMutedBrush}"
+                                                     Margin="16,0,8,0"
+                                                     VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     Foreground="{StaticResource TextSecondaryBrush}"
+                                     VerticalAlignment="Center"
+                                     Padding="0,10,16,10"
+                                     materialDesign:HintAssist.Hint="ค้นหา..."
+                                     materialDesign:HintAssist.Foreground="{StaticResource TextMutedBrush}"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Window Controls -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,10,0">
+                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                Width="40" Height="40"
+                                Click="MinimizeButton_Click"
+                                ToolTip="ย่อ">
+                            <materialDesign:PackIcon Kind="WindowMinimize" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </Button>
+                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                Width="40" Height="40"
+                                Click="MaximizeButton_Click"
+                                ToolTip="ขยาย">
+                            <materialDesign:PackIcon Kind="WindowMaximize" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </Button>
+                        <Button Style="{StaticResource MaterialDesignIconButton}"
+                                Width="40" Height="40"
+                                Click="CloseButton_Click"
+                                ToolTip="ปิด">
+                            <materialDesign:PackIcon Kind="Close" Foreground="{StaticResource RgbRedBrush}"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- LEFT SIDEBAR -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <Border Grid.Row="1"
+                    CornerRadius="0,0,0,16">
+                <Border.Background>
+                    <SolidColorBrush Color="#0F0F14" Opacity="0.92"/>
+                </Border.Background>
+                <DockPanel>
+                    <!-- User Profile -->
+                    <Border DockPanel.Dock="Top" Margin="16,20,16,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Avatar with RGB Border -->
+                            <Border Width="48" Height="48" CornerRadius="24">
+                                <Border.BorderBrush>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#00F5FF" Offset="0"/>
+                                        <GradientStop Color="#8B5CF6" Offset="0.5"/>
+                                        <GradientStop Color="#EC4899" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.BorderBrush>
+                                <Border.BorderThickness>2</Border.BorderThickness>
+                                <Border Background="{StaticResource DarkBg4Brush}" CornerRadius="22">
+                                    <materialDesign:PackIcon Kind="Account"
+                                                             Width="28" Height="28"
+                                                             Foreground="{StaticResource TextSecondaryBrush}"
+                                                             HorizontalAlignment="Center"
+                                                             VerticalAlignment="Center"/>
+                                </Border>
+                            </Border>
+
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Welcome" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="Pro User" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </StackPanel>
+
+                            <!-- Online Status -->
+                            <Border Grid.Column="2"
+                                    Width="12" Height="12"
+                                    CornerRadius="6"
+                                    Background="{StaticResource RgbGreenBrush}"
+                                    VerticalAlignment="Center">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#10B981" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
+                                </Border.Effect>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- RGB Divider -->
+                    <Border DockPanel.Dock="Top" Height="2" Margin="20,10" CornerRadius="1">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#00F5FF" Offset="0"/>
+                                <GradientStop Color="Transparent" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+
+                    <!-- Menu Label -->
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="M E N U"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="24,10,0,8"/>
+
+                    <!-- Navigation Menu -->
+                    <ListBox x:Name="NavigationMenu"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             SelectedIndex="0"
+                             ItemContainerStyle="{StaticResource NavItemStyle}"
+                             SelectionChanged="NavigationMenu_SelectionChanged">
+
+                        <ListBoxItem Tag="Dashboard">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ViewDashboard" Width="22" Height="22" Foreground="{StaticResource RgbCyanBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Dashboard" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="Posts">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="PostOutline" Width="22" Height="22" Foreground="{StaticResource RgbBlueBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="โพสต์" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="Schedule">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="CalendarClock" Width="22" Height="22" Foreground="{StaticResource RgbPurpleBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="ตั้งเวลา" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="Accounts">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="AccountMultiple" Width="22" Height="22" Foreground="{StaticResource RgbPinkBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="บัญชี Social" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="AIContent">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Robot" Width="22" Height="22" Foreground="{StaticResource RgbOrangeBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="AI Content" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <!-- NEW Badge -->
+                                <Border Background="{StaticResource RgbGreenBrush}"
+                                        CornerRadius="8"
+                                        Padding="6,2"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="NEW" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="VideoEditor">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="VideoOutline" Width="22" Height="22" Foreground="{StaticResource RgbMagentaBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Video Editor" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="Groups">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="AccountGroup" Width="22" Height="22" Foreground="{StaticResource RgbYellowBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="ค้นหากลุ่ม" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="Comments">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="CommentMultiple" Width="22" Height="22" Foreground="{StaticResource RgbGreenBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Comments" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="Flows">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Sitemap" Width="22" Height="22" Foreground="{StaticResource RgbCyanBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Workflows" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+
+                        <ListBoxItem Tag="Settings">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="CogOutline" Width="22" Height="22" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="ตั้งค่า" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- MAIN CONTENT AREA -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <Border Grid.Column="1" Grid.Row="1"
+                    CornerRadius="24,0,0,0"
+                    Margin="-24,0,0,0">
+                <Border.Background>
+                    <SolidColorBrush Color="#121218" Opacity="0.88"/>
+                </Border.Background>
+                <Frame x:Name="MainFrame"
+                       NavigationUIVisibility="Hidden"
+                       Margin="24,16,16,16"/>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- STATUS BAR -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <Border Grid.Row="2" Grid.ColumnSpan="2"
+                    CornerRadius="0,0,16,16"
+                    Padding="20,12">
+                <Border.Background>
+                    <SolidColorBrush Color="#0D0D0F" Opacity="0.95"/>
+                </Border.Background>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Status Indicator -->
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="10" Height="10" CornerRadius="5" Background="{StaticResource RgbGreenBrush}">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#10B981" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/>
+                            </Border.Effect>
+                        </Border>
+                        <TextBlock Text="ระบบพร้อมใช้งาน" Margin="10,0,0,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                    </StackPanel>
+
+                    <!-- Stats -->
+                    <Border Grid.Column="1"
+                            Background="{StaticResource DarkBg3Brush}"
+                            CornerRadius="8"
+                            Padding="12,6"
+                            Margin="10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Post" Foreground="{StaticResource RgbCyanBrush}" VerticalAlignment="Center" Width="16" Height="16"/>
+                            <TextBlock Text="โพสต์วันนี้:" Margin="6,0,4,0" Foreground="{StaticResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding PostsToday, FallbackValue=0}" FontWeight="Bold" Foreground="{StaticResource RgbCyanBrush}" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2"
+                            Background="{StaticResource DarkBg3Brush}"
+                            CornerRadius="8"
+                            Padding="12,6"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ClockOutline" Foreground="{StaticResource RgbPurpleBrush}" VerticalAlignment="Center" Width="16" Height="16"/>
+                            <TextBlock Text="คิว:" Margin="6,0,4,0" Foreground="{StaticResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding QueueCount, FallbackValue=0}" FontWeight="Bold" Foreground="{StaticResource RgbPurpleBrush}" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="3"
+                            Background="{StaticResource DarkBg3Brush}"
+                            CornerRadius="8"
+                            Padding="12,6"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="AccountMultiple" Foreground="{StaticResource RgbPinkBrush}" VerticalAlignment="Center" Width="16" Height="16"/>
+                            <TextBlock Text="บัญชี:" Margin="6,0,4,0" Foreground="{StaticResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding TotalAccounts, FallbackValue=0}" FontWeight="Bold" Foreground="{StaticResource RgbPinkBrush}" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Version -->
+                    <TextBlock Grid.Column="4" VerticalAlignment="Center">
+                        <TextBlock.Foreground>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#8B5CF6" Offset="0"/>
+                                <GradientStop Color="#EC4899" Offset="1"/>
+                            </LinearGradientBrush>
+                        </TextBlock.Foreground>
+                        <Run Text="v1.0.0" FontWeight="SemiBold" FontSize="12"/>
+                        <Run Text=" PRO" FontSize="10"/>
+                    </TextBlock>
+                </Grid>
+            </Border>
+
+            <!-- Demo Mode Banner (if applicable) -->
+            <Border Grid.ColumnSpan="2"
+                    Visibility="{Binding IsDemoMode, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
+                    VerticalAlignment="Top"
+                    Margin="0,50,0,0"
+                    CornerRadius="0,0,12,12">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#F59E0B" Offset="0"/>
+                        <GradientStop Color="#EF4444" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="16,8">
+                    <materialDesign:PackIcon Kind="AlertCircle" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White"/>
+                    <TextBlock Text="{Binding DemoStatusText, FallbackValue='Demo Mode - 3 วันที่เหลือ'}"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                    <Button Content="อัพเกรด PRO"
+                            Margin="20,0,0,0"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Foreground="White"
+                            FontWeight="Bold"
+                            Command="{Binding BuyLicenseCommand}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

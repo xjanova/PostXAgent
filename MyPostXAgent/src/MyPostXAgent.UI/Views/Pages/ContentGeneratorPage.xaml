@@ -1,0 +1,712 @@
+<Page x:Class="MyPostXAgent.UI.Views.Pages.ContentGeneratorPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      mc:Ignorable="d"
+      Title="AI Content Generator"
+      Background="Transparent">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="400"/>
+        </Grid.ColumnDefinitions>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- HEADER -->
+                <Grid Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock FontSize="28" FontWeight="Bold">
+                            <TextBlock.Foreground>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#FFFFFF" Offset="0"/>
+                                    <GradientStop Color="#A1A1AA" Offset="1"/>
+                                </LinearGradientBrush>
+                            </TextBlock.Foreground>
+                            <Run Text="AI Content Generator"/>
+                        </TextBlock>
+                        <TextBlock Text="สร้างเนื้อหาโพสต์ด้วย AI อัจฉริยะ" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Command="{Binding ClearCommand}" Cursor="Hand" Margin="0,0,12,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border CornerRadius="12" Padding="16,10" BorderThickness="1" BorderBrush="#3F3F46">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Eraser" Width="18" Height="18" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="ล้าง" Foreground="{StaticResource TextSecondaryBrush}" Margin="6,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button Height="44" Padding="20,0" Cursor="Hand" Command="{Binding GenerateCommand}"
+                                IsEnabled="{Binding IsNotGenerating}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" CornerRadius="22" Padding="{TemplateBinding Padding}">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#8B5CF6" Offset="0"/>
+                                                <GradientStop Color="#06B6D4" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="#8B5CF6" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
+                                        </Border.Effect>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <materialDesign:PackIcon Kind="AutoFix" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="สร้างเนื้อหา" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Grid.Row="1">
+                    <!-- AI Provider Selection -->
+                    <Border CornerRadius="16" Padding="24" Margin="0,0,0,16" Background="#1A1A2E">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="48" Height="48" CornerRadius="12">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#8B5CF6" Offset="0"/>
+                                            <GradientStop Color="#7C3AED" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <materialDesign:PackIcon Kind="Robot" Width="24" Height="24" Foreground="White"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="AI Provider" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="เลือก AI ที่ใช้สร้างเนื้อหา" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <WrapPanel>
+                                <!-- Ollama -->
+                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseOllama}" Margin="0,0,12,12" Cursor="Hand">
+                                    <RadioButton.Template>
+                                        <ControlTemplate TargetType="RadioButton">
+                                            <Border x:Name="border" CornerRadius="12" Padding="16,12" BorderThickness="2"
+                                                    BorderBrush="{Binding UseOllama, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=BorderBrush}"
+                                                    Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding UseOllama}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#8B5CF6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding UseOllama}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Llama" Width="20" Height="20" Foreground="#10B981"/>
+                                                    <TextBlock Text="Ollama (ฟรี)" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </RadioButton.Template>
+                                </RadioButton>
+
+                                <!-- OpenAI -->
+                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseOpenAI}" Margin="0,0,12,12" Cursor="Hand">
+                                    <RadioButton.Template>
+                                        <ControlTemplate TargetType="RadioButton">
+                                            <Border CornerRadius="12" Padding="16,12" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding UseOpenAI}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#8B5CF6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding UseOpenAI}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="OpenaiChatgptApi" Width="20" Height="20" Foreground="#10B981"/>
+                                                    <TextBlock Text="OpenAI GPT" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </RadioButton.Template>
+                                </RadioButton>
+
+                                <!-- Claude -->
+                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseClaude}" Margin="0,0,12,12" Cursor="Hand">
+                                    <RadioButton.Template>
+                                        <ControlTemplate TargetType="RadioButton">
+                                            <Border CornerRadius="12" Padding="16,12" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding UseClaude}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#8B5CF6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding UseClaude}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Chat" Width="20" Height="20" Foreground="#EC4899"/>
+                                                    <TextBlock Text="Claude" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </RadioButton.Template>
+                                </RadioButton>
+
+                                <!-- Gemini -->
+                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseGemini}" Margin="0,0,12,12" Cursor="Hand">
+                                    <RadioButton.Template>
+                                        <ControlTemplate TargetType="RadioButton">
+                                            <Border CornerRadius="12" Padding="16,12" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding UseGemini}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#8B5CF6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding UseGemini}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Google" Width="20" Height="20" Foreground="#3B82F6"/>
+                                                    <TextBlock Text="Gemini" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </RadioButton.Template>
+                                </RadioButton>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Content Type & Topic -->
+                    <Border CornerRadius="16" Padding="24" Margin="0,0,0,16" Background="#1A1A2E">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="48" Height="48" CornerRadius="12">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#EC4899" Offset="0"/>
+                                            <GradientStop Color="#DB2777" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <materialDesign:PackIcon Kind="TextBox" Width="24" Height="24" Foreground="White"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="รายละเอียดเนื้อหา" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="กำหนดหัวข้อและรูปแบบ" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Content Type -->
+                                <StackPanel>
+                                    <TextBlock Text="ประเภทเนื้อหา" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <ComboBox SelectedIndex="{Binding SelectedContentTypeIndex}"
+                                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                              Background="#16161E" Foreground="White">
+                                        <ComboBoxItem Content="โพสต์โปรโมท"/>
+                                        <ComboBoxItem Content="เล่าเรื่อง/Storytelling"/>
+                                        <ComboBoxItem Content="รีวิวสินค้า"/>
+                                        <ComboBoxItem Content="ข่าวสาร/อัพเดท"/>
+                                        <ComboBoxItem Content="Tips &amp; Tricks"/>
+                                        <ComboBoxItem Content="คำถาม/Poll"/>
+                                        <ComboBoxItem Content="แรงบันดาลใจ/Motivation"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <!-- Tone -->
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="โทนเสียง" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <ComboBox SelectedIndex="{Binding SelectedToneIndex}"
+                                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                              Background="#16161E" Foreground="White">
+                                        <ComboBoxItem Content="เป็นมิตร/Friendly"/>
+                                        <ComboBoxItem Content="มืออาชีพ/Professional"/>
+                                        <ComboBoxItem Content="ตลก/Humorous"/>
+                                        <ComboBoxItem Content="สร้างแรงบันดาลใจ"/>
+                                        <ComboBoxItem Content="แบบเด็ก Gen Z"/>
+                                        <ComboBoxItem Content="ทางการ/Formal"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <!-- Topic -->
+                                <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,16,0,0">
+                                    <TextBlock Text="หัวข้อ/คำอธิบาย" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Topic, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                             materialDesign:HintAssist.Hint="เช่น: โปรโมทร้านกาแฟใหม่ย่านสุขุมวิท มีโปรเปิดร้านลด 50%"
+                                             Background="#16161E" Foreground="White"
+                                             TextWrapping="Wrap" AcceptsReturn="True"
+                                             MinHeight="80" MaxHeight="120"/>
+                                </StackPanel>
+
+                                <!-- Keywords & Hashtags -->
+                                <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Margin="0,16,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel>
+                                            <TextBlock Text="Keywords (คั่นด้วย ,)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding Keywords, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                                     materialDesign:HintAssist.Hint="กาแฟ, ร้านใหม่, โปรโมชั่น"
+                                                     Background="#16161E" Foreground="White"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Hashtags (คั่นด้วย ,)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding Hashtags, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                                     materialDesign:HintAssist.Hint="#coffee, #bangkok, #promotion"
+                                                     Background="#16161E" Foreground="White"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Target Platform -->
+                    <Border CornerRadius="16" Padding="24" Margin="0,0,0,16" Background="#1A1A2E">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="48" Height="48" CornerRadius="12">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#3B82F6" Offset="0"/>
+                                            <GradientStop Color="#1D4ED8" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <materialDesign:PackIcon Kind="ShareVariant" Width="24" Height="24" Foreground="White"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="แพลตฟอร์ม" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="เลือกแพลตฟอร์มที่จะโพสต์" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <WrapPanel>
+                                <CheckBox IsChecked="{Binding TargetFacebook}" Margin="0,0,16,12" Cursor="Hand">
+                                    <CheckBox.Template>
+                                        <ControlTemplate TargetType="CheckBox">
+                                            <Border CornerRadius="12" Padding="14,10" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TargetFacebook}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#1877F2"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TargetFacebook}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Facebook" Width="20" Height="20" Foreground="#1877F2"/>
+                                                    <TextBlock Text="Facebook" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </CheckBox.Template>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding TargetInstagram}" Margin="0,0,16,12" Cursor="Hand">
+                                    <CheckBox.Template>
+                                        <ControlTemplate TargetType="CheckBox">
+                                            <Border CornerRadius="12" Padding="14,10" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TargetInstagram}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#E4405F"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TargetInstagram}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Instagram" Width="20" Height="20" Foreground="#E4405F"/>
+                                                    <TextBlock Text="Instagram" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </CheckBox.Template>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding TargetTikTok}" Margin="0,0,16,12" Cursor="Hand">
+                                    <CheckBox.Template>
+                                        <ControlTemplate TargetType="CheckBox">
+                                            <Border CornerRadius="12" Padding="14,10" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TargetTikTok}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#00F2EA"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TargetTikTok}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="MusicNote" Width="20" Height="20" Foreground="#00F2EA"/>
+                                                    <TextBlock Text="TikTok" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </CheckBox.Template>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding TargetTwitter}" Margin="0,0,16,12" Cursor="Hand">
+                                    <CheckBox.Template>
+                                        <ControlTemplate TargetType="CheckBox">
+                                            <Border CornerRadius="12" Padding="14,10" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TargetTwitter}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#1DA1F2"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TargetTwitter}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Twitter" Width="20" Height="20" Foreground="#1DA1F2"/>
+                                                    <TextBlock Text="Twitter/X" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </CheckBox.Template>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding TargetLine}" Margin="0,0,16,12" Cursor="Hand">
+                                    <CheckBox.Template>
+                                        <ControlTemplate TargetType="CheckBox">
+                                            <Border CornerRadius="12" Padding="14,10" BorderThickness="2" Background="#16161E">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TargetLine}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#00B900"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TargetLine}" Value="False">
+                                                                <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Chat" Width="20" Height="20" Foreground="#00B900"/>
+                                                    <TextBlock Text="LINE" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </CheckBox.Template>
+                                </CheckBox>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Advanced Options -->
+                    <Border CornerRadius="16" Padding="24" Background="#1A1A2E">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="48" Height="48" CornerRadius="12">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#F97316" Offset="0"/>
+                                            <GradientStop Color="#EA580C" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <materialDesign:PackIcon Kind="Tune" Width="24" Height="24" Foreground="White"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="ตัวเลือกเพิ่มเติม" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="ปรับแต่งผลลัพธ์" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel>
+                                    <TextBlock Text="ความยาวเนื้อหา" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <ComboBox SelectedIndex="{Binding SelectedLengthIndex}"
+                                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                              Background="#16161E" Foreground="White">
+                                        <ComboBoxItem Content="สั้น (1-2 ประโยค)"/>
+                                        <ComboBoxItem Content="ปานกลาง (3-5 ประโยค)"/>
+                                        <ComboBoxItem Content="ยาว (1 ย่อหน้า)"/>
+                                        <ComboBoxItem Content="ยาวมาก (2+ ย่อหน้า)"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="ภาษา" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <ComboBox SelectedIndex="{Binding SelectedLanguageIndex}"
+                                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                              Background="#16161E" Foreground="White">
+                                        <ComboBoxItem Content="ไทย"/>
+                                        <ComboBoxItem Content="English"/>
+                                        <ComboBoxItem Content="ไทย + English (ผสม)"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,16,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <CheckBox IsChecked="{Binding IncludeEmojis}" Foreground="{StaticResource TextPrimaryBrush}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="EmoticonHappy" Width="18" Height="18" Foreground="#FBBF24" Margin="0,0,8,0"/>
+                                        <TextBlock Text="ใส่ Emojis"/>
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <CheckBox Grid.Column="1" IsChecked="{Binding IncludeCTA}" Foreground="{StaticResource TextPrimaryBrush}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="CursorDefaultClick" Width="18" Height="18" Foreground="#10B981" Margin="0,0,8,0"/>
+                                        <TextBlock Text="ใส่ Call-to-Action"/>
+                                    </StackPanel>
+                                </CheckBox>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- RIGHT PANEL: Generated Content Preview -->
+        <Border Grid.Column="1" Margin="10" CornerRadius="16" Background="#1A1A2E">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Preview Header -->
+                <Border Padding="20" BorderThickness="0,0,0,1" BorderBrush="#2D2D3A">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock FontSize="16" FontWeight="SemiBold">
+                                <TextBlock.Foreground>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#8B5CF6" Offset="0"/>
+                                        <GradientStop Color="#06B6D4" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </TextBlock.Foreground>
+                                <Run Text="ตัวอย่างเนื้อหา"/>
+                            </TextBlock>
+                            <TextBlock Text="AI Generated Content" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Command="{Binding CopyContentCommand}" Cursor="Hand" ToolTip="คัดลอก">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border CornerRadius="8" Padding="8" Background="#16161E">
+                                            <materialDesign:PackIcon Kind="ContentCopy" Width="18" Height="18" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button Command="{Binding RegenerateCommand}" Cursor="Hand" ToolTip="สร้างใหม่" Margin="8,0,0,0"
+                                    IsEnabled="{Binding IsNotGenerating}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border CornerRadius="8" Padding="8" Background="#16161E">
+                                            <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Content Preview -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20">
+                    <StackPanel>
+                        <!-- Loading State -->
+                        <StackPanel Visibility="{Binding IsGenerating, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,50,0,0">
+                            <ProgressBar IsIndeterminate="True" Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                         Width="50" Height="50" Foreground="#8B5CF6"/>
+                            <TextBlock Text="กำลังสร้างเนื้อหา..." Foreground="{StaticResource TextMutedBrush}"
+                                       Margin="0,16,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Empty State -->
+                        <StackPanel Visibility="{Binding ShowEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,50,0,0">
+                            <materialDesign:PackIcon Kind="TextBoxOutline" Width="64" Height="64" Foreground="#3F3F46" HorizontalAlignment="Center"/>
+                            <TextBlock Text="ยังไม่มีเนื้อหา" FontSize="16" Foreground="{StaticResource TextMutedBrush}"
+                                       Margin="0,16,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock Text="กรอกข้อมูลและกดปุ่ม 'สร้างเนื้อหา'" FontSize="12" Foreground="{StaticResource TextMutedBrush}"
+                                       Margin="0,4,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Generated Content -->
+                        <StackPanel Visibility="{Binding HasContent, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBox Text="{Binding GeneratedContent, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Background="#16161E" Foreground="White"
+                                     TextWrapping="Wrap" AcceptsReturn="True"
+                                     MinHeight="200" MaxHeight="400"
+                                     FontSize="14"/>
+
+                            <!-- Character Count -->
+                            <Grid Margin="0,12,0,0">
+                                <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="12">
+                                    <Run Text="ตัวอักษร: "/>
+                                    <Run Text="{Binding CharacterCount, Mode=OneWay}"/>
+                                </TextBlock>
+                                <TextBlock HorizontalAlignment="Right" Foreground="{StaticResource TextMutedBrush}" FontSize="12">
+                                    <Run Text="คำ: "/>
+                                    <Run Text="{Binding WordCount, Mode=OneWay}"/>
+                                </TextBlock>
+                            </Grid>
+
+                            <!-- Generated Hashtags -->
+                            <Border Margin="0,16,0,0" CornerRadius="12" Padding="16" Background="#16161E"
+                                    Visibility="{Binding HasGeneratedHashtags, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel>
+                                    <TextBlock Text="Hashtags ที่แนะนำ" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding GeneratedHashtags}" Foreground="#8B5CF6" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Action Buttons -->
+                <Border Grid.Row="2" Padding="20" BorderThickness="0,1,0,0" BorderBrush="#2D2D3A">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Command="{Binding SaveAsDraftCommand}" Cursor="Hand" Margin="0,0,8,0"
+                                IsEnabled="{Binding HasContent}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border CornerRadius="12" Padding="16,12" BorderThickness="1" BorderBrush="#3F3F46" Background="#16161E">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="บันทึก Draft" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <Button Grid.Column="1" Command="{Binding CreatePostCommand}" Cursor="Hand" Margin="8,0,0,0"
+                                IsEnabled="{Binding HasContent}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border CornerRadius="12" Padding="16,12">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#10B981" Offset="0"/>
+                                                <GradientStop Color="#059669" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <materialDesign:PackIcon Kind="Send" Width="18" Height="18" Foreground="White"/>
+                                            <TextBlock Text="สร้างโพสต์" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>
