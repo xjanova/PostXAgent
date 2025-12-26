@@ -38,6 +38,30 @@ public class SettingsViewModel : BaseViewModel
         set => SetProperty(ref _ollamaBaseUrl, value);
     }
 
+    private string _ollamaModel = "llama3.2:3b";
+    public string OllamaModel
+    {
+        get => _ollamaModel;
+        set => SetProperty(ref _ollamaModel, value);
+    }
+
+    // Available Ollama models (common ones)
+    public List<string> AvailableOllamaModels { get; } = new()
+    {
+        "llama3.2:1b",
+        "llama3.2:3b",
+        "llama3.1:8b",
+        "llama3.1:70b",
+        "llama3:8b",
+        "llama3:70b",
+        "qwen3:8b",
+        "qwen2.5:7b",
+        "mistral:7b",
+        "gemma2:9b",
+        "phi3:mini",
+        "codellama:7b"
+    };
+
     // Image Generation
     private string _leonardoApiKey = "";
     public string LeonardoApiKey
@@ -132,6 +156,7 @@ public class SettingsViewModel : BaseViewModel
             AnthropicApiKey = await _database.GetSettingAsync("anthropic_api_key") ?? "";
             GoogleApiKey = await _database.GetSettingAsync("google_api_key") ?? "";
             OllamaBaseUrl = await _database.GetSettingAsync("ollama_base_url") ?? "http://localhost:11434";
+            OllamaModel = await _database.GetSettingAsync("ollama_model") ?? "llama3.2:3b";
 
             // Image Generation
             LeonardoApiKey = await _database.GetSettingAsync("leonardo_api_key") ?? "";
@@ -171,6 +196,7 @@ public class SettingsViewModel : BaseViewModel
             await _database.SetSettingAsync("anthropic_api_key", AnthropicApiKey, "ai");
             await _database.SetSettingAsync("google_api_key", GoogleApiKey, "ai");
             await _database.SetSettingAsync("ollama_base_url", OllamaBaseUrl, "ai");
+            await _database.SetSettingAsync("ollama_model", OllamaModel, "ai");
 
             // Image Generation
             await _database.SetSettingAsync("leonardo_api_key", LeonardoApiKey, "image");
@@ -218,6 +244,7 @@ public class SettingsViewModel : BaseViewModel
             AnthropicApiKey = "";
             GoogleApiKey = "";
             OllamaBaseUrl = "http://localhost:11434";
+            OllamaModel = "llama3.2:3b";
             LeonardoApiKey = "";
             StableDiffusionUrl = "http://localhost:7860";
             RunwayApiKey = "";

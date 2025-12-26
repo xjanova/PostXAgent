@@ -141,6 +141,44 @@
                                          Background="#16161E" Foreground="White"/>
                             </StackPanel>
                         </Grid>
+
+                        <!-- Ollama Model Selection (New Row) -->
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel>
+                                <TextBlock Text="Ollama Model" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <ComboBox ItemsSource="{Binding AvailableOllamaModels}"
+                                          SelectedItem="{Binding OllamaModel}"
+                                          IsEditable="True"
+                                          Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                          materialDesign:HintAssist.Hint="เลือก model หรือพิมพ์เอง"
+                                          Background="#16161E" Foreground="White">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem">
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Setter Property="Background" Value="#16161E"/>
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8">
+                                    <Run Text="💡 คำแนะนำ: ติดตั้ง model ด้วย "/>
+                                    <Run FontFamily="Consolas" Foreground="#10B981" Text="ollama pull llama3.2:3b"/>
+                                </TextBlock>
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap">
+                                    <Run Text="• llama3.2:1b (เล็ก, เร็ว)"/><LineBreak/>
+                                    <Run Text="• llama3.2:3b (กลาง, แนะนำ) ⭐"/><LineBreak/>
+                                    <Run Text="• qwen3:8b (ใหญ่, แม่นกว่า)"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

@@ -36,10 +36,11 @@ public class AIContentService
         {
             // Ollama - Always available (local)
             var ollamaUrl = await _database.GetSettingAsync("ollama_base_url") ?? "http://localhost:11434";
+            var ollamaModel = await _database.GetSettingAsync("ollama_model") ?? "llama3.2:3b";
             _generators[AIProvider.Ollama] = new OllamaContentGenerator(
                 _httpClientFactory.CreateClient(),
                 ollamaUrl,
-                "llama3.2:3b",  // Changed from "llama3.2" to match actual installed model
+                ollamaModel,  // Read from database (user can configure)
                 _logger as ILogger<OllamaContentGenerator>);
 
             // OpenAI
