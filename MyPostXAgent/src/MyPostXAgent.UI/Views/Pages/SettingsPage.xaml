@@ -110,7 +110,15 @@
                             </Grid.RowDefinitions>
 
                             <StackPanel>
-                                <TextBlock Text="OpenAI API Key" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="OpenAI API Key" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding OpenAiStatus}" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
+                                </Grid>
                                 <TextBox Text="{Binding OpenAiApiKey, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                          materialDesign:HintAssist.Hint="sk-..."
@@ -118,7 +126,15 @@
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Anthropic API Key (Claude)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Anthropic API Key (Claude)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding ClaudeStatus}" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
+                                </Grid>
                                 <TextBox Text="{Binding AnthropicApiKey, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                          materialDesign:HintAssist.Hint="sk-ant-..."
@@ -126,7 +142,15 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                <TextBlock Text="Google API Key (Gemini)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Google API Key (Gemini)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding GeminiStatus}" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
+                                </Grid>
                                 <TextBox Text="{Binding GoogleApiKey, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                          materialDesign:HintAssist.Hint="AIza..."
@@ -134,7 +158,15 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,16,0,0">
-                                <TextBlock Text="Ollama Base URL (Local)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Ollama Base URL (Local)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding OllamaStatus}" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
+                                </Grid>
                                 <TextBox Text="{Binding OllamaBaseUrl, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                          materialDesign:HintAssist.Hint="http://localhost:11434"
@@ -152,19 +184,37 @@
 
                             <StackPanel>
                                 <TextBlock Text="Ollama Model" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
-                                <ComboBox ItemsSource="{Binding AvailableOllamaModels}"
-                                          SelectedItem="{Binding OllamaModel}"
-                                          IsEditable="True"
-                                          Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                                          materialDesign:HintAssist.Hint="เลือก model หรือพิมพ์เอง"
-                                          Background="#16161E" Foreground="White">
-                                    <ComboBox.ItemContainerStyle>
-                                        <Style TargetType="ComboBoxItem">
-                                            <Setter Property="Foreground" Value="White"/>
-                                            <Setter Property="Background" Value="#16161E"/>
-                                        </Style>
-                                    </ComboBox.ItemContainerStyle>
-                                </ComboBox>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox ItemsSource="{Binding AvailableOllamaModels}"
+                                              SelectedItem="{Binding OllamaModel}"
+                                              IsEditable="True"
+                                              Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                              materialDesign:HintAssist.Hint="เลือก model หรือพิมพ์เอง"
+                                              Background="#16161E" Foreground="White">
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem">
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="Background" Value="#16161E"/>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                    </ComboBox>
+                                    <Button Grid.Column="1" Command="{Binding RefreshOllamaModelsCommand}"
+                                            Margin="8,0,0,0" Width="40" Height="40"
+                                            ToolTip="รีเฟรชรายการ models" Cursor="Hand">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="8" Background="#16161E" BorderBrush="#3F3F46" BorderThickness="1">
+                                                    <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18"
+                                                                             Foreground="#10B981" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">

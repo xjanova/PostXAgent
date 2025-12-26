@@ -1,6 +1,10 @@
+using System.Collections.ObjectModel;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Windows;
 using MyPostXAgent.Core.Services.Data;
 using MyPostXAgent.Core.Services.AI;
+using MyPostXAgent.Core.Models;
 
 namespace MyPostXAgent.UI.ViewModels;
 
@@ -8,6 +12,7 @@ public class SettingsViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
     private readonly AIContentService _aiService;
+    private readonly HttpClient _httpClient;
 
     // AI Provider Settings
     private string _openAiApiKey = "";
@@ -45,22 +50,45 @@ public class SettingsViewModel : BaseViewModel
         set => SetProperty(ref _ollamaModel, value);
     }
 
-    // Available Ollama models (common ones)
-    public List<string> AvailableOllamaModels { get; } = new()
+    // Available Ollama models (auto-detected from local installation)
+    private ObservableCollection<string> _availableOllamaModels = new();
+    public ObservableCollection<string> AvailableOllamaModels
     {
-        "llama3.2:1b",
-        "llama3.2:3b",
-        "llama3.1:8b",
-        "llama3.1:70b",
-        "llama3:8b",
-        "llama3:70b",
-        "qwen3:8b",
-        "qwen2.5:7b",
-        "mistral:7b",
-        "gemma2:9b",
-        "phi3:mini",
-        "codellama:7b"
-    };
+        get => _availableOllamaModels;
+        set => SetProperty(ref _availableOllamaModels, value);
+    }
+
+    // Provider status indicators
+    private string _ollamaStatus = "กำลังตรวจสอบ...";
+    public string OllamaStatus
+    {
+        get => _ollamaStatus;
+        set => SetProperty(ref _ollamaStatus, value);
+    }
+
+    private string _openAiStatus = "ไม่พร้อม";
+    public string OpenAiStatus
+    {
+        get => _openAiStatus;
+        set => SetProperty(ref _openAiStatus, value);
+    }
+
+    private string _claudeStatus = "ไม่พร้อม";
+    public string ClaudeStatus
+    {
+        get => _claudeStatus;
+        set => SetProperty(ref _claudeStatus, value);
+    }
+
+    private string _geminiStatus = "ไม่พร้อม";
+    public string GeminiStatus
+    {
+        get => _geminiStatus;
+        set => SetProperty(ref _geminiStatus, value);
+    }
+
+    // Commands
+    public RelayCommand RefreshOllamaModelsCommand { get; }
 
     // Image Generation
     private string _leonardoApiKey = "";
@@ -137,9 +165,11 @@ public class SettingsViewModel : BaseViewModel
     {
         _database = database;
         _aiService = aiService;
+        _httpClient = new HttpClient();
 
         SaveCommand = new RelayCommand(async () => await SaveSettingsAsync());
         ResetCommand = new RelayCommand(ResetToDefaults);
+        RefreshOllamaModelsCommand = new RelayCommand(async () => await RefreshOllamaModelsAsync());
 
         // Load settings on startup
         _ = LoadSettingsAsync();
@@ -174,6 +204,10 @@ public class SettingsViewModel : BaseViewModel
             FacebookAppSecret = await _database.GetSettingAsync("facebook_app_secret") ?? "";
             TwitterApiKey = await _database.GetSettingAsync("twitter_api_key") ?? "";
             TwitterApiSecret = await _database.GetSettingAsync("twitter_api_secret") ?? "";
+
+            // Auto-detect Ollama models and update provider statuses
+            _ = RefreshOllamaModelsAsync();
+            _ = UpdateProvidersStatusAsync();
         }
         catch (Exception ex)
         {
@@ -183,6 +217,126 @@ public class SettingsViewModel : BaseViewModel
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Auto-detect installed Ollama models from Ollama API
+    /// </summary>
+    private async Task RefreshOllamaModelsAsync()
+    {
+        try
+        {
+            OllamaStatus = "กำลังตรวจสอบ...";
+
+            var response = await _httpClient.GetAsync(
+                $"{OllamaBaseUrl}/api/tags",
+                new CancellationTokenSource(TimeSpan.FromSeconds(2)).Token);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                OllamaStatus = "Ollama ไม่ทำงาน";
+                AvailableOllamaModels.Clear();
+                AvailableOllamaModels.Add(OllamaModel); // Keep current selection
+                return;
+            }
+
+            var tagsResponse = await response.Content.ReadFromJsonAsync<OllamaTagsResponse>();
+
+            if (tagsResponse?.Models == null || tagsResponse.Models.Count == 0)
+            {
+                OllamaStatus = "ไม่พบ model";
+                AvailableOllamaModels.Clear();
+                AvailableOllamaModels.Add(OllamaModel);
+                return;
+            }
+
+            // Update available models list
+            AvailableOllamaModels.Clear();
+            foreach (var model in tagsResponse.Models)
+            {
+                if (!string.IsNullOrWhiteSpace(model.Name))
+                {
+                    AvailableOllamaModels.Add(model.Name);
+                }
+            }
+
+            // Ensure current selection is in the list
+            if (!string.IsNullOrWhiteSpace(OllamaModel) && !AvailableOllamaModels.Contains(OllamaModel))
+            {
+                AvailableOllamaModels.Insert(0, OllamaModel);
+            }
+
+            OllamaStatus = $"พร้อมใช้งาน ({AvailableOllamaModels.Count} models)";
+        }
+        catch (TaskCanceledException)
+        {
+            OllamaStatus = "Ollama timeout";
+            AvailableOllamaModels.Clear();
+            AvailableOllamaModels.Add(OllamaModel);
+        }
+        catch (Exception ex)
+        {
+            OllamaStatus = $"Error: {ex.Message}";
+            AvailableOllamaModels.Clear();
+            AvailableOllamaModels.Add(OllamaModel);
+            System.Diagnostics.Debug.WriteLine($"Error refreshing Ollama models: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Update status for all AI providers
+    /// </summary>
+    private async Task UpdateProvidersStatusAsync()
+    {
+        try
+        {
+            // Initialize providers first
+            await _aiService.InitializeProvidersAsync();
+
+            // Get status for all providers
+            var statuses = await _aiService.GetAllProvidersStatusAsync();
+
+            foreach (var status in statuses)
+            {
+                var statusText = status.IsAvailable
+                    ? $"✅ {status.Message}"
+                    : status.IsConfigured
+                        ? $"⚠️ {status.Message}"
+                        : "❌ ไม่ได้ตั้งค่า";
+
+                switch (status.Provider)
+                {
+                    case AIProvider.Ollama:
+                        OllamaStatus = statusText;
+                        break;
+                    case AIProvider.OpenAI:
+                        OpenAiStatus = statusText;
+                        break;
+                    case AIProvider.Claude:
+                        ClaudeStatus = statusText;
+                        break;
+                    case AIProvider.Gemini:
+                        GeminiStatus = statusText;
+                        break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error updating provider status: {ex.Message}");
+        }
+    }
+
+    // DTO classes for Ollama API
+    private class OllamaTagsResponse
+    {
+        public List<OllamaModelDto>? Models { get; set; }
+    }
+
+    private class OllamaModelDto
+    {
+        public string? Name { get; set; }
+        public long? Size { get; set; }
     }
 
     private async Task SaveSettingsAsync()
@@ -217,6 +371,9 @@ public class SettingsViewModel : BaseViewModel
 
             // Reinitialize AI providers with new settings
             await _aiService.InitializeProvidersAsync();
+
+            // Update provider statuses
+            await UpdateProvidersStatusAsync();
 
             MessageBox.Show("บันทึกการตั้งค่าสำเร็จ!\n\nAI Providers ได้รับการอัพเดทแล้ว", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
         }
