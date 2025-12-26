@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows;
 using MyPostXAgent.Core.Models;
 using MyPostXAgent.Core.Services.Data;
@@ -9,6 +10,36 @@ public class ContentGeneratorViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
     private readonly AIContentService _aiService;
+
+    // Template Selection
+    public ObservableCollection<string> TemplateCategories { get; }
+    public ObservableCollection<PromptTemplate> AvailableTemplates { get; }
+
+    private int _selectedCategoryIndex = -1;
+    public int SelectedCategoryIndex
+    {
+        get => _selectedCategoryIndex;
+        set
+        {
+            if (SetProperty(ref _selectedCategoryIndex, value))
+            {
+                LoadTemplatesForCategory();
+            }
+        }
+    }
+
+    private PromptTemplate? _selectedTemplate;
+    public PromptTemplate? SelectedTemplate
+    {
+        get => _selectedTemplate;
+        set
+        {
+            if (SetProperty(ref _selectedTemplate, value) && value != null)
+            {
+                ApplyTemplate(value);
+            }
+        }
+    }
 
     // AI Provider Selection
     private bool _useOllama = true;
@@ -254,6 +285,10 @@ public class ContentGeneratorViewModel : BaseViewModel
         _database = database;
         _aiService = aiService;
 
+        // Initialize template collections
+        TemplateCategories = new ObservableCollection<string>(BuiltInTemplates.GetCategories());
+        AvailableTemplates = new ObservableCollection<PromptTemplate>();
+
         GenerateCommand = new RelayCommand(async () => await GenerateContentAsync());
         RegenerateCommand = new RelayCommand(async () => await GenerateContentAsync());
         ClearCommand = new RelayCommand(ClearAll);
@@ -479,5 +514,59 @@ public class ContentGeneratorViewModel : BaseViewModel
         {
             MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void LoadTemplatesForCategory()
+    {
+        AvailableTemplates.Clear();
+
+        if (SelectedCategoryIndex < 0 || SelectedCategoryIndex >= TemplateCategories.Count)
+            return;
+
+        var category = TemplateCategories[SelectedCategoryIndex];
+        var templates = BuiltInTemplates.GetByCategory(category);
+
+        foreach (var template in templates)
+        {
+            AvailableTemplates.Add(template);
+        }
+    }
+
+    private void ApplyTemplate(PromptTemplate template)
+    {
+        // Map template values to form
+        Topic = template.Topic;
+        Keywords = template.Keywords;
+
+        // Set content type
+        var contentTypes = new[] { "โพสต์โปรโมท", "เล่าเรื่อง/Storytelling", "รีวิวสินค้า", "ข่าวสาร/อัพเดท", "Tips & Tricks", "คำถาม/Poll", "แรงบันดาลใจ/Motivation" };
+        SelectedContentTypeIndex = Array.IndexOf(contentTypes, template.ContentType);
+        if (SelectedContentTypeIndex < 0) SelectedContentTypeIndex = 0;
+
+        // Set tone
+        var tones = new[] { "เป็นมิตร/Friendly", "มืออาชีพ/Professional", "ตลก/Humorous", "สร้างแรงบันดาลใจ", "แบบเด็ก Gen Z", "ทางการ/Formal" };
+        SelectedToneIndex = Array.IndexOf(tones, template.Tone);
+        if (SelectedToneIndex < 0) SelectedToneIndex = 0;
+
+        // Set length
+        var lengths = new[] { "สั้น (1-2 ประโยค)", "ปานกลาง (3-5 ประโยค)", "ยาว (1 ย่อหน้า)", "ยาวมาก (2+ ย่อหน้า)" };
+        SelectedLengthIndex = Array.IndexOf(lengths, template.Length);
+        if (SelectedLengthIndex < 0) SelectedLengthIndex = 1;
+
+        // Set language
+        var languages = new[] { "ไทย", "English", "ไทย + English (ผสม)" };
+        SelectedLanguageIndex = Array.IndexOf(languages, template.Language);
+        if (SelectedLanguageIndex < 0) SelectedLanguageIndex = 0;
+
+        // Set options
+        IncludeEmojis = template.IncludeEmojis;
+        IncludeCTA = template.IncludeCTA;
+
+        // Set platforms
+        TargetFacebook = template.SuggestedPlatforms.Contains("Facebook");
+        TargetInstagram = template.SuggestedPlatforms.Contains("Instagram");
+        TargetTikTok = template.SuggestedPlatforms.Contains("TikTok");
+        TargetTwitter = template.SuggestedPlatforms.Contains("Twitter");
+        TargetLine = template.SuggestedPlatforms.Contains("LINE");
     }
 }
