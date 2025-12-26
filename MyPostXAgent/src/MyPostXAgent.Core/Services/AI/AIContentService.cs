@@ -71,7 +71,7 @@ public class AIContentService
                 _generators[AIProvider.Gemini] = new GeminiContentGenerator(
                     _httpClientFactory.CreateClient(),
                     geminiKey,
-                    "gemini-2.0-flash-exp",
+                    "gemini-1.5-flash",  // Changed from gemini-2.0-flash-exp (more stable)
                     _logger as ILogger<GeminiContentGenerator>);
             }
 

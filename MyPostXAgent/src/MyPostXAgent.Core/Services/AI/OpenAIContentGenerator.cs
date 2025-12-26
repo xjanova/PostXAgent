@@ -305,12 +305,31 @@ Content:";
         var json = JsonSerializer.Serialize(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+        System.Diagnostics.Debug.WriteLine($"[OpenAI] Sending request to /v1/chat/completions with model: {_model}");
+
         var response = await _httpClient.PostAsync(
             "https://api.openai.com/v1/chat/completions",
             content,
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            var statusCode = (int)response.StatusCode;
+
+            System.Diagnostics.Debug.WriteLine($"[OpenAI] HTTP {statusCode} Error: {errorBody}");
+
+            var errorMsg = statusCode switch
+            {
+                401 => "Invalid API key",
+                403 => "API access forbidden",
+                404 => $"Model '{_model}' not found or not available",
+                429 => "Rate limit exceeded",
+                _ => $"HTTP {statusCode}: {errorBody}"
+            };
+
+            throw new HttpRequestException(errorMsg);
+        }
 
         var responseData = await response.Content.ReadFromJsonAsync<OpenAIResponse>(
             cancellationToken: cancellationToken);

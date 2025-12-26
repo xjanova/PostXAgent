@@ -24,7 +24,7 @@ public class GeminiContentGenerator : IAIContentGenerator
     public GeminiContentGenerator(
         HttpClient httpClient,
         string apiKey,
-        string model = "gemini-2.0-flash-exp",
+        string model = "gemini-1.5-flash",
         ILogger<GeminiContentGenerator>? logger = null)
     {
         _httpClient = httpClient;
@@ -318,8 +318,27 @@ Content:";
 
         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
 
+        System.Diagnostics.Debug.WriteLine($"[Gemini] Request URL: {url.Replace(_apiKey, "***KEY***")}");
+
         var response = await _httpClient.PostAsync(url, content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            var statusCode = (int)response.StatusCode;
+
+            System.Diagnostics.Debug.WriteLine($"[Gemini] HTTP {statusCode} Error: {errorBody}");
+
+            var errorMsg = statusCode switch
+            {
+                404 => $"Model '{_model}' not found. Try 'gemini-pro' or 'gemini-1.5-flash'",
+                400 => "Invalid request format or API key",
+                403 => "API key not authorized",
+                _ => $"HTTP {statusCode}: {errorBody}"
+            };
+
+            throw new HttpRequestException(errorMsg);
+        }
 
         var responseData = await response.Content.ReadFromJsonAsync<GeminiResponse>(
             cancellationToken: cancellationToken);
