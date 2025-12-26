@@ -76,7 +76,7 @@ public class MainViewModel : BaseViewModel
         UpdateDemoStatus();
         _ = UpdateAIStatusAsync();
 
-        // Update AI status every 30 seconds
+        // Update AI status every 1 second for real-time monitoring
         _aiStatusTimer = new System.Threading.Timer(
             _ =>
             {
@@ -86,8 +86,8 @@ public class MainViewModel : BaseViewModel
                 });
             },
             null,
-            TimeSpan.FromSeconds(30),
-            TimeSpan.FromSeconds(30));
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
     }
 
     private void UpdateDemoStatus()
@@ -109,16 +109,26 @@ public class MainViewModel : BaseViewModel
         {
             var statuses = await _aiService.GetAllProvidersStatusAsync();
             var available = statuses.Where(s => s.IsAvailable && s.IsConfigured).ToList();
+            var configured = statuses.Where(s => s.IsConfigured).ToList();
 
             if (available.Count == 0)
             {
-                AIStatusText = "ไม่พร้อม";
+                // No provider available - show detailed error
+                var firstError = configured.FirstOrDefault();
+                if (firstError != null && !string.IsNullOrEmpty(firstError.Message))
+                {
+                    AIStatusText = $"ไม่พร้อม - {firstError.Message}";
+                }
+                else
+                {
+                    AIStatusText = "ไม่พร้อม - ไม่มี AI Provider";
+                }
                 AIStatusColor = "#EF4444"; // Red
             }
             else if (available.Count == 1)
             {
-                var provider = available[0].Provider;
-                AIStatusText = $"พร้อม ({GetProviderName(provider)})";
+                var provider = available[0];
+                AIStatusText = $"พร้อม ({GetProviderName(provider.Provider)})";
                 AIStatusColor = "#10B981"; // Green
             }
             else
@@ -127,9 +137,9 @@ public class MainViewModel : BaseViewModel
                 AIStatusColor = "#10B981"; // Green
             }
         }
-        catch
+        catch (Exception ex)
         {
-            AIStatusText = "ตรวจสอบไม่ได้";
+            AIStatusText = $"ตรวจสอบไม่ได้ - {ex.Message}";
             AIStatusColor = "#F59E0B"; // Orange
         }
     }

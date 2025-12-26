@@ -36,15 +36,56 @@ public class OllamaContentGenerator : IAIContentGenerator
     {
         try
         {
-            var response = await _httpClient.GetAsync($"{_baseUrl}/api/tags");
-            var isAvailable = response.IsSuccessStatusCode;
+            // Step 1: Check if Ollama is running
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/tags",
+                new CancellationTokenSource(TimeSpan.FromSeconds(2)).Token);
 
+            if (!response.IsSuccessStatusCode)
+            {
+                return new AIProviderStatus
+                {
+                    Provider = Provider,
+                    IsAvailable = false,
+                    IsConfigured = true,
+                    Message = "Ollama is not running",
+                    LastChecked = DateTime.UtcNow
+                };
+            }
+
+            // Step 2: Check if the model is installed
+            var tagsJson = await response.Content.ReadFromJsonAsync<OllamaTagsResponse>();
+            var hasModel = tagsJson?.Models?.Any(m => m.Name?.Contains(_model) == true) ?? false;
+
+            if (!hasModel)
+            {
+                return new AIProviderStatus
+                {
+                    Provider = Provider,
+                    IsAvailable = false,
+                    IsConfigured = true,
+                    Message = $"Model '{_model}' not installed. Run: ollama pull {_model}",
+                    LastChecked = DateTime.UtcNow
+                };
+            }
+
+            // Step 3: All checks passed
             return new AIProviderStatus
             {
                 Provider = Provider,
-                IsAvailable = isAvailable,
+                IsAvailable = true,
                 IsConfigured = true,
-                Message = isAvailable ? "Ollama is running" : "Ollama is not running",
+                Message = $"Ollama ready ({_model})",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = "Ollama timeout - not running",
                 LastChecked = DateTime.UtcNow
             };
         }
@@ -56,7 +97,7 @@ public class OllamaContentGenerator : IAIContentGenerator
                 Provider = Provider,
                 IsAvailable = false,
                 IsConfigured = true,
-                Message = $"Cannot connect to Ollama: {ex.Message}",
+                Message = $"Cannot connect: {ex.Message}",
                 LastChecked = DateTime.UtcNow
             };
         }
@@ -202,5 +243,16 @@ Content:";
         public string? Model { get; set; }
         public string? Response { get; set; }
         public bool Done { get; set; }
+    }
+
+    private class OllamaTagsResponse
+    {
+        public List<OllamaModel>? Models { get; set; }
+    }
+
+    private class OllamaModel
+    {
+        public string? Name { get; set; }
+        public long? Size { get; set; }
     }
 }
