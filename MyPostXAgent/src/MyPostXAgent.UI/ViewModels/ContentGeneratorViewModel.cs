@@ -297,6 +297,7 @@ public class ContentGeneratorViewModel : BaseViewModel
             var request = BuildContentRequest();
 
             // Generate content using AI
+            System.Diagnostics.Debug.WriteLine($"Attempting to generate content with provider: {provider}");
             var result = await _aiService.GenerateContentAsync(request, provider, useFallback: true);
 
             if (result.Success)
@@ -305,13 +306,31 @@ public class ContentGeneratorViewModel : BaseViewModel
                 GeneratedHashtags = result.Hashtags;
 
                 // Show success notification with provider info
-                System.Diagnostics.Debug.WriteLine($"Content generated successfully using {result.Provider}");
+                System.Diagnostics.Debug.WriteLine($"✅ Content generated successfully using {result.Provider}");
+                MessageBox.Show(
+                    $"สร้างเนื้อหาสำเร็จด้วย {result.Provider}!",
+                    "สำเร็จ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
             else
             {
+                System.Diagnostics.Debug.WriteLine($"❌ Content generation failed: {result.ErrorMessage}");
+
+                // Show detailed error message
+                var errorDetails = !string.IsNullOrEmpty(result.ErrorMessage)
+                    ? result.ErrorMessage
+                    : "ไม่ทราบสาเหตุ";
+
                 MessageBox.Show(
-                    $"ไม่สามารถสร้างเนื้อหาได้: {result.ErrorMessage}\n\nกรุณาตรวจสอบการตั้งค่า AI Provider",
-                    "เกิดข้อผิดพลาด",
+                    $"ไม่สามารถสร้างเนื้อหาได้\n\n" +
+                    $"🔴 Provider: {provider}\n" +
+                    $"🔴 Error: {errorDetails}\n\n" +
+                    $"💡 แนะนำ:\n" +
+                    $"1. ตรวจสอบว่า Ollama กำลังรันอยู่ (ollama serve)\n" +
+                    $"2. ตรวจสอบว่าติดตั้ง model แล้ว (ollama pull llama3.2)\n" +
+                    $"3. ตรวจสอบ AI Status ที่ Status Bar ด้านล่าง",
+                    "ไม่สามารถสร้างเนื้อหาได้",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
             }
