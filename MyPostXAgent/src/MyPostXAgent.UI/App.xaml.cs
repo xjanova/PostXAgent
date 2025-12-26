@@ -47,6 +47,11 @@ public partial class App : Application
             var dbService = Services.GetRequiredService<DatabaseService>();
             await dbService.InitializeAsync();
 
+            // Initialize AI providers
+            System.Diagnostics.Debug.WriteLine("App: Initializing AI providers...");
+            var aiService = Services.GetRequiredService<Core.Services.AI.AIContentService>();
+            await aiService.InitializeProvidersAsync();
+
             // Check license/demo status
             System.Diagnostics.Debug.WriteLine("App: Checking license...");
             await CheckLicenseStatusAsync();
