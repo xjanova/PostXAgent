@@ -38,7 +38,7 @@
                             </TextBlock.Foreground>
                             <Run Text="AI Content Generator"/>
                         </TextBlock>
-                        <TextBlock Text="สร้างเนื้อหาโพสต์ด้วย AI อัจฉริยะ" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                        <TextBlock Text="{Binding PageSubtitle}" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -48,7 +48,7 @@
                                     <Border CornerRadius="12" Padding="16,10" BorderThickness="1" BorderBrush="#3F3F46" Background="#16161E">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="Eraser" Width="18" Height="18" Foreground="White"/>
-                                            <TextBlock Text="ล้าง" Foreground="White" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding BtnClear}" Foreground="White" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>
@@ -70,7 +70,7 @@
                                         </Border.Effect>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <materialDesign:PackIcon Kind="AutoFix" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
-                                            <TextBlock Text="สร้างเนื้อหา" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding BtnGenerate}" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>
@@ -99,8 +99,8 @@
                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="AI Provider" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="เลือก AI ที่ใช้สร้างเนื้อหา" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding TitleAIProvider}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding DescAIProvider}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                                 </StackPanel>
                             </Grid>
 
@@ -126,7 +126,7 @@
                                                 </Border.Style>
                                                 <StackPanel Orientation="Horizontal">
                                                     <materialDesign:PackIcon Kind="Cpu64Bit" Width="20" Height="20" Foreground="#10B981"/>
-                                                    <TextBlock Text="Ollama (ฟรี)" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding LabelOllamaFree}" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Border>
                                         </ControlTemplate>
@@ -233,8 +233,8 @@
                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="รายละเอียดเนื้อหา" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="กำหนดหัวข้อและรูปแบบ" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding TitleContentDetails}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding DescContentDetails}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                                 </StackPanel>
                             </Grid>
 
@@ -252,7 +252,7 @@
 
                                 <!-- Content Type -->
                                 <StackPanel>
-                                    <TextBlock Text="ประเภทเนื้อหา" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding LabelContentType}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                     <ComboBox SelectedIndex="{Binding SelectedContentTypeIndex}"
                                               Style="{StaticResource MaterialDesignOutlinedComboBox}"
                                               Background="#16161E" Foreground="White">
@@ -268,7 +268,7 @@
 
                                 <!-- Tone -->
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Text="โทนเสียง" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding LabelTone}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                     <ComboBox SelectedIndex="{Binding SelectedToneIndex}"
                                               Style="{StaticResource MaterialDesignOutlinedComboBox}"
                                               Background="#16161E" Foreground="White">
@@ -283,10 +283,10 @@
 
                                 <!-- Topic -->
                                 <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,16,0,0">
-                                    <TextBlock Text="หัวข้อ/คำอธิบาย" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding LabelTopic}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                     <TextBox Text="{Binding Topic, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                             materialDesign:HintAssist.Hint="เช่น: โปรโมทร้านกาแฟใหม่ย่านสุขุมวิท มีโปรเปิดร้านลด 50%"
+                                             materialDesign:HintAssist.Hint="{Binding HintTopic}"
                                              Background="#16161E" Foreground="White"
                                              TextWrapping="Wrap" AcceptsReturn="True"
                                              MinHeight="80" MaxHeight="120"/>
@@ -302,15 +302,15 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel>
-                                            <TextBlock Text="Keywords (คั่นด้วย ,)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="{Binding LabelKeywords}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                             <TextBox Text="{Binding Keywords, UpdateSourceTrigger=PropertyChanged}"
                                                      Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                                     materialDesign:HintAssist.Hint="กาแฟ, ร้านใหม่, โปรโมชั่น"
+                                                     materialDesign:HintAssist.Hint="{Binding HintKeywords}"
                                                      Background="#16161E" Foreground="White"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
-                                            <TextBlock Text="Hashtags (คั่นด้วย ,)" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="{Binding LabelHashtags}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                             <TextBox Text="{Binding Hashtags, UpdateSourceTrigger=PropertyChanged}"
                                                      Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                                      materialDesign:HintAssist.Hint="#coffee, #bangkok, #promotion"
@@ -341,8 +341,8 @@
                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="แพลตฟอร์ม" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="เลือกแพลตฟอร์มที่จะโพสต์" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding TitlePlatforms}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding DescPlatforms}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                                 </StackPanel>
                             </Grid>
 
@@ -494,8 +494,8 @@
                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="ตัวเลือกเพิ่มเติม" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="ปรับแต่งผลลัพธ์" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding TitleAdvanced}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding DescAdvanced}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                                 </StackPanel>
                             </Grid>
 
@@ -507,7 +507,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel>
-                                    <TextBlock Text="ความยาวเนื้อหา" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding LabelContentLength}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                     <ComboBox SelectedIndex="{Binding SelectedLengthIndex}"
                                               Style="{StaticResource MaterialDesignOutlinedComboBox}"
                                               Background="#16161E" Foreground="White">
@@ -519,7 +519,7 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Text="ภาษา" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding LabelLanguage}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                     <ComboBox SelectedIndex="{Binding SelectedLanguageIndex}"
                                               Style="{StaticResource MaterialDesignOutlinedComboBox}"
                                               Background="#16161E" Foreground="White">
@@ -539,14 +539,14 @@
                                 <CheckBox IsChecked="{Binding IncludeEmojis}" Foreground="{StaticResource TextPrimaryBrush}">
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="EmoticonHappy" Width="18" Height="18" Foreground="#FBBF24" Margin="0,0,8,0"/>
-                                        <TextBlock Text="ใส่ Emojis"/>
+                                        <TextBlock Text="{Binding LabelIncludeEmojis}"/>
                                     </StackPanel>
                                 </CheckBox>
 
                                 <CheckBox Grid.Column="1" IsChecked="{Binding IncludeCTA}" Foreground="{StaticResource TextPrimaryBrush}">
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="CursorDefaultClick" Width="18" Height="18" Foreground="#10B981" Margin="0,0,8,0"/>
-                                        <TextBlock Text="ใส่ Call-to-Action"/>
+                                        <TextBlock Text="{Binding LabelIncludeCTA}"/>
                                     </StackPanel>
                                 </CheckBox>
                             </Grid>
@@ -580,12 +580,12 @@
                                         <GradientStop Color="#06B6D4" Offset="1"/>
                                     </LinearGradientBrush>
                                 </TextBlock.Foreground>
-                                <Run Text="ตัวอย่างเนื้อหา"/>
+                                <Run Text="{Binding TitlePreview, Mode=OneWay}"/>
                             </TextBlock>
                             <TextBlock Text="AI Generated Content" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Button Command="{Binding CopyContentCommand}" Cursor="Hand" ToolTip="คัดลอก">
+                            <Button Command="{Binding CopyContentCommand}" Cursor="Hand" ToolTip="{Binding TooltipCopy}">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border CornerRadius="8" Padding="8" Background="#16161E">
@@ -594,7 +594,7 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
-                            <Button Command="{Binding RegenerateCommand}" Cursor="Hand" ToolTip="สร้างใหม่" Margin="8,0,0,0"
+                            <Button Command="{Binding RegenerateCommand}" Cursor="Hand" ToolTip="{Binding TooltipRegenerate}" Margin="8,0,0,0"
                                     IsEnabled="{Binding IsNotGenerating}">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
@@ -616,7 +616,7 @@
                                     VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,50,0,0">
                             <ProgressBar IsIndeterminate="True" Style="{StaticResource MaterialDesignCircularProgressBar}"
                                          Width="50" Height="50" Foreground="#8B5CF6"/>
-                            <TextBlock Text="กำลังสร้างเนื้อหา..." Foreground="{StaticResource TextMutedBrush}"
+                            <TextBlock Text="{Binding StatusGenerating}" Foreground="{StaticResource TextMutedBrush}"
                                        Margin="0,16,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
 
@@ -624,9 +624,9 @@
                         <StackPanel Visibility="{Binding ShowEmptyState, Converter={StaticResource BooleanToVisibilityConverter}}"
                                     VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,50,0,0">
                             <materialDesign:PackIcon Kind="TextBoxOutline" Width="64" Height="64" Foreground="#3F3F46" HorizontalAlignment="Center"/>
-                            <TextBlock Text="ยังไม่มีเนื้อหา" FontSize="16" Foreground="{StaticResource TextMutedBrush}"
+                            <TextBlock Text="{Binding StatusNoContent}" FontSize="16" Foreground="{StaticResource TextMutedBrush}"
                                        Margin="0,16,0,0" HorizontalAlignment="Center"/>
-                            <TextBlock Text="กรอกข้อมูลและกดปุ่ม 'สร้างเนื้อหา'" FontSize="12" Foreground="{StaticResource TextMutedBrush}"
+                            <TextBlock Text="{Binding StatusNoContentHint}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"
                                        Margin="0,4,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
 
@@ -642,11 +642,11 @@
                             <!-- Character Count -->
                             <Grid Margin="0,12,0,0">
                                 <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="12">
-                                    <Run Text="ตัวอักษร: "/>
+                                    <Run Text="{Binding LabelCharacters, Mode=OneWay}"/>
                                     <Run Text="{Binding CharacterCount, Mode=OneWay}"/>
                                 </TextBlock>
                                 <TextBlock HorizontalAlignment="Right" Foreground="{StaticResource TextMutedBrush}" FontSize="12">
-                                    <Run Text="คำ: "/>
+                                    <Run Text="{Binding LabelWords, Mode=OneWay}"/>
                                     <Run Text="{Binding WordCount, Mode=OneWay}"/>
                                 </TextBlock>
                             </Grid>
@@ -655,7 +655,7 @@
                             <Border Margin="0,16,0,0" CornerRadius="12" Padding="16" Background="#16161E"
                                     Visibility="{Binding HasGeneratedHashtags, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel>
-                                    <TextBlock Text="Hashtags ที่แนะนำ" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding LabelSuggestedHashtags}" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8"/>
                                     <TextBlock Text="{Binding GeneratedHashtags}" Foreground="#8B5CF6" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
@@ -678,7 +678,7 @@
                                     <Border CornerRadius="12" Padding="16,12" BorderThickness="1" BorderBrush="#3F3F46" Background="#16161E">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Foreground="White"/>
-                                            <TextBlock Text="บันทึก Draft" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding BtnSaveDraft}" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>
@@ -698,7 +698,7 @@
                                         </Border.Background>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <materialDesign:PackIcon Kind="Send" Width="18" Height="18" Foreground="White"/>
-                                            <TextBlock Text="สร้างโพสต์" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0"/>
+                                            <TextBlock Text="{Binding BtnCreatePost}" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>

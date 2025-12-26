@@ -35,7 +35,7 @@
                         </TextBlock.Foreground>
                         <Run Text="Dashboard"/>
                     </TextBlock>
-                    <TextBlock Text="ภาพรวมการทำงานของระบบ" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                    <TextBlock Text="{Binding PageOverview}" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
 
                 <Button Grid.Column="1" Height="44" Padding="20,0" Cursor="Hand">
@@ -53,7 +53,7 @@
                                 </Border.Effect>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <materialDesign:PackIcon Kind="Plus" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
-                                    <TextBlock Text="สร้างโพสต์ใหม่" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding BtnCreateNewPost}" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
                         </ControlTemplate>
@@ -91,7 +91,7 @@
                         </Border>
                         <StackPanel Grid.Row="1" Margin="0,16,0,0">
                             <TextBlock Text="{Binding TotalAccounts, FallbackValue=12}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="บัญชีทั้งหมด" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                            <TextBlock Text="{Binding LabelTotalAccounts}" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
                             <Border Background="#1C3D1C" CornerRadius="4" Padding="6,2">
@@ -100,7 +100,7 @@
                                     <TextBlock Text="+3" FontSize="12" Foreground="#10B981" Margin="4,0,0,0"/>
                                 </StackPanel>
                             </Border>
-                            <TextBlock Text="สัปดาห์นี้" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LabelThisWeek}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -133,7 +133,7 @@
                         </Border>
                         <StackPanel Grid.Row="1" Margin="0,16,0,0">
                             <TextBlock Text="{Binding PostsToday, FallbackValue=47}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="โพสต์วันนี้" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                            <TextBlock Text="{Binding LabelPostsToday}" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
                             <Border Background="#1C3D1C" CornerRadius="4" Padding="6,2">
@@ -142,7 +142,7 @@
                                     <TextBlock Text="+12%" FontSize="12" Foreground="#10B981" Margin="4,0,0,0"/>
                                 </StackPanel>
                             </Border>
-                            <TextBlock Text="vs เมื่อวาน" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LabelVsYesterday}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -175,7 +175,7 @@
                         </Border>
                         <StackPanel Grid.Row="1" Margin="0,16,0,0">
                             <TextBlock Text="{Binding ScheduledPosts, FallbackValue=28}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="รอโพสต์" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                            <TextBlock Text="{Binding LabelScheduled}" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
                             <Border Background="#2D1F4E" CornerRadius="4" Padding="6,2">
@@ -184,7 +184,7 @@
                                     <TextBlock Text="5 ชม." FontSize="12" Foreground="#8B5CF6" Margin="4,0,0,0"/>
                                 </StackPanel>
                             </Border>
-                            <TextBlock Text="ถัดไป" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LabelNextIn}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -220,13 +220,13 @@
                                 <Run Text="{Binding SuccessRate, FallbackValue=98.5, StringFormat={}{0:F1}}"/>
                                 <Run Text="%" FontSize="20"/>
                             </TextBlock>
-                            <TextBlock Text="อัตราสำเร็จ" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                            <TextBlock Text="{Binding LabelSuccessRate}" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
                             <Border Background="#3D1C2E" CornerRadius="4" Padding="6,2">
                                 <StackPanel Orientation="Horizontal">
                                     <materialDesign:PackIcon Kind="CheckCircle" Width="14" Height="14" Foreground="#EC4899"/>
-                                    <TextBlock Text="ดีเยี่ยม" FontSize="12" Foreground="#EC4899" Margin="4,0,0,0"/>
+                                    <TextBlock Text="{Binding LabelExcellent}" FontSize="12" Foreground="#EC4899" Margin="4,0,0,0"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -236,7 +236,7 @@
 
             <!-- QUICK ACTIONS -->
             <StackPanel Grid.Row="2" Margin="0,0,0,24">
-                <TextBlock Text="ดำเนินการด่วน" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
+                <TextBlock Text="{Binding TitleQuickActions}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
                 <UniformGrid Columns="4">
                     <Border Margin="0,0,12,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
                         <StackPanel HorizontalAlignment="Center">
@@ -249,8 +249,8 @@
                                 </Border.Background>
                                 <materialDesign:PackIcon Kind="Robot" Width="28" Height="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <TextBlock Text="AI Content" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
-                            <TextBlock Text="สร้างเนื้อหาอัตโนมัติ" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding ActionAIContent}" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                            <TextBlock Text="{Binding ActionAIContentDesc}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
                     <Border Margin="6,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
@@ -264,8 +264,8 @@
                                 </Border.Background>
                                 <materialDesign:PackIcon Kind="Video" Width="28" Height="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <TextBlock Text="Video Editor" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
-                            <TextBlock Text="สร้างวิดีโอ AI" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding ActionVideoEditor}" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                            <TextBlock Text="{Binding ActionVideoEditorDesc}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
                     <Border Margin="6,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
@@ -279,8 +279,8 @@
                                 </Border.Background>
                                 <materialDesign:PackIcon Kind="AccountPlus" Width="28" Height="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <TextBlock Text="เพิ่มบัญชี" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
-                            <TextBlock Text="เชื่อมต่อ Social" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding ActionAddAccount}" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                            <TextBlock Text="{Binding ActionAddAccountDesc}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
                     <Border Margin="12,0,0,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
@@ -294,8 +294,8 @@
                                 </Border.Background>
                                 <materialDesign:PackIcon Kind="FileImport" Width="28" Height="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <TextBlock Text="Import Flow" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
-                            <TextBlock Text="นำเข้า .mpflow" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding ActionImportFlow}" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                            <TextBlock Text="{Binding ActionImportFlowDesc}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>
@@ -311,7 +311,7 @@
                 <!-- Platform Stats -->
                 <Border CornerRadius="16" Padding="24" Margin="0,0,12,0" Background="#1A1A2E">
                     <StackPanel>
-                        <TextBlock Text="แพลตฟอร์ม" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+                        <TextBlock Text="{Binding TitlePlatforms}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,20"/>
                         <StackPanel>
                             <Grid Margin="0,0,0,16">
                                 <Grid.ColumnDefinitions>
@@ -325,9 +325,15 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Facebook" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="5 บัญชี" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}">
+                                        <Run Text="5"/>
+                                        <Run Text="{Binding LabelAccounts}"/>
+                                    </TextBlock>
                                 </StackPanel>
-                                <TextBlock Grid.Column="2" Text="24 โพสต์" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
+                                    <Run Text="24"/>
+                                    <Run Text="{Binding LabelPosts}"/>
+                                </TextBlock>
                                 <Border Grid.Column="3" Width="8" Height="8" CornerRadius="4" Background="#10B981" Margin="12,0,0,0" VerticalAlignment="Center"/>
                             </Grid>
                             <Grid Margin="0,0,0,16">
@@ -349,9 +355,15 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Instagram" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="3 บัญชี" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}">
+                                        <Run Text="3"/>
+                                        <Run Text="{Binding LabelAccounts}"/>
+                                    </TextBlock>
                                 </StackPanel>
-                                <TextBlock Grid.Column="2" Text="18 โพสต์" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
+                                    <Run Text="18"/>
+                                    <Run Text="{Binding LabelPosts}"/>
+                                </TextBlock>
                                 <Border Grid.Column="3" Width="8" Height="8" CornerRadius="4" Background="#10B981" Margin="12,0,0,0" VerticalAlignment="Center"/>
                             </Grid>
                             <Grid Margin="0,0,0,16">
@@ -366,9 +378,15 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="TikTok" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="2 บัญชี" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}">
+                                        <Run Text="2"/>
+                                        <Run Text="{Binding LabelAccounts}"/>
+                                    </TextBlock>
                                 </StackPanel>
-                                <TextBlock Grid.Column="2" Text="12 โพสต์" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
+                                    <Run Text="12"/>
+                                    <Run Text="{Binding LabelPosts}"/>
+                                </TextBlock>
                                 <Border Grid.Column="3" Width="8" Height="8" CornerRadius="4" Background="#10B981" Margin="12,0,0,0" VerticalAlignment="Center"/>
                             </Grid>
                             <Grid>
@@ -383,9 +401,15 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="X (Twitter)" FontSize="14" FontWeight="Medium" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="2 บัญชี" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock FontSize="12" Foreground="{StaticResource TextMutedBrush}">
+                                        <Run Text="2"/>
+                                        <Run Text="{Binding LabelAccounts}"/>
+                                    </TextBlock>
                                 </StackPanel>
-                                <TextBlock Grid.Column="2" Text="8 โพสต์" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
+                                    <Run Text="8"/>
+                                    <Run Text="{Binding LabelPosts}"/>
+                                </TextBlock>
                                 <Border Grid.Column="3" Width="8" Height="8" CornerRadius="4" Background="#F59E0B" Margin="12,0,0,0" VerticalAlignment="Center"/>
                             </Grid>
                         </StackPanel>
@@ -396,8 +420,8 @@
                 <Border Grid.Column="1" CornerRadius="16" Padding="24" Margin="12,0,0,0" Background="#1A1A2E">
                     <StackPanel>
                         <Grid Margin="0,0,0,16">
-                            <TextBlock Text="กิจกรรมล่าสุด" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="ดูทั้งหมด" FontSize="12" Foreground="{StaticResource RgbCyanBrush}" HorizontalAlignment="Right" Cursor="Hand"/>
+                            <TextBlock Text="{Binding TitleRecentActivity}" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding LabelViewAll}" FontSize="12" Foreground="{StaticResource RgbCyanBrush}" HorizontalAlignment="Right" Cursor="Hand"/>
                         </Grid>
                         <Border Margin="0,0,0,12" Padding="12" CornerRadius="10" Background="{StaticResource DarkBg3Brush}">
                             <Grid>
@@ -407,9 +431,12 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Width="8" Height="8" CornerRadius="4" Background="#10B981" VerticalAlignment="Top" Margin="0,6,0,0"/>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                    <TextBlock Text="โพสต์สำเร็จ" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding ActivityPostSuccess}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Text="Facebook - สินค้าใหม่!" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
-                                    <TextBlock Text="2 นาทีที่แล้ว" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0">
+                                        <Run Text="2"/>
+                                        <Run Text="{Binding TimeMinutesAgo}"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -421,9 +448,12 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Width="8" Height="8" CornerRadius="4" Background="#8B5CF6" VerticalAlignment="Top" Margin="0,6,0,0"/>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                    <TextBlock Text="AI สร้างเนื้อหาเสร็จ" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="5 โพสต์พร้อมใช้งาน" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
-                                    <TextBlock Text="15 นาทีที่แล้ว" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock Text="{Binding ActivityAIContentReady}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding ActivityPostsReady}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                    <TextBlock FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0">
+                                        <Run Text="15"/>
+                                        <Run Text="{Binding TimeMinutesAgo}"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -435,9 +465,12 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Width="8" Height="8" CornerRadius="4" Background="#3B82F6" VerticalAlignment="Top" Margin="0,6,0,0"/>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                    <TextBlock Text="เพิ่มบัญชีใหม่" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding ActivityNewAccount}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Text="Instagram - @mybrand" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
-                                    <TextBlock Text="1 ชั่วโมงที่แล้ว" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0">
+                                        <Run Text="1"/>
+                                        <Run Text="{Binding TimeHourAgo}"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -483,13 +516,13 @@
                                 <TextBlock Text="ACTIVE" FontSize="10" FontWeight="Bold" Foreground="White"/>
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="ใช้งานได้ไม่จำกัด • ฟีเจอร์ครบทุกอย่าง" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                        <TextBlock Text="{Binding LicenseUnlimitedUse}" FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                     </StackPanel>
                     <Button Grid.Column="2" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border CornerRadius="12" Padding="20,12" BorderThickness="1" BorderBrush="{StaticResource RgbPurpleBrush}">
-                                    <TextBlock Text="จัดการ License" Foreground="{StaticResource RgbPurpleBrush}" FontWeight="Medium"/>
+                                    <TextBlock Text="{Binding BtnManageLicense}" Foreground="{StaticResource RgbPurpleBrush}" FontWeight="Medium"/>
                                 </Border>
                             </ControlTemplate>
                         </Button.Template>

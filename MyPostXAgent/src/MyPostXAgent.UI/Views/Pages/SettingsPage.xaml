@@ -32,7 +32,7 @@
                         </TextBlock.Foreground>
                         <Run Text="Settings"/>
                     </TextBlock>
-                    <TextBlock Text="ตั้งค่า API Keys และการเชื่อมต่อ" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                    <TextBlock Text="{Binding PageSubtitle}" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -42,7 +42,7 @@
                                 <Border CornerRadius="12" Padding="16,10" BorderThickness="1" BorderBrush="#3F3F46" Background="#16161E">
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="Restore" Width="18" Height="18" Foreground="White"/>
-                                        <TextBlock Text="รีเซ็ต" Foreground="White" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding BtnReset}" Foreground="White" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
                             </ControlTemplate>
@@ -63,7 +63,7 @@
                                     </Border.Effect>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <materialDesign:PackIcon Kind="ContentSave" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
-                                        <TextBlock Text="บันทึก" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding BtnSave}" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
                             </ControlTemplate>
@@ -93,8 +93,8 @@
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="AI Content Generation" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="API Keys สำหรับสร้างเนื้อหา AI" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding TitleAIContentGen}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding DescAIProviderKeys}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Grid>
 
@@ -183,7 +183,7 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel>
-                                <TextBlock Text="Ollama Model" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <TextBlock Text="{Binding LabelOllamaModel}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -193,7 +193,7 @@
                                               SelectedItem="{Binding OllamaModel}"
                                               IsEditable="True"
                                               Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                                              materialDesign:HintAssist.Hint="เลือก model หรือพิมพ์เอง"
+                                              materialDesign:HintAssist.Hint="{Binding HintSelectOrType}"
                                               Background="#16161E" Foreground="White">
                                         <ComboBox.ItemContainerStyle>
                                             <Style TargetType="ComboBoxItem">
@@ -204,7 +204,7 @@
                                     </ComboBox>
                                     <Button Grid.Column="1" Command="{Binding RefreshOllamaModelsCommand}"
                                             Margin="8,0,0,0" Width="40" Height="40"
-                                            ToolTip="รีเฟรชรายการ models" Cursor="Hand">
+                                            ToolTip="{Binding TooltipRefreshModels}" Cursor="Hand">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border CornerRadius="8" Background="#16161E" BorderBrush="#3F3F46" BorderThickness="1">
@@ -219,7 +219,7 @@
 
                             <StackPanel Grid.Column="2">
                                 <TextBlock FontSize="13" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8">
-                                    <Run Text="💡 คำแนะนำ: ติดตั้ง model ด้วย "/>
+                                    <Run Text="{Binding HintInstallModel}"/>
                                     <Run FontFamily="Consolas" Foreground="#10B981" Text="ollama pull llama3.2:3b"/>
                                 </TextBlock>
                                 <TextBlock FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap">
@@ -251,8 +251,8 @@
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Image Generation" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="API Keys สำหรับสร้างรูปภาพ AI" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding TitleImageGen}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding DescImageGen}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Grid>
 
@@ -301,8 +301,8 @@
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Video Generation" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="API Keys สำหรับสร้างวิดีโอ AI" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding TitleVideoGen}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding DescVideoGen}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Grid>
 
@@ -351,8 +351,8 @@
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Music Generation" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="API Keys สำหรับสร้างเพลง AI" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding TitleMusicGen}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding DescMusicGen}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Grid>
 
@@ -385,8 +385,8 @@
                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Social Media APIs" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="API Keys สำหรับเชื่อมต่อ Social Media" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding TitleSocialMedia}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding DescSocialMedia}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                             </StackPanel>
                         </Grid>
 
@@ -445,13 +445,13 @@
                         </Grid.ColumnDefinitions>
                         <materialDesign:PackIcon Kind="InformationOutline" Width="24" Height="24" Foreground="#10B981" VerticalAlignment="Top"/>
                         <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                            <TextBlock Text="คำแนะนำ" FontWeight="SemiBold" Foreground="#10B981"/>
+                            <TextBlock Text="{Binding InfoBoxTitle}" FontWeight="SemiBold" Foreground="#10B981"/>
                             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,8,0,0" FontSize="13">
-                                <Run Text="• API Keys จะถูกเก็บอย่างปลอดภัยในเครื่องของคุณเท่านั้น"/>
+                                <Run Text="{Binding InfoLine1}"/>
                                 <LineBreak/>
-                                <Run Text="• หากใช้ Ollama หรือ Stable Diffusion แบบ Local ไม่จำเป็นต้องใส่ API Key"/>
+                                <Run Text="{Binding InfoLine2}"/>
                                 <LineBreak/>
-                                <Run Text="• สามารถใช้งานได้ทันทีหลังบันทึก ไม่ต้อง Restart แอพ"/>
+                                <Run Text="{Binding InfoLine3}"/>
                             </TextBlock>
                         </StackPanel>
                     </Grid>
