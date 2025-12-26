@@ -38,6 +38,7 @@ public class OpenAIContentGenerator : IAIContentGenerator
 
     public async Task<AIProviderStatus> CheckStatusAsync()
     {
+        // Step 1: Check if API key is configured
         if (string.IsNullOrWhiteSpace(_apiKey))
         {
             return new AIProviderStatus
@@ -52,16 +53,78 @@ public class OpenAIContentGenerator : IAIContentGenerator
 
         try
         {
-            // Check with a simple models list request
-            var response = await _httpClient.GetAsync("https://api.openai.com/v1/models");
-            var isAvailable = response.IsSuccessStatusCode;
+            // Step 2: Check if OpenAI API is accessible (with 2-second timeout)
+            var response = await _httpClient.GetAsync("https://api.openai.com/v1/models",
+                new CancellationTokenSource(TimeSpan.FromSeconds(2)).Token);
 
+            if (!response.IsSuccessStatusCode)
+            {
+                var statusCode = (int)response.StatusCode;
+                var errorMessage = statusCode switch
+                {
+                    401 => "Invalid API key",
+                    403 => "API access forbidden - check your account",
+                    429 => "Rate limit exceeded",
+                    500 => "OpenAI server error",
+                    503 => "OpenAI service unavailable",
+                    _ => $"HTTP {statusCode} error"
+                };
+
+                return new AIProviderStatus
+                {
+                    Provider = Provider,
+                    IsAvailable = false,
+                    IsConfigured = true,
+                    Message = errorMessage,
+                    LastChecked = DateTime.UtcNow
+                };
+            }
+
+            // Step 3: Verify model availability
+            var modelsResponse = await response.Content.ReadFromJsonAsync<OpenAIModelsResponse>();
+            var hasModel = modelsResponse?.Data?.Any(m => m.Id?.Contains(_model.Split('-')[0]) == true) ?? false;
+
+            if (!hasModel)
+            {
+                return new AIProviderStatus
+                {
+                    Provider = Provider,
+                    IsAvailable = false,
+                    IsConfigured = true,
+                    Message = $"Model '{_model}' not available in your account",
+                    LastChecked = DateTime.UtcNow
+                };
+            }
+
+            // Step 4: All checks passed
             return new AIProviderStatus
             {
                 Provider = Provider,
-                IsAvailable = isAvailable,
+                IsAvailable = true,
                 IsConfigured = true,
-                Message = isAvailable ? "OpenAI API is ready" : "OpenAI API error",
+                Message = $"OpenAI ready ({_model})",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = "OpenAI timeout - cannot connect",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = $"Network error: {ex.Message}",
                 LastChecked = DateTime.UtcNow
             };
         }
@@ -73,7 +136,7 @@ public class OpenAIContentGenerator : IAIContentGenerator
                 Provider = Provider,
                 IsAvailable = false,
                 IsConfigured = true,
-                Message = $"Cannot connect to OpenAI: {ex.Message}",
+                Message = $"Cannot connect: {ex.Message}",
                 LastChecked = DateTime.UtcNow
             };
         }
@@ -87,8 +150,12 @@ public class OpenAIContentGenerator : IAIContentGenerator
 
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[OpenAI] Generating content for topic: {request.Topic}");
+
             var prompt = BuildPrompt(request);
             var response = await GenerateAsync(prompt, cancellationToken);
+
+            System.Diagnostics.Debug.WriteLine($"[OpenAI] ✅ Content generated successfully ({response.TokensUsed} tokens)");
 
             // Generate hashtags separately
             var hashtags = string.Empty;
@@ -109,15 +176,55 @@ public class OpenAIContentGenerator : IAIContentGenerator
                 Duration = stopwatch.Elapsed
             };
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             stopwatch.Stop();
+            var errorMsg = $"Network error: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[OpenAI] ❌ {errorMsg}");
             _logger?.LogError(ex, "Failed to generate content with OpenAI");
 
             return new ContentGenerationResult
             {
                 Success = false,
-                ErrorMessage = $"OpenAI error: {ex.Message}",
+                ErrorMessage = errorMsg,
+                Provider = Provider,
+                Duration = stopwatch.Elapsed
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            stopwatch.Stop();
+            var errorMsg = "Request timeout - OpenAI took too long to respond";
+            System.Diagnostics.Debug.WriteLine($"[OpenAI] ❌ {errorMsg}");
+
+            return new ContentGenerationResult
+            {
+                Success = false,
+                ErrorMessage = errorMsg,
+                Provider = Provider,
+                Duration = stopwatch.Elapsed
+            };
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            var errorMsg = ex.Message;
+
+            // Parse OpenAI API errors
+            if (errorMsg.Contains("401"))
+                errorMsg = "Invalid API key";
+            else if (errorMsg.Contains("429"))
+                errorMsg = "Rate limit exceeded - please try again later";
+            else if (errorMsg.Contains("500") || errorMsg.Contains("503"))
+                errorMsg = "OpenAI service unavailable - please try again later";
+
+            System.Diagnostics.Debug.WriteLine($"[OpenAI] ❌ {errorMsg}");
+            _logger?.LogError(ex, "Failed to generate content with OpenAI");
+
+            return new ContentGenerationResult
+            {
+                Success = false,
+                ErrorMessage = errorMsg,
                 Provider = Provider,
                 Duration = stopwatch.Elapsed
             };
@@ -246,5 +353,17 @@ Content:";
     {
         [JsonPropertyName("total_tokens")]
         public int TotalTokens { get; set; }
+    }
+
+    private class OpenAIModelsResponse
+    {
+        [JsonPropertyName("data")]
+        public List<OpenAIModel>? Data { get; set; }
+    }
+
+    private class OpenAIModel
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
     }
 }

@@ -39,6 +39,7 @@ public class ClaudeContentGenerator : IAIContentGenerator
 
     public async Task<AIProviderStatus> CheckStatusAsync()
     {
+        // Step 1: Check if API key is configured
         if (string.IsNullOrWhiteSpace(_apiKey))
         {
             return new AIProviderStatus
@@ -51,16 +52,94 @@ public class ClaudeContentGenerator : IAIContentGenerator
             };
         }
 
-        // Claude doesn't have a simple health check endpoint
-        // So we just verify the API key is set
-        return new AIProviderStatus
+        try
         {
-            Provider = Provider,
-            IsAvailable = true,
-            IsConfigured = true,
-            Message = "Claude API key is configured",
-            LastChecked = DateTime.UtcNow
-        };
+            // Step 2: Test API key with minimal request (with 2-second timeout)
+            var testRequest = new
+            {
+                model = _model,
+                max_tokens = 10,
+                messages = new[]
+                {
+                    new { role = "user", content = "Hi" }
+                }
+            };
+
+            var json = JsonSerializer.Serialize(testRequest);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync(
+                "https://api.anthropic.com/v1/messages",
+                content,
+                new CancellationTokenSource(TimeSpan.FromSeconds(2)).Token);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var statusCode = (int)response.StatusCode;
+                var errorMessage = statusCode switch
+                {
+                    401 => "Invalid API key",
+                    403 => "API access forbidden - check your account",
+                    429 => "Rate limit exceeded",
+                    500 => "Anthropic server error",
+                    503 => "Anthropic service unavailable",
+                    _ => $"HTTP {statusCode} error"
+                };
+
+                return new AIProviderStatus
+                {
+                    Provider = Provider,
+                    IsAvailable = false,
+                    IsConfigured = true,
+                    Message = errorMessage,
+                    LastChecked = DateTime.UtcNow
+                };
+            }
+
+            // Step 3: All checks passed
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = true,
+                IsConfigured = true,
+                Message = $"Claude ready ({_model})",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = "Claude timeout - cannot connect",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = $"Network error: {ex.Message}",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to check Claude status");
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = $"Cannot connect: {ex.Message}",
+                LastChecked = DateTime.UtcNow
+            };
+        }
     }
 
     public async Task<ContentGenerationResult> GenerateContentAsync(
@@ -71,8 +150,12 @@ public class ClaudeContentGenerator : IAIContentGenerator
 
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[Claude] Generating content for topic: {request.Topic}");
+
             var prompt = BuildPrompt(request);
             var response = await GenerateAsync(prompt, cancellationToken);
+
+            System.Diagnostics.Debug.WriteLine($"[Claude] ✅ Content generated successfully ({response.TokensUsed} tokens)");
 
             // Generate hashtags separately
             var hashtags = string.Empty;
@@ -93,15 +176,57 @@ public class ClaudeContentGenerator : IAIContentGenerator
                 Duration = stopwatch.Elapsed
             };
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             stopwatch.Stop();
+            var errorMsg = $"Network error: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[Claude] ❌ {errorMsg}");
             _logger?.LogError(ex, "Failed to generate content with Claude");
 
             return new ContentGenerationResult
             {
                 Success = false,
-                ErrorMessage = $"Claude error: {ex.Message}",
+                ErrorMessage = errorMsg,
+                Provider = Provider,
+                Duration = stopwatch.Elapsed
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            stopwatch.Stop();
+            var errorMsg = "Request timeout - Claude took too long to respond";
+            System.Diagnostics.Debug.WriteLine($"[Claude] ❌ {errorMsg}");
+
+            return new ContentGenerationResult
+            {
+                Success = false,
+                ErrorMessage = errorMsg,
+                Provider = Provider,
+                Duration = stopwatch.Elapsed
+            };
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            var errorMsg = ex.Message;
+
+            // Parse Claude API errors
+            if (errorMsg.Contains("401"))
+                errorMsg = "Invalid API key";
+            else if (errorMsg.Contains("429"))
+                errorMsg = "Rate limit exceeded - please try again later";
+            else if (errorMsg.Contains("500") || errorMsg.Contains("503"))
+                errorMsg = "Anthropic service unavailable - please try again later";
+            else if (errorMsg.Contains("overloaded"))
+                errorMsg = "Claude is overloaded - please try again in a moment";
+
+            System.Diagnostics.Debug.WriteLine($"[Claude] ❌ {errorMsg}");
+            _logger?.LogError(ex, "Failed to generate content with Claude");
+
+            return new ContentGenerationResult
+            {
+                Success = false,
+                ErrorMessage = errorMsg,
                 Provider = Provider,
                 Duration = stopwatch.Elapsed
             };

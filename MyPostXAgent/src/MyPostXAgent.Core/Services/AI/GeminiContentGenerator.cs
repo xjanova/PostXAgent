@@ -35,6 +35,7 @@ public class GeminiContentGenerator : IAIContentGenerator
 
     public async Task<AIProviderStatus> CheckStatusAsync()
     {
+        // Step 1: Check if API key is configured
         if (string.IsNullOrWhiteSpace(_apiKey))
         {
             return new AIProviderStatus
@@ -49,18 +50,79 @@ public class GeminiContentGenerator : IAIContentGenerator
 
         try
         {
-            // Try a simple models list request
+            // Step 2: Check if Gemini API is accessible (with 2-second timeout)
             var response = await _httpClient.GetAsync(
-                $"https://generativelanguage.googleapis.com/v1beta/models?key={_apiKey}");
+                $"https://generativelanguage.googleapis.com/v1beta/models?key={_apiKey}",
+                new CancellationTokenSource(TimeSpan.FromSeconds(2)).Token);
 
-            var isAvailable = response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode)
+            {
+                var statusCode = (int)response.StatusCode;
+                var errorMessage = statusCode switch
+                {
+                    400 => "Invalid API key format",
+                    403 => "API key not authorized - check your Google Cloud project",
+                    429 => "Rate limit exceeded",
+                    500 => "Google server error",
+                    503 => "Gemini service unavailable",
+                    _ => $"HTTP {statusCode} error"
+                };
 
+                return new AIProviderStatus
+                {
+                    Provider = Provider,
+                    IsAvailable = false,
+                    IsConfigured = true,
+                    Message = errorMessage,
+                    LastChecked = DateTime.UtcNow
+                };
+            }
+
+            // Step 3: Verify model availability
+            var modelsResponse = await response.Content.ReadFromJsonAsync<GeminiModelsResponse>();
+            var hasModel = modelsResponse?.Models?.Any(m => m.Name?.Contains(_model) == true) ?? false;
+
+            if (!hasModel)
+            {
+                return new AIProviderStatus
+                {
+                    Provider = Provider,
+                    IsAvailable = false,
+                    IsConfigured = true,
+                    Message = $"Model '{_model}' not available - check model name",
+                    LastChecked = DateTime.UtcNow
+                };
+            }
+
+            // Step 4: All checks passed
             return new AIProviderStatus
             {
                 Provider = Provider,
-                IsAvailable = isAvailable,
+                IsAvailable = true,
                 IsConfigured = true,
-                Message = isAvailable ? "Gemini API is ready" : "Gemini API error",
+                Message = $"Gemini ready ({_model})",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = "Gemini timeout - cannot connect",
+                LastChecked = DateTime.UtcNow
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return new AIProviderStatus
+            {
+                Provider = Provider,
+                IsAvailable = false,
+                IsConfigured = true,
+                Message = $"Network error: {ex.Message}",
                 LastChecked = DateTime.UtcNow
             };
         }
@@ -72,7 +134,7 @@ public class GeminiContentGenerator : IAIContentGenerator
                 Provider = Provider,
                 IsAvailable = false,
                 IsConfigured = true,
-                Message = $"Cannot connect to Gemini: {ex.Message}",
+                Message = $"Cannot connect: {ex.Message}",
                 LastChecked = DateTime.UtcNow
             };
         }
@@ -86,8 +148,12 @@ public class GeminiContentGenerator : IAIContentGenerator
 
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[Gemini] Generating content for topic: {request.Topic}");
+
             var prompt = BuildPrompt(request);
             var response = await GenerateAsync(prompt, cancellationToken);
+
+            System.Diagnostics.Debug.WriteLine($"[Gemini] ✅ Content generated successfully ({response.TokensUsed} tokens)");
 
             // Generate hashtags separately
             var hashtags = string.Empty;
@@ -108,15 +174,59 @@ public class GeminiContentGenerator : IAIContentGenerator
                 Duration = stopwatch.Elapsed
             };
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             stopwatch.Stop();
+            var errorMsg = $"Network error: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[Gemini] ❌ {errorMsg}");
             _logger?.LogError(ex, "Failed to generate content with Gemini");
 
             return new ContentGenerationResult
             {
                 Success = false,
-                ErrorMessage = $"Gemini error: {ex.Message}",
+                ErrorMessage = errorMsg,
+                Provider = Provider,
+                Duration = stopwatch.Elapsed
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            stopwatch.Stop();
+            var errorMsg = "Request timeout - Gemini took too long to respond";
+            System.Diagnostics.Debug.WriteLine($"[Gemini] ❌ {errorMsg}");
+
+            return new ContentGenerationResult
+            {
+                Success = false,
+                ErrorMessage = errorMsg,
+                Provider = Provider,
+                Duration = stopwatch.Elapsed
+            };
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            var errorMsg = ex.Message;
+
+            // Parse Gemini API errors
+            if (errorMsg.Contains("400"))
+                errorMsg = "Invalid API key or request format";
+            else if (errorMsg.Contains("403"))
+                errorMsg = "API key not authorized - check your Google Cloud project";
+            else if (errorMsg.Contains("429"))
+                errorMsg = "Rate limit exceeded - please try again later";
+            else if (errorMsg.Contains("500") || errorMsg.Contains("503"))
+                errorMsg = "Google service unavailable - please try again later";
+            else if (errorMsg.Contains("SAFETY"))
+                errorMsg = "Content blocked by safety filters - try different wording";
+
+            System.Diagnostics.Debug.WriteLine($"[Gemini] ❌ {errorMsg}");
+            _logger?.LogError(ex, "Failed to generate content with Gemini");
+
+            return new ContentGenerationResult
+            {
+                Success = false,
+                ErrorMessage = errorMsg,
                 Provider = Provider,
                 Duration = stopwatch.Elapsed
             };
@@ -265,5 +375,17 @@ Content:";
 
         [JsonPropertyName("candidatesTokenCount")]
         public int CandidatesTokenCount { get; set; }
+    }
+
+    private class GeminiModelsResponse
+    {
+        [JsonPropertyName("models")]
+        public List<GeminiModel>? Models { get; set; }
+    }
+
+    private class GeminiModel
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
     }
 }
