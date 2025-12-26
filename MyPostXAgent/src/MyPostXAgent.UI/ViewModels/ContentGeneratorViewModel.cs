@@ -41,81 +41,45 @@ public class ContentGeneratorViewModel : BaseViewModel
         }
     }
 
-    // AI Provider Selection
-    private bool _useOllama = true;
+    // AI Provider Selection (Fixed: No circular property updates)
+    private AIProvider _selectedProvider = AIProvider.Ollama;
+    public AIProvider SelectedProvider
+    {
+        get => _selectedProvider;
+        set
+        {
+            if (SetProperty(ref _selectedProvider, value))
+            {
+                OnPropertyChanged(nameof(UseOllama));
+                OnPropertyChanged(nameof(UseOpenAI));
+                OnPropertyChanged(nameof(UseClaude));
+                OnPropertyChanged(nameof(UseGemini));
+            }
+        }
+    }
+
     public bool UseOllama
     {
-        get => _useOllama;
-        set
-        {
-            if (SetProperty(ref _useOllama, value) && value)
-            {
-                ClearOtherProviders(nameof(UseOllama));
-            }
-        }
+        get => SelectedProvider == AIProvider.Ollama;
+        set { if (value) SelectedProvider = AIProvider.Ollama; }
     }
 
-    private bool _useOpenAI;
     public bool UseOpenAI
     {
-        get => _useOpenAI;
-        set
-        {
-            if (SetProperty(ref _useOpenAI, value) && value)
-            {
-                ClearOtherProviders(nameof(UseOpenAI));
-            }
-        }
+        get => SelectedProvider == AIProvider.OpenAI;
+        set { if (value) SelectedProvider = AIProvider.OpenAI; }
     }
 
-    private bool _useClaude;
     public bool UseClaude
     {
-        get => _useClaude;
-        set
-        {
-            if (SetProperty(ref _useClaude, value) && value)
-            {
-                ClearOtherProviders(nameof(UseClaude));
-            }
-        }
+        get => SelectedProvider == AIProvider.Claude;
+        set { if (value) SelectedProvider = AIProvider.Claude; }
     }
 
-    private bool _useGemini;
     public bool UseGemini
     {
-        get => _useGemini;
-        set
-        {
-            if (SetProperty(ref _useGemini, value) && value)
-            {
-                ClearOtherProviders(nameof(UseGemini));
-            }
-        }
-    }
-
-    private void ClearOtherProviders(string except)
-    {
-        if (except != nameof(UseOllama) && _useOllama)
-        {
-            _useOllama = false;
-            OnPropertyChanged(nameof(UseOllama));
-        }
-        if (except != nameof(UseOpenAI) && _useOpenAI)
-        {
-            _useOpenAI = false;
-            OnPropertyChanged(nameof(UseOpenAI));
-        }
-        if (except != nameof(UseClaude) && _useClaude)
-        {
-            _useClaude = false;
-            OnPropertyChanged(nameof(UseClaude));
-        }
-        if (except != nameof(UseGemini) && _useGemini)
-        {
-            _useGemini = false;
-            OnPropertyChanged(nameof(UseGemini));
-        }
+        get => SelectedProvider == AIProvider.Gemini;
+        set { if (value) SelectedProvider = AIProvider.Gemini; }
     }
 
     // Content Details
@@ -364,11 +328,7 @@ public class ContentGeneratorViewModel : BaseViewModel
 
     private AIProvider GetSelectedAIProvider()
     {
-        if (UseOllama) return AIProvider.Ollama;
-        if (UseOpenAI) return AIProvider.OpenAI;
-        if (UseClaude) return AIProvider.Claude;
-        if (UseGemini) return AIProvider.Gemini;
-        return AIProvider.Ollama; // Default
+        return SelectedProvider;
     }
 
     private ContentGenerationRequest BuildContentRequest()
