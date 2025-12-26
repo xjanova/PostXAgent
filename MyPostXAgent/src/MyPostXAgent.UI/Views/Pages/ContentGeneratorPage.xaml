@@ -125,7 +125,7 @@
                                                     </Style>
                                                 </Border.Style>
                                                 <StackPanel Orientation="Horizontal">
-                                                    <materialDesign:PackIcon Kind="Llama" Width="20" Height="20" Foreground="#10B981"/>
+                                                    <materialDesign:PackIcon Kind="Cpu64Bit" Width="20" Height="20" Foreground="#10B981"/>
                                                     <TextBlock Text="Ollama (ฟรี)" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Border>
