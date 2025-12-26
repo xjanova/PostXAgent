@@ -45,10 +45,10 @@
                         <Button Command="{Binding ClearCommand}" Cursor="Hand" Margin="0,0,12,0">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border CornerRadius="12" Padding="16,10" BorderThickness="1" BorderBrush="#3F3F46">
+                                    <Border CornerRadius="12" Padding="16,10" BorderThickness="1" BorderBrush="#3F3F46" Background="#16161E">
                                         <StackPanel Orientation="Horizontal">
-                                            <materialDesign:PackIcon Kind="Eraser" Width="18" Height="18" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                            <TextBlock Text="ล้าง" Foreground="{StaticResource TextSecondaryBrush}" Margin="6,0,0,0"/>
+                                            <materialDesign:PackIcon Kind="Eraser" Width="18" Height="18" Foreground="White"/>
+                                            <TextBlock Text="ล้าง" Foreground="White" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>
@@ -677,8 +677,8 @@
                                 <ControlTemplate TargetType="Button">
                                     <Border CornerRadius="12" Padding="16,12" BorderThickness="1" BorderBrush="#3F3F46" Background="#16161E">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                            <TextBlock Text="บันทึก Draft" Foreground="{StaticResource TextSecondaryBrush}" Margin="8,0,0,0"/>
+                                            <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Foreground="White"/>
+                                            <TextBlock Text="บันทึก Draft" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>

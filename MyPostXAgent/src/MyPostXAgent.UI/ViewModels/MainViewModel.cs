@@ -38,6 +38,27 @@ public class MainViewModel : BaseViewModel
         set => SetProperty(ref _queueCount, value);
     }
 
+    private int _totalAccounts;
+    public int TotalAccounts
+    {
+        get => _totalAccounts;
+        set => SetProperty(ref _totalAccounts, value);
+    }
+
+    private string _aiStatusText = "พร้อม";
+    public string AIStatusText
+    {
+        get => _aiStatusText;
+        set => SetProperty(ref _aiStatusText, value);
+    }
+
+    private string _aiStatusColor = "#10B981";
+    public string AIStatusColor
+    {
+        get => _aiStatusColor;
+        set => SetProperty(ref _aiStatusColor, value);
+    }
+
     public ICommand BuyLicenseCommand { get; }
 
     public MainViewModel(LicenseService licenseService)

@@ -417,8 +417,8 @@
                         <Button Command="{Binding CancelCreateCommand}" Cursor="Hand">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border CornerRadius="12" Padding="0,14" BorderThickness="1" BorderBrush="#3F3F46">
-                                        <TextBlock Text="ยกเลิก" Foreground="{StaticResource TextSecondaryBrush}"
+                                    <Border CornerRadius="12" Padding="0,14" BorderThickness="1" BorderBrush="#3F3F46" Background="#16161E">
+                                        <TextBlock Text="ยกเลิก" Foreground="White"
                                                    FontWeight="Medium" HorizontalAlignment="Center"/>
                                     </Border>
                                 </ControlTemplate>

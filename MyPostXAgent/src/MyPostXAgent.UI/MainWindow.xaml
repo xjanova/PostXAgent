@@ -412,6 +412,20 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- AI Status -->
+                    <Border Background="{StaticResource DarkBg3Brush}"
+                            CornerRadius="8"
+                            Padding="12,6"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8"
+                                     Fill="{Binding AIStatusColor, FallbackValue=#10B981}"
+                                     VerticalAlignment="Center"/>
+                            <TextBlock Text="AI:" Margin="6,0,4,0" Foreground="{StaticResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding AIStatusText, FallbackValue='พร้อม'}" FontWeight="Bold" Foreground="#10B981" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Version -->
                     <TextBlock Grid.Column="4" VerticalAlignment="Center">
                         <TextBlock.Foreground>
