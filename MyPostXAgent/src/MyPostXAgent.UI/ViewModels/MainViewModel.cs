@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using MyPostXAgent.Core.Models;
+using MyPostXAgent.Core.Services;
 using MyPostXAgent.Core.Services.AI;
 using MyPostXAgent.Core.Services.License;
 
@@ -12,6 +13,7 @@ public class MainViewModel : BaseViewModel
 {
     private readonly LicenseService _licenseService;
     private readonly AIContentService _aiService;
+    private readonly LocalizationService _localizationService;
     private System.Threading.Timer? _aiStatusTimer;
 
     private bool _isDemoMode;
@@ -63,15 +65,36 @@ public class MainViewModel : BaseViewModel
         set => SetProperty(ref _aiStatusColor, value);
     }
 
-    public ICommand BuyLicenseCommand { get; }
+    private string _currentLanguageFlag = "🇹🇭";
+    public string CurrentLanguageFlag
+    {
+        get => _currentLanguageFlag;
+        set => SetProperty(ref _currentLanguageFlag, value);
+    }
 
-    public MainViewModel(LicenseService licenseService, AIContentService aiService)
+    private string _currentLanguageText = "TH";
+    public string CurrentLanguageText
+    {
+        get => _currentLanguageText;
+        set => SetProperty(ref _currentLanguageText, value);
+    }
+
+    public ICommand BuyLicenseCommand { get; }
+    public RelayCommand ToggleLanguageCommand { get; }
+
+    public MainViewModel(LicenseService licenseService, AIContentService aiService, LocalizationService localizationService)
     {
         _licenseService = licenseService;
         _aiService = aiService;
+        _localizationService = localizationService;
         Title = "MyPostXAgent";
 
         BuyLicenseCommand = new RelayCommand(BuyLicense);
+        ToggleLanguageCommand = new RelayCommand(ToggleLanguage);
+
+        // Subscribe to language changes
+        _localizationService.LanguageChanged += OnLanguageChanged;
+        UpdateLanguageDisplay();
 
         UpdateDemoStatus();
         _ = UpdateAIStatusAsync();
@@ -80,10 +103,14 @@ public class MainViewModel : BaseViewModel
         _aiStatusTimer = new System.Threading.Timer(
             _ =>
             {
-                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                var app = System.Windows.Application.Current;
+                if (app != null)
                 {
-                    await UpdateAIStatusAsync();
-                });
+                    _ = app.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await UpdateAIStatusAsync();
+                    });
+                }
             },
             null,
             TimeSpan.FromSeconds(1),
@@ -154,6 +181,33 @@ public class MainViewModel : BaseViewModel
             AIProvider.Claude => "Claude",
             _ => provider.ToString()
         };
+    }
+
+    private void ToggleLanguage()
+    {
+        _localizationService.ToggleLanguage();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        UpdateLanguageDisplay();
+        // Trigger UI updates for localized text
+        OnPropertyChanged(nameof(AIStatusText));
+        OnPropertyChanged(nameof(DemoStatusText));
+    }
+
+    private void UpdateLanguageDisplay()
+    {
+        if (_localizationService.IsThaiLanguage)
+        {
+            CurrentLanguageFlag = "🇹🇭";
+            CurrentLanguageText = "TH";
+        }
+        else
+        {
+            CurrentLanguageFlag = "🇺🇸";
+            CurrentLanguageText = "EN";
+        }
     }
 
     private void BuyLicense()

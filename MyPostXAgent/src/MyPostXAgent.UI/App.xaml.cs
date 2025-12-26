@@ -85,6 +85,7 @@ public partial class App : Application
         // Core Services
         services.AddSingleton<DatabaseService>();
         services.AddSingleton<MachineIdGenerator>();
+        services.AddSingleton<Core.Services.LocalizationService>();
         services.AddSingleton<LicenseService>(sp =>
         {
             var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
