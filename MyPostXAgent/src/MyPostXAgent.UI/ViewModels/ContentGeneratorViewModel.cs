@@ -246,6 +246,42 @@ public class ContentGeneratorViewModel : BaseViewModel
     public RelayCommand SaveAsDraftCommand { get; }
     public RelayCommand CreatePostCommand { get; }
 
+    // Page UI Text
+    public string PageSubtitle { get; set; } = "";
+    public string BtnClear { get; set; } = "";
+    public string BtnGenerate { get; set; } = "";
+    public string TitleAIProvider { get; set; } = "";
+    public string DescAIProvider { get; set; } = "";
+    public string LabelOllamaFree { get; set; } = "";
+    public string TitleContentDetails { get; set; } = "";
+    public string DescContentDetails { get; set; } = "";
+    public string LabelContentType { get; set; } = "";
+    public string LabelTone { get; set; } = "";
+    public string LabelTopic { get; set; } = "";
+    public string HintTopic { get; set; } = "";
+    public string LabelKeywords { get; set; } = "";
+    public string HintKeywords { get; set; } = "";
+    public string LabelHashtags { get; set; } = "";
+    public string TitlePlatforms { get; set; } = "";
+    public string DescPlatforms { get; set; } = "";
+    public string TitleAdvanced { get; set; } = "";
+    public string DescAdvanced { get; set; } = "";
+    public string LabelContentLength { get; set; } = "";
+    public string LabelLanguage { get; set; } = "";
+    public string LabelIncludeEmojis { get; set; } = "";
+    public string LabelIncludeCTA { get; set; } = "";
+    public string TitlePreview { get; set; } = "";
+    public string TooltipCopy { get; set; } = "";
+    public string TooltipRegenerate { get; set; } = "";
+    public string StatusGenerating { get; set; } = "";
+    public string StatusNoContent { get; set; } = "";
+    public string HintNoContent { get; set; } = "";
+    public string LabelCharacters { get; set; } = "";
+    public string LabelWords { get; set; } = "";
+    public string LabelRecommendedHashtags { get; set; } = "";
+    public string BtnSaveDraft { get; set; } = "";
+    public string BtnCreatePost { get; set; } = "";
+
     public ContentGeneratorViewModel(DatabaseService database, AIContentService aiService, LocalizationService localizationService)
     {
         _database = database;
@@ -263,6 +299,8 @@ public class ContentGeneratorViewModel : BaseViewModel
         SaveAsDraftCommand = new RelayCommand(async () => await SaveAsDraftAsync());
         CreatePostCommand = new RelayCommand(async () => await CreatePostAsync());
 
+        UpdateLanguageDisplay();
+
         // Subscribe to language changes
         _localizationService.LanguageChanged += OnLanguageChanged;
 
@@ -272,13 +310,82 @@ public class ContentGeneratorViewModel : BaseViewModel
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
-        // Refresh UI text when language changes
-        OnPropertyChanged(nameof(GenerateCommand));
-        OnPropertyChanged(nameof(RegenerateCommand));
-        OnPropertyChanged(nameof(ClearCommand));
-        OnPropertyChanged(nameof(CopyContentCommand));
-        OnPropertyChanged(nameof(SaveAsDraftCommand));
-        OnPropertyChanged(nameof(CreatePostCommand));
+        UpdateLanguageDisplay();
+    }
+
+    private void UpdateLanguageDisplay()
+    {
+        var isThai = _localizationService.IsThaiLanguage;
+
+        PageSubtitle = LocalizationStrings.ContentGenPage.Subtitle(isThai);
+        BtnClear = LocalizationStrings.ContentGenPage.Clear(isThai);
+        BtnGenerate = LocalizationStrings.ContentGen.Generate(isThai);
+        TitleAIProvider = "AI Provider";
+        DescAIProvider = LocalizationStrings.ContentGenPage.AIProviderDesc(isThai);
+        LabelOllamaFree = LocalizationStrings.ContentGenPage.OllamaFree(isThai);
+        TitleContentDetails = LocalizationStrings.ContentGenPage.ContentDetails(isThai);
+        DescContentDetails = LocalizationStrings.ContentGenPage.ContentDetailsDesc(isThai);
+        LabelContentType = LocalizationStrings.ContentGenPage.ContentType(isThai);
+        LabelTone = LocalizationStrings.ContentGenPage.Tone(isThai);
+        LabelTopic = LocalizationStrings.ContentGenPage.TopicDescription(isThai);
+        HintTopic = LocalizationStrings.ContentGenPage.TopicPlaceholder(isThai);
+        LabelKeywords = LocalizationStrings.ContentGenPage.KeywordsLabel(isThai);
+        HintKeywords = LocalizationStrings.ContentGenPage.KeywordsPlaceholder(isThai);
+        LabelHashtags = LocalizationStrings.ContentGenPage.HashtagsLabel(isThai);
+        TitlePlatforms = LocalizationStrings.Nav.Accounts(isThai);
+        DescPlatforms = LocalizationStrings.ContentGenPage.PlatformsDesc(isThai);
+        TitleAdvanced = LocalizationStrings.ContentGenPage.AdvancedOptions(isThai);
+        DescAdvanced = LocalizationStrings.ContentGenPage.AdvancedOptionsDesc(isThai);
+        LabelContentLength = LocalizationStrings.ContentGenPage.ContentLength(isThai);
+        LabelLanguage = LocalizationStrings.ContentGenPage.Language(isThai);
+        LabelIncludeEmojis = LocalizationStrings.ContentGenPage.IncludeEmojis(isThai);
+        LabelIncludeCTA = LocalizationStrings.ContentGenPage.IncludeCTA(isThai);
+        TitlePreview = LocalizationStrings.ContentGenPage.ContentPreview(isThai);
+        TooltipCopy = LocalizationStrings.ContentGenPage.Copy(isThai);
+        TooltipRegenerate = LocalizationStrings.ContentGenPage.Regenerate(isThai);
+        StatusGenerating = LocalizationStrings.ContentGenPage.Generating(isThai);
+        StatusNoContent = LocalizationStrings.ContentGenPage.NoContent(isThai);
+        HintNoContent = LocalizationStrings.ContentGenPage.NoContentHint(isThai);
+        LabelCharacters = LocalizationStrings.ContentGenPage.Characters(isThai);
+        LabelWords = LocalizationStrings.ContentGenPage.Words(isThai);
+        LabelRecommendedHashtags = LocalizationStrings.ContentGenPage.RecommendedHashtags(isThai);
+        BtnSaveDraft = LocalizationStrings.ContentGenPage.SaveDraft(isThai);
+        BtnCreatePost = LocalizationStrings.ContentGenPage.CreatePost(isThai);
+
+        OnPropertyChanged(nameof(PageSubtitle));
+        OnPropertyChanged(nameof(BtnClear));
+        OnPropertyChanged(nameof(BtnGenerate));
+        OnPropertyChanged(nameof(TitleAIProvider));
+        OnPropertyChanged(nameof(DescAIProvider));
+        OnPropertyChanged(nameof(LabelOllamaFree));
+        OnPropertyChanged(nameof(TitleContentDetails));
+        OnPropertyChanged(nameof(DescContentDetails));
+        OnPropertyChanged(nameof(LabelContentType));
+        OnPropertyChanged(nameof(LabelTone));
+        OnPropertyChanged(nameof(LabelTopic));
+        OnPropertyChanged(nameof(HintTopic));
+        OnPropertyChanged(nameof(LabelKeywords));
+        OnPropertyChanged(nameof(HintKeywords));
+        OnPropertyChanged(nameof(LabelHashtags));
+        OnPropertyChanged(nameof(TitlePlatforms));
+        OnPropertyChanged(nameof(DescPlatforms));
+        OnPropertyChanged(nameof(TitleAdvanced));
+        OnPropertyChanged(nameof(DescAdvanced));
+        OnPropertyChanged(nameof(LabelContentLength));
+        OnPropertyChanged(nameof(LabelLanguage));
+        OnPropertyChanged(nameof(LabelIncludeEmojis));
+        OnPropertyChanged(nameof(LabelIncludeCTA));
+        OnPropertyChanged(nameof(TitlePreview));
+        OnPropertyChanged(nameof(TooltipCopy));
+        OnPropertyChanged(nameof(TooltipRegenerate));
+        OnPropertyChanged(nameof(StatusGenerating));
+        OnPropertyChanged(nameof(StatusNoContent));
+        OnPropertyChanged(nameof(HintNoContent));
+        OnPropertyChanged(nameof(LabelCharacters));
+        OnPropertyChanged(nameof(LabelWords));
+        OnPropertyChanged(nameof(LabelRecommendedHashtags));
+        OnPropertyChanged(nameof(BtnSaveDraft));
+        OnPropertyChanged(nameof(BtnCreatePost));
     }
 
     private async Task InitializeAIProvidersAsync()

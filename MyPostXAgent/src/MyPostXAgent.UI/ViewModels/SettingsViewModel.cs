@@ -163,6 +163,29 @@ public class SettingsViewModel : BaseViewModel
     public RelayCommand SaveCommand { get; }
     public RelayCommand ResetCommand { get; }
 
+    // Page UI Text
+    public string PageSubtitle { get; set; } = "";
+    public string BtnReset { get; set; } = "";
+    public string BtnSave { get; set; } = "";
+    public string TitleAIContentGen { get; set; } = "";
+    public string DescAIProviderKeys { get; set; } = "";
+    public string LabelOllamaModel { get; set; } = "";
+    public string TooltipRefreshModels { get; set; } = "";
+    public string HintInstallModel { get; set; } = "";
+    public string HintSelectOrType { get; set; } = "";
+    public string TitleImageGen { get; set; } = "";
+    public string DescImageGen { get; set; } = "";
+    public string TitleVideoGen { get; set; } = "";
+    public string DescVideoGen { get; set; } = "";
+    public string TitleMusicGen { get; set; } = "";
+    public string DescMusicGen { get; set; } = "";
+    public string TitleSocialMedia { get; set; } = "";
+    public string DescSocialMedia { get; set; } = "";
+    public string InfoBoxTitle { get; set; } = "";
+    public string InfoLine1 { get; set; } = "";
+    public string InfoLine2 { get; set; } = "";
+    public string InfoLine3 { get; set; } = "";
+
     public SettingsViewModel(DatabaseService database, AIContentService aiService, LocalizationService localizationService)
     {
         _database = database;
@@ -174,6 +197,8 @@ public class SettingsViewModel : BaseViewModel
         ResetCommand = new RelayCommand(ResetToDefaults);
         RefreshOllamaModelsCommand = new RelayCommand(async () => await RefreshOllamaModelsAsync());
 
+        UpdateLanguageDisplay();
+
         // Subscribe to language changes
         _localizationService.LanguageChanged += OnLanguageChanged;
 
@@ -183,9 +208,59 @@ public class SettingsViewModel : BaseViewModel
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
+        UpdateLanguageDisplay();
         // Refresh status text when language changes
         _ = RefreshOllamaModelsAsync();
         _ = UpdateProvidersStatusAsync();
+    }
+
+    private void UpdateLanguageDisplay()
+    {
+        var isThai = _localizationService.IsThaiLanguage;
+
+        PageSubtitle = LocalizationStrings.SettingsPage.Subtitle(isThai);
+        BtnReset = LocalizationStrings.SettingsPage.Reset(isThai);
+        BtnSave = LocalizationStrings.Common.Save(isThai);
+        TitleAIContentGen = LocalizationStrings.Settings.AIContentGeneration(isThai);
+        DescAIProviderKeys = LocalizationStrings.SettingsPage.AIProviderKeysDesc(isThai);
+        LabelOllamaModel = LocalizationStrings.Settings.OllamaModel(isThai);
+        TooltipRefreshModels = LocalizationStrings.SettingsPage.RefreshModels(isThai);
+        HintInstallModel = LocalizationStrings.SettingsPage.InstallHint(isThai);
+        HintSelectOrType = LocalizationStrings.SettingsPage.SelectOrType(isThai);
+        TitleImageGen = "Image Generation";
+        DescImageGen = LocalizationStrings.SettingsPage.ImageGenDesc(isThai);
+        TitleVideoGen = "Video Generation";
+        DescVideoGen = LocalizationStrings.SettingsPage.VideoGenDesc(isThai);
+        TitleMusicGen = "Music Generation";
+        DescMusicGen = LocalizationStrings.SettingsPage.MusicGenDesc(isThai);
+        TitleSocialMedia = "Social Media APIs";
+        DescSocialMedia = LocalizationStrings.SettingsPage.SocialMediaDesc(isThai);
+        InfoBoxTitle = LocalizationStrings.SettingsPage.InfoTitle(isThai);
+        InfoLine1 = LocalizationStrings.SettingsPage.InfoLine1(isThai);
+        InfoLine2 = LocalizationStrings.SettingsPage.InfoLine2(isThai);
+        InfoLine3 = LocalizationStrings.SettingsPage.InfoLine3(isThai);
+
+        OnPropertyChanged(nameof(PageSubtitle));
+        OnPropertyChanged(nameof(BtnReset));
+        OnPropertyChanged(nameof(BtnSave));
+        OnPropertyChanged(nameof(TitleAIContentGen));
+        OnPropertyChanged(nameof(DescAIProviderKeys));
+        OnPropertyChanged(nameof(LabelOllamaModel));
+        OnPropertyChanged(nameof(TooltipRefreshModels));
+        OnPropertyChanged(nameof(HintInstallModel));
+        OnPropertyChanged(nameof(HintSelectOrType));
+        OnPropertyChanged(nameof(TitleImageGen));
+        OnPropertyChanged(nameof(DescImageGen));
+        OnPropertyChanged(nameof(TitleVideoGen));
+        OnPropertyChanged(nameof(DescVideoGen));
+        OnPropertyChanged(nameof(TitleMusicGen));
+        OnPropertyChanged(nameof(DescMusicGen));
+        OnPropertyChanged(nameof(TitleSocialMedia));
+        OnPropertyChanged(nameof(DescSocialMedia));
+        OnPropertyChanged(nameof(InfoBoxTitle));
+        OnPropertyChanged(nameof(InfoLine1));
+        OnPropertyChanged(nameof(InfoLine2));
+        OnPropertyChanged(nameof(InfoLine3));
     }
 
     public async Task LoadSettingsAsync()
