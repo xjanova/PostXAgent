@@ -30,17 +30,29 @@ public partial class App : Application
         // Setup global exception handlers
         SetupExceptionHandling();
 
-        // Configure services
-        var services = new ServiceCollection();
-        ConfigureServices(services);
-        Services = services.BuildServiceProvider();
+        try
+        {
+            // Configure services
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            Services = services.BuildServiceProvider();
 
-        // Initialize database
-        var dbService = Services.GetRequiredService<DatabaseService>();
-        await dbService.InitializeAsync();
+            // Initialize database
+            var dbService = Services.GetRequiredService<DatabaseService>();
+            await dbService.InitializeAsync();
 
-        // Check license/demo status
-        await CheckLicenseStatusAsync();
+            // Check license/demo status
+            await CheckLicenseStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"เกิดข้อผิดพลาดในการเริ่มต้นโปรแกรม:\n\n{ex.Message}\n\nโปรแกรมจะปิดอัตโนมัติ",
+                "MyPostXAgent Startup Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown();
+        }
     }
 
     private void ConfigureServices(IServiceCollection services)
