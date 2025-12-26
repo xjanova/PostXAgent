@@ -17,9 +17,7 @@ public class ContentGeneratorViewModel : BaseViewModel
         {
             if (SetProperty(ref _useOllama, value) && value)
             {
-                UseOpenAI = false;
-                UseClaude = false;
-                UseGemini = false;
+                ClearOtherProviders(nameof(UseOllama));
             }
         }
     }
@@ -32,9 +30,7 @@ public class ContentGeneratorViewModel : BaseViewModel
         {
             if (SetProperty(ref _useOpenAI, value) && value)
             {
-                UseOllama = false;
-                UseClaude = false;
-                UseGemini = false;
+                ClearOtherProviders(nameof(UseOpenAI));
             }
         }
     }
@@ -47,9 +43,7 @@ public class ContentGeneratorViewModel : BaseViewModel
         {
             if (SetProperty(ref _useClaude, value) && value)
             {
-                UseOllama = false;
-                UseOpenAI = false;
-                UseGemini = false;
+                ClearOtherProviders(nameof(UseClaude));
             }
         }
     }
@@ -62,10 +56,32 @@ public class ContentGeneratorViewModel : BaseViewModel
         {
             if (SetProperty(ref _useGemini, value) && value)
             {
-                UseOllama = false;
-                UseOpenAI = false;
-                UseClaude = false;
+                ClearOtherProviders(nameof(UseGemini));
             }
+        }
+    }
+
+    private void ClearOtherProviders(string except)
+    {
+        if (except != nameof(UseOllama) && _useOllama)
+        {
+            _useOllama = false;
+            OnPropertyChanged(nameof(UseOllama));
+        }
+        if (except != nameof(UseOpenAI) && _useOpenAI)
+        {
+            _useOpenAI = false;
+            OnPropertyChanged(nameof(UseOpenAI));
+        }
+        if (except != nameof(UseClaude) && _useClaude)
+        {
+            _useClaude = false;
+            OnPropertyChanged(nameof(UseClaude));
+        }
+        if (except != nameof(UseGemini) && _useGemini)
+        {
+            _useGemini = false;
+            OnPropertyChanged(nameof(UseGemini));
         }
     }
 
