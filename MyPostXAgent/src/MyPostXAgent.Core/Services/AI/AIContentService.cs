@@ -39,7 +39,7 @@ public class AIContentService
             _generators[AIProvider.Ollama] = new OllamaContentGenerator(
                 _httpClientFactory.CreateClient(),
                 ollamaUrl,
-                "llama3.2",
+                "llama3.2:3b",  // Changed from "llama3.2" to match actual installed model
                 _logger as ILogger<OllamaContentGenerator>);
 
             // OpenAI

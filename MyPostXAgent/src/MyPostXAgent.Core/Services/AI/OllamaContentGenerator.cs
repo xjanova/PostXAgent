@@ -23,7 +23,7 @@ public class OllamaContentGenerator : IAIContentGenerator
     public OllamaContentGenerator(
         HttpClient httpClient,
         string baseUrl = "http://localhost:11434",
-        string model = "llama3.2",
+        string model = "llama3.2:3b",
         ILogger<OllamaContentGenerator>? logger = null)
     {
         _httpClient = httpClient;
