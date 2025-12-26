@@ -123,6 +123,9 @@ public class AIContentService
         bool useFallback = true,
         CancellationToken cancellationToken = default)
     {
+        string? firstError = null;
+        var errors = new List<string>();
+
         // Try preferred provider first
         if (_generators.TryGetValue(preferredProvider, out var generator))
         {
@@ -134,7 +137,15 @@ public class AIContentService
                 return result;
             }
 
+            firstError = result.ErrorMessage;
+            errors.Add($"{preferredProvider}: {result.ErrorMessage}");
             _logger?.LogWarning("Failed with {Provider}: {Error}", preferredProvider, result.ErrorMessage);
+        }
+        else
+        {
+            firstError = $"Provider {preferredProvider} not initialized";
+            errors.Add(firstError);
+            _logger?.LogWarning("Provider {Provider} not found in generators", preferredProvider);
         }
 
         // Fallback to other providers if enabled
@@ -164,16 +175,17 @@ public class AIContentService
                         return result;
                     }
 
+                    errors.Add($"{provider}: {result.ErrorMessage}");
                     _logger?.LogWarning("Fallback {Provider} failed: {Error}", provider, result.ErrorMessage);
                 }
             }
         }
 
-        // All failed
+        // All failed - return the first error (most relevant)
         return new ContentGenerationResult
         {
             Success = false,
-            ErrorMessage = "All AI providers failed. Please check your settings.",
+            ErrorMessage = firstError ?? "No AI providers available",
             Provider = preferredProvider
         };
     }
