@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using MyPostXAgent.Core.Models;
+using MyPostXAgent.Core.Services;
 using MyPostXAgent.Core.Services.Data;
 
 namespace MyPostXAgent.UI.ViewModels;
@@ -8,6 +9,7 @@ namespace MyPostXAgent.UI.ViewModels;
 public class PostsViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
+    private readonly LocalizationService _localizationService;
 
     public ObservableCollection<Post> Posts { get; } = new();
     public ObservableCollection<SocialPlatform> Platforms { get; } = new();
@@ -78,9 +80,12 @@ public class PostsViewModel : BaseViewModel
     public RelayCommand SaveNewPostCommand { get; }
     public RelayCommand CancelCreateCommand { get; }
 
-    public PostsViewModel(DatabaseService database)
+    public PostsViewModel(DatabaseService database, LocalizationService localizationService)
     {
         _database = database;
+        _localizationService = localizationService;
+
+        Title = LocalizationStrings.Nav.Posts(_localizationService.IsThaiLanguage);
 
         // Populate filters
         foreach (SocialPlatform platform in Enum.GetValues(typeof(SocialPlatform)))
@@ -102,8 +107,16 @@ public class PostsViewModel : BaseViewModel
         SaveNewPostCommand = new RelayCommand(async () => await SaveNewPostAsync());
         CancelCreateCommand = new RelayCommand(CancelCreate);
 
+        // Subscribe to language changes
+        _localizationService.LanguageChanged += OnLanguageChanged;
+
         // Load initial data
         _ = LoadPostsAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        Title = LocalizationStrings.Nav.Posts(_localizationService.IsThaiLanguage);
     }
 
     public async Task LoadPostsAsync()

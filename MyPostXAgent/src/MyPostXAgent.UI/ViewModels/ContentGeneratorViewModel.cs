@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using MyPostXAgent.Core.Models;
+using MyPostXAgent.Core.Services;
 using MyPostXAgent.Core.Services.Data;
 using MyPostXAgent.Core.Services.AI;
 
@@ -10,6 +11,7 @@ public class ContentGeneratorViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
     private readonly AIContentService _aiService;
+    private readonly LocalizationService _localizationService;
 
     // Template Selection
     public ObservableCollection<string> TemplateCategories { get; }
@@ -244,10 +246,11 @@ public class ContentGeneratorViewModel : BaseViewModel
     public RelayCommand SaveAsDraftCommand { get; }
     public RelayCommand CreatePostCommand { get; }
 
-    public ContentGeneratorViewModel(DatabaseService database, AIContentService aiService)
+    public ContentGeneratorViewModel(DatabaseService database, AIContentService aiService, LocalizationService localizationService)
     {
         _database = database;
         _aiService = aiService;
+        _localizationService = localizationService;
 
         // Initialize template collections
         TemplateCategories = new ObservableCollection<string>(BuiltInTemplates.GetCategories());
@@ -260,8 +263,22 @@ public class ContentGeneratorViewModel : BaseViewModel
         SaveAsDraftCommand = new RelayCommand(async () => await SaveAsDraftAsync());
         CreatePostCommand = new RelayCommand(async () => await CreatePostAsync());
 
+        // Subscribe to language changes
+        _localizationService.LanguageChanged += OnLanguageChanged;
+
         // Initialize AI providers on startup
         _ = InitializeAIProvidersAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        // Refresh UI text when language changes
+        OnPropertyChanged(nameof(GenerateCommand));
+        OnPropertyChanged(nameof(RegenerateCommand));
+        OnPropertyChanged(nameof(ClearCommand));
+        OnPropertyChanged(nameof(CopyContentCommand));
+        OnPropertyChanged(nameof(SaveAsDraftCommand));
+        OnPropertyChanged(nameof(CreatePostCommand));
     }
 
     private async Task InitializeAIProvidersAsync()
@@ -280,7 +297,12 @@ public class ContentGeneratorViewModel : BaseViewModel
     {
         if (string.IsNullOrWhiteSpace(Topic))
         {
-            MessageBox.Show("กรุณากรอกหัวข้อหรือคำอธิบาย", "ข้อมูลไม่ครบ", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                isThai ? "กรุณากรอกหัวข้อหรือคำอธิบาย" : "Please enter a topic or description",
+                isThai ? "ข้อมูลไม่ครบ" : "Incomplete Data",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
@@ -300,6 +322,8 @@ public class ContentGeneratorViewModel : BaseViewModel
             System.Diagnostics.Debug.WriteLine($"Attempting to generate content with provider: {provider}");
             var result = await _aiService.GenerateContentAsync(request, provider, useFallback: true);
 
+            var isThai = _localizationService.IsThaiLanguage;
+
             if (result.Success)
             {
                 GeneratedContent = result.Content;
@@ -308,8 +332,8 @@ public class ContentGeneratorViewModel : BaseViewModel
                 // Show success notification with provider info
                 System.Diagnostics.Debug.WriteLine($"✅ Content generated successfully using {result.Provider}");
                 MessageBox.Show(
-                    $"สร้างเนื้อหาสำเร็จด้วย {result.Provider}!",
-                    "สำเร็จ",
+                    LocalizationStrings.ContentGen.GenerateSuccess(isThai, result.Provider.ToString()),
+                    LocalizationStrings.Common.Success(isThai),
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
@@ -320,24 +344,30 @@ public class ContentGeneratorViewModel : BaseViewModel
                 // Show detailed error message
                 var errorDetails = !string.IsNullOrEmpty(result.ErrorMessage)
                     ? result.ErrorMessage
-                    : "ไม่ทราบสาเหตุ";
+                    : (isThai ? "ไม่ทราบสาเหตุ" : "Unknown error");
+
+                var suggestions = isThai
+                    ? $"💡 แนะนำ:\n1. ตรวจสอบว่า Ollama กำลังรันอยู่ (ollama serve)\n2. ตรวจสอบว่าติดตั้ง model แล้ว (ollama pull llama3.2)\n3. ตรวจสอบ AI Status ที่ Status Bar ด้านล่าง"
+                    : $"💡 Suggestions:\n1. Check if Ollama is running (ollama serve)\n2. Verify model is installed (ollama pull llama3.2)\n3. Check AI Status in the Status Bar below";
 
                 MessageBox.Show(
-                    $"ไม่สามารถสร้างเนื้อหาได้\n\n" +
+                    $"{LocalizationStrings.ContentGen.GenerateFailed(isThai)}\n\n" +
                     $"🔴 Provider: {provider}\n" +
                     $"🔴 Error: {errorDetails}\n\n" +
-                    $"💡 แนะนำ:\n" +
-                    $"1. ตรวจสอบว่า Ollama กำลังรันอยู่ (ollama serve)\n" +
-                    $"2. ตรวจสอบว่าติดตั้ง model แล้ว (ollama pull llama3.2)\n" +
-                    $"3. ตรวจสอบ AI Status ที่ Status Bar ด้านล่าง",
-                    "ไม่สามารถสร้างเนื้อหาได้",
+                    suggestions,
+                    LocalizationStrings.ContentGen.GenerateFailed(isThai),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                $"{LocalizationStrings.Common.Error(isThai)}: {ex.Message}",
+                LocalizationStrings.Common.Error(isThai),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {
@@ -402,7 +432,12 @@ public class ContentGeneratorViewModel : BaseViewModel
             }
 
             Clipboard.SetText(fullContent);
-            MessageBox.Show("คัดลอกเนื้อหาแล้ว!", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                isThai ? "คัดลอกเนื้อหาแล้ว!" : "Content copied!",
+                LocalizationStrings.Common.Success(isThai),
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
     }
 
@@ -410,7 +445,12 @@ public class ContentGeneratorViewModel : BaseViewModel
     {
         if (string.IsNullOrWhiteSpace(GeneratedContent))
         {
-            MessageBox.Show("ไม่มีเนื้อหาที่จะบันทึก", "ข้อมูลไม่ครบ", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                isThai ? "ไม่มีเนื้อหาที่จะบันทึก" : "No content to save",
+                isThai ? "ข้อมูลไม่ครบ" : "Incomplete Data",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
@@ -428,11 +468,22 @@ public class ContentGeneratorViewModel : BaseViewModel
 
             await _database.AddPostAsync(post);
 
-            MessageBox.Show("บันทึก Draft สำเร็จ!\n\nสามารถไปที่หน้า 'โพสต์' เพื่อแก้ไขหรือตั้งเวลาได้", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                isThai ? "บันทึก Draft สำเร็จ!\n\nสามารถไปที่หน้า 'โพสต์' เพื่อแก้ไขหรือตั้งเวลาได้"
+                       : "Draft saved successfully!\n\nGo to 'Posts' page to edit or schedule",
+                LocalizationStrings.Common.Success(isThai),
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                $"{LocalizationStrings.Common.Error(isThai)}: {ex.Message}",
+                LocalizationStrings.Common.Error(isThai),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -450,13 +501,20 @@ public class ContentGeneratorViewModel : BaseViewModel
     {
         if (string.IsNullOrWhiteSpace(GeneratedContent))
         {
-            MessageBox.Show("ไม่มีเนื้อหาที่จะโพสต์", "ข้อมูลไม่ครบ", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                isThai ? "ไม่มีเนื้อหาที่จะโพสต์" : "No content to post",
+                isThai ? "ข้อมูลไม่ครบ" : "Incomplete Data",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
+        var isThai2 = _localizationService.IsThaiLanguage;
         var result = MessageBox.Show(
-            "ต้องการสร้างโพสต์และไปที่หน้าตั้งเวลาหรือไม่?\n\n(หรือกด 'ไม่' เพื่อบันทึกเป็น Draft)",
-            "สร้างโพสต์",
+            isThai2 ? "ต้องการสร้างโพสต์และไปที่หน้าตั้งเวลาหรือไม่?\n\n(หรือกด 'ไม่' เพื่อบันทึกเป็น Draft)"
+                    : "Create post and go to schedule page?\n\n(Or click 'No' to save as Draft)",
+            isThai2 ? "สร้างโพสต์" : "Create Post",
             MessageBoxButton.YesNoCancel,
             MessageBoxImage.Question);
 
@@ -477,13 +535,23 @@ public class ContentGeneratorViewModel : BaseViewModel
 
             await _database.AddPostAsync(post);
 
+            var isThai3 = _localizationService.IsThaiLanguage;
             if (result == MessageBoxResult.Yes)
             {
-                MessageBox.Show("สร้างโพสต์สำเร็จ!\n\nไปที่หน้า 'ตั้งเวลา' เพื่อกำหนดเวลาโพสต์", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(
+                    isThai3 ? "สร้างโพสต์สำเร็จ!\n\nไปที่หน้า 'ตั้งเวลา' เพื่อกำหนดเวลาโพสต์"
+                            : "Post created successfully!\n\nGo to 'Schedule' page to set posting time",
+                    LocalizationStrings.Common.Success(isThai3),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
             else
             {
-                MessageBox.Show("บันทึก Draft สำเร็จ!", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(
+                    isThai3 ? "บันทึก Draft สำเร็จ!" : "Draft saved successfully!",
+                    LocalizationStrings.Common.Success(isThai3),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
 
             // Clear after successful save
@@ -491,7 +559,12 @@ public class ContentGeneratorViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                $"{LocalizationStrings.Common.Error(isThai)}: {ex.Message}",
+                LocalizationStrings.Common.Error(isThai),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 

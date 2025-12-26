@@ -1,3 +1,4 @@
+using MyPostXAgent.Core.Services;
 using MyPostXAgent.Core.Services.Data;
 using MyPostXAgent.Core.Services.License;
 
@@ -10,6 +11,7 @@ public class DashboardViewModel : BaseViewModel
 {
     private readonly DatabaseService _databaseService;
     private readonly LicenseService _licenseService;
+    private readonly LocalizationService _localizationService;
 
     private int _totalAccounts;
     public int TotalAccounts
@@ -67,14 +69,24 @@ public class DashboardViewModel : BaseViewModel
         set => SetProperty(ref _daysRemaining, value);
     }
 
-    public DashboardViewModel(DatabaseService databaseService, LicenseService licenseService)
+    public DashboardViewModel(DatabaseService databaseService, LicenseService licenseService, LocalizationService localizationService)
     {
         _databaseService = databaseService;
         _licenseService = licenseService;
+        _localizationService = localizationService;
 
-        Title = "Dashboard";
+        Title = LocalizationStrings.Nav.Dashboard(_localizationService.IsThaiLanguage);
+
+        // Subscribe to language changes
+        _localizationService.LanguageChanged += OnLanguageChanged;
 
         _ = LoadDataAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        Title = LocalizationStrings.Nav.Dashboard(_localizationService.IsThaiLanguage);
+        _ = LoadDataAsync(); // Reload to update license status text
     }
 
     private async Task LoadDataAsync()
@@ -88,6 +100,7 @@ public class DashboardViewModel : BaseViewModel
             TotalAccounts = accounts.Count;
 
             // License status
+            var isThai = _localizationService.IsThaiLanguage;
             if (_licenseService.IsDemoMode())
             {
                 LicenseStatus = "Demo";
@@ -96,12 +109,12 @@ public class DashboardViewModel : BaseViewModel
             else if (_licenseService.IsLicensed())
             {
                 var license = _licenseService.GetCurrentLicense();
-                LicenseStatus = license?.LicenseType.ToString() ?? "Active";
+                LicenseStatus = license?.LicenseType.ToString() ?? (isThai ? "ใช้งานอยู่" : "Active");
                 DaysRemaining = license?.DaysRemaining ?? 0;
             }
             else
             {
-                LicenseStatus = "ไม่มี License";
+                LicenseStatus = isThai ? "ไม่มี License" : "No License";
                 DaysRemaining = 0;
             }
 

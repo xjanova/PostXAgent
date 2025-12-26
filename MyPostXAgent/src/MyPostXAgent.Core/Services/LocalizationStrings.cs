@@ -66,11 +66,24 @@ public static class LocalizationStrings
     public static class Nav
     {
         public static string Dashboard(bool isThai) => isThai ? "แดชบอร์ด" : "Dashboard";
-        public static string ContentGenerator(bool isThai) => isThai ? "สร้างเนื้อหา AI" : "AI Content Generator";
-        public static string Scheduler(bool isThai) => isThai ? "ตั้งเวลาโพสต์" : "Scheduler";
+        public static string Posts(bool isThai) => isThai ? "โพสต์" : "Posts";
+        public static string Schedule(bool isThai) => isThai ? "ตั้งเวลา" : "Schedule";
         public static string Accounts(bool isThai) => isThai ? "บัญชี Social" : "Social Accounts";
-        public static string Posts(bool isThai) => isThai ? "โพสต์ทั้งหมด" : "All Posts";
+        public static string AIContent(bool isThai) => isThai ? "สร้างเนื้อหา AI" : "AI Content";
+        public static string VideoEditor(bool isThai) => isThai ? "วิดีโอ" : "Video Editor";
+        public static string Groups(bool isThai) => isThai ? "ค้นหากลุ่ม" : "Find Groups";
+        public static string Comments(bool isThai) => isThai ? "ความคิดเห็น" : "Comments";
+        public static string Workflows(bool isThai) => isThai ? "เวิร์กโฟลว์" : "Workflows";
         public static string Settings(bool isThai) => isThai ? "ตั้งค่า" : "Settings";
+    }
+
+    // Window Controls
+    public static class Window
+    {
+        public static string Minimize(bool isThai) => isThai ? "ย่อ" : "Minimize";
+        public static string Maximize(bool isThai) => isThai ? "ขยาย" : "Maximize";
+        public static string Close(bool isThai) => isThai ? "ปิด" : "Close";
+        public static string SwitchLanguage(bool isThai) => isThai ? "สลับภาษา (Switch Language)" : "Switch Language (สลับภาษา)";
     }
 
     // Content Generator

@@ -141,14 +141,14 @@
                                          VerticalAlignment="Center"
                                          Padding="0,10,16,10"
                                          Width="280"
-                                         materialDesign:HintAssist.Hint="ค้นหา..."
+                                         materialDesign:HintAssist.Hint="{Binding SearchHint}"
                                          materialDesign:HintAssist.Foreground="{StaticResource TextMutedBrush}"/>
                             </Grid>
                         </Border>
 
                         <!-- Language Toggle Button -->
                         <Button Command="{Binding ToggleLanguageCommand}"
-                                ToolTip="สลับภาษา (Switch Language)"
+                                ToolTip="{Binding LanguageTooltip}"
                                 Margin="12,0,0,0"
                                 Cursor="Hand"
                                 Width="90" Height="34">
@@ -183,19 +183,19 @@
                         <Button Style="{StaticResource MaterialDesignIconButton}"
                                 Width="40" Height="40"
                                 Click="MinimizeButton_Click"
-                                ToolTip="ย่อ">
+                                ToolTip="{Binding MinimizeTooltip}">
                             <materialDesign:PackIcon Kind="WindowMinimize" Foreground="{StaticResource TextSecondaryBrush}"/>
                         </Button>
                         <Button Style="{StaticResource MaterialDesignIconButton}"
                                 Width="40" Height="40"
                                 Click="MaximizeButton_Click"
-                                ToolTip="ขยาย">
+                                ToolTip="{Binding MaximizeTooltip}">
                             <materialDesign:PackIcon Kind="WindowMaximize" Foreground="{StaticResource TextSecondaryBrush}"/>
                         </Button>
                         <Button Style="{StaticResource MaterialDesignIconButton}"
                                 Width="40" Height="40"
                                 Click="CloseButton_Click"
-                                ToolTip="ปิด">
+                                ToolTip="{Binding CloseTooltip}">
                             <materialDesign:PackIcon Kind="Close" Foreground="{StaticResource RgbRedBrush}"/>
                         </Button>
                     </StackPanel>
@@ -286,35 +286,35 @@
                         <ListBoxItem Tag="Dashboard">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="ViewDashboard" Width="22" Height="22" Foreground="{StaticResource RgbCyanBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="Dashboard" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavDashboard, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="Posts">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="PostOutline" Width="22" Height="22" Foreground="{StaticResource RgbBlueBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="โพสต์" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavPosts, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="Schedule">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="CalendarClock" Width="22" Height="22" Foreground="{StaticResource RgbPurpleBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="ตั้งเวลา" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavSchedule, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="Accounts">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="AccountMultiple" Width="22" Height="22" Foreground="{StaticResource RgbPinkBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="บัญชี Social" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavAccounts, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="AIContent">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="Robot" Width="22" Height="22" Foreground="{StaticResource RgbOrangeBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="AI Content" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavAIContent, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                                 <!-- NEW Badge -->
                                 <Border Background="{StaticResource RgbGreenBrush}"
                                         CornerRadius="8"
@@ -329,35 +329,35 @@
                         <ListBoxItem Tag="VideoEditor">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="VideoOutline" Width="22" Height="22" Foreground="{StaticResource RgbMagentaBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="Video Editor" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavVideoEditor, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="Groups">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="AccountGroup" Width="22" Height="22" Foreground="{StaticResource RgbYellowBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="ค้นหากลุ่ม" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavGroups, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="Comments">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="CommentMultiple" Width="22" Height="22" Foreground="{StaticResource RgbGreenBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="Comments" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavComments, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="Flows">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="Sitemap" Width="22" Height="22" Foreground="{StaticResource RgbCyanBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="Workflows" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavWorkflows, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
 
                         <ListBoxItem Tag="Settings">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="CogOutline" Width="22" Height="22" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="ตั้งค่า" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding DataContext.NavSettings, RelativeSource={RelativeSource AncestorType=Window}}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ListBoxItem>
                     </ListBox>

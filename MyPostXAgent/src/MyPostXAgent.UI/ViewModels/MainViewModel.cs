@@ -79,6 +79,113 @@ public class MainViewModel : BaseViewModel
         set => SetProperty(ref _currentLanguageText, value);
     }
 
+    // Localized UI Text Properties
+    private string _searchHint = "ค้นหา...";
+    public string SearchHint
+    {
+        get => _searchHint;
+        set => SetProperty(ref _searchHint, value);
+    }
+
+    private string _minimizeTooltip = "ย่อ";
+    public string MinimizeTooltip
+    {
+        get => _minimizeTooltip;
+        set => SetProperty(ref _minimizeTooltip, value);
+    }
+
+    private string _maximizeTooltip = "ขยาย";
+    public string MaximizeTooltip
+    {
+        get => _maximizeTooltip;
+        set => SetProperty(ref _maximizeTooltip, value);
+    }
+
+    private string _closeTooltip = "ปิด";
+    public string CloseTooltip
+    {
+        get => _closeTooltip;
+        set => SetProperty(ref _closeTooltip, value);
+    }
+
+    private string _languageTooltip = "สลับภาษา (Switch Language)";
+    public string LanguageTooltip
+    {
+        get => _languageTooltip;
+        set => SetProperty(ref _languageTooltip, value);
+    }
+
+    // Navigation Menu Items
+    private string _navDashboard = "แดชบอร์ด";
+    public string NavDashboard
+    {
+        get => _navDashboard;
+        set => SetProperty(ref _navDashboard, value);
+    }
+
+    private string _navPosts = "โพสต์";
+    public string NavPosts
+    {
+        get => _navPosts;
+        set => SetProperty(ref _navPosts, value);
+    }
+
+    private string _navSchedule = "ตั้งเวลา";
+    public string NavSchedule
+    {
+        get => _navSchedule;
+        set => SetProperty(ref _navSchedule, value);
+    }
+
+    private string _navAccounts = "บัญชี Social";
+    public string NavAccounts
+    {
+        get => _navAccounts;
+        set => SetProperty(ref _navAccounts, value);
+    }
+
+    private string _navAIContent = "AI Content";
+    public string NavAIContent
+    {
+        get => _navAIContent;
+        set => SetProperty(ref _navAIContent, value);
+    }
+
+    private string _navVideoEditor = "Video Editor";
+    public string NavVideoEditor
+    {
+        get => _navVideoEditor;
+        set => SetProperty(ref _navVideoEditor, value);
+    }
+
+    private string _navGroups = "ค้นหากลุ่ม";
+    public string NavGroups
+    {
+        get => _navGroups;
+        set => SetProperty(ref _navGroups, value);
+    }
+
+    private string _navComments = "Comments";
+    public string NavComments
+    {
+        get => _navComments;
+        set => SetProperty(ref _navComments, value);
+    }
+
+    private string _navWorkflows = "Workflows";
+    public string NavWorkflows
+    {
+        get => _navWorkflows;
+        set => SetProperty(ref _navWorkflows, value);
+    }
+
+    private string _navSettings = "ตั้งค่า";
+    public string NavSettings
+    {
+        get => _navSettings;
+        set => SetProperty(ref _navSettings, value);
+    }
+
     public ICommand BuyLicenseCommand { get; }
     public RelayCommand ToggleLanguageCommand { get; }
 
@@ -199,7 +306,9 @@ public class MainViewModel : BaseViewModel
 
     private void UpdateLanguageDisplay()
     {
-        if (_localizationService.IsThaiLanguage)
+        var isThai = _localizationService.IsThaiLanguage;
+
+        if (isThai)
         {
             CurrentLanguageFlag = "🇹🇭";
             CurrentLanguageText = "TH";
@@ -209,6 +318,25 @@ public class MainViewModel : BaseViewModel
             CurrentLanguageFlag = "🇺🇸";
             CurrentLanguageText = "EN";
         }
+
+        // Update all UI text
+        SearchHint = LocalizationStrings.Common.Search(isThai);
+        MinimizeTooltip = LocalizationStrings.Window.Minimize(isThai);
+        MaximizeTooltip = LocalizationStrings.Window.Maximize(isThai);
+        CloseTooltip = LocalizationStrings.Window.Close(isThai);
+        LanguageTooltip = LocalizationStrings.Window.SwitchLanguage(isThai);
+
+        // Update navigation menu
+        NavDashboard = LocalizationStrings.Nav.Dashboard(isThai);
+        NavPosts = LocalizationStrings.Nav.Posts(isThai);
+        NavSchedule = LocalizationStrings.Nav.Schedule(isThai);
+        NavAccounts = LocalizationStrings.Nav.Accounts(isThai);
+        NavAIContent = LocalizationStrings.Nav.AIContent(isThai);
+        NavVideoEditor = LocalizationStrings.Nav.VideoEditor(isThai);
+        NavGroups = LocalizationStrings.Nav.Groups(isThai);
+        NavComments = LocalizationStrings.Nav.Comments(isThai);
+        NavWorkflows = LocalizationStrings.Nav.Workflows(isThai);
+        NavSettings = LocalizationStrings.Nav.Settings(isThai);
     }
 
     private void BuyLicense()

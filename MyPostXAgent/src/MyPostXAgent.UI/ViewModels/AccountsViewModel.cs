@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using MyPostXAgent.Core.Models;
+using MyPostXAgent.Core.Services;
 using MyPostXAgent.Core.Services.Data;
 
 namespace MyPostXAgent.UI.ViewModels;
@@ -8,6 +9,7 @@ namespace MyPostXAgent.UI.ViewModels;
 public class AccountsViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
+    private readonly LocalizationService _localizationService;
 
     public ObservableCollection<SocialAccount> Accounts { get; } = new();
     public ObservableCollection<SocialPlatform> Platforms { get; } = new();
@@ -77,9 +79,12 @@ public class AccountsViewModel : BaseViewModel
     public RelayCommand SaveNewAccountCommand { get; }
     public RelayCommand CancelAddCommand { get; }
 
-    public AccountsViewModel(DatabaseService database)
+    public AccountsViewModel(DatabaseService database, LocalizationService localizationService)
     {
         _database = database;
+        _localizationService = localizationService;
+
+        Title = LocalizationStrings.Nav.Accounts(_localizationService.IsThaiLanguage);
 
         // Populate platforms
         foreach (SocialPlatform platform in Enum.GetValues(typeof(SocialPlatform)))
@@ -96,8 +101,16 @@ public class AccountsViewModel : BaseViewModel
         SaveNewAccountCommand = new RelayCommand(async () => await SaveNewAccountAsync());
         CancelAddCommand = new RelayCommand(CancelAdd);
 
+        // Subscribe to language changes
+        _localizationService.LanguageChanged += OnLanguageChanged;
+
         // Load initial data
         _ = LoadAccountsAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        Title = LocalizationStrings.Nav.Accounts(_localizationService.IsThaiLanguage);
     }
 
     public async Task LoadAccountsAsync()

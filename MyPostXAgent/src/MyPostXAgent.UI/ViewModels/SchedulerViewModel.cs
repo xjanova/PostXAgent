@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using MyPostXAgent.Core.Models;
+using MyPostXAgent.Core.Services;
 using MyPostXAgent.Core.Services.Data;
 
 namespace MyPostXAgent.UI.ViewModels;
@@ -8,6 +9,7 @@ namespace MyPostXAgent.UI.ViewModels;
 public class SchedulerViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
+    private readonly LocalizationService _localizationService;
 
     public ObservableCollection<Post> ScheduledPosts { get; } = new();
     public ObservableCollection<Post> DraftPosts { get; } = new();
@@ -76,9 +78,12 @@ public class SchedulerViewModel : BaseViewModel
     public RelayCommand ConfirmScheduleCommand { get; }
     public RelayCommand CancelScheduleCommand { get; }
 
-    public SchedulerViewModel(DatabaseService database)
+    public SchedulerViewModel(DatabaseService database, LocalizationService localizationService)
     {
         _database = database;
+        _localizationService = localizationService;
+
+        Title = LocalizationStrings.Nav.Schedule(_localizationService.IsThaiLanguage);
 
         RefreshCommand = new RelayCommand(async () => await RefreshAllAsync());
         SchedulePostCommand = new RelayCommand<Post>(OpenScheduleDialog);
@@ -87,8 +92,16 @@ public class SchedulerViewModel : BaseViewModel
         ConfirmScheduleCommand = new RelayCommand(async () => await ConfirmScheduleAsync());
         CancelScheduleCommand = new RelayCommand(CancelSchedule);
 
+        // Subscribe to language changes
+        _localizationService.LanguageChanged += OnLanguageChanged;
+
         // Load initial data
         _ = RefreshAllAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        Title = LocalizationStrings.Nav.Schedule(_localizationService.IsThaiLanguage);
     }
 
     private async Task RefreshAllAsync()
