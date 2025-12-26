@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AIManager.Mobile.ViewModels"
+             xmlns:models="clr-namespace:AIManager.Mobile.Models"
+             x:Class="AIManager.Mobile.Views.SmsMonitorPage"
+             x:DataType="vm:SmsMonitorViewModel"
+             Title="ตรวจสอบ SMS"
+             BackgroundColor="{StaticResource DarkBackground}">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <!-- Permission Banner (when not granted) -->
+        <Frame Grid.Row="0"
+               BackgroundColor="{StaticResource WarningColor}"
+               CornerRadius="0"
+               Padding="16"
+               BorderColor="Transparent"
+               IsVisible="{Binding HasPermission, Converter={StaticResource InvertedBoolConverter}}">
+            <Grid ColumnDefinitions="*,Auto">
+                <VerticalStackLayout Grid.Column="0">
+                    <Label Text="ต้องการสิทธิ์การอ่าน SMS"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           TextColor="White"/>
+                    <Label Text="กรุณาอนุญาตเพื่อตรวจจับการชำระเงิน"
+                           FontSize="12"
+                           TextColor="White"/>
+                </VerticalStackLayout>
+                <Button Grid.Column="1"
+                        Text="อนุญาต"
+                        Command="{Binding RequestPermissionCommand}"
+                        BackgroundColor="White"
+                        TextColor="{StaticResource WarningColor}"
+                        CornerRadius="8"
+                        Padding="16,8"/>
+            </Grid>
+        </Frame>
+
+        <!-- Stats & Control Bar -->
+        <Frame Grid.Row="1"
+               BackgroundColor="{StaticResource CardBackground}"
+               CornerRadius="0"
+               Padding="16"
+               BorderColor="Transparent">
+            <Grid ColumnDefinitions="*,*,Auto">
+                <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center">
+                    <Label Text="{Binding TotalMessages}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="ข้อความทั้งหมด"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center">
+                    <Label Text="{Binding PaymentMessages}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource SuccessColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="เป็นการชำระเงิน"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Toggle Button -->
+                <Button Grid.Column="2"
+                        Text="{Binding IsMonitoring, Converter={StaticResource MonitoringTextConverter}}"
+                        Command="{Binding IsMonitoring, Converter={StaticResource MonitoringCommandConverter}}"
+                        BackgroundColor="{Binding IsMonitoring, Converter={StaticResource MonitoringColorConverter}}"
+                        TextColor="White"
+                        CornerRadius="8"
+                        Padding="16,8"
+                        VerticalOptions="Center">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsMonitoring}" Value="True">
+                            <Setter Property="Text" Value="หยุด"/>
+                            <Setter Property="BackgroundColor" Value="{StaticResource ErrorColor}"/>
+                            <Setter Property="Command" Value="{Binding StopMonitoringCommand}"/>
+                        </DataTrigger>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsMonitoring}" Value="False">
+                            <Setter Property="Text" Value="เริ่ม"/>
+                            <Setter Property="BackgroundColor" Value="{StaticResource SuccessColor}"/>
+                            <Setter Property="Command" Value="{Binding StartMonitoringCommand}"/>
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+            </Grid>
+        </Frame>
+
+        <!-- SMS List -->
+        <RefreshView Grid.Row="2"
+                     IsRefreshing="{Binding IsBusy}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding Messages}"
+                            Margin="16">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:ReceivedSmsMessage">
+                        <Frame BackgroundColor="{StaticResource CardBackground}"
+                               CornerRadius="12"
+                               Padding="16"
+                               Margin="0,6"
+                               BorderColor="Transparent">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SmsMonitorViewModel}}, Path=ViewMessageDetailsCommand}"
+                                                      CommandParameter="{Binding .}"/>
+                            </Frame.GestureRecognizers>
+
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto">
+                                <!-- Category Icon -->
+                                <Frame Grid.RowSpan="3"
+                                       CornerRadius="20"
+                                       HeightRequest="40"
+                                       WidthRequest="40"
+                                       Padding="0"
+                                       BackgroundColor="{StaticResource CardBackgroundLight}"
+                                       BorderColor="Transparent"
+                                       VerticalOptions="Start">
+                                    <Label Text="&#xE0BE;"
+                                           FontFamily="MaterialIcons"
+                                           FontSize="20"
+                                           TextColor="{StaticResource PrimaryColor}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"/>
+                                </Frame>
+
+                                <!-- Sender -->
+                                <Label Grid.Row="0" Grid.Column="1"
+                                       Text="{Binding Sender}"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryText}"
+                                       Margin="12,0"/>
+
+                                <!-- Message Preview -->
+                                <Label Grid.Row="1" Grid.Column="1"
+                                       Text="{Binding Body}"
+                                       FontSize="12"
+                                       TextColor="{StaticResource SecondaryText}"
+                                       LineBreakMode="TailTruncation"
+                                       MaxLines="2"
+                                       Margin="12,4"/>
+
+                                <!-- Time -->
+                                <Label Grid.Row="2" Grid.Column="1"
+                                       Text="{Binding ReceivedAt, StringFormat='{0:dd/MM/yyyy HH:mm}'}"
+                                       FontSize="11"
+                                       TextColor="{StaticResource MutedText}"
+                                       Margin="12,0"/>
+
+                                <!-- Category Badge -->
+                                <Frame Grid.Row="0" Grid.Column="2"
+                                       CornerRadius="4"
+                                       Padding="8,4"
+                                       BorderColor="Transparent"
+                                       VerticalOptions="Start"
+                                       IsVisible="{Binding Category, Converter={StaticResource IsPaymentCategoryConverter}}">
+                                    <Frame.Triggers>
+                                        <DataTrigger TargetType="Frame" Binding="{Binding Category}" Value="PaymentReceived">
+                                            <Setter Property="BackgroundColor" Value="{StaticResource SuccessColor}"/>
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Frame" Binding="{Binding Category}" Value="PaymentSent">
+                                            <Setter Property="BackgroundColor" Value="{StaticResource ErrorColor}"/>
+                                        </DataTrigger>
+                                    </Frame.Triggers>
+                                    <Label Text="{Binding PaymentInfo.Amount, StringFormat='฿{0:N0}'}"
+                                           FontSize="11"
+                                           FontAttributes="Bold"
+                                           TextColor="White"/>
+                                </Frame>
+
+                                <!-- Analyze Button -->
+                                <Button Grid.Row="2" Grid.Column="2"
+                                        Text="วิเคราะห์"
+                                        FontSize="10"
+                                        Padding="8,4"
+                                        CornerRadius="4"
+                                        BackgroundColor="{StaticResource PrimaryColor}"
+                                        TextColor="White"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SmsMonitorViewModel}}, Path=AnalyzeMessageCommand}"
+                                        CommandParameter="{Binding .}"
+                                        IsVisible="{Binding IsProcessed, Converter={StaticResource InvertedBoolConverter}}"/>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Padding="20">
+                        <Label Text="&#xE0BE;"
+                               FontFamily="MaterialIcons"
+                               FontSize="64"
+                               TextColor="{StaticResource MutedText}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="ไม่มีข้อความ SMS"
+                               FontSize="18"
+                               TextColor="{StaticResource SecondaryText}"
+                               HorizontalOptions="Center"
+                               Margin="0,16,0,0"/>
+                        <Label Text="เริ่มการตรวจสอบเพื่อรับ SMS"
+                               FontSize="14"
+                               TextColor="{StaticResource MutedText}"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+
+</ContentPage>

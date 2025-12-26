@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AIManager.Mobile.ViewModels"
+             xmlns:models="clr-namespace:AIManager.Mobile.Models"
+             x:Class="AIManager.Mobile.Views.PaymentsPage"
+             x:DataType="vm:PaymentsViewModel"
+             Title="การชำระเงิน"
+             BackgroundColor="{StaticResource DarkBackground}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
+        <!-- Stats Bar -->
+        <Frame Grid.Row="0"
+               BackgroundColor="{StaticResource CardBackground}"
+               CornerRadius="0"
+               Padding="16"
+               BorderColor="Transparent">
+            <Grid ColumnDefinitions="*,*,*">
+                <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center">
+                    <Label Text="{Binding PendingCount}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource WarningColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="รอตรวจสอบ"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center">
+                    <Label Text="{Binding ApprovedCount}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource SuccessColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="อนุมัติแล้ว"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center">
+                    <Label Text="{Binding TotalToday, StringFormat='฿{0:N0}'}"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="ยอดวันนี้"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+        </Frame>
+
+        <!-- Filter & Settings -->
+        <Frame Grid.Row="1"
+               BackgroundColor="{StaticResource CardBackgroundLight}"
+               CornerRadius="0"
+               Padding="16,8"
+               BorderColor="Transparent">
+            <Grid ColumnDefinitions="*,Auto">
+                <Picker Grid.Column="0"
+                        ItemsSource="{Binding StatusFilters}"
+                        SelectedItem="{Binding FilterStatus}"
+                        Title="กรองตามสถานะ"
+                        TextColor="{StaticResource PrimaryText}"
+                        TitleColor="{StaticResource SecondaryText}"/>
+
+                <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                    <Label Text="อนุมัติอัตโนมัติ"
+                           TextColor="{StaticResource SecondaryText}"
+                           FontSize="12"
+                           VerticalOptions="Center"/>
+                    <Switch IsToggled="{Binding AutoApproveEnabled}"
+                            OnColor="{StaticResource PrimaryColor}"/>
+                </HorizontalStackLayout>
+            </Grid>
+        </Frame>
+
+        <!-- Approve All Button -->
+        <Button Grid.Row="2"
+                Text="อนุมัติทั้งหมดที่รอ"
+                Command="{Binding ApproveAllPendingCommand}"
+                BackgroundColor="{StaticResource SuccessColor}"
+                TextColor="White"
+                CornerRadius="0"
+                Margin="0"
+                Padding="16"
+                IsVisible="{Binding PendingCount, Converter={StaticResource IsNotZeroConverter}}"/>
+
+        <!-- Payments List -->
+        <RefreshView Grid.Row="3"
+                     IsRefreshing="{Binding IsBusy}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding Payments}"
+                            Margin="16">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:PaymentInfo">
+                        <SwipeView>
+                            <SwipeView.LeftItems>
+                                <SwipeItems Mode="Execute">
+                                    <SwipeItem Text="อนุมัติ"
+                                               BackgroundColor="{StaticResource SuccessColor}"
+                                               Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PaymentsViewModel}}, Path=ApprovePaymentCommand}"
+                                               CommandParameter="{Binding .}"/>
+                                </SwipeItems>
+                            </SwipeView.LeftItems>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Execute">
+                                    <SwipeItem Text="ปฏิเสธ"
+                                               BackgroundColor="{StaticResource ErrorColor}"
+                                               Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PaymentsViewModel}}, Path=RejectPaymentCommand}"
+                                               CommandParameter="{Binding .}"/>
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+
+                            <Frame BackgroundColor="{StaticResource CardBackground}"
+                                   CornerRadius="12"
+                                   Padding="16"
+                                   Margin="0,6"
+                                   BorderColor="Transparent">
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PaymentsViewModel}}, Path=ViewPaymentDetailsCommand}"
+                                                          CommandParameter="{Binding .}"/>
+                                </Frame.GestureRecognizers>
+
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto">
+                                    <!-- Bank Icon -->
+                                    <Frame Grid.RowSpan="3"
+                                           CornerRadius="25"
+                                           HeightRequest="50"
+                                           WidthRequest="50"
+                                           Padding="0"
+                                           BackgroundColor="{StaticResource CardBackgroundLight}"
+                                           BorderColor="Transparent"
+                                           VerticalOptions="Center">
+                                        <Label Text="&#xE84F;"
+                                               FontFamily="MaterialIcons"
+                                               FontSize="24"
+                                               TextColor="{StaticResource PrimaryColor}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"/>
+                                    </Frame>
+
+                                    <!-- Bank Name & Account -->
+                                    <Label Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding BankName}"
+                                           FontSize="15"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryText}"
+                                           Margin="12,0"/>
+
+                                    <Label Grid.Row="1" Grid.Column="1"
+                                           Text="{Binding AccountNumber}"
+                                           FontSize="12"
+                                           TextColor="{StaticResource SecondaryText}"
+                                           Margin="12,0"/>
+
+                                    <Label Grid.Row="2" Grid.Column="1"
+                                           Text="{Binding TransactionTime, StringFormat='{0:dd/MM/yyyy HH:mm}'}"
+                                           FontSize="11"
+                                           TextColor="{StaticResource MutedText}"
+                                           Margin="12,0"/>
+
+                                    <!-- Amount & Status -->
+                                    <VerticalStackLayout Grid.RowSpan="3" Grid.Column="2" VerticalOptions="Center">
+                                        <Label Text="{Binding Amount, StringFormat='฿{0:N2}'}"
+                                               FontSize="18"
+                                               FontAttributes="Bold"
+                                               HorizontalOptions="End">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding Type}" Value="Incoming">
+                                                    <Setter Property="TextColor" Value="{StaticResource SuccessColor}"/>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Label" Binding="{Binding Type}" Value="Outgoing">
+                                                    <Setter Property="TextColor" Value="{StaticResource ErrorColor}"/>
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+
+                                        <Frame CornerRadius="4"
+                                               Padding="8,4"
+                                               BorderColor="Transparent"
+                                               HorizontalOptions="End"
+                                               Margin="0,4,0,0">
+                                            <Frame.Triggers>
+                                                <DataTrigger TargetType="Frame" Binding="{Binding Status}" Value="Pending">
+                                                    <Setter Property="BackgroundColor" Value="{StaticResource WarningColor}"/>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Frame" Binding="{Binding Status}" Value="Verified">
+                                                    <Setter Property="BackgroundColor" Value="{StaticResource InfoColor}"/>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Frame" Binding="{Binding Status}" Value="Approved">
+                                                    <Setter Property="BackgroundColor" Value="{StaticResource SuccessColor}"/>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Frame" Binding="{Binding Status}" Value="Rejected">
+                                                    <Setter Property="BackgroundColor" Value="{StaticResource ErrorColor}"/>
+                                                </DataTrigger>
+                                            </Frame.Triggers>
+                                            <Label FontSize="10" TextColor="White" FontAttributes="Bold">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding Status}" Value="Pending">
+                                                        <Setter Property="Text" Value="รอตรวจสอบ"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding Status}" Value="Verified">
+                                                        <Setter Property="Text" Value="ตรวจสอบแล้ว"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding Status}" Value="Approved">
+                                                        <Setter Property="Text" Value="อนุมัติแล้ว"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding Status}" Value="Rejected">
+                                                        <Setter Property="Text" Value="ปฏิเสธ"/>
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </Frame>
+
+                                        <!-- Confidence Score -->
+                                        <Label Text="{Binding ConfidenceScore, StringFormat='ความมั่นใจ {0:P0}'}"
+                                               FontSize="10"
+                                               TextColor="{StaticResource MutedText}"
+                                               HorizontalOptions="End"
+                                               Margin="0,4,0,0"/>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Frame>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Padding="20">
+                        <Label Text="&#xE227;"
+                               FontFamily="MaterialIcons"
+                               FontSize="64"
+                               TextColor="{StaticResource MutedText}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="ไม่มีรายการชำระเงิน"
+                               FontSize="18"
+                               TextColor="{StaticResource SecondaryText}"
+                               HorizontalOptions="Center"
+                               Margin="0,16,0,0"/>
+                        <Label Text="เมื่อตรวจพบ SMS แจ้งเตือนจากธนาคาร จะแสดงที่นี่"
+                               FontSize="14"
+                               TextColor="{StaticResource MutedText}"
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+
+</ContentPage>

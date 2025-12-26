@@ -1,0 +1,222 @@
+# PostXAgent - PowerShell Installation Script
+# Run as Administrator
+
+#Requires -RunAsAdministrator
+
+$ErrorActionPreference = "Stop"
+
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "PostXAgent - Auto Installation Script" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Function to find executable in common locations
+function Find-Executable {
+    param([string]$Name, [string[]]$CommonPaths)
+
+    # Try PATH first
+    $found = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($found) {
+        return $found.Source
+    }
+
+    # Try common paths
+    foreach ($path in $CommonPaths) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+
+    return $null
+}
+
+Write-Host "[1/8] Checking prerequisites..." -ForegroundColor Yellow
+Write-Host ""
+
+# Find PHP
+$phpPaths = @(
+    "C:\php\php.exe",
+    "C:\xampp\php\php.exe",
+    "C:\wamp64\bin\php\php8.2\php.exe",
+    "C:\laragon\bin\php\php-8.3.26-Win32-vs16-x64\php.exe",
+    "C:\Program Files\PHP\php.exe"
+)
+
+# Also search Laragon directories dynamically
+if (Test-Path "C:\laragon\bin\php") {
+    $laragonPhps = Get-ChildItem "C:\laragon\bin\php\php-*\php.exe" -ErrorAction SilentlyContinue
+    if ($laragonPhps) {
+        $phpPaths += $laragonPhps | Select-Object -First 1 -ExpandProperty FullName
+    }
+}
+
+$php = Find-Executable -Name "php" -CommonPaths $phpPaths
+
+if (-not $php) {
+    Write-Host "[ERROR] PHP not found" -ForegroundColor Red
+    Write-Host "Please install PHP 8.2+ from:" -ForegroundColor Yellow
+    Write-Host "- https://windows.php.net/download/" -ForegroundColor Yellow
+    Write-Host "- Or install XAMPP/Laragon/WAMP" -ForegroundColor Yellow
+    pause
+    exit 1
+}
+Write-Host "[OK] PHP found: $php" -ForegroundColor Green
+
+# Find Composer
+$composerPaths = @(
+    "C:\ProgramData\ComposerSetup\bin\composer.bat",
+    "C:\Users\$env:USERNAME\AppData\Roaming\Composer\composer.bat",
+    "$env:APPDATA\Composer\composer.bat"
+)
+$composer = Find-Executable -Name "composer" -CommonPaths $composerPaths
+
+if (-not $composer) {
+    Write-Host "[ERROR] Composer not found" -ForegroundColor Red
+    Write-Host "Please install from: https://getcomposer.org/" -ForegroundColor Yellow
+    pause
+    exit 1
+}
+Write-Host "[OK] Composer found: $composer" -ForegroundColor Green
+
+# Find Node.js
+$nodePaths = @(
+    "C:\Program Files\nodejs\node.exe",
+    "C:\Program Files (x86)\nodejs\node.exe"
+)
+$node = Find-Executable -Name "node" -CommonPaths $nodePaths
+
+if (-not $node) {
+    Write-Host "[ERROR] Node.js not found" -ForegroundColor Red
+    Write-Host "Please install from: https://nodejs.org/" -ForegroundColor Yellow
+    pause
+    exit 1
+}
+Write-Host "[OK] Node.js found: $node" -ForegroundColor Green
+
+# Find npm
+$npmPaths = @(
+    "C:\Program Files\nodejs\npm.cmd",
+    "C:\Program Files (x86)\nodejs\npm.cmd"
+)
+$npm = Find-Executable -Name "npm" -CommonPaths $npmPaths
+
+if (-not $npm) {
+    Write-Host "[ERROR] npm not found" -ForegroundColor Red
+    pause
+    exit 1
+}
+Write-Host "[OK] npm found: $npm" -ForegroundColor Green
+
+# Check .NET (optional)
+$dotnet = Get-Command "dotnet" -ErrorAction SilentlyContinue
+if ($dotnet) {
+    Write-Host "[OK] .NET SDK found" -ForegroundColor Green
+} else {
+    Write-Host "[WARNING] .NET SDK not found (optional)" -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "[2/8] Installing Laravel dependencies..." -ForegroundColor Yellow
+Set-Location laravel-backend
+& $composer install --no-interaction --prefer-dist --optimize-autoloader
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Composer install failed" -ForegroundColor Red
+    Set-Location ..
+    pause
+    exit 1
+}
+Write-Host "[OK] Laravel dependencies installed" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[3/8] Installing NPM dependencies..." -ForegroundColor Yellow
+& $npm install
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] npm install failed" -ForegroundColor Red
+    Set-Location ..
+    pause
+    exit 1
+}
+Write-Host "[OK] NPM dependencies installed" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[4/8] Building frontend assets..." -ForegroundColor Yellow
+& $npm run build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] npm build failed" -ForegroundColor Red
+    Set-Location ..
+    pause
+    exit 1
+}
+Write-Host "[OK] Frontend assets built" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[5/8] Setting up environment file..." -ForegroundColor Yellow
+if (-not (Test-Path ".env")) {
+    if (Test-Path ".env.example") {
+        Copy-Item ".env.example" ".env"
+        Write-Host "[OK] .env file created" -ForegroundColor Green
+    } else {
+        Write-Host "[ERROR] .env.example not found" -ForegroundColor Red
+        Set-Location ..
+        pause
+        exit 1
+    }
+} else {
+    Write-Host "[OK] .env file already exists" -ForegroundColor Green
+}
+
+Write-Host ""
+Write-Host "[6/8] Generating application key..." -ForegroundColor Yellow
+& $php artisan key:generate --force
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Failed to generate key" -ForegroundColor Red
+    Set-Location ..
+    pause
+    exit 1
+}
+Write-Host "[OK] Application key generated" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[7/8] Creating storage directories..." -ForegroundColor Yellow
+$dirs = @(
+    "storage\app\public",
+    "storage\framework\cache",
+    "storage\framework\sessions",
+    "storage\framework\views",
+    "storage\logs"
+)
+foreach ($dir in $dirs) {
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+}
+Write-Host "[OK] Storage directories created" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[8/8] Building C# AI Manager (optional)..." -ForegroundColor Yellow
+Set-Location ..\AIManagerCore
+if ($dotnet) {
+    dotnet build --configuration Release 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] C# AI Manager built" -ForegroundColor Green
+    } else {
+        Write-Host "[WARNING] C# build failed" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[SKIPPED] .NET SDK not installed" -ForegroundColor Yellow
+}
+
+Set-Location ..
+
+Write-Host ""
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "Installation Complete! 🎉" -ForegroundColor Green
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Next steps:" -ForegroundColor Yellow
+Write-Host "1. Configure database in: laravel-backend\.env" -ForegroundColor White
+Write-Host "2. Start services: .\start.ps1" -ForegroundColor White
+Write-Host "3. Visit: http://localhost:8000/setup" -ForegroundColor White
+Write-Host ""
+Write-Host "Press any key to continue..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

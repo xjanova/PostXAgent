@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- Primary Colors (matching AI Manager Core UI) -->
+    <Color x:Key="PrimaryColor">#7C4DFF</Color>
+    <Color x:Key="SecondaryColor">#00BCD4</Color>
+    <Color x:Key="AccentColor">#FF4081</Color>
+
+    <!-- Background Colors -->
+    <Color x:Key="DarkBackground">#0D1117</Color>
+    <Color x:Key="CardBackground">#1E1E2E</Color>
+    <Color x:Key="CardBackgroundLight">#2A2A3E</Color>
+
+    <!-- Text Colors -->
+    <Color x:Key="PrimaryText">#FFFFFF</Color>
+    <Color x:Key="SecondaryText">#D0D0E8</Color>
+    <Color x:Key="MutedText">#A8A8C8</Color>
+
+    <!-- Status Colors -->
+    <Color x:Key="SuccessColor">#4CAF50</Color>
+    <Color x:Key="WarningColor">#FF9800</Color>
+    <Color x:Key="ErrorColor">#F44336</Color>
+    <Color x:Key="InfoColor">#2196F3</Color>
+
+    <!-- Platform Colors -->
+    <Color x:Key="FacebookColor">#1877F2</Color>
+    <Color x:Key="InstagramColor">#DD2A7B</Color>
+    <Color x:Key="TikTokColor">#00F2EA</Color>
+    <Color x:Key="TwitterColor">#1DA1F2</Color>
+    <Color x:Key="LineColor">#00B900</Color>
+    <Color x:Key="YouTubeColor">#FF0000</Color>
+    <Color x:Key="ThreadsColor">#000000</Color>
+    <Color x:Key="LinkedInColor">#0A66C2</Color>
+    <Color x:Key="PinterestColor">#E60023</Color>
+
+    <!-- Gradient Colors -->
+    <Color x:Key="GradientStart">#7C4DFF</Color>
+    <Color x:Key="GradientEnd">#00BCD4</Color>
+
+</ResourceDictionary>

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AIManager.Mobile.ViewModels"
+             xmlns:models="clr-namespace:AIManager.Mobile.Models"
+             x:Class="AIManager.Mobile.Views.WorkersPage"
+             x:DataType="vm:WorkersViewModel"
+             Title="Workers"
+             BackgroundColor="{StaticResource DarkBackground}">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <!-- Stats Bar -->
+        <Frame Grid.Row="0"
+               BackgroundColor="{StaticResource CardBackground}"
+               CornerRadius="0"
+               Padding="16"
+               BorderColor="Transparent">
+            <Grid ColumnDefinitions="*,*,*">
+                <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center">
+                    <Label Text="{Binding ActiveCount}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource SuccessColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="กำลังทำงาน"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center">
+                    <Label Text="{Binding IdleCount}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource SecondaryColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="ว่าง"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center">
+                    <Label Text="{Binding ErrorCount}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource ErrorColor}"
+                           HorizontalOptions="Center"/>
+                    <Label Text="มีปัญหา"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
+        </Frame>
+
+        <!-- Action Buttons -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" Padding="16,8" ColumnSpacing="12">
+            <Button Grid.Column="0"
+                    Text="เริ่มทั้งหมด"
+                    Command="{Binding StartAllWorkersCommand}"
+                    BackgroundColor="{StaticResource SuccessColor}"
+                    TextColor="White"
+                    CornerRadius="8"/>
+            <Button Grid.Column="1"
+                    Text="หยุดทั้งหมด"
+                    Command="{Binding StopAllWorkersCommand}"
+                    BackgroundColor="{StaticResource ErrorColor}"
+                    TextColor="White"
+                    CornerRadius="8"/>
+        </Grid>
+
+        <!-- Workers List -->
+        <RefreshView Grid.Row="2"
+                     IsRefreshing="{Binding IsBusy}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding Workers}"
+                            Margin="16,0,16,16">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:WorkerInfo">
+                        <Frame BackgroundColor="{StaticResource CardBackground}"
+                               CornerRadius="12"
+                               Padding="16"
+                               Margin="0,6"
+                               BorderColor="Transparent">
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto">
+                                <!-- Platform Icon -->
+                                <Frame Grid.RowSpan="3"
+                                       CornerRadius="25"
+                                       HeightRequest="50"
+                                       WidthRequest="50"
+                                       Padding="0"
+                                       BackgroundColor="{Binding PlatformColor}"
+                                       BorderColor="Transparent"
+                                       VerticalOptions="Center">
+                                    <Label Text="{Binding PlatformName, StringFormat='{0:N1}'}"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="White"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"/>
+                                </Frame>
+
+                                <!-- Worker Info -->
+                                <Label Grid.Row="0" Grid.Column="1"
+                                       Text="{Binding Name}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryText}"
+                                       Margin="12,0"/>
+
+                                <Label Grid.Row="1" Grid.Column="1"
+                                       Text="{Binding StatusText}"
+                                       FontSize="13"
+                                       TextColor="{Binding StatusColor}"
+                                       Margin="12,0"/>
+
+                                <Label Grid.Row="2" Grid.Column="1"
+                                       FontSize="11"
+                                       TextColor="{StaticResource MutedText}"
+                                       Margin="12,0">
+                                    <Label.Text>
+                                        <MultiBinding StringFormat="สำเร็จ: {0} | ล้มเหลว: {1}">
+                                            <Binding Path="TasksCompleted"/>
+                                            <Binding Path="TasksFailed"/>
+                                        </MultiBinding>
+                                    </Label.Text>
+                                </Label>
+
+                                <!-- Action Buttons -->
+                                <HorizontalStackLayout Grid.RowSpan="3" Grid.Column="2" Spacing="8" VerticalOptions="Center">
+                                    <ImageButton Source="play.png"
+                                                 BackgroundColor="{StaticResource SuccessColor}"
+                                                 CornerRadius="20"
+                                                 HeightRequest="40"
+                                                 WidthRequest="40"
+                                                 Padding="8"
+                                                 Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WorkersViewModel}}, Path=StartWorkerCommand}"
+                                                 CommandParameter="{Binding .}"
+                                                 IsVisible="{Binding Status, Converter={StaticResource IsNotWorkingConverter}}"/>
+                                    <ImageButton Source="pause.png"
+                                                 BackgroundColor="{StaticResource WarningColor}"
+                                                 CornerRadius="20"
+                                                 HeightRequest="40"
+                                                 WidthRequest="40"
+                                                 Padding="8"
+                                                 Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WorkersViewModel}}, Path=PauseWorkerCommand}"
+                                                 CommandParameter="{Binding .}"
+                                                 IsVisible="{Binding Status, Converter={StaticResource IsWorkingConverter}}"/>
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Padding="20">
+                        <Label Text="&#xE7FD;"
+                               FontFamily="MaterialIcons"
+                               FontSize="64"
+                               TextColor="{StaticResource MutedText}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="ไม่พบ Workers"
+                               FontSize="18"
+                               TextColor="{StaticResource SecondaryText}"
+                               HorizontalOptions="Center"
+                               Margin="0,16,0,0"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+
+</ContentPage>

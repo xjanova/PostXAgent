@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AIManager.Mobile.ViewModels"
+             x:Class="AIManager.Mobile.Views.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
+             Title="ตั้งค่า"
+             BackgroundColor="{StaticResource DarkBackground}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <!-- Connection Settings -->
+            <Frame BackgroundColor="{StaticResource CardBackground}"
+                   CornerRadius="12"
+                   Padding="16"
+                   BorderColor="Transparent">
+                <VerticalStackLayout Spacing="16">
+                    <Label Text="การเชื่อมต่อ AI Manager Core"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryText}"/>
+
+                    <!-- Server Host -->
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Server Host / IP"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryText}"/>
+                        <Entry Text="{Binding ServerHost}"
+                               Placeholder="192.168.1.100"
+                               PlaceholderColor="{StaticResource MutedText}"
+                               TextColor="{StaticResource PrimaryText}"
+                               BackgroundColor="{StaticResource CardBackgroundLight}"/>
+                    </VerticalStackLayout>
+
+                    <!-- Ports -->
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="API Port"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryText}"/>
+                            <Entry Text="{Binding ApiPort}"
+                                   Keyboard="Numeric"
+                                   Placeholder="5000"
+                                   PlaceholderColor="{StaticResource MutedText}"
+                                   TextColor="{StaticResource PrimaryText}"
+                                   BackgroundColor="{StaticResource CardBackgroundLight}"/>
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="SignalR Port"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryText}"/>
+                            <Entry Text="{Binding SignalRPort}"
+                                   Keyboard="Numeric"
+                                   Placeholder="5002"
+                                   PlaceholderColor="{StaticResource MutedText}"
+                                   TextColor="{StaticResource PrimaryText}"
+                                   BackgroundColor="{StaticResource CardBackgroundLight}"/>
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- HTTPS Toggle -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0"
+                               Text="ใช้ HTTPS"
+                               TextColor="{StaticResource PrimaryText}"
+                               VerticalOptions="Center"/>
+                        <Switch Grid.Column="1"
+                                IsToggled="{Binding UseHttps}"
+                                OnColor="{StaticResource PrimaryColor}"/>
+                    </Grid>
+
+                    <!-- API Key -->
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="API Key"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryText}"/>
+                        <Entry Text="{Binding ApiKey}"
+                               Placeholder="กรอก API Key จาก AI Manager Core"
+                               PlaceholderColor="{StaticResource MutedText}"
+                               TextColor="{StaticResource PrimaryText}"
+                               BackgroundColor="{StaticResource CardBackgroundLight}"
+                               IsPassword="True"/>
+                        <Label Text="รับ API Key จากหน้า Settings ของ AI Manager Core (WPF)"
+                               FontSize="10"
+                               TextColor="{StaticResource MutedText}"/>
+                    </VerticalStackLayout>
+
+                    <!-- Test Connection Button -->
+                    <Button Text="ทดสอบการเชื่อมต่อ"
+                            Command="{Binding TestConnectionCommand}"
+                            BackgroundColor="{StaticResource SecondaryColor}"
+                            TextColor="White"
+                            CornerRadius="8"/>
+
+                    <!-- Connection Test Results -->
+                    <Frame BackgroundColor="{StaticResource CardBackgroundLight}"
+                           CornerRadius="8"
+                           Padding="12"
+                           BorderColor="Transparent">
+                        <VerticalStackLayout Spacing="8">
+                            <!-- API Connection Status -->
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Label Grid.Column="0"
+                                       Text="&#xE30D;"
+                                       FontFamily="MaterialIcons"
+                                       FontSize="18"
+                                       TextColor="{Binding ConnectionTestColor}"
+                                       VerticalOptions="Center"/>
+                                <Label Grid.Column="1"
+                                       Text="การเชื่อมต่อ API:"
+                                       FontSize="13"
+                                       TextColor="{StaticResource SecondaryText}"
+                                       Margin="8,0"
+                                       VerticalOptions="Center"/>
+                                <Label Grid.Column="2"
+                                       Text="{Binding ConnectionTestResult}"
+                                       FontSize="13"
+                                       TextColor="{Binding ConnectionTestColor}"
+                                       VerticalOptions="Center"/>
+                            </Grid>
+
+                            <!-- API Key Status -->
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Label Grid.Column="0"
+                                       Text="&#xE897;"
+                                       FontFamily="MaterialIcons"
+                                       FontSize="18"
+                                       TextColor="{Binding ApiKeyStatusColor}"
+                                       VerticalOptions="Center"/>
+                                <Label Grid.Column="1"
+                                       Text="API Key:"
+                                       FontSize="13"
+                                       TextColor="{StaticResource SecondaryText}"
+                                       Margin="8,0"
+                                       VerticalOptions="Center"/>
+                                <HorizontalStackLayout Grid.Column="2" Spacing="4">
+                                    <Label Text="{Binding ApiKeyStatusText}"
+                                           FontSize="13"
+                                           TextColor="{Binding ApiKeyStatusColor}"
+                                           VerticalOptions="Center"/>
+                                    <Label Text="&#xE5CA;"
+                                           FontFamily="MaterialIcons"
+                                           FontSize="16"
+                                           TextColor="{StaticResource SuccessColor}"
+                                           IsVisible="{Binding IsApiKeyValid}"
+                                           VerticalOptions="Center"/>
+                                </HorizontalStackLayout>
+                            </Grid>
+
+                            <!-- Server Version -->
+                            <Grid ColumnDefinitions="Auto,*,Auto"
+                                  IsVisible="{Binding ServerVersion, Converter={StaticResource NullToBoolConverter}}">
+                                <Label Grid.Column="0"
+                                       Text="&#xE30C;"
+                                       FontFamily="MaterialIcons"
+                                       FontSize="18"
+                                       TextColor="{StaticResource MutedText}"
+                                       VerticalOptions="Center"/>
+                                <Label Grid.Column="1"
+                                       Text="Server Version:"
+                                       FontSize="13"
+                                       TextColor="{StaticResource SecondaryText}"
+                                       Margin="8,0"
+                                       VerticalOptions="Center"/>
+                                <Label Grid.Column="2"
+                                       Text="{Binding ServerVersion}"
+                                       FontSize="13"
+                                       TextColor="{StaticResource PrimaryText}"
+                                       VerticalOptions="Center"/>
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- SMS Settings -->
+            <Frame BackgroundColor="{StaticResource CardBackground}"
+                   CornerRadius="12"
+                   Padding="16"
+                   BorderColor="Transparent">
+                <VerticalStackLayout Spacing="16">
+                    <Label Text="การตรวจสอบ SMS"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryText}"/>
+
+                    <!-- SMS Monitoring -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0">
+                            <Label Text="เปิดใช้การตรวจสอบ SMS"
+                                   TextColor="{StaticResource PrimaryText}"/>
+                            <Label Text="ตรวจจับ SMS แจ้งเตือนจากธนาคาร"
+                                   FontSize="11"
+                                   TextColor="{StaticResource MutedText}"/>
+                        </VerticalStackLayout>
+                        <Switch Grid.Column="1"
+                                IsToggled="{Binding SmsMonitoringEnabled}"
+                                OnColor="{StaticResource PrimaryColor}"/>
+                    </Grid>
+
+                    <!-- Auto Approve -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0">
+                            <Label Text="อนุมัติอัตโนมัติ"
+                                   TextColor="{StaticResource PrimaryText}"/>
+                            <Label Text="อนุมัติการชำระเงินที่ความมั่นใจสูง"
+                                   FontSize="11"
+                                   TextColor="{StaticResource MutedText}"/>
+                        </VerticalStackLayout>
+                        <Switch Grid.Column="1"
+                                IsToggled="{Binding AutoApproveEnabled}"
+                                OnColor="{StaticResource PrimaryColor}"/>
+                    </Grid>
+
+                    <!-- Confidence Threshold -->
+                    <VerticalStackLayout Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0"
+                                   Text="ค่าความมั่นใจขั้นต่ำ"
+                                   TextColor="{StaticResource PrimaryText}"/>
+                            <Label Grid.Column="1"
+                                   Text="{Binding ConfidenceThreshold, StringFormat='{0:P0}'}"
+                                   TextColor="{StaticResource SecondaryColor}"
+                                   FontAttributes="Bold"/>
+                        </Grid>
+                        <Slider Minimum="0.5"
+                                Maximum="1.0"
+                                Value="{Binding ConfidenceThreshold}"
+                                MinimumTrackColor="{StaticResource PrimaryColor}"
+                                MaximumTrackColor="{StaticResource CardBackgroundLight}"
+                                ThumbColor="{StaticResource PrimaryColor}"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Notification Settings -->
+            <Frame BackgroundColor="{StaticResource CardBackground}"
+                   CornerRadius="12"
+                   Padding="16"
+                   BorderColor="Transparent">
+                <VerticalStackLayout Spacing="16">
+                    <Label Text="การแจ้งเตือน"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryText}"/>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0">
+                            <Label Text="เปิดการแจ้งเตือน"
+                                   TextColor="{StaticResource PrimaryText}"/>
+                            <Label Text="แจ้งเตือนเมื่อตรวจพบการชำระเงินใหม่"
+                                   FontSize="11"
+                                   TextColor="{StaticResource MutedText}"/>
+                        </VerticalStackLayout>
+                        <Switch Grid.Column="1"
+                                IsToggled="{Binding NotificationsEnabled}"
+                                OnColor="{StaticResource PrimaryColor}"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Action Buttons -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button Grid.Column="0"
+                        Text="บันทึก"
+                        Command="{Binding SaveSettingsCommand}"
+                        BackgroundColor="{StaticResource PrimaryColor}"
+                        TextColor="White"
+                        CornerRadius="8"/>
+                <Button Grid.Column="1"
+                        Text="รีเซ็ต"
+                        Command="{Binding ResetSettingsCommand}"
+                        BackgroundColor="{StaticResource CardBackgroundLight}"
+                        TextColor="{StaticResource SecondaryText}"
+                        CornerRadius="8"/>
+            </Grid>
+
+            <!-- Reconnect SignalR -->
+            <Button Text="เชื่อมต่อ SignalR ใหม่"
+                    Command="{Binding ReconnectSignalRCommand}"
+                    BackgroundColor="{StaticResource SecondaryColor}"
+                    TextColor="White"
+                    CornerRadius="8"/>
+
+            <!-- About -->
+            <Button Text="เกี่ยวกับแอพ"
+                    Command="{Binding OpenAboutCommand}"
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource SecondaryText}"
+                    CornerRadius="8"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

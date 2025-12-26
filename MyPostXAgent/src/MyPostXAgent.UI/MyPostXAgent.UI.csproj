@@ -45,7 +45,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Resources\**">
+    <!-- Copy resources (images, icons) to output - XAML files are auto-included by SDK -->
+    <None Update="Resources\app.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AIManager.Mobile.ViewModels"
+             xmlns:models="clr-namespace:AIManager.Mobile.Models"
+             x:Class="AIManager.Mobile.Views.TasksPage"
+             x:DataType="vm:TasksViewModel"
+             Title="งานทั้งหมด"
+             BackgroundColor="{StaticResource DarkBackground}">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Filter Bar -->
+        <Frame Grid.Row="0"
+               BackgroundColor="{StaticResource CardBackground}"
+               CornerRadius="0"
+               Padding="16,8"
+               BorderColor="Transparent">
+            <Picker ItemsSource="{Binding StatusFilters}"
+                    SelectedItem="{Binding FilterStatus}"
+                    Title="กรองตามสถานะ"
+                    TextColor="{StaticResource PrimaryText}"
+                    TitleColor="{StaticResource SecondaryText}"/>
+        </Frame>
+
+        <!-- Tasks List -->
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsBusy}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding Tasks}"
+                            Margin="16">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:TaskItem">
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Execute">
+                                    <SwipeItem Text="ยกเลิก"
+                                               BackgroundColor="{StaticResource ErrorColor}"
+                                               Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TasksViewModel}}, Path=CancelTaskCommand}"
+                                               CommandParameter="{Binding .}"/>
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+
+                            <Frame BackgroundColor="{StaticResource CardBackground}"
+                                   CornerRadius="12"
+                                   Padding="16"
+                                   Margin="0,6"
+                                   BorderColor="Transparent">
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TasksViewModel}}, Path=ViewTaskDetailsCommand}"
+                                                          CommandParameter="{Binding .}"/>
+                                </Frame.GestureRecognizers>
+
+                                <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+                                    <!-- Platform Icon -->
+                                    <Frame Grid.RowSpan="2"
+                                           CornerRadius="20"
+                                           HeightRequest="40"
+                                           WidthRequest="40"
+                                           Padding="0"
+                                           BackgroundColor="{StaticResource CardBackgroundLight}"
+                                           BorderColor="Transparent">
+                                        <Label Text="{Binding PlatformIcon}"
+                                               FontFamily="MaterialIcons"
+                                               FontSize="20"
+                                               TextColor="{StaticResource PrimaryColor}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"/>
+                                    </Frame>
+
+                                    <!-- Task Info -->
+                                    <VerticalStackLayout Grid.Column="1" Grid.RowSpan="2" Margin="12,0">
+                                        <Label Text="{Binding TypeText}"
+                                               FontSize="15"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryText}"/>
+                                        <Label TextColor="{StaticResource MutedText}" FontSize="12">
+                                            <Label.Text>
+                                                <MultiBinding StringFormat="{}{0} | {1:dd/MM/yyyy HH:mm}">
+                                                    <Binding Path="Platform"/>
+                                                    <Binding Path="CreatedAt"/>
+                                                </MultiBinding>
+                                            </Label.Text>
+                                        </Label>
+                                        <Label Text="{Binding Retries, StringFormat='ลองใหม่: {0} ครั้ง'}"
+                                               FontSize="11"
+                                               TextColor="{StaticResource MutedText}"
+                                               IsVisible="{Binding Retries, Converter={StaticResource IsNotZeroConverter}}"/>
+                                    </VerticalStackLayout>
+
+                                    <!-- Status Badge -->
+                                    <Frame Grid.Column="2"
+                                           Grid.RowSpan="2"
+                                           CornerRadius="6"
+                                           Padding="10,6"
+                                           BackgroundColor="{Binding StatusColor}"
+                                           BorderColor="Transparent"
+                                           VerticalOptions="Center">
+                                        <Label Text="{Binding StatusText}"
+                                               FontSize="11"
+                                               TextColor="White"
+                                               FontAttributes="Bold"/>
+                                    </Frame>
+                                </Grid>
+                            </Frame>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Padding="20">
+                        <Label Text="&#xE8B5;"
+                               FontFamily="MaterialIcons"
+                               FontSize="64"
+                               TextColor="{StaticResource MutedText}"
+                               HorizontalOptions="Center"/>
+                        <Label Text="ไม่พบงาน"
+                               FontSize="18"
+                               TextColor="{StaticResource SecondaryText}"
+                               HorizontalOptions="Center"
+                               Margin="0,16,0,0"/>
+                        <Label Text="ลองเปลี่ยนตัวกรองหรือรอจนกว่าจะมีงานใหม่"
+                               FontSize="14"
+                               TextColor="{StaticResource MutedText}"
+                               HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+
+</ContentPage>

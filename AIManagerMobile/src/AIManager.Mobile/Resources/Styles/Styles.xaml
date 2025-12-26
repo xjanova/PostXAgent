@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:converters="clr-namespace:AIManager.Mobile.Converters">
+
+    <!-- Converters -->
+    <converters:InvertedBoolConverter x:Key="InvertedBoolConverter"/>
+    <converters:PercentConverter x:Key="PercentConverter"/>
+    <converters:IsNotZeroConverter x:Key="IsNotZeroConverter"/>
+    <converters:IsPaymentCategoryConverter x:Key="IsPaymentCategoryConverter"/>
+    <converters:IsWorkingConverter x:Key="IsWorkingConverter"/>
+    <converters:IsNotWorkingConverter x:Key="IsNotWorkingConverter"/>
+
+    <!-- Bank Converters -->
+    <converters:BankTypeToColorConverter x:Key="BankTypeToColorConverter"/>
+    <converters:BankTypeToNameConverter x:Key="BankTypeToNameConverter"/>
+    <converters:BankTypeToIconConverter x:Key="BankTypeToIconConverter"/>
+    <converters:BankTypeToPlaceholderConverter x:Key="BankTypeToPlaceholderConverter"/>
+    <converters:BoolToStatusTextConverter x:Key="BoolToStatusTextConverter"/>
+    <converters:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter"/>
+    <converters:BoolToAddEditBankConverter x:Key="BoolToAddEditBankConverter"/>
+    <converters:ZeroToBoolConverter x:Key="ZeroToBoolConverter"/>
+    <converters:NonZeroToBoolConverter x:Key="NonZeroToBoolConverter"/>
+    <converters:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+
+    <!-- Website Converters -->
+    <converters:StatusToColorConverter x:Key="StatusToColorConverter"/>
+    <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
+    <converters:BoolToAddEditConverter x:Key="BoolToAddEditConverter"/>
+
+    <!-- API Key Converters -->
+    <converters:ApiKeyValidToTextConverter x:Key="ApiKeyValidToTextConverter"/>
+    <converters:ApiKeyValidToColorConverter x:Key="ApiKeyValidToColorConverter"/>
+
+    <!-- Page Style -->
+    <Style TargetType="Page" ApplyToDerivedTypes="True">
+        <Setter Property="BackgroundColor" Value="{StaticResource DarkBackground}"/>
+    </Style>
+
+    <!-- Navigation Bar Style -->
+    <Style TargetType="NavigationPage">
+        <Setter Property="BarBackgroundColor" Value="{StaticResource CardBackground}"/>
+        <Setter Property="BarTextColor" Value="{StaticResource PrimaryText}"/>
+    </Style>
+
+    <!-- Shell Style -->
+    <Style TargetType="Shell" ApplyToDerivedTypes="True">
+        <Setter Property="Shell.BackgroundColor" Value="{StaticResource PrimaryColor}"/>
+        <Setter Property="Shell.ForegroundColor" Value="{StaticResource PrimaryText}"/>
+        <Setter Property="Shell.TitleColor" Value="{StaticResource PrimaryText}"/>
+        <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource CardBackground}"/>
+        <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource PrimaryColor}"/>
+        <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource MutedText}"/>
+    </Style>
+
+    <!-- Label Styles -->
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource PrimaryText}"/>
+        <Setter Property="FontFamily" Value="OpenSansRegular"/>
+        <Setter Property="FontSize" Value="15"/>
+    </Style>
+
+    <Style x:Key="HeadlineLabel" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource PrimaryText}"/>
+        <Setter Property="FontSize" Value="24"/>
+        <Setter Property="FontAttributes" Value="Bold"/>
+    </Style>
+
+    <Style x:Key="SubheadLabel" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource SecondaryText}"/>
+        <Setter Property="FontSize" Value="14"/>
+    </Style>
+
+    <!-- Button Styles -->
+    <Style TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}"/>
+        <Setter Property="TextColor" Value="White"/>
+        <Setter Property="FontFamily" Value="OpenSansSemibold"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal"/>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}"/>
+                            <Setter Property="TextColor" Value="{StaticResource MutedText}"/>
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver"/>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SecondaryButton" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}"/>
+        <Setter Property="TextColor" Value="{StaticResource SecondaryText}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="16,12"/>
+    </Style>
+
+    <!-- Entry Style -->
+    <Style TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource PrimaryText}"/>
+        <Setter Property="PlaceholderColor" Value="{StaticResource SecondaryText}"/>
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}"/>
+        <Setter Property="FontFamily" Value="OpenSansRegular"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="MinimumHeightRequest" Value="48"/>
+        <Setter Property="Margin" Value="0,5"/>
+    </Style>
+
+    <!-- Picker Style -->
+    <Style TargetType="Picker">
+        <Setter Property="TextColor" Value="{StaticResource PrimaryText}"/>
+        <Setter Property="TitleColor" Value="{StaticResource SecondaryText}"/>
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}"/>
+    </Style>
+
+    <!-- Switch Style -->
+    <Style TargetType="Switch">
+        <Setter Property="OnColor" Value="{StaticResource PrimaryColor}"/>
+        <Setter Property="ThumbColor" Value="White"/>
+    </Style>
+
+    <!-- Slider Style -->
+    <Style TargetType="Slider">
+        <Setter Property="MinimumTrackColor" Value="{StaticResource PrimaryColor}"/>
+        <Setter Property="MaximumTrackColor" Value="{StaticResource CardBackgroundLight}"/>
+        <Setter Property="ThumbColor" Value="{StaticResource PrimaryColor}"/>
+    </Style>
+
+    <!-- Progress Bar Style -->
+    <Style TargetType="ProgressBar">
+        <Setter Property="ProgressColor" Value="{StaticResource PrimaryColor}"/>
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}"/>
+    </Style>
+
+    <!-- Frame Style -->
+    <Style TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}"/>
+        <Setter Property="BorderColor" Value="Transparent"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+        <Setter Property="HasShadow" Value="False"/>
+    </Style>
+
+    <!-- RefreshView Style -->
+    <Style TargetType="RefreshView">
+        <Setter Property="RefreshColor" Value="{StaticResource PrimaryColor}"/>
+    </Style>
+
+    <!-- ActivityIndicator Style -->
+    <Style TargetType="ActivityIndicator">
+        <Setter Property="Color" Value="{StaticResource PrimaryColor}"/>
+    </Style>
+
+    <!-- Card Style -->
+    <Style x:Key="CardStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}"/>
+        <Setter Property="BorderColor" Value="Transparent"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+        <Setter Property="HasShadow" Value="False"/>
+    </Style>
+
+</ResourceDictionary>

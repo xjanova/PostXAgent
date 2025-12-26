@@ -125,18 +125,36 @@ public partial class App : Application
         ReportProgress("Loading main window...");
         await Task.Delay(200);
 
-        // Complete splash and show main window
+        // Complete splash
         await _splashScreen!.CompleteAsync();
+        await Task.Delay(300);
+        _splashScreen.Close();
+        _splashScreen = null;
+
+        // Check if first run - show setup wizard
+        var firstRunService = Services.GetRequiredService<FirstRunDetectionService>();
+        if (firstRunService.IsFirstRun())
+        {
+            _logger.LogInfo("App", "First run detected - showing Setup Wizard");
+
+            var setupWizard = new Views.SetupWizardWindow(firstRunService);
+            var result = setupWizard.ShowDialog();
+
+            if (result != true)
+            {
+                // User cancelled setup - exit application
+                _logger.LogInfo("App", "Setup cancelled by user");
+                Shutdown();
+                return;
+            }
+
+            _logger.LogInfo("App", "Setup completed successfully");
+        }
 
         // Create and show main window
         var mainWindow = new MainWindow();
         MainWindow = mainWindow;
         mainWindow.Show();
-
-        // Close splash
-        await Task.Delay(300);
-        _splashScreen.Close();
-        _splashScreen = null;
     }
 
     private void SetupExceptionHandlers()
@@ -216,6 +234,7 @@ public partial class App : Application
         services.AddSingleton<GpuRentalService>();
         services.AddSingleton<ContentGeneratorService>();
         services.AddSingleton<ImageGeneratorService>();
+        services.AddSingleton<FirstRunDetectionService>();
 
         // ViewModels
         services.AddTransient<MainViewModel>();
