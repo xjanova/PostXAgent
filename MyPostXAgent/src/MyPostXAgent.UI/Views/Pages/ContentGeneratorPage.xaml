@@ -151,7 +151,7 @@
                                                     </Style>
                                                 </Border.Style>
                                                 <StackPanel Orientation="Horizontal">
-                                                    <materialDesign:PackIcon Kind="OpenaiChatgptApi" Width="20" Height="20" Foreground="#10B981"/>
+                                                    <materialDesign:PackIcon Kind="Brain" Width="20" Height="20" Foreground="#10B981"/>
                                                     <TextBlock Text="OpenAI GPT" Foreground="{StaticResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Border>
