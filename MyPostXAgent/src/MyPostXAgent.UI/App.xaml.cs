@@ -33,19 +33,29 @@ public partial class App : Application
         try
         {
             // Configure services
+            System.Diagnostics.Debug.WriteLine("App: Creating service collection...");
             var services = new ServiceCollection();
+
+            System.Diagnostics.Debug.WriteLine("App: Configuring services...");
             ConfigureServices(services);
+
+            System.Diagnostics.Debug.WriteLine("App: Building service provider...");
             Services = services.BuildServiceProvider();
 
             // Initialize database
+            System.Diagnostics.Debug.WriteLine("App: Initializing database...");
             var dbService = Services.GetRequiredService<DatabaseService>();
             await dbService.InitializeAsync();
 
             // Check license/demo status
+            System.Diagnostics.Debug.WriteLine("App: Checking license...");
             await CheckLicenseStatusAsync();
+
+            System.Diagnostics.Debug.WriteLine("App: Startup completed successfully!");
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"App: Startup failed: {ex.GetType().Name} - {ex.Message}");
             System.Windows.MessageBox.Show(
                 $"เกิดข้อผิดพลาดในการเริ่มต้นโปรแกรม:\n\n{ex.Message}\n\nโปรแกรมจะปิดอัตโนมัติ",
                 "MyPostXAgent Startup Error",
@@ -132,28 +142,73 @@ public partial class App : Application
         }
     }
 
+    private bool _isHandlingException = false;
+
     private void SetupExceptionHandling()
     {
         // UI Thread exceptions
         DispatcherUnhandledException += (s, e) =>
         {
-            MessageBox.Show(
-                $"เกิดข้อผิดพลาด: {e.Exception.Message}",
-                "MyPostXAgent Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-            e.Handled = true;
+            // Prevent infinite recursion in exception handler
+            if (_isHandlingException)
+            {
+                e.Handled = false; // Let it crash
+                return;
+            }
+
+            try
+            {
+                _isHandlingException = true;
+
+                // Special handling for StackOverflow - can't show MessageBox
+                if (e.Exception is StackOverflowException)
+                {
+                    System.Diagnostics.Debug.WriteLine("FATAL: StackOverflowException detected. Exiting.");
+                    Environment.FailFast("StackOverflowException detected", e.Exception);
+                }
+
+                MessageBox.Show(
+                    $"เกิดข้อผิดพลาด: {e.Exception.Message}",
+                    "MyPostXAgent Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                e.Handled = true;
+            }
+            finally
+            {
+                _isHandlingException = false;
+            }
         };
 
         // Non-UI Thread exceptions
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
         {
-            var ex = e.ExceptionObject as Exception;
-            MessageBox.Show(
-                $"เกิดข้อผิดพลาดร้ายแรง: {ex?.Message}",
-                "MyPostXAgent Critical Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            if (_isHandlingException)
+                return;
+
+            try
+            {
+                _isHandlingException = true;
+
+                var ex = e.ExceptionObject as Exception;
+
+                // Special handling for StackOverflow
+                if (ex is StackOverflowException)
+                {
+                    System.Diagnostics.Debug.WriteLine("FATAL: StackOverflowException in AppDomain. Exiting.");
+                    return; // Can't do anything
+                }
+
+                MessageBox.Show(
+                    $"เกิดข้อผิดพลาดร้ายแรง: {ex?.Message}",
+                    "MyPostXAgent Critical Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                _isHandlingException = false;
+            }
         };
 
         // Task exceptions

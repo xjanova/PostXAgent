@@ -15,17 +15,27 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        System.Diagnostics.Debug.WriteLine("MainWindow: Constructor started");
+
+        System.Diagnostics.Debug.WriteLine("MainWindow: Calling InitializeComponent...");
         InitializeComponent();
 
+        System.Diagnostics.Debug.WriteLine("MainWindow: Getting MainViewModel from DI...");
         _viewModel = App.Services.GetRequiredService<MainViewModel>();
+
+        System.Diagnostics.Debug.WriteLine("MainWindow: Setting DataContext...");
         DataContext = _viewModel;
 
+        System.Diagnostics.Debug.WriteLine("MainWindow: Setting up Loaded event...");
         // Navigate to Dashboard after window is loaded
         Loaded += MainWindow_Loaded;
+
+        System.Diagnostics.Debug.WriteLine("MainWindow: Constructor completed");
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        System.Diagnostics.Debug.WriteLine("MainWindow: Loaded event fired");
         // Navigate to Dashboard by default
         NavigateTo("Dashboard");
     }
