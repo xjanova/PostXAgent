@@ -106,7 +106,7 @@
 
                             <WrapPanel>
                                 <!-- Ollama -->
-                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseOllama}" Margin="0,0,12,12" Cursor="Hand">
+                                <RadioButton IsChecked="{Binding UseOllama, Mode=TwoWay}" Margin="0,0,12,12" Cursor="Hand">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border x:Name="border" CornerRadius="12" Padding="16,12" BorderThickness="2"
@@ -134,7 +134,7 @@
                                 </RadioButton>
 
                                 <!-- OpenAI -->
-                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseOpenAI}" Margin="0,0,12,12" Cursor="Hand">
+                                <RadioButton IsChecked="{Binding UseOpenAI, Mode=TwoWay}" Margin="0,0,12,12" Cursor="Hand">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border CornerRadius="12" Padding="16,12" BorderThickness="2" Background="#16161E">
@@ -160,7 +160,7 @@
                                 </RadioButton>
 
                                 <!-- Claude -->
-                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseClaude}" Margin="0,0,12,12" Cursor="Hand">
+                                <RadioButton IsChecked="{Binding UseClaude, Mode=TwoWay}" Margin="0,0,12,12" Cursor="Hand">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border CornerRadius="12" Padding="16,12" BorderThickness="2" Background="#16161E">
@@ -186,7 +186,7 @@
                                 </RadioButton>
 
                                 <!-- Gemini -->
-                                <RadioButton GroupName="AIProvider" IsChecked="{Binding UseGemini}" Margin="0,0,12,12" Cursor="Hand">
+                                <RadioButton IsChecked="{Binding UseGemini, Mode=TwoWay}" Margin="0,0,12,12" Cursor="Hand">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border CornerRadius="12" Padding="16,12" BorderThickness="2" Background="#16161E">
