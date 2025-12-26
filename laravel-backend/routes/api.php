@@ -515,6 +515,7 @@ Route::prefix('v1/sms-gateway')->middleware(['auth:sanctum', 'throttle:api'])->g
 
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\LicenseController;
 
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // Roles Management (admin only)
@@ -543,4 +544,21 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     Route::get('/my-activity', function () {
         return app(AuditLogController::class)->userActivity(request(), auth()->id());
     });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// MYPOSTXAGENT LICENSE SYSTEM - Desktop App Licensing
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+Route::prefix('v1/license')->middleware('throttle:api')->group(function () {
+    // Public License Endpoints (for desktop app)
+    Route::post('/activate', [LicenseController::class, 'activate']);
+    Route::post('/validate', [LicenseController::class, 'validate']);
+    Route::post('/demo', [LicenseController::class, 'startDemo']);
+    Route::post('/demo/check', [LicenseController::class, 'checkDemo']);
+});
+
+Route::prefix('v1/license')->middleware(['auth:sanctum', 'throttle:api', 'role:admin'])->group(function () {
+    // Admin License Management
+    Route::post('/generate', [LicenseController::class, 'generate']);
 });

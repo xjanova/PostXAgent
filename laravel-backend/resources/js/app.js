@@ -7,8 +7,14 @@ import { useAuthStore } from './stores/auth';
 // Import root component
 import App from './App.vue';
 
+// Import Setup Wizard component
+import SetupWizard from './components/SetupWizard.vue';
+
 // Create Vue app
 const app = createApp(App);
+
+// Register global components
+app.component('setup-wizard', SetupWizard);
 
 // Use Pinia for state management
 const pinia = createPinia();

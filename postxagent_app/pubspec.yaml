@@ -1,0 +1,128 @@
+name: postxagent_app
+description: PostXAgent - AI-Powered Social Media Marketing Platform
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # Navigation
+  go_router: ^13.0.1
+
+  # Network & API
+  dio: ^5.4.0
+  retrofit: ^4.0.3
+  json_annotation: ^4.8.1
+
+  # Local Storage
+  shared_preferences: ^2.2.2
+  flutter_secure_storage: ^9.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # UI Components
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  flutter_animate: ^4.3.0
+  animations: ^2.0.8
+
+  # Icons & Fonts
+  iconsax: ^0.0.8
+  google_fonts: ^6.1.0
+
+  # Charts & Analytics
+  fl_chart: ^0.66.0
+  syncfusion_flutter_charts: ^28.1.38
+
+  # Calendar
+  table_calendar: ^3.0.9
+  syncfusion_flutter_calendar: ^28.1.38
+
+  # Forms & Validation
+  flutter_form_builder: ^10.0.1
+  form_builder_validators: ^11.0.0
+
+  # Image & Media
+  image_picker: ^1.1.2
+  image_cropper: ^9.0.0
+  photo_view: ^0.15.0
+
+  # Utils
+  intl: any
+  timeago: ^3.6.1
+  url_launcher: ^6.2.2
+  share_plus: ^10.1.4
+  package_info_plus: ^9.0.0
+  device_info_plus: ^11.2.1
+  connectivity_plus: ^6.1.2
+
+  # Notifications (Local only - no Firebase needed, using Laravel backend)
+  flutter_local_notifications: ^19.0.1
+  # firebase_core: ^3.8.1      # Not needed - using Laravel backend
+  # firebase_messaging: ^15.1.6 # Not needed - can use Laravel + Pusher/WebSocket instead
+
+  # Real-time (Laravel + Pusher)
+  pusher_channels_flutter: ^2.2.1
+
+  # Authentication
+  local_auth: ^2.1.7
+
+  # Pull to Refresh
+  pull_to_refresh: ^2.0.0
+
+  # Loading & Skeleton
+  skeletonizer: ^0.8.0
+
+  # Bottom Sheet
+  modal_bottom_sheet: ^3.0.0
+
+  # Cupertino Icons
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.8
+  retrofit_generator: ^8.0.6
+  json_serializable: ^6.7.1
+  riverpod_generator: ^2.3.9
+  hive_generator: ^2.0.1
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#0D1117"
+  adaptive_icon_foreground: "assets/images/logo.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/images/platforms/
+    - assets/icons/
+
+  # fonts:
+  #   - family: NotoSansThai
+  #     fonts:
+  #       - asset: assets/fonts/NotoSansThai-Regular.ttf
+  #       - asset: assets/fonts/NotoSansThai-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/NotoSansThai-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/NotoSansThai-Bold.ttf
+  #         weight: 700

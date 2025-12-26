@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="AIManager.Mobile.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:AIManager.Mobile.Views"
+    Shell.FlyoutBehavior="Flyout"
+    Shell.FlyoutBackgroundColor="{StaticResource DarkBackground}"
+    Shell.BackgroundColor="{StaticResource PrimaryColor}"
+    Shell.ForegroundColor="{StaticResource PrimaryText}">
+
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="{StaticResource CardBackground}"
+              HeightRequest="180"
+              Padding="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Frame Grid.Row="0"
+                   CornerRadius="40"
+                   HeightRequest="80"
+                   WidthRequest="80"
+                   Padding="0"
+                   BorderColor="{StaticResource PrimaryColor}"
+                   BackgroundColor="{StaticResource CardBackgroundLight}"
+                   HorizontalOptions="Start">
+                <Label Text="&#xE876;"
+                       FontFamily="MaterialIcons"
+                       FontSize="40"
+                       TextColor="{StaticResource PrimaryColor}"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+            </Frame>
+
+            <Label Grid.Row="1"
+                   Text="AI Manager Mobile"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryText}"
+                   Margin="0,10,0,0"/>
+
+            <Label Grid.Row="2"
+                   Text="เชื่อมต่อกับ AI Manager Core"
+                   FontSize="12"
+                   TextColor="{StaticResource SecondaryText}"/>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <FlyoutItem Title="แดชบอร์ด" Icon="dashboard.png">
+        <ShellContent ContentTemplate="{DataTemplate views:DashboardPage}" Route="dashboard"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="งานทั้งหมด" Icon="tasks.png">
+        <ShellContent ContentTemplate="{DataTemplate views:TasksPage}" Route="tasks"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="Workers" Icon="workers.png">
+        <ShellContent ContentTemplate="{DataTemplate views:WorkersPage}" Route="workers"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="ตรวจสอบ SMS" Icon="sms.png">
+        <ShellContent ContentTemplate="{DataTemplate views:SmsMonitorPage}" Route="sms"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="การชำระเงิน" Icon="payment.png">
+        <ShellContent ContentTemplate="{DataTemplate views:PaymentsPage}" Route="payments"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="บัญชีรับเงิน" Icon="bank.png">
+        <ShellContent ContentTemplate="{DataTemplate views:BankAccountsPage}" Route="bankaccounts"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="เว็บไซต์ที่เชื่อมต่อ" Icon="web.png">
+        <ShellContent ContentTemplate="{DataTemplate views:WebsitesPage}" Route="websites"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="ตั้งค่า" Icon="settings.png">
+        <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" Route="settings"/>
+    </FlyoutItem>
+
+</Shell>

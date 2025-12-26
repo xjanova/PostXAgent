@@ -26,6 +26,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'rental.active' => \App\Http\Middleware\CheckActiveRental::class,
             'rental.limit' => \App\Http\Middleware\CheckRentalLimits::class,
             'internal.auth' => \App\Http\Middleware\InternalApiAuth::class,
+            'check.first.run' => \App\Http\Middleware\CheckFirstRun::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

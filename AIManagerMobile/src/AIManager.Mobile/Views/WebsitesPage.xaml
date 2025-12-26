@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AIManager.Mobile.ViewModels"
+             xmlns:models="clr-namespace:AIManager.Mobile.Models"
+             x:Class="AIManager.Mobile.Views.WebsitesPage"
+             Title="เว็บไซต์ที่เชื่อมต่อ"
+             x:DataType="vm:WebsitesViewModel">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="เพิ่ม" Command="{Binding AddWebsiteCommand}" IconImageSource="add.png" />
+        <ToolbarItem Text="รีเฟรช" Command="{Binding LoadWebsitesCommand}" IconImageSource="refresh.png" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Statistics Header -->
+        <Frame Grid.Row="0" Margin="10" Padding="15" BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}" BorderColor="Transparent" CornerRadius="10">
+            <Grid ColumnDefinitions="*,*,*,*">
+                <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center">
+                    <Label Text="{Binding EnabledCount}" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center" TextColor="#4CAF50"/>
+                    <Label Text="เว็บที่เปิด" FontSize="12" HorizontalOptions="Center" TextColor="Gray"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center">
+                    <Label Text="{Binding Statistics.TotalMatched, StringFormat='{0}'}" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center" TextColor="#2196F3"/>
+                    <Label Text="จับคู่สำเร็จ" FontSize="12" HorizontalOptions="Center" TextColor="Gray"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center">
+                    <Label Text="{Binding Statistics.TotalUnmatched, StringFormat='{0}'}" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center" TextColor="#FF9800"/>
+                    <Label Text="ไม่ตรง" FontSize="12" HorizontalOptions="Center" TextColor="Gray"/>
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="3" HorizontalOptions="Center">
+                    <Label Text="{Binding Statistics.MatchRate, StringFormat='{0:F0}%'}" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center" TextColor="#9C27B0"/>
+                    <Label Text="อัตราสำเร็จ" FontSize="12" HorizontalOptions="Center" TextColor="Gray"/>
+                </VerticalStackLayout>
+            </Grid>
+        </Frame>
+
+        <!-- Website List -->
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Websites}"
+                        SelectionMode="None"
+                        Margin="10,0">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Padding="20">
+                    <Label Text="ยังไม่มีเว็บไซต์ที่เชื่อมต่อ" FontSize="18" HorizontalOptions="Center" TextColor="Gray"/>
+                    <Label Text="กดปุ่ม + เพื่อเพิ่มเว็บไซต์" FontSize="14" HorizontalOptions="Center" TextColor="Gray" Margin="0,10,0,0"/>
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:WebsiteConfig">
+                    <SwipeView>
+                        <SwipeView.LeftItems>
+                            <SwipeItems>
+                                <SwipeItem Text="ทดสอบ" BackgroundColor="#2196F3"
+                                          Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WebsitesViewModel}}, Path=TestConnectionCommand}"
+                                          CommandParameter="{Binding .}"/>
+                            </SwipeItems>
+                        </SwipeView.LeftItems>
+                        <SwipeView.RightItems>
+                            <SwipeItems>
+                                <SwipeItem Text="แก้ไข" BackgroundColor="#FF9800"
+                                          Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WebsitesViewModel}}, Path=EditWebsiteCommand}"
+                                          CommandParameter="{Binding .}"/>
+                                <SwipeItem Text="ลบ" BackgroundColor="#F44336"
+                                          Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WebsitesViewModel}}, Path=DeleteWebsiteCommand}"
+                                          CommandParameter="{Binding .}"/>
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+
+                        <Frame Margin="0,5" Padding="15" BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}" BorderColor="Transparent" CornerRadius="10">
+                            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto">
+
+                                <!-- Priority Badge -->
+                                <Frame Grid.Row="0" Grid.RowSpan="3" Grid.Column="0"
+                                       BackgroundColor="{AppThemeBinding Light=#E3F2FD, Dark=#1565C0}"
+                                       CornerRadius="20" Padding="10" WidthRequest="40" HeightRequest="40"
+                                       VerticalOptions="Center" Margin="0,0,15,0">
+                                    <Label Text="{Binding Priority}" FontSize="16" FontAttributes="Bold"
+                                           HorizontalOptions="Center" VerticalOptions="Center"
+                                           TextColor="{AppThemeBinding Light=#1565C0, Dark=White}"/>
+                                </Frame>
+
+                                <!-- Website Info -->
+                                <Label Grid.Row="0" Grid.Column="1" Text="{Binding Name}" FontSize="16" FontAttributes="Bold"/>
+                                <Label Grid.Row="1" Grid.Column="1" Text="{Binding WebhookUrl}" FontSize="12" TextColor="Gray" LineBreakMode="TailTruncation"/>
+
+                                <!-- Status -->
+                                <HorizontalStackLayout Grid.Row="2" Grid.Column="1" Spacing="10" Margin="0,5,0,0">
+                                    <Frame BackgroundColor="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
+                                           CornerRadius="10" Padding="8,4">
+                                        <Label Text="{Binding Status}" FontSize="10" TextColor="White"/>
+                                    </Frame>
+                                    <Label Text="{Binding LastConnectedAt, StringFormat='เชื่อมต่อล่าสุด: {0:dd/MM HH:mm}'}"
+                                           FontSize="10" TextColor="Gray" VerticalOptions="Center"
+                                           IsVisible="{Binding LastConnectedAt, Converter={StaticResource NullToBoolConverter}}"/>
+                                </HorizontalStackLayout>
+
+                                <!-- Toggle & Reorder -->
+                                <VerticalStackLayout Grid.Row="0" Grid.RowSpan="3" Grid.Column="2" VerticalOptions="Center" Spacing="5">
+                                    <Switch IsToggled="{Binding IsEnabled}"
+                                            Toggled="OnEnabledToggled"/>
+                                    <HorizontalStackLayout Spacing="5" HorizontalOptions="Center">
+                                        <ImageButton Source="arrow_up.png" WidthRequest="24" HeightRequest="24"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WebsitesViewModel}}, Path=MoveUpCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                        <ImageButton Source="arrow_down.png" WidthRequest="24" HeightRequest="24"
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:WebsitesViewModel}}, Path=MoveDownCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Frame>
+                    </SwipeView>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Add/Edit Form (Bottom Sheet Style) -->
+        <Frame Grid.Row="2"
+               IsVisible="{Binding IsEditing}"
+               BackgroundColor="{AppThemeBinding Light=White, Dark=#2D2D2D}"
+               CornerRadius="20,20,0,0"
+               Padding="20"
+               BorderColor="Transparent">
+            <VerticalStackLayout Spacing="15">
+                <Label Text="{Binding IsAddingNew, Converter={StaticResource BoolToAddEditConverter}}"
+                       FontSize="20" FontAttributes="Bold"/>
+
+                <Entry Placeholder="ชื่อเว็บไซต์ (เช่น ร้าน ABC)" Text="{Binding EditName}"/>
+                <Entry Placeholder="Webhook URL" Text="{Binding EditWebhookUrl}" Keyboard="Url"/>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <Entry Grid.Column="0" Placeholder="API Key" Text="{Binding EditApiKey}" IsPassword="True"/>
+                    <Button Grid.Column="1" Text="คัดลอก" Margin="5,0,0,0" Clicked="OnCopyApiKey"/>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <Entry Grid.Column="0" Placeholder="Secret Key" Text="{Binding EditSecretKey}" IsPassword="True"/>
+                    <Button Grid.Column="1" Text="คัดลอก" Margin="5,0,0,0" Clicked="OnCopySecretKey"/>
+                </Grid>
+
+                <Entry Placeholder="หมายเหตุ (ไม่บังคับ)" Text="{Binding EditNotes}"/>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <Button Grid.Column="0" Text="ยกเลิก" Command="{Binding CancelEditCommand}"
+                            BackgroundColor="Gray"/>
+                    <Button Grid.Column="1" Text="บันทึก" Command="{Binding SaveWebsiteCommand}"
+                            BackgroundColor="#4CAF50"/>
+                </Grid>
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- Loading Overlay -->
+        <ActivityIndicator Grid.RowSpan="3"
+                          IsRunning="{Binding IsBusy}"
+                          IsVisible="{Binding IsBusy}"
+                          VerticalOptions="Center"
+                          HorizontalOptions="Center"
+                          Color="#2196F3"/>
+    </Grid>
+</ContentPage>

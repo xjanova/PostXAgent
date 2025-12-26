@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:AIManager.Mobile.ViewModels"
+             xmlns:models="clr-namespace:AIManager.Mobile.Models"
+             x:Class="AIManager.Mobile.Views.BankAccountsPage"
+             Title="บัญชีรับเงิน"
+             x:DataType="vm:BankAccountsViewModel">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="เพิ่ม" Command="{Binding AddAccountCommand}" IconImageSource="add.png" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Status Header -->
+        <Frame Grid.Row="0" Margin="10" Padding="15"
+               BackgroundColor="{Binding ReadyStatusColor}"
+               BorderColor="Transparent" CornerRadius="10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Label Grid.Column="0" Text="💳" FontSize="28" VerticalOptions="Center"/>
+                <VerticalStackLayout Grid.Column="1" Margin="15,0">
+                    <Label Text="{Binding ReadyStatusText}" FontSize="16" FontAttributes="Bold" TextColor="White"/>
+                    <Label Text="ลูกค้าจะเห็นบัญชีที่เปิดใช้งานเพื่อโอนเงิน" FontSize="12" TextColor="White" Opacity="0.8"/>
+                </VerticalStackLayout>
+                <Label Grid.Column="2" Text="{Binding EnabledCount}" FontSize="32" FontAttributes="Bold"
+                       TextColor="White" VerticalOptions="Center"/>
+            </Grid>
+        </Frame>
+
+        <!-- Accounts List -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="10" Spacing="10">
+
+                <!-- Empty State -->
+                <Frame IsVisible="{Binding Accounts.Count, Converter={StaticResource ZeroToBoolConverter}}"
+                       BackgroundColor="{AppThemeBinding Light=#FFF3E0, Dark=#3E2723}"
+                       BorderColor="Transparent" CornerRadius="10" Padding="20">
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="10">
+                        <Label Text="🏦" FontSize="48" HorizontalOptions="Center"/>
+                        <Label Text="ยังไม่มีบัญชีรับเงิน" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center"/>
+                        <Label Text="กรุณาเพิ่มบัญชีธนาคารหรือ PromptPay อย่างน้อย 1 บัญชี&#10;เพื่อให้ระบบพร้อมรับชำระเงิน"
+                               FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center" TextColor="Gray"/>
+                        <Button Text="+ เพิ่มบัญชีแรก" Command="{Binding AddAccountCommand}"
+                                BackgroundColor="#4CAF50" TextColor="White" Margin="0,10,0,0"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Banks Section -->
+                <Label Text="ธนาคาร" FontSize="14" FontAttributes="Bold" TextColor="Gray" Margin="5,10,0,5"
+                       IsVisible="{Binding Accounts.Count, Converter={StaticResource NonZeroToBoolConverter}}"/>
+
+                <CollectionView ItemsSource="{Binding Accounts}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:BankAccountConfig">
+                            <SwipeView>
+                                <SwipeView.RightItems>
+                                    <SwipeItems>
+                                        <SwipeItem Text="แก้ไข" BackgroundColor="#FF9800"
+                                                  Command="{Binding Source={RelativeSource AncestorType={x:Type vm:BankAccountsViewModel}}, Path=EditAccountCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                        <SwipeItem Text="ลบ" BackgroundColor="#F44336"
+                                                  Command="{Binding Source={RelativeSource AncestorType={x:Type vm:BankAccountsViewModel}}, Path=DeleteAccountCommand}"
+                                                  CommandParameter="{Binding .}"/>
+                                    </SwipeItems>
+                                </SwipeView.RightItems>
+
+                                <Frame Margin="0,5" Padding="0"
+                                       BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}"
+                                       BorderColor="Transparent" CornerRadius="12">
+                                    <Grid ColumnDefinitions="60,*,Auto" Padding="0">
+
+                                        <!-- Bank Color Bar -->
+                                        <BoxView Grid.Column="0" WidthRequest="60"
+                                                 Color="{Binding BankType, Converter={StaticResource BankTypeToColorConverter}}"
+                                                 CornerRadius="12,0,0,12"/>
+
+                                        <!-- Bank Icon Overlay -->
+                                        <Label Grid.Column="0" FontSize="24" HorizontalOptions="Center" VerticalOptions="Center"
+                                               TextColor="White">
+                                            <Label.Text>
+                                                <MultiBinding Converter="{StaticResource BankTypeToIconConverter}">
+                                                    <Binding Path="BankType"/>
+                                                </MultiBinding>
+                                            </Label.Text>
+                                        </Label>
+
+                                        <!-- Account Info -->
+                                        <VerticalStackLayout Grid.Column="1" Padding="15,12" Spacing="2">
+                                            <HorizontalStackLayout Spacing="8">
+                                                <Label Text="{Binding DisplayName}" FontSize="16" FontAttributes="Bold"/>
+                                                <Frame IsVisible="{Binding IsPrimary}" BackgroundColor="#4CAF50"
+                                                       CornerRadius="8" Padding="6,2" VerticalOptions="Center">
+                                                    <Label Text="หลัก" FontSize="10" TextColor="White"/>
+                                                </Frame>
+                                            </HorizontalStackLayout>
+
+                                            <Label FontSize="14" TextColor="Gray">
+                                                <Label.Text>
+                                                    <MultiBinding StringFormat="{}{0} • {1}">
+                                                        <Binding Path="BankType" Converter="{StaticResource BankTypeToNameConverter}"/>
+                                                        <Binding Path="AccountNumber"/>
+                                                    </MultiBinding>
+                                                </Label.Text>
+                                            </Label>
+
+                                            <Label Text="{Binding AccountName}" FontSize="13" TextColor="Gray"/>
+                                        </VerticalStackLayout>
+
+                                        <!-- Actions -->
+                                        <VerticalStackLayout Grid.Column="2" VerticalOptions="Center" Spacing="5" Padding="0,0,15,0">
+                                            <Switch IsToggled="{Binding IsEnabled}"
+                                                    Toggled="OnEnabledToggled"/>
+                                            <Label Text="{Binding IsEnabled, Converter={StaticResource BoolToStatusTextConverter}}"
+                                                   FontSize="10" HorizontalOptions="Center"
+                                                   TextColor="{Binding IsEnabled, Converter={StaticResource BoolToStatusColorConverter}}"/>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Frame>
+                            </SwipeView>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Add/Edit Form (Bottom Sheet) -->
+        <Frame Grid.Row="2"
+               IsVisible="{Binding IsEditing}"
+               BackgroundColor="{AppThemeBinding Light=White, Dark=#2D2D2D}"
+               CornerRadius="20,20,0,0"
+               Padding="20"
+               BorderColor="Transparent">
+            <ScrollView>
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="{Binding IsAddingNew, Converter={StaticResource BoolToAddEditBankConverter}}"
+                           FontSize="20" FontAttributes="Bold"/>
+
+                    <!-- Bank Type Selection -->
+                    <Label Text="เลือกธนาคาร/ช่องทาง" FontSize="14" FontAttributes="Bold"/>
+
+                    <!-- E-Wallets -->
+                    <Label Text="E-Wallet / พร้อมเพย์" FontSize="12" TextColor="Gray"/>
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start">
+                        <CollectionView ItemsSource="{Binding AvailableEWallets}"
+                                        SelectionMode="Single"
+                                        SelectedItem="{Binding SelectedBankInfo}"
+                                        HeightRequest="70">
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10"/>
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:BankDisplayInfo">
+                                    <Frame Padding="12,8" CornerRadius="10" HasShadow="False"
+                                           BackgroundColor="{Binding PrimaryColor}"
+                                           BorderColor="Transparent">
+                                        <Frame.GestureRecognizers>
+                                            <TapGestureRecognizer
+                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:BankAccountsViewModel}}, Path=SelectBankCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                        </Frame.GestureRecognizers>
+                                        <VerticalStackLayout>
+                                            <Label Text="{Binding ShortName}" FontSize="14" FontAttributes="Bold" TextColor="White"/>
+                                            <Label Text="{Binding NameTh}" FontSize="10" TextColor="White" Opacity="0.9"/>
+                                        </VerticalStackLayout>
+                                    </Frame>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </FlexLayout>
+
+                    <!-- Banks -->
+                    <Label Text="ธนาคาร" FontSize="12" TextColor="Gray"/>
+                    <CollectionView ItemsSource="{Binding AvailableBanks}"
+                                    SelectionMode="Single"
+                                    SelectedItem="{Binding SelectedBankInfo}"
+                                    HeightRequest="80">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10"/>
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:BankDisplayInfo">
+                                <Frame Padding="12,8" CornerRadius="10" HasShadow="False"
+                                       BackgroundColor="{Binding PrimaryColor}"
+                                       BorderColor="Transparent" WidthRequest="90">
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:BankAccountsViewModel}}, Path=SelectBankCommand}"
+                                            CommandParameter="{Binding .}"/>
+                                    </Frame.GestureRecognizers>
+                                    <VerticalStackLayout>
+                                        <Label Text="{Binding ShortName}" FontSize="14" FontAttributes="Bold"
+                                               TextColor="{Binding SecondaryColor}"/>
+                                        <Label Text="{Binding NameTh}" FontSize="9"
+                                               TextColor="{Binding SecondaryColor}" Opacity="0.9"
+                                               LineBreakMode="TailTruncation" MaxLines="2"/>
+                                    </VerticalStackLayout>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <!-- Selected Bank Display -->
+                    <Frame BackgroundColor="{Binding SelectedBankDisplayInfo.PrimaryColor}"
+                           Padding="15" CornerRadius="10" IsVisible="{Binding EditBankType, Converter={StaticResource EnumToBoolConverter}}">
+                        <HorizontalStackLayout Spacing="10">
+                            <Label Text="✓" FontSize="20" TextColor="White"/>
+                            <Label Text="{Binding SelectedBankDisplayInfo.NameTh}" FontSize="16"
+                                   FontAttributes="Bold" TextColor="White"/>
+                        </HorizontalStackLayout>
+                    </Frame>
+
+                    <!-- Account Details -->
+                    <Entry Placeholder="ชื่อที่แสดง (เช่น บัญชีหลัก, PromptPay ร้าน)"
+                           Text="{Binding EditDisplayName}"/>
+
+                    <Entry Placeholder="{Binding EditBankType, Converter={StaticResource BankTypeToPlaceholderConverter}}"
+                           Text="{Binding EditAccountNumber}"
+                           Keyboard="Numeric"/>
+
+                    <Entry Placeholder="ชื่อบัญชี (ชื่อที่แสดงตอนโอน)"
+                           Text="{Binding EditAccountName}"/>
+
+                    <Entry Placeholder="หมายเหตุ (ไม่บังคับ)"
+                           Text="{Binding EditNotes}"/>
+
+                    <HorizontalStackLayout Spacing="10">
+                        <Switch IsToggled="{Binding EditIsEnabled}"/>
+                        <Label Text="เปิดใช้งานบัญชีนี้" VerticalOptions="Center"/>
+                    </HorizontalStackLayout>
+
+                    <!-- Action Buttons -->
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,10,0,0">
+                        <Button Grid.Column="0" Text="ยกเลิก" Command="{Binding CancelEditCommand}"
+                                BackgroundColor="Gray"/>
+                        <Button Grid.Column="1" Text="บันทึก" Command="{Binding SaveAccountCommand}"
+                                BackgroundColor="#4CAF50"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </ScrollView>
+        </Frame>
+
+        <!-- Loading Overlay -->
+        <ActivityIndicator Grid.RowSpan="3"
+                          IsRunning="{Binding IsBusy}"
+                          IsVisible="{Binding IsBusy}"
+                          VerticalOptions="Center"
+                          HorizontalOptions="Center"
+                          Color="#2196F3"/>
+    </Grid>
+</ContentPage>
