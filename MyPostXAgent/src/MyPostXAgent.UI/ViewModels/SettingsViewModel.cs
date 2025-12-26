@@ -1,11 +1,13 @@
 using System.Windows;
 using MyPostXAgent.Core.Services.Data;
+using MyPostXAgent.Core.Services.AI;
 
 namespace MyPostXAgent.UI.ViewModels;
 
 public class SettingsViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
+    private readonly AIContentService _aiService;
 
     // AI Provider Settings
     private string _openAiApiKey = "";
@@ -107,9 +109,10 @@ public class SettingsViewModel : BaseViewModel
     public RelayCommand SaveCommand { get; }
     public RelayCommand ResetCommand { get; }
 
-    public SettingsViewModel(DatabaseService database)
+    public SettingsViewModel(DatabaseService database, AIContentService aiService)
     {
         _database = database;
+        _aiService = aiService;
 
         SaveCommand = new RelayCommand(async () => await SaveSettingsAsync());
         ResetCommand = new RelayCommand(ResetToDefaults);
@@ -186,7 +189,10 @@ public class SettingsViewModel : BaseViewModel
             await _database.SetSettingAsync("twitter_api_key", TwitterApiKey, "social");
             await _database.SetSettingAsync("twitter_api_secret", TwitterApiSecret, "social");
 
-            MessageBox.Show("บันทึกการตั้งค่าสำเร็จ!", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Reinitialize AI providers with new settings
+            await _aiService.InitializeProvidersAsync();
+
+            MessageBox.Show("บันทึกการตั้งค่าสำเร็จ!\n\nAI Providers ได้รับการอัพเดทแล้ว", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {

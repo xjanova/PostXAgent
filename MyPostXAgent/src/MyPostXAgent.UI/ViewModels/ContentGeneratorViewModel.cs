@@ -1,12 +1,14 @@
 using System.Windows;
 using MyPostXAgent.Core.Models;
 using MyPostXAgent.Core.Services.Data;
+using MyPostXAgent.Core.Services.AI;
 
 namespace MyPostXAgent.UI.ViewModels;
 
 public class ContentGeneratorViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
+    private readonly AIContentService _aiService;
 
     // AI Provider Selection
     private bool _useOllama = true;
@@ -247,9 +249,10 @@ public class ContentGeneratorViewModel : BaseViewModel
     public RelayCommand SaveAsDraftCommand { get; }
     public RelayCommand CreatePostCommand { get; }
 
-    public ContentGeneratorViewModel(DatabaseService database)
+    public ContentGeneratorViewModel(DatabaseService database, AIContentService aiService)
     {
         _database = database;
+        _aiService = aiService;
 
         GenerateCommand = new RelayCommand(async () => await GenerateContentAsync());
         RegenerateCommand = new RelayCommand(async () => await GenerateContentAsync());
@@ -257,6 +260,21 @@ public class ContentGeneratorViewModel : BaseViewModel
         CopyContentCommand = new RelayCommand(CopyContent);
         SaveAsDraftCommand = new RelayCommand(async () => await SaveAsDraftAsync());
         CreatePostCommand = new RelayCommand(async () => await CreatePostAsync());
+
+        // Initialize AI providers on startup
+        _ = InitializeAIProvidersAsync();
+    }
+
+    private async Task InitializeAIProvidersAsync()
+    {
+        try
+        {
+            await _aiService.InitializeProvidersAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error initializing AI providers: {ex.Message}");
+        }
     }
 
     private async Task GenerateContentAsync()
@@ -273,15 +291,31 @@ public class ContentGeneratorViewModel : BaseViewModel
             GeneratedContent = string.Empty;
             GeneratedHashtags = string.Empty;
 
-            // Build the prompt
-            var prompt = BuildPrompt();
+            // Determine which AI provider to use
+            var provider = GetSelectedAIProvider();
 
-            // Simulate AI generation (replace with actual AI call)
-            await Task.Delay(2000); // Simulate API call
+            // Build the request
+            var request = BuildContentRequest();
 
-            // For demo, generate sample content based on settings
-            GeneratedContent = GenerateSampleContent();
-            GeneratedHashtags = GenerateSampleHashtags();
+            // Generate content using AI
+            var result = await _aiService.GenerateContentAsync(request, provider, useFallback: true);
+
+            if (result.Success)
+            {
+                GeneratedContent = result.Content;
+                GeneratedHashtags = result.Hashtags;
+
+                // Show success notification with provider info
+                System.Diagnostics.Debug.WriteLine($"Content generated successfully using {result.Provider}");
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"ไม่สามารถสร้างเนื้อหาได้: {result.ErrorMessage}\n\nกรุณาตรวจสอบการตั้งค่า AI Provider",
+                    "เกิดข้อผิดพลาด",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
         catch (Exception ex)
         {
@@ -293,72 +327,41 @@ public class ContentGeneratorViewModel : BaseViewModel
         }
     }
 
-    private string BuildPrompt()
+    private AIProvider GetSelectedAIProvider()
+    {
+        if (UseOllama) return AIProvider.Ollama;
+        if (UseOpenAI) return AIProvider.OpenAI;
+        if (UseClaude) return AIProvider.Claude;
+        if (UseGemini) return AIProvider.Gemini;
+        return AIProvider.Ollama; // Default
+    }
+
+    private ContentGenerationRequest BuildContentRequest()
     {
         var contentTypes = new[] { "โพสต์โปรโมท", "เล่าเรื่อง/Storytelling", "รีวิวสินค้า", "ข่าวสาร/อัพเดท", "Tips & Tricks", "คำถาม/Poll", "แรงบันดาลใจ/Motivation" };
         var tones = new[] { "เป็นมิตร/Friendly", "มืออาชีพ/Professional", "ตลก/Humorous", "สร้างแรงบันดาลใจ", "แบบเด็ก Gen Z", "ทางการ/Formal" };
         var lengths = new[] { "สั้น (1-2 ประโยค)", "ปานกลาง (3-5 ประโยค)", "ยาว (1 ย่อหน้า)", "ยาวมาก (2+ ย่อหน้า)" };
         var languages = new[] { "ไทย", "English", "ไทย + English (ผสม)" };
 
-        var prompt = $@"
-สร้างเนื้อหาโพสต์ Social Media:
-- หัวข้อ: {Topic}
-- ประเภท: {contentTypes[SelectedContentTypeIndex]}
-- โทนเสียง: {tones[SelectedToneIndex]}
-- ความยาว: {lengths[SelectedLengthIndex]}
-- ภาษา: {languages[SelectedLanguageIndex]}
-- Keywords: {Keywords}
-- ใส่ Emojis: {(IncludeEmojis ? "ใช่" : "ไม่")}
-- ใส่ Call-to-Action: {(IncludeCTA ? "ใช่" : "ไม่")}
-";
+        var platforms = new List<string>();
+        if (TargetFacebook) platforms.Add("Facebook");
+        if (TargetInstagram) platforms.Add("Instagram");
+        if (TargetTikTok) platforms.Add("TikTok");
+        if (TargetTwitter) platforms.Add("Twitter");
+        if (TargetLine) platforms.Add("LINE");
 
-        return prompt;
-    }
-
-    private string GenerateSampleContent()
-    {
-        var tones = new[] { "เป็นมิตร", "มืออาชีพ", "ตลก", "แรงบันดาลใจ", "Gen Z", "ทางการ" };
-        var tone = tones[SelectedToneIndex];
-
-        var emoji = IncludeEmojis ? "✨🔥💯" : "";
-        var cta = IncludeCTA ? "\n\n📍 สนใจติดต่อได้เลยนะคะ!" : "";
-
-        var content = Topic switch
+        return new ContentGenerationRequest
         {
-            var t when t.Contains("กาแฟ") => $"{emoji} มาแล้วจ้า! ร้านกาแฟใหม่เปิดแล้ว ☕\n\nหอมกรุ่นกลิ่นกาแฟคั่วสดใหม่ทุกวัน บรรยากาศชิลล์ๆ นั่งทำงานได้ทั้งวัน\n\nโปรเปิดร้าน ลด 50% ทุกเมนู! 🎉{cta}",
-            var t when t.Contains("สินค้า") => $"{emoji} รีวิวจริง ใช้จริง! 💖\n\nสินค้าตัวนี้ต้องบอกว่าปังมาก ใช้มาหลายเดือนแล้วประทับใจสุดๆ คุณภาพดี คุ้มค่าทุกบาท 👍{cta}",
-            _ => $"{emoji} {Topic}\n\nเนื้อหาที่สร้างโดย AI ตามหัวข้อที่กำหนด จะมีความยาวและโทนเสียงตามที่เลือก ({tone}){cta}"
+            Topic = Topic,
+            ContentType = contentTypes[SelectedContentTypeIndex],
+            Tone = tones[SelectedToneIndex],
+            Length = lengths[SelectedLengthIndex],
+            Language = languages[SelectedLanguageIndex],
+            Keywords = Keywords,
+            IncludeEmojis = IncludeEmojis,
+            IncludeCTA = IncludeCTA,
+            TargetPlatforms = platforms
         };
-
-        return content;
-    }
-
-    private string GenerateSampleHashtags()
-    {
-        var baseHashtags = "#โพสต์ #โซเชียลมีเดีย #การตลาด";
-
-        if (!string.IsNullOrWhiteSpace(Hashtags))
-        {
-            return Hashtags;
-        }
-
-        // Generate based on keywords
-        if (!string.IsNullOrWhiteSpace(Keywords))
-        {
-            var keywords = Keywords.Split(',').Select(k => k.Trim());
-            var generated = string.Join(" ", keywords.Take(5).Select(k => $"#{k.Replace(" ", "")}"));
-            return $"{generated} {baseHashtags}";
-        }
-
-        // Generate based on platforms
-        var platformTags = new List<string>();
-        if (TargetFacebook) platformTags.Add("#Facebook");
-        if (TargetInstagram) platformTags.Add("#Instagram");
-        if (TargetTikTok) platformTags.Add("#TikTok");
-        if (TargetTwitter) platformTags.Add("#Twitter");
-        if (TargetLine) platformTags.Add("#LINE");
-
-        return $"{string.Join(" ", platformTags)} {baseHashtags}";
     }
 
     private void ClearAll()

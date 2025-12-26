@@ -72,6 +72,9 @@ public partial class App : Application
         });
         services.AddSingleton<DemoManager>();
 
+        // AI Services
+        services.AddSingleton<Core.Services.AI.AIContentService>();
+
         // ViewModels
         services.AddTransient<ViewModels.MainViewModel>();
         services.AddTransient<ViewModels.LicenseViewModel>();

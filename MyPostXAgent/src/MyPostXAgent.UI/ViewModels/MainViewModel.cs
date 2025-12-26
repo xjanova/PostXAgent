@@ -1,4 +1,6 @@
 using System.Windows.Input;
+using MyPostXAgent.Core.Models;
+using MyPostXAgent.Core.Services.AI;
 using MyPostXAgent.Core.Services.License;
 
 namespace MyPostXAgent.UI.ViewModels;
@@ -9,6 +11,8 @@ namespace MyPostXAgent.UI.ViewModels;
 public class MainViewModel : BaseViewModel
 {
     private readonly LicenseService _licenseService;
+    private readonly AIContentService _aiService;
+    private System.Threading.Timer? _aiStatusTimer;
 
     private bool _isDemoMode;
     public bool IsDemoMode
@@ -61,14 +65,23 @@ public class MainViewModel : BaseViewModel
 
     public ICommand BuyLicenseCommand { get; }
 
-    public MainViewModel(LicenseService licenseService)
+    public MainViewModel(LicenseService licenseService, AIContentService aiService)
     {
         _licenseService = licenseService;
+        _aiService = aiService;
         Title = "MyPostXAgent";
 
         BuyLicenseCommand = new RelayCommand(BuyLicense);
 
         UpdateDemoStatus();
+        _ = UpdateAIStatusAsync();
+
+        // Update AI status every 30 seconds
+        _aiStatusTimer = new System.Threading.Timer(
+            async _ => await UpdateAIStatusAsync(),
+            null,
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(30));
     }
 
     private void UpdateDemoStatus()
@@ -82,6 +95,49 @@ public class MainViewModel : BaseViewModel
                 ? $"Demo Mode - เหลือ {daysRemaining} วัน"
                 : "Demo Mode - เหลือไม่ถึง 1 วัน";
         }
+    }
+
+    private async Task UpdateAIStatusAsync()
+    {
+        try
+        {
+            var statuses = await _aiService.GetAllProvidersStatusAsync();
+            var available = statuses.Where(s => s.IsAvailable && s.IsConfigured).ToList();
+
+            if (available.Count == 0)
+            {
+                AIStatusText = "ไม่พร้อม";
+                AIStatusColor = "#EF4444"; // Red
+            }
+            else if (available.Count == 1)
+            {
+                var provider = available[0].Provider;
+                AIStatusText = $"พร้อม ({GetProviderName(provider)})";
+                AIStatusColor = "#10B981"; // Green
+            }
+            else
+            {
+                AIStatusText = $"พร้อม ({available.Count} providers)";
+                AIStatusColor = "#10B981"; // Green
+            }
+        }
+        catch
+        {
+            AIStatusText = "ตรวจสอบไม่ได้";
+            AIStatusColor = "#F59E0B"; // Orange
+        }
+    }
+
+    private string GetProviderName(AIProvider provider)
+    {
+        return provider switch
+        {
+            AIProvider.Ollama => "Ollama",
+            AIProvider.Gemini => "Gemini",
+            AIProvider.OpenAI => "OpenAI",
+            AIProvider.Claude => "Claude",
+            _ => provider.ToString()
+        };
     }
 
     private void BuyLicense()

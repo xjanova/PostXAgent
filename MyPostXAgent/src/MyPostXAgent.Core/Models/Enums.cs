@@ -130,9 +130,8 @@ public enum AIProvider
 {
     Ollama,         // Local (Free)
     Gemini,         // Google (Free tier)
-    HuggingFace,    // Free tier
-    OpenAI,         // Paid
-    Anthropic       // Paid
+    OpenAI,         // Paid (GPT-4, GPT-3.5)
+    Claude          // Anthropic Claude (Paid)
 }
 
 /// <summary>
