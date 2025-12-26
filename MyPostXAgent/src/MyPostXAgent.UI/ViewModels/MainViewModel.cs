@@ -78,7 +78,13 @@ public class MainViewModel : BaseViewModel
 
         // Update AI status every 30 seconds
         _aiStatusTimer = new System.Threading.Timer(
-            async _ => await UpdateAIStatusAsync(),
+            _ =>
+            {
+                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await UpdateAIStatusAsync();
+                });
+            },
             null,
             TimeSpan.FromSeconds(30),
             TimeSpan.FromSeconds(30));
