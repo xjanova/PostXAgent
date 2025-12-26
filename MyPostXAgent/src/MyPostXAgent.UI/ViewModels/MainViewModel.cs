@@ -124,9 +124,7 @@ public class MainViewModel : BaseViewModel
         if (IsDemoMode)
         {
             var daysRemaining = _licenseService.GetDaysRemaining();
-            DemoStatusText = daysRemaining > 0
-                ? $"Demo Mode - เหลือ {daysRemaining} วัน"
-                : "Demo Mode - เหลือไม่ถึง 1 วัน";
+            DemoStatusText = LocalizationStrings.Demo.DemoMode(_localizationService.IsThaiLanguage, daysRemaining);
         }
     }
 
@@ -137,6 +135,7 @@ public class MainViewModel : BaseViewModel
             var statuses = await _aiService.GetAllProvidersStatusAsync();
             var available = statuses.Where(s => s.IsAvailable && s.IsConfigured).ToList();
             var configured = statuses.Where(s => s.IsConfigured).ToList();
+            var isThai = _localizationService.IsThaiLanguage;
 
             if (available.Count == 0)
             {
@@ -144,29 +143,30 @@ public class MainViewModel : BaseViewModel
                 var firstError = configured.FirstOrDefault();
                 if (firstError != null && !string.IsNullOrEmpty(firstError.Message))
                 {
-                    AIStatusText = $"ไม่พร้อม - {firstError.Message}";
+                    AIStatusText = $"{LocalizationStrings.AIStatus.NotReady(isThai)} - {firstError.Message}";
                 }
                 else
                 {
-                    AIStatusText = "ไม่พร้อม - ไม่มี AI Provider";
+                    AIStatusText = $"{LocalizationStrings.AIStatus.NotReady(isThai)} - {LocalizationStrings.AIStatus.NoProvider(isThai)}";
                 }
                 AIStatusColor = "#EF4444"; // Red
             }
             else if (available.Count == 1)
             {
                 var provider = available[0];
-                AIStatusText = $"พร้อม ({GetProviderName(provider.Provider)})";
+                AIStatusText = $"{LocalizationStrings.AIStatus.Ready(isThai)} ({GetProviderName(provider.Provider)})";
                 AIStatusColor = "#10B981"; // Green
             }
             else
             {
-                AIStatusText = $"พร้อม ({available.Count} providers)";
+                AIStatusText = $"{LocalizationStrings.AIStatus.Ready(isThai)} ({available.Count} providers)";
                 AIStatusColor = "#10B981"; // Green
             }
         }
         catch (Exception ex)
         {
-            AIStatusText = $"ตรวจสอบไม่ได้ - {ex.Message}";
+            var isThai = _localizationService.IsThaiLanguage;
+            AIStatusText = $"{LocalizationStrings.AIStatus.CannotCheck(isThai)} - {ex.Message}";
             AIStatusColor = "#F59E0B"; // Orange
         }
     }
@@ -191,9 +191,10 @@ public class MainViewModel : BaseViewModel
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
         UpdateLanguageDisplay();
-        // Trigger UI updates for localized text
-        OnPropertyChanged(nameof(AIStatusText));
-        OnPropertyChanged(nameof(DemoStatusText));
+
+        // Update all localized text
+        UpdateDemoStatus();
+        _ = UpdateAIStatusAsync();
     }
 
     private void UpdateLanguageDisplay()

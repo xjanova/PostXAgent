@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Windows;
+using MyPostXAgent.Core.Services;
 using MyPostXAgent.Core.Services.Data;
 using MyPostXAgent.Core.Services.AI;
 using MyPostXAgent.Core.Models;
@@ -12,6 +13,7 @@ public class SettingsViewModel : BaseViewModel
 {
     private readonly DatabaseService _database;
     private readonly AIContentService _aiService;
+    private readonly LocalizationService _localizationService;
     private readonly HttpClient _httpClient;
 
     // AI Provider Settings
@@ -161,18 +163,29 @@ public class SettingsViewModel : BaseViewModel
     public RelayCommand SaveCommand { get; }
     public RelayCommand ResetCommand { get; }
 
-    public SettingsViewModel(DatabaseService database, AIContentService aiService)
+    public SettingsViewModel(DatabaseService database, AIContentService aiService, LocalizationService localizationService)
     {
         _database = database;
         _aiService = aiService;
+        _localizationService = localizationService;
         _httpClient = new HttpClient();
 
         SaveCommand = new RelayCommand(async () => await SaveSettingsAsync());
         ResetCommand = new RelayCommand(ResetToDefaults);
         RefreshOllamaModelsCommand = new RelayCommand(async () => await RefreshOllamaModelsAsync());
 
+        // Subscribe to language changes
+        _localizationService.LanguageChanged += OnLanguageChanged;
+
         // Load settings on startup
         _ = LoadSettingsAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        // Refresh status text when language changes
+        _ = RefreshOllamaModelsAsync();
+        _ = UpdateProvidersStatusAsync();
     }
 
     public async Task LoadSettingsAsync()
@@ -226,7 +239,8 @@ public class SettingsViewModel : BaseViewModel
     {
         try
         {
-            OllamaStatus = "กำลังตรวจสอบ...";
+            var isThai = _localizationService.IsThaiLanguage;
+            OllamaStatus = LocalizationStrings.Common.Checking(isThai);
 
             var response = await _httpClient.GetAsync(
                 $"{OllamaBaseUrl}/api/tags",
@@ -234,7 +248,7 @@ public class SettingsViewModel : BaseViewModel
 
             if (!response.IsSuccessStatusCode)
             {
-                OllamaStatus = "Ollama ไม่ทำงาน";
+                OllamaStatus = $"Ollama {LocalizationStrings.AIStatus.NotRunning(isThai)}";
                 AvailableOllamaModels.Clear();
                 AvailableOllamaModels.Add(OllamaModel); // Keep current selection
                 return;
@@ -244,7 +258,7 @@ public class SettingsViewModel : BaseViewModel
 
             if (tagsResponse?.Models == null || tagsResponse.Models.Count == 0)
             {
-                OllamaStatus = "ไม่พบ model";
+                OllamaStatus = LocalizationStrings.AIStatus.ModelNotFound(isThai);
                 AvailableOllamaModels.Clear();
                 AvailableOllamaModels.Add(OllamaModel);
                 return;
@@ -266,17 +280,18 @@ public class SettingsViewModel : BaseViewModel
                 AvailableOllamaModels.Insert(0, OllamaModel);
             }
 
-            OllamaStatus = $"พร้อมใช้งาน ({AvailableOllamaModels.Count} models)";
+            OllamaStatus = LocalizationStrings.AIStatus.ModelsAvailable(isThai, AvailableOllamaModels.Count);
         }
         catch (TaskCanceledException)
         {
-            OllamaStatus = "Ollama timeout";
+            var isThai = _localizationService.IsThaiLanguage;
+            OllamaStatus = $"Ollama {LocalizationStrings.AIStatus.Timeout(isThai)}";
             AvailableOllamaModels.Clear();
             AvailableOllamaModels.Add(OllamaModel);
         }
         catch (Exception ex)
         {
-            OllamaStatus = $"Error: {ex.Message}";
+            OllamaStatus = $"{LocalizationStrings.Common.Error(_localizationService.IsThaiLanguage)}: {ex.Message}";
             AvailableOllamaModels.Clear();
             AvailableOllamaModels.Add(OllamaModel);
             System.Diagnostics.Debug.WriteLine($"Error refreshing Ollama models: {ex.Message}");
@@ -290,6 +305,8 @@ public class SettingsViewModel : BaseViewModel
     {
         try
         {
+            var isThai = _localizationService.IsThaiLanguage;
+
             // Initialize providers first
             await _aiService.InitializeProvidersAsync();
 
@@ -302,7 +319,7 @@ public class SettingsViewModel : BaseViewModel
                     ? $"✅ {status.Message}"
                     : status.IsConfigured
                         ? $"⚠️ {status.Message}"
-                        : "❌ ไม่ได้ตั้งค่า";
+                        : $"❌ {LocalizationStrings.AIStatus.NotConfigured(isThai)}";
 
                 switch (status.Provider)
                 {
@@ -375,11 +392,21 @@ public class SettingsViewModel : BaseViewModel
             // Update provider statuses
             await UpdateProvidersStatusAsync();
 
-            MessageBox.Show("บันทึกการตั้งค่าสำเร็จ!\n\nAI Providers ได้รับการอัพเดทแล้ว", "สำเร็จ", MessageBoxButton.OK, MessageBoxImage.Information);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                LocalizationStrings.Settings.SaveSuccess(isThai),
+                LocalizationStrings.Common.Success(isThai),
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"เกิดข้อผิดพลาด: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            var isThai = _localizationService.IsThaiLanguage;
+            MessageBox.Show(
+                $"{LocalizationStrings.Common.Error(isThai)}: {ex.Message}",
+                LocalizationStrings.Common.Error(isThai),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {
@@ -389,9 +416,10 @@ public class SettingsViewModel : BaseViewModel
 
     private void ResetToDefaults()
     {
+        var isThai = _localizationService.IsThaiLanguage;
         var result = MessageBox.Show(
-            "ต้องการรีเซ็ตค่าทั้งหมดเป็นค่าเริ่มต้นหรือไม่?",
-            "ยืนยันการรีเซ็ต",
+            LocalizationStrings.Settings.ResetConfirm(isThai),
+            LocalizationStrings.Settings.ConfirmReset(isThai),
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 
