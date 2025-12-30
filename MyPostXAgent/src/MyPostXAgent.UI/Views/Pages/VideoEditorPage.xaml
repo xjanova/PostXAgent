@@ -5,10 +5,406 @@
       Title="Video Editor"
       Background="{DynamicResource MaterialDesign.Brush.Background}">
     <Grid>
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-            <materialDesign:PackIcon Kind="Video" Width="64" Height="64" Opacity="0.3" HorizontalAlignment="Center"/>
-            <TextBlock Text="Video Editor" FontSize="32" FontWeight="Bold" Opacity="0.3" HorizontalAlignment="Center" Margin="0,20,0,0"/>
-            <TextBlock Text="กำลังพัฒนา..." FontSize="16" Opacity="0.5" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-        </StackPanel>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="300"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="180"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.ColumnSpan="3" Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                Padding="20,15" CornerRadius="0,0,8,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Video Editor" FontSize="24" FontWeight="Bold"
+                               Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"/>
+                    <TextBlock Text="สร้างและตัดต่อวิดีโอด้วย AI" FontSize="13" Opacity="0.7" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                            Command="{Binding RefreshCommand}" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Refresh" VerticalAlignment="Center"/>
+                            <TextBlock Text="รีเฟรช" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource MaterialDesignFlatMidBgButton}"
+                            Command="{Binding NewProjectCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Plus" VerticalAlignment="Center"/>
+                            <TextBlock Text="โปรเจคใหม่" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Left Panel - Projects & AI Generation -->
+        <Border Grid.Row="1" Grid.RowSpan="2" Margin="15,15,7,15"
+                Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                CornerRadius="12" Padding="15">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Projects Section -->
+                    <TextBlock Text="โปรเจค" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                    <ItemsControl ItemsSource="{Binding Projects}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource MaterialDesign.Brush.Background}"
+                                        CornerRadius="8" Margin="0,0,0,8" Padding="12"
+                                        Cursor="Hand">
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding DataContext.OpenProjectCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                      CommandParameter="{Binding}"/>
+                                    </Border.InputBindings>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                            <TextBlock Opacity="0.6" FontSize="11">
+                                                <Run Text="{Binding AspectRatio}"/>
+                                                <Run Text=" • "/>
+                                                <Run Text="{Binding Duration, StringFormat=mm\\:ss}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource MaterialDesignIconButton}"
+                                                Command="{Binding DataContext.DeleteProjectCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                CommandParameter="{Binding}" Width="28" Height="28">
+                                            <materialDesign:PackIcon Kind="Delete" Width="16" Height="16"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Separator Margin="0,15"/>
+
+                    <!-- AI Video Generation -->
+                    <TextBlock Text="AI Video Generation" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Prompt" FontSize="12" Opacity="0.7" Margin="0,0,0,5"/>
+                    <TextBox Text="{Binding AIPrompt, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             AcceptsReturn="True" TextWrapping="Wrap" Height="80"
+                             materialDesign:HintAssist.Hint="อธิบายวิดีโอที่ต้องการสร้าง..."/>
+
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,5,0">
+                            <TextBlock Text="Aspect Ratio" FontSize="12" Opacity="0.7" Margin="0,0,0,5"/>
+                            <ComboBox SelectedItem="{Binding SelectedAspectRatio}"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                                <ComboBoxItem Content="9:16 (TikTok)" Tag="Portrait_9_16"/>
+                                <ComboBoxItem Content="16:9 (YouTube)" Tag="Landscape_16_9"/>
+                                <ComboBoxItem Content="1:1 (Instagram)" Tag="Square_1_1"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                            <TextBlock Text="Duration (sec)" FontSize="12" Opacity="0.7" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding VideoDuration}"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Button Style="{StaticResource MaterialDesignRaisedAccentButton}"
+                            Command="{Binding GenerateAIVideoCommand}" Margin="0,15,0,0"
+                            IsEnabled="{Binding IsGenerating, Converter={StaticResource InverseBooleanConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="VideoPlus" VerticalAlignment="Center"/>
+                            <TextBlock Text="สร้างวิดีโอ AI" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Separator Margin="0,15"/>
+
+                    <!-- AI Music Generation -->
+                    <TextBlock Text="AI Music Generation" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+
+                    <CheckBox Content="เพิ่มเพลงประกอบ" IsChecked="{Binding GenerateMusic}" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="สไตล์เพลง" FontSize="12" Opacity="0.7" Margin="0,0,0,5"/>
+                    <ComboBox Text="{Binding MusicStyle}" IsEditable="True"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                        <ComboBoxItem Content="Upbeat"/>
+                        <ComboBoxItem Content="Chill"/>
+                        <ComboBoxItem Content="Cinematic"/>
+                        <ComboBoxItem Content="Electronic"/>
+                        <ComboBoxItem Content="Acoustic"/>
+                        <ComboBoxItem Content="Hip Hop"/>
+                        <ComboBoxItem Content="Pop"/>
+                    </ComboBox>
+
+                    <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                            Command="{Binding GenerateAIMusicCommand}" Margin="0,10,0,0"
+                            IsEnabled="{Binding IsGenerating, Converter={StaticResource InverseBooleanConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Music" VerticalAlignment="Center"/>
+                            <TextBlock Text="สร้างเพลง AI" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Generation Progress -->
+                    <StackPanel Visibility="{Binding IsGenerating, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                Margin="0,15,0,0">
+                        <TextBlock Text="{Binding GenerationStatus}" FontSize="12" Margin="0,0,0,5"/>
+                        <ProgressBar Value="{Binding GenerationProgress}" Minimum="0" Maximum="100" Height="6"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Center Panel - Preview -->
+        <Border Grid.Row="1" Grid.Column="1" Margin="8,15,8,8"
+                Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                CornerRadius="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Video Preview Area -->
+                <Border Background="#1A1A1A" CornerRadius="12,12,0,0" Margin="10,10,10,0">
+                    <Grid>
+                        <!-- Placeholder when no video -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Visibility="{Binding PreviewUrl, Converter={StaticResource InverseStringToVisibilityConverter}}">
+                            <materialDesign:PackIcon Kind="VideoOutline" Width="80" Height="80" Opacity="0.3"
+                                                     HorizontalAlignment="Center"/>
+                            <TextBlock Text="ยังไม่มีวิดีโอ" FontSize="18" Opacity="0.5"
+                                       HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                            <TextBlock Text="สร้างหรือ import วิดีโอเพื่อเริ่มต้น" FontSize="12" Opacity="0.3"
+                                       HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                        </StackPanel>
+
+                        <!-- Aspect Ratio indicator -->
+                        <Border Background="#333" CornerRadius="4" Padding="8,4"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
+                            <TextBlock Text="{Binding SelectedAspectRatio}" FontSize="11" Foreground="White"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Playback Controls -->
+                <Border Grid.Row="1" Background="#2A2A2A" CornerRadius="0,0,12,12" Padding="15,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Play/Pause/Stop -->
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Command="{Binding PlayPauseCommand}" Foreground="White">
+                                <materialDesign:PackIcon Kind="{Binding IsPlaying, Converter={StaticResource BoolToPlayPauseIconConverter}}"
+                                                         Width="24" Height="24"/>
+                            </Button>
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Command="{Binding StopCommand}" Foreground="White">
+                                <materialDesign:PackIcon Kind="Stop" Width="24" Height="24"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Timeline Scrubber -->
+                        <Slider Grid.Column="1" Value="{Binding CurrentPosition}"
+                                Minimum="0" Maximum="{Binding TotalDuration}"
+                                Margin="15,0" VerticalAlignment="Center"/>
+
+                        <!-- Time Display -->
+                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="White" FontSize="12">
+                            <Run Text="{Binding CurrentPosition, StringFormat=mm\\:ss}"/>
+                            <Run Text=" / "/>
+                            <Run Text="{Binding TotalDuration, StringFormat=mm\\:ss}"/>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Right Panel - Media & Settings -->
+        <Border Grid.Row="1" Grid.Column="2" Margin="7,15,15,8"
+                Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                CornerRadius="12" Padding="15">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="สื่อและการตั้งค่า" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+
+                    <!-- Import Button -->
+                    <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                            Command="{Binding ImportMediaCommand}" Margin="0,0,0,15">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="FileImport" VerticalAlignment="Center"/>
+                            <TextBlock Text="Import Media" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Clip Properties (when selected) -->
+                    <StackPanel Visibility="{Binding SelectedClip, Converter={StaticResource NullToVisibilityConverter}}">
+                        <TextBlock Text="คุณสมบัติคลิป" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="ชื่อ" FontSize="12" Opacity="0.7" Margin="0,0,0,3"/>
+                        <TextBox Text="{Binding SelectedClip.Name}"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Transition" FontSize="12" Opacity="0.7" Margin="0,0,0,3"/>
+                        <ComboBox ItemsSource="{Binding AvailableTransitions}"
+                                  SelectedItem="{Binding SelectedClip.Transition}"
+                                  Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Effect" FontSize="12" Opacity="0.7" Margin="0,0,0,3"/>
+                        <ComboBox ItemsSource="{Binding AvailableEffects}"
+                                  SelectedItem="{Binding SelectedClip.Effect}"
+                                  Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
+                    </StackPanel>
+
+                    <!-- Export Settings -->
+                    <Separator Margin="0,15"/>
+                    <TextBlock Text="Export Settings" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Quality" FontSize="12" Opacity="0.7" Margin="0,0,0,5"/>
+                    <ComboBox SelectedItem="{Binding SelectedQuality}"
+                              Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,0,0,15">
+                        <ComboBoxItem Content="480p (SD)"/>
+                        <ComboBoxItem Content="720p (HD)"/>
+                        <ComboBoxItem Content="1080p (Full HD)" IsSelected="True"/>
+                        <ComboBoxItem Content="4K (Ultra HD)"/>
+                    </ComboBox>
+
+                    <Button Style="{StaticResource MaterialDesignRaisedButton}"
+                            Command="{Binding ExportVideoCommand}" Background="#4CAF50">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Export" VerticalAlignment="Center"/>
+                            <TextBlock Text="Export Video" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Bottom Panel - Timeline -->
+        <Border Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="8,7,15,15"
+                Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                CornerRadius="12" Padding="15">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Timeline" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+
+                <!-- Timeline Clips -->
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Timeline}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource MaterialDesign.Brush.Primary}"
+                                        CornerRadius="6" Margin="0,0,8,0" Padding="10,8" MinWidth="120"
+                                        Cursor="Hand">
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding DataContext.RemoveFromTimelineCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                      CommandParameter="{Binding}"/>
+                                    </Border.InputBindings>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Width="16" Height="16" Margin="0,0,5,0">
+                                                <materialDesign:PackIcon.Style>
+                                                    <Style TargetType="materialDesign:PackIcon">
+                                                        <Setter Property="Kind" Value="Video"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ClipType}" Value="Audio">
+                                                                <Setter Property="Kind" Value="Music"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ClipType}" Value="Image">
+                                                                <Setter Property="Kind" Value="Image"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </materialDesign:PackIcon.Style>
+                                            </materialDesign:PackIcon>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
+                                                       Foreground="White" MaxWidth="100" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Row="1" Text="{Binding Duration, StringFormat=mm\\:ss}"
+                                                   FontSize="10" Foreground="White" Opacity="0.8" Margin="0,3,0,0"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Empty Timeline Message -->
+                <TextBlock Grid.Row="1" Text="ลากคลิปมาวางที่นี่ หรือสร้างคลิปใหม่ด้วย AI"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Opacity="0.4" FontSize="13"
+                           Visibility="{Binding Timeline.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+            </Grid>
+        </Border>
+
+        <!-- New Project Dialog -->
+        <materialDesign:DialogHost Grid.RowSpan="3" Grid.ColumnSpan="3"
+                                   IsOpen="{Binding ShowNewProjectDialog}"
+                                   CloseOnClickAway="True">
+            <materialDesign:DialogHost.DialogContent>
+                <Border Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                        CornerRadius="12" Padding="25" MinWidth="350">
+                    <StackPanel>
+                        <TextBlock Text="สร้างโปรเจคใหม่" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                        <TextBlock Text="ชื่อโปรเจค" FontSize="12" Opacity="0.7" Margin="0,0,0,5"/>
+                        <TextBox Text="{Binding NewProjectName, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 materialDesign:HintAssist.Hint="ใส่ชื่อโปรเจค" Margin="0,0,0,20"/>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="ยกเลิก" Style="{StaticResource MaterialDesignFlatButton}"
+                                    Command="{Binding CancelNewProjectCommand}" Margin="0,0,10,0"/>
+                            <Button Content="สร้าง" Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Command="{Binding ConfirmNewProjectCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </materialDesign:DialogHost.DialogContent>
+        </materialDesign:DialogHost>
+
+        <!-- Loading Overlay -->
+        <Border Grid.RowSpan="3" Grid.ColumnSpan="3" Background="#80000000"
+                Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                             IsIndeterminate="True" Width="50" Height="50"/>
+                <TextBlock Text="กำลังโหลด..." Foreground="White" Margin="0,15,0,0" FontSize="14"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Page>
