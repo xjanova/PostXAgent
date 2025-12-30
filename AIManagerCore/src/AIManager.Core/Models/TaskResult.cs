@@ -188,6 +188,10 @@ public class ResultData
     // NEW: Media generation results (Video/Music)
     [JsonProperty("media_result")]
     public MediaGenerationResult? MediaResult { get; set; }
+
+    // NEW: Generated files list (for multiple image/video generation)
+    [JsonProperty("generated_files")]
+    public List<string>? GeneratedFiles { get; set; }
 }
 
 /// <summary>

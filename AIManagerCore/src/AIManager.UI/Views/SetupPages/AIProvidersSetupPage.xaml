@@ -83,7 +83,7 @@
             <Border Background="#2a2a3e" CornerRadius="8" Padding="20" Margin="0,0,0,15">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="OpenAI" Width="24" Height="24" Foreground="#10a37f" Margin="0,0,15,0"/>
+                        <materialDesign:PackIcon Kind="Robot" Width="24" Height="24" Foreground="#10a37f" Margin="0,0,15,0"/>
                         <TextBlock Text="OpenAI GPT-4 (Cloud AI)" FontSize="18" FontWeight="Bold" Foreground="White"/>
                         <Border Background="#ff9800" CornerRadius="3" Padding="5,2" Margin="10,0,0,0">
                             <TextBlock Text="Optional" FontSize="10" Foreground="White"/>

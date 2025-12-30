@@ -308,6 +308,7 @@ public partial class MainWindow : Window
             "WorkflowEditor" => new WorkflowEditorPage(),
             "WorkflowMonitor" => new WorkflowMonitorPage(),
             "WebLearning" => new WebLearningPage(),
+            "WorkerWebView" => new WorkerWebViewPage(),
             "Strategies" => new StrategiesPage(),
             "ApiKeys" => new ApiKeysPage(),
             "Logs" => new LogsPage(),

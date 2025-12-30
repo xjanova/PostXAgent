@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Web Learning Page -->
+  <data name="WebLearning_Title" xml:space="preserve">
+    <value>Web Learning</value>
+  </data>
+  <data name="WebLearning_Description" xml:space="preserve">
+    <value>สอน AI ทำงานบนเว็บไซต์โดยบันทึกการกระทำของคุณ</value>
+  </data>
+  <data name="WebLearning_TeachMode" xml:space="preserve">
+    <value>โหมดสอน</value>
+  </data>
+  <data name="WebLearning_StartRecording" xml:space="preserve">
+    <value>เริ่มบันทึก</value>
+  </data>
+  <data name="WebLearning_StopRecording" xml:space="preserve">
+    <value>หยุดบันทึก</value>
+  </data>
+  <data name="WebLearning_RecordedSteps" xml:space="preserve">
+    <value>ขั้นตอนที่บันทึก</value>
+  </data>
+  <data name="WebLearning_StepsRecorded" xml:space="preserve">
+    <value>บันทึกได้ {0} ขั้นตอน</value>
+  </data>
+  <data name="WebLearning_WorkflowConfidence" xml:space="preserve">
+    <value>ความมั่นใจ Workflow</value>
+  </data>
+  <data name="WebLearning_WorkflowName" xml:space="preserve">
+    <value>ชื่อ Workflow</value>
+  </data>
+  <data name="WebLearning_Description_Hint" xml:space="preserve">
+    <value>คำอธิบาย (ไม่บังคับ)</value>
+  </data>
+  <data name="WebLearning_Test" xml:space="preserve">
+    <value>ทดสอบ</value>
+  </data>
+  <data name="WebLearning_SaveWorkflow" xml:space="preserve">
+    <value>บันทึก Workflow</value>
+  </data>
+  <data name="WebLearning_AiSuggestions" xml:space="preserve">
+    <value>คำแนะนำจาก AI</value>
+  </data>
+  <data name="WebLearning_LoadingPage" xml:space="preserve">
+    <value>กำลังโหลดหน้าเว็บ...</value>
+  </data>
+  <data name="WebLearning_RecordingStarted" xml:space="preserve">
+    <value>เริ่มบันทึกแล้ว กรุณาทำงานบนเว็บไซต์...</value>
+  </data>
+  <data name="WebLearning_RecordingStopped" xml:space="preserve">
+    <value>บันทึกเสร็จสิ้น! ได้ {0} ขั้นตอน (ความมั่นใจ: {1:P0})</value>
+  </data>
+  <data name="WebLearning_NoStepsRecorded" xml:space="preserve">
+    <value>ยังไม่มีการกระทำที่บันทึกได้</value>
+  </data>
+  <data name="WebLearning_StepDeleted" xml:space="preserve">
+    <value>ลบ Step แล้ว</value>
+  </data>
+  <data name="WebLearning_StepDuplicated" xml:space="preserve">
+    <value>คัดลอก Step #{0} แล้ว</value>
+  </data>
+  <data name="WebLearning_WorkflowSaved" xml:space="preserve">
+    <value>บันทึก '{0}' สำเร็จ! ({1} ขั้นตอน)</value>
+  </data>
+  <data name="WebLearning_EnterWorkflowName" xml:space="preserve">
+    <value>กรุณากรอกชื่อ Workflow</value>
+  </data>
+  <data name="WebLearning_NoStepsToSave" xml:space="preserve">
+    <value>ยังไม่มี Steps ที่จะบันทึก</value>
+  </data>
+
+  <!-- Confidence Levels -->
+  <data name="Confidence_High" xml:space="preserve">
+    <value>สูง</value>
+  </data>
+  <data name="Confidence_Medium" xml:space="preserve">
+    <value>ปานกลาง</value>
+  </data>
+  <data name="Confidence_Low" xml:space="preserve">
+    <value>ต่ำ</value>
+  </data>
+
+  <!-- Actions -->
+  <data name="Action_Click" xml:space="preserve">
+    <value>คลิก</value>
+  </data>
+  <data name="Action_Type" xml:space="preserve">
+    <value>พิมพ์ข้อความ</value>
+  </data>
+  <data name="Action_Upload" xml:space="preserve">
+    <value>อัพโหลดไฟล์</value>
+  </data>
+  <data name="Action_Select" xml:space="preserve">
+    <value>เลือกตัวเลือก</value>
+  </data>
+  <data name="Action_Navigate" xml:space="preserve">
+    <value>นำทาง</value>
+  </data>
+  <data name="Action_Submit" xml:space="preserve">
+    <value>ส่งฟอร์ม</value>
+  </data>
+
+  <!-- Platforms -->
+  <data name="Platform_Facebook" xml:space="preserve">
+    <value>Facebook</value>
+  </data>
+  <data name="Platform_Instagram" xml:space="preserve">
+    <value>Instagram</value>
+  </data>
+  <data name="Platform_TikTok" xml:space="preserve">
+    <value>TikTok</value>
+  </data>
+  <data name="Platform_Twitter" xml:space="preserve">
+    <value>Twitter/X</value>
+  </data>
+  <data name="Platform_LINE" xml:space="preserve">
+    <value>LINE</value>
+  </data>
+  <data name="Platform_YouTube" xml:space="preserve">
+    <value>YouTube</value>
+  </data>
+  <data name="Platform_Threads" xml:space="preserve">
+    <value>Threads</value>
+  </data>
+  <data name="Platform_LinkedIn" xml:space="preserve">
+    <value>LinkedIn</value>
+  </data>
+  <data name="Platform_Pinterest" xml:space="preserve">
+    <value>Pinterest</value>
+  </data>
+  <data name="Platform_Custom" xml:space="preserve">
+    <value>กำหนดเอง</value>
+  </data>
+
+  <!-- Task Types -->
+  <data name="TaskType_Post" xml:space="preserve">
+    <value>โพสต์เนื้อหา</value>
+  </data>
+  <data name="TaskType_Login" xml:space="preserve">
+    <value>เข้าสู่ระบบ</value>
+  </data>
+  <data name="TaskType_Upload" xml:space="preserve">
+    <value>อัพโหลดสื่อ</value>
+  </data>
+  <data name="TaskType_Comment" xml:space="preserve">
+    <value>แสดงความคิดเห็น</value>
+  </data>
+  <data name="TaskType_Search" xml:space="preserve">
+    <value>ค้นหา</value>
+  </data>
+  <data name="TaskType_Message" xml:space="preserve">
+    <value>ส่งข้อความ</value>
+  </data>
+  <data name="TaskType_Custom" xml:space="preserve">
+    <value>กำหนดเอง</value>
+  </data>
+
+  <!-- Workflow Monitor -->
+  <data name="Monitor_Title" xml:space="preserve">
+    <value>ตรวจสอบ Workflow</value>
+  </data>
+  <data name="Monitor_TotalWorkflows" xml:space="preserve">
+    <value>Workflow ทั้งหมด</value>
+  </data>
+  <data name="Monitor_Running" xml:space="preserve">
+    <value>กำลังทำงาน</value>
+  </data>
+  <data name="Monitor_Pending" xml:space="preserve">
+    <value>รอดำเนินการ</value>
+  </data>
+  <data name="Monitor_Failed" xml:space="preserve">
+    <value>ล้มเหลว</value>
+  </data>
+  <data name="Monitor_Completed" xml:space="preserve">
+    <value>เสร็จสิ้น</value>
+  </data>
+  <data name="Monitor_CompletedToday" xml:space="preserve">
+    <value>เสร็จวันนี้</value>
+  </data>
+
+  <!-- Common -->
+  <data name="Common_Undo" xml:space="preserve">
+    <value>เลิกทำ</value>
+  </data>
+  <data name="Common_Redo" xml:space="preserve">
+    <value>ทำซ้ำ</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>ลบ</value>
+  </data>
+  <data name="Common_Duplicate" xml:space="preserve">
+    <value>คัดลอก</value>
+  </data>
+  <data name="Common_MoveUp" xml:space="preserve">
+    <value>เลื่อนขึ้น</value>
+  </data>
+  <data name="Common_MoveDown" xml:space="preserve">
+    <value>เลื่อนลง</value>
+  </data>
+  <data name="Common_ClearAll" xml:space="preserve">
+    <value>ล้างทั้งหมด</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>ยกเลิก</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>บันทึก</value>
+  </data>
+  <data name="Common_Go" xml:space="preserve">
+    <value>ไป</value>
+  </data>
+  <data name="Common_Refresh" xml:space="preserve">
+    <value>รีเฟรช</value>
+  </data>
+  <data name="Common_Back" xml:space="preserve">
+    <value>ย้อนกลับ</value>
+  </data>
+  <data name="Common_Forward" xml:space="preserve">
+    <value>ไปข้างหน้า</value>
+  </data>
+
+  <!-- AI Suggestions -->
+  <data name="Suggestion_QuickSuccession" xml:space="preserve">
+    <value>พบการกระทำที่เร็วเกินไป แนะนำเพิ่ม Wait step</value>
+  </data>
+  <data name="Suggestion_LowConfidence" xml:space="preserve">
+    <value>มี {0} step ที่ selector อาจไม่เสถียร</value>
+  </data>
+  <data name="Suggestion_TypeWithoutClick" xml:space="preserve">
+    <value>Step #{0} อาจต้อง click element ก่อนพิมพ์</value>
+  </data>
+
+  <!-- Auto Learning -->
+  <data name="AutoLearning_Title" xml:space="preserve">
+    <value>AI เรียนรู้อัตโนมัติ</value>
+  </data>
+  <data name="AutoLearning_Description" xml:space="preserve">
+    <value>AI กำลังวิเคราะห์หน้าเว็บและเรียนรู้อัตโนมัติ</value>
+  </data>
+  <data name="AutoLearning_ToggleLabel" xml:space="preserve">
+    <value>เรียนรู้อัตโนมัติ</value>
+  </data>
+  <data name="AutoLearning_Enabled" xml:space="preserve">
+    <value>เปิดโหมด AI Auto-Learning - AI จะวิเคราะห์และเรียนรู้อัตโนมัติ</value>
+  </data>
+  <data name="AutoLearning_Disabled" xml:space="preserve">
+    <value>ปิดโหมด Auto-Learning แล้ว</value>
+  </data>
+  <data name="AutoLearning_Analyzing" xml:space="preserve">
+    <value>กำลังวิเคราะห์หน้าเว็บ...</value>
+  </data>
+  <data name="AutoLearning_Complete" xml:space="preserve">
+    <value>วิเคราะห์เสร็จสิ้น</value>
+  </data>
+  <data name="AutoLearning_Error" xml:space="preserve">
+    <value>เกิดข้อผิดพลาดในการวิเคราะห์</value>
+  </data>
+  <data name="AutoLearning_DetectedElements" xml:space="preserve">
+    <value>ตรวจพบ Elements:</value>
+  </data>
+  <data name="AutoLearning_WorkflowsFound" xml:space="preserve">
+    <value>พบ {0} workflow ที่มีอยู่แล้ว</value>
+  </data>
+  <data name="AutoLearning_SuggestTeaching" xml:space="preserve">
+    <value>(แนะนำให้สอน AI)</value>
+  </data>
+  <data name="AutoLearning_GenerateWorkflow" xml:space="preserve">
+    <value>สร้าง Workflow</value>
+  </data>
+  <data name="AutoLearning_TransferLearning" xml:space="preserve">
+    <value>ถ่ายโอนการเรียนรู้</value>
+  </data>
+  <data name="AutoLearning_GeneratingWorkflow" xml:space="preserve">
+    <value>กำลังสร้าง Workflow อัตโนมัติ...</value>
+  </data>
+  <data name="AutoLearning_GenerateSuccess" xml:space="preserve">
+    <value>สร้าง Workflow สำเร็จ - กรุณาตรวจสอบก่อนบันทึก</value>
+  </data>
+  <data name="AutoLearning_NoPatterns" xml:space="preserve">
+    <value>ไม่พบ patterns ที่เพียงพอ</value>
+  </data>
+  <data name="AutoLearning_TransferSuccess" xml:space="preserve">
+    <value>Transfer Learning สำเร็จ! {0} steps</value>
+  </data>
+  <data name="AutoLearning_NoHumanWorkflows" xml:space="preserve">
+    <value>ยังไม่มี Workflow ที่มนุษย์สอนไว้ กรุณาบันทึก workflow อย่างน้อย 1 รายการก่อนใช้ Transfer Learning</value>
+  </data>
+  <data name="AutoLearning_TransferConfirm" xml:space="preserve">
+    <value>พบ {0} workflows ที่สามารถ transfer ได้ ต้องการ transfer learning จาก workflow ที่ดีที่สุดหรือไม่?</value>
+  </data>
+
+  <!-- Worker WebView Page -->
+  <data name="WorkerWebView_Title" xml:space="preserve">
+    <value>ดู Worker</value>
+  </data>
+  <data name="WorkerWebView_Description" xml:space="preserve">
+    <value>ดูและช่วยเหลือ workers</value>
+  </data>
+  <data name="WorkerWebView_NeedsHelp" xml:space="preserve">
+    <value>ต้องการความช่วยเหลือ</value>
+  </data>
+  <data name="WorkerWebView_ActiveWorkers" xml:space="preserve">
+    <value>WORKERS ที่ใช้งานอยู่</value>
+  </data>
+  <data name="WorkerWebView_NoWorkerSelected" xml:space="preserve">
+    <value>เลือก Worker เพื่อดู</value>
+  </data>
+  <data name="WorkerWebView_SelectWorkerHint" xml:space="preserve">
+    <value>เลือก worker จากแถบด้านข้างเพื่อดูหน้าเว็บ</value>
+  </data>
+  <data name="WorkerWebView_ViewOnly" xml:space="preserve">
+    <value>ดูอย่างเดียว</value>
+  </data>
+  <data name="WorkerWebView_Assist" xml:space="preserve">
+    <value>ช่วยเหลือ</value>
+  </data>
+  <data name="WorkerWebView_TakeControl" xml:space="preserve">
+    <value>เข้าควบคุม</value>
+  </data>
+  <data name="WorkerWebView_DoneTeaching" xml:space="preserve">
+    <value>สอนเสร็จแล้ว</value>
+  </data>
+  <data name="WorkerWebView_ViewOnlyMode" xml:space="preserve">
+    <value>โหมดดูอย่างเดียว</value>
+  </data>
+  <data name="WorkerWebView_ViewOnlyHint" xml:space="preserve">
+    <value>คลิก 'ช่วยเหลือ' หรือ 'เข้าควบคุม' เพื่อโต้ตอบ</value>
+  </data>
+  <data name="WorkerWebView_Recording" xml:space="preserve">
+    <value>กำลังบันทึก</value>
+  </data>
+  <data name="WorkerWebView_StepsRecorded" xml:space="preserve">
+    <value>บันทึกได้ {0} ขั้นตอน</value>
+  </data>
+  <data name="WorkerWebView_ProcessingSteps" xml:space="preserve">
+    <value>กำลังประมวลผลขั้นตอนที่เรียนรู้...</value>
+  </data>
+  <data name="WorkerWebView_TakeControlConfirm" xml:space="preserve">
+    <value>การดำเนินการนี้จะหยุด worker และให้คุณควบคุมเต็มที่ ต้องการดำเนินการต่อหรือไม่?</value>
+  </data>
+  <data name="WorkerWebView_Status_Headless" xml:space="preserve">
+    <value>Headless</value>
+  </data>
+  <data name="WorkerWebView_Status_Viewing" xml:space="preserve">
+    <value>ดูอย่างเดียว</value>
+  </data>
+  <data name="WorkerWebView_Status_NeedsHelp" xml:space="preserve">
+    <value>ต้องการความช่วยเหลือ</value>
+  </data>
+  <data name="WorkerWebView_Status_Recording" xml:space="preserve">
+    <value>กำลังบันทึก</value>
+  </data>
+  <data name="WorkerWebView_Status_Learning" xml:space="preserve">
+    <value>กำลังเรียนรู้</value>
+  </data>
+  <data name="WorkerWebView_Status_Resuming" xml:space="preserve">
+    <value>กำลังกลับมาทำงาน</value>
+  </data>
+
+  <!-- AI Guided Teaching -->
+  <data name="Teaching_Title" xml:space="preserve">
+    <value>AI Teaching Guide</value>
+  </data>
+  <data name="Teaching_Subtitle" xml:space="preserve">
+    <value>ทำตามขั้นตอนเพื่อสอน AI</value>
+  </data>
+  <data name="Teaching_FollowSteps" xml:space="preserve">
+    <value>ทำตามขั้นตอนด้านล่างเพื่อสอน AI สร้าง {0} workflow</value>
+  </data>
+  <data name="Teaching_StepProgress" xml:space="preserve">
+    <value>ขั้นตอน {0}/{1}</value>
+  </data>
+  <data name="Teaching_StepCorrect" xml:space="preserve">
+    <value>ขั้นตอนที่ {0} ถูกต้อง!</value>
+  </data>
+  <data name="Teaching_StepWrong" xml:space="preserve">
+    <value>คาดหวัง: {0} - แต่ได้: {1}</value>
+  </data>
+  <data name="Teaching_Optional" xml:space="preserve">
+    <value>(ข้ามได้)</value>
+  </data>
+  <data name="Teaching_Complete" xml:space="preserve">
+    <value>สอน AI เสร็จสมบูรณ์! กรุณาตั้งชื่อและบันทึก Workflow</value>
+  </data>
+  <data name="Teaching_NoTemplate" xml:space="preserve">
+    <value>ไม่พบ template สำหรับ platform นี้ - บันทึกอิสระ</value>
+  </data>
+  <data name="Teaching_ElementHint" xml:space="preserve">
+    <value>ตำแหน่ง element</value>
+  </data>
+  <data name="Teaching_InputHint" xml:space="preserve">
+    <value>ข้อมูลที่ต้องกรอก</value>
+  </data>
+  <data name="Teaching_ClickAction" xml:space="preserve">
+    <value>คลิก</value>
+  </data>
+  <data name="Teaching_TypeAction" xml:space="preserve">
+    <value>พิมพ์</value>
+  </data>
+  <data name="Teaching_UploadAction" xml:space="preserve">
+    <value>อัพโหลด</value>
+  </data>
+  <data name="Teaching_SelectAction" xml:space="preserve">
+    <value>เลือก</value>
+  </data>
+  <data name="Teaching_SubmitAction" xml:space="preserve">
+    <value>ส่ง</value>
+  </data>
+
+</root>

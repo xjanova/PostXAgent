@@ -93,8 +93,10 @@
             </StackPanel>
 
             <!-- Content Area -->
-            <Border Grid.Row="2" Background="#1e1e2e" CornerRadius="10" Padding="30">
-                <Frame x:Name="ContentFrame" NavigationUIVisibility="Hidden"/>
+            <Border Grid.Row="2" Background="#1e1e2e" CornerRadius="10" Padding="30" MinHeight="350">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Frame x:Name="ContentFrame" NavigationUIVisibility="Hidden"/>
+                </ScrollViewer>
             </Border>
 
             <!-- Navigation Buttons -->

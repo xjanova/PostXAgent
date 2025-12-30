@@ -85,6 +85,79 @@ builder.Services.AddSingleton<ViralAnalysisService>();
 // Image Generator Service
 builder.Services.AddSingleton<ImageGeneratorService>();
 
+// Media Processing Services (Video/Audio)
+builder.Services.AddSingleton<FFmpegService>();
+builder.Services.AddSingleton<VideoProcessor>();
+builder.Services.AddSingleton<AudioProcessor>();
+
+// Freepik Automation Service (Image/Video Generation)
+builder.Services.AddSingleton<FreepikAutomationService?>(sp =>
+{
+    try
+    {
+        var browserController = sp.GetService<BrowserController>();
+        var workflowStorage = sp.GetRequiredService<WorkflowStorage>();
+        var workflowExecutor = sp.GetService<WorkflowExecutor>();
+        var logger = sp.GetRequiredService<ILogger<FreepikAutomationService>>();
+        if (browserController != null && workflowExecutor != null)
+        {
+            return new FreepikAutomationService(logger, browserController, workflowExecutor, workflowStorage);
+        }
+    }
+    catch { }
+    return null;
+});
+
+// Suno Automation Service (Music Generation)
+builder.Services.AddSingleton<SunoAutomationService?>(sp =>
+{
+    try
+    {
+        var browserController = sp.GetService<BrowserController>();
+        var workflowStorage = sp.GetRequiredService<WorkflowStorage>();
+        var workflowExecutor = sp.GetService<WorkflowExecutor>();
+        var logger = sp.GetRequiredService<ILogger<SunoAutomationService>>();
+        if (browserController != null && workflowExecutor != null)
+        {
+            return new SunoAutomationService(logger, browserController, workflowExecutor, workflowStorage);
+        }
+    }
+    catch { }
+    return null;
+});
+
+// Video Creation Pipeline (Full workflow: Images -> Videos -> Music -> Compose -> Post)
+builder.Services.AddSingleton<VideoCreationPipeline?>(sp =>
+{
+    try
+    {
+        var freepikService = sp.GetService<FreepikAutomationService>();
+        var sunoService = sp.GetService<SunoAutomationService>();
+
+        if (freepikService == null || sunoService == null)
+        {
+            return null;
+        }
+
+        var logger = sp.GetRequiredService<ILogger<VideoCreationPipeline>>();
+        var videoProcessor = sp.GetRequiredService<VideoProcessor>();
+        var audioProcessor = sp.GetRequiredService<AudioProcessor>();
+        var contentGenerator = sp.GetRequiredService<ContentGeneratorService>();
+        var postPublisher = sp.GetRequiredService<PostPublisherService>();
+
+        return new VideoCreationPipeline(
+            logger,
+            freepikService,
+            sunoService,
+            videoProcessor,
+            audioProcessor,
+            contentGenerator,
+            postPublisher);
+    }
+    catch { }
+    return null;
+});
+
 // Content Workflow Services
 builder.Services.AddSingleton<CloudDriveService>();
 builder.Services.AddSingleton<VideoScriptGeneratorService>();

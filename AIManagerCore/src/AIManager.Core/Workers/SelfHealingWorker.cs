@@ -731,7 +731,204 @@ public class SelfHealingWorker
 
         await _knowledgeBase.SaveAssistanceRequestAsync(request);
 
-        // TODO: Send notification to admin/user
+        // Set worker to NeedsHelp mode for WebView integration
+        var oldMode = worker.ViewMode;
+        worker.ViewMode = WorkerViewMode.NeedsHelp;
+        worker.ViewContext = new WorkerViewContext
+        {
+            WorkerId = worker.Id,
+            Mode = WorkerViewMode.NeedsHelp,
+            HelpRequestedAt = DateTime.UtcNow,
+            HelpReason = errorMessage,
+            CurrentUrl = _browserController?.CurrentUrl
+        };
+
+        // Fire event for UI to show WebView
+        _workerManager.RaiseWorkerHelpRequested(new WorkerHelpRequestedEventArgs(
+            worker, errorMessage, _browserController?.CurrentUrl));
+
+        _logger.LogInformation("Worker {WorkerId} waiting for human assistance...", worker.Id);
+
+        // Wait for human resolution - worker will be paused until resolved
+        var waitStarted = DateTime.UtcNow;
+        var maxWaitTime = TimeSpan.FromMinutes(30); // Maximum wait time
+
+        while (worker.ViewMode == WorkerViewMode.NeedsHelp)
+        {
+            await Task.Delay(500);
+
+            // Check if worker was stopped
+            if (worker.StopRequested) break;
+
+            // Timeout after maxWaitTime
+            if (DateTime.UtcNow - waitStarted > maxWaitTime)
+            {
+                _logger.LogWarning("Human assistance request timed out for worker {WorkerId}", worker.Id);
+                worker.ViewMode = WorkerViewMode.Headless;
+                break;
+            }
+        }
+
+        // Log resolution
+        if (worker.ViewMode == WorkerViewMode.Headless || worker.ViewMode == WorkerViewMode.Resuming)
+        {
+            _logger.LogInformation("Human assistance resolved for worker {WorkerId}", worker.Id);
+        }
+    }
+
+    /// <summary>
+    /// Process learned workflow from human intervention
+    /// </summary>
+    public async Task ProcessLearnedWorkflowAsync(
+        string workerId,
+        List<RecordedStep> recordedSteps,
+        TaskItem? originalTask,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var worker = _workerManager.GetWorker(workerId);
+            if (worker == null)
+            {
+                _logger.LogWarning("Worker {WorkerId} not found for processing learned workflow", workerId);
+                return;
+            }
+
+            _logger.LogInformation("Processing {StepCount} recorded steps for worker {WorkerId}",
+                recordedSteps.Count, workerId);
+
+            // Convert recorded steps to workflow steps
+            var workflowSteps = recordedSteps.Select((step, index) => new WebAutomation.Models.WorkflowStep
+            {
+                Order = index + 1,
+                Action = MapActionType(step.ActionType),
+                Selector = new WebAutomation.Models.ElementSelector
+                {
+                    Type = WebAutomation.Models.SelectorType.CSS,
+                    Value = step.Selector ?? ""
+                },
+                AlternativeSelectors = GenerateSelectorAlternatives(step.ElementInfo)
+                    .Select(s => new WebAutomation.Models.ElementSelector
+                    {
+                        Type = WebAutomation.Models.SelectorType.CSS,
+                        Value = s
+                    }).ToList(),
+                InputValue = step.Value,
+                Description = step.Description ?? $"{step.ActionType} on {step.ElementInfo?.TagName}",
+                WaitAfterMs = 500,
+                IsOptional = false
+            }).ToList();
+
+            // Create learned workflow
+            var workflow = new LearnedWorkflow
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = $"HumanTaught_{worker.Platform}_{originalTask?.Type}",
+                Platform = worker.Platform.ToString(),
+                TaskType = originalTask?.Type.ToString() ?? "Unknown",
+                Steps = workflowSteps,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                SuccessCount = 1,
+                IsHumanTrained = true
+            };
+
+            // Save the workflow
+            await _workflowStorage.SaveWorkflowAsync(workflow);
+
+            // Save to knowledge base
+            await _knowledgeBase.SaveKnowledgeAsync(new Knowledge
+            {
+                Platform = worker.Platform,
+                ErrorPattern = "HumanTaught",
+                Solution = "Workflow learned from human",
+                SolutionData = workflow.ToJson(),
+                SuccessCount = 1,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            _logger.LogInformation("Saved learned workflow {WorkflowId} with {StepCount} steps",
+                workflow.Id, workflow.Steps.Count);
+
+            // Resume worker
+            await _workerManager.ResumeWorkerFromHelpAsync(workerId, workflow);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process learned workflow for worker {WorkerId}", workerId);
+        }
+    }
+
+    /// <summary>
+    /// Map RecordedActionType to StepAction
+    /// </summary>
+    private static WebAutomation.Models.StepAction MapActionType(RecordedActionType actionType)
+    {
+        return actionType switch
+        {
+            RecordedActionType.Click => WebAutomation.Models.StepAction.Click,
+            RecordedActionType.Type => WebAutomation.Models.StepAction.Type,
+            RecordedActionType.Clear => WebAutomation.Models.StepAction.Clear,
+            RecordedActionType.Navigate => WebAutomation.Models.StepAction.Navigate,
+            RecordedActionType.Select => WebAutomation.Models.StepAction.Select,
+            RecordedActionType.Check => WebAutomation.Models.StepAction.Click, // Map check to click
+            RecordedActionType.Upload => WebAutomation.Models.StepAction.Upload,
+            RecordedActionType.Wait => WebAutomation.Models.StepAction.Wait,
+            RecordedActionType.Hover => WebAutomation.Models.StepAction.Hover,
+            RecordedActionType.Scroll => WebAutomation.Models.StepAction.Scroll,
+            _ => WebAutomation.Models.StepAction.Click
+        };
+    }
+
+    /// <summary>
+    /// Generate alternative selectors from element info
+    /// </summary>
+    private List<string> GenerateSelectorAlternatives(RecordedElementInfo? elementInfo)
+    {
+        var alternatives = new List<string>();
+        if (elementInfo == null) return alternatives;
+
+        // Add ID-based selector (most reliable)
+        if (!string.IsNullOrEmpty(elementInfo.Id))
+        {
+            alternatives.Add($"#{elementInfo.Id}");
+        }
+
+        // Add CSS selector
+        if (!string.IsNullOrEmpty(elementInfo.CssSelector))
+        {
+            alternatives.Add(elementInfo.CssSelector);
+        }
+
+        // Add XPath
+        if (!string.IsNullOrEmpty(elementInfo.XPath))
+        {
+            alternatives.Add($"xpath={elementInfo.XPath}");
+        }
+
+        // Add aria-label based selector
+        if (!string.IsNullOrEmpty(elementInfo.AriaLabel))
+        {
+            alternatives.Add($"[aria-label=\"{elementInfo.AriaLabel}\"]");
+        }
+
+        // Add class-based selector
+        if (!string.IsNullOrEmpty(elementInfo.ClassName))
+        {
+            var firstClass = elementInfo.ClassName.Split(' ').FirstOrDefault();
+            if (!string.IsNullOrEmpty(firstClass))
+            {
+                alternatives.Add($".{firstClass}");
+            }
+        }
+
+        // Add text-based selector
+        if (!string.IsNullOrEmpty(elementInfo.Text) && elementInfo.Text.Length < 50)
+        {
+            alternatives.Add($"text={elementInfo.Text}");
+        }
+
+        return alternatives;
     }
 
     #endregion

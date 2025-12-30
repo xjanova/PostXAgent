@@ -131,30 +131,56 @@ public partial class App : Application
         _splashScreen.Close();
         _splashScreen = null;
 
-        // Check if first run - show setup wizard
+        // Create and show main window first
+        var mainWindow = new MainWindow();
+        MainWindow = mainWindow;
+
+        // Check if first run - show setup wizard after main window is loaded
         var firstRunService = Services.GetRequiredService<FirstRunDetectionService>();
         if (firstRunService.IsFirstRun())
         {
-            _logger.LogInfo("App", "First run detected - showing Setup Wizard");
+            _logger.LogInfo("App", "First run detected - will show Setup Wizard");
 
-            var setupWizard = new Views.SetupWizardWindow(firstRunService);
-            var result = setupWizard.ShowDialog();
+            // Show main window hidden, then show wizard
+            mainWindow.Opacity = 0;
+            mainWindow.ShowInTaskbar = false;
+            mainWindow.Show();
 
-            if (result != true)
+            // Use Dispatcher to show wizard after main window is fully loaded
+            mainWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
-                // User cancelled setup - exit application
-                _logger.LogInfo("App", "Setup cancelled by user");
-                Shutdown();
-                return;
-            }
+                var setupWizard = new Views.SetupWizardWindow(firstRunService);
+                setupWizard.Owner = mainWindow;
+                setupWizard.WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-            _logger.LogInfo("App", "Setup completed successfully");
+                var result = setupWizard.ShowDialog();
+
+                if (result != true)
+                {
+                    // User cancelled setup - exit application
+                    _logger.LogInfo("App", "Setup cancelled by user");
+                    Shutdown();
+                    return;
+                }
+
+                _logger.LogInfo("App", "Setup completed successfully");
+
+                // Show main window
+                mainWindow.Opacity = 1;
+                mainWindow.ShowInTaskbar = true;
+                mainWindow.Activate();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+        else
+        {
+            mainWindow.Show();
         }
 
-        // Create and show main window
-        var mainWindow = new MainWindow();
-        MainWindow = mainWindow;
-        mainWindow.Show();
+        // Handle main window closing to shutdown app
+        mainWindow.Closed += (s, e) =>
+        {
+            Shutdown();
+        };
     }
 
     private void SetupExceptionHandlers()

@@ -62,7 +62,9 @@ public partial class PlatformsPage : Page
 
         foreach (SocialPlatform platform in Enum.GetValues(typeof(SocialPlatform)))
         {
-            // Skip no specific platform (all values are valid)
+            // Skip AI media generation platforms (they are not social platforms)
+            if (IsAIMediaPlatform(platform))
+                continue;
 
             var setupInfo = _setupService?.GetSetupInfo(platform);
             var accountCount = _poolManager?.GetHealthReport(platform)?.Count ?? 0;
@@ -133,6 +135,9 @@ public partial class PlatformsPage : Page
         var platforms = new List<string> { "All Platforms" };
         foreach (SocialPlatform platform in Enum.GetValues(typeof(SocialPlatform)))
         {
+            // Skip AI media generation platforms
+            if (IsAIMediaPlatform(platform))
+                continue;
             platforms.Add(platform.ToString());
         }
         CmbPoolPlatformFilter.ItemsSource = platforms;
@@ -316,6 +321,22 @@ public partial class PlatformsPage : Page
         };
     }
 
+    /// <summary>
+    /// Check if the platform is an AI media generation platform (not a social platform)
+    /// </summary>
+    private static bool IsAIMediaPlatform(SocialPlatform platform)
+    {
+        return platform switch
+        {
+            SocialPlatform.Freepik => true,
+            SocialPlatform.Runway => true,
+            SocialPlatform.PikaLabs => true,
+            SocialPlatform.LumaAI => true,
+            SocialPlatform.SunoAI => true,
+            _ => false
+        };
+    }
+
     #endregion
 
     #region Display Models
@@ -400,6 +421,9 @@ public class CreatePoolDialog : Window
         _platformCombo = new ComboBox { Margin = new Thickness(0, 0, 0, 15) };
         foreach (SocialPlatform platform in Enum.GetValues(typeof(SocialPlatform)))
         {
+            // Skip AI media generation platforms (Freepik, Runway, PikaLabs, LumaAI, SunoAI)
+            if (platform is SocialPlatform.Freepik or SocialPlatform.Runway or SocialPlatform.PikaLabs or SocialPlatform.LumaAI or SocialPlatform.SunoAI)
+                continue;
             _platformCombo.Items.Add(platform);
         }
         _platformCombo.SelectedIndex = 0;
