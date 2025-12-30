@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using AIManager.Core.Models;
+using AIManager.Core.WebAutomation.Models;
 
 namespace AIManager.Core.Workers;
 
@@ -27,6 +28,11 @@ public class WorkerManager : IDisposable
     public event EventHandler<WorkerProgressEventArgs>? WorkerProgress;
     public event EventHandler<WorkerReportEventArgs>? WorkerReported;
     public event EventHandler<SystemStatsEventArgs>? SystemStatsUpdated;
+
+    // Events for Worker WebView integration
+    public event EventHandler<WorkerHelpRequestedEventArgs>? WorkerHelpRequested;
+    public event EventHandler<WorkerViewModeChangedEventArgs>? WorkerViewModeChanged;
+    public event EventHandler<HumanInterventionCompleteEventArgs>? HumanInterventionComplete;
 
     // System-wide stats
     public int TotalCores { get; }
@@ -737,11 +743,220 @@ public class WorkerManager : IDisposable
 
     #endregion
 
+    #region Worker View Mode Management
+
+    /// <summary>
+    /// Request human help for a worker - เมื่อ worker ต้องการความช่วยเหลือจากมนุษย์
+    /// </summary>
+    public async Task RequestHumanHelpAsync(string workerId, string reason, string? currentUrl = null)
+    {
+        if (!_workers.TryGetValue(workerId, out var worker))
+        {
+            throw new ArgumentException($"Worker {workerId} not found");
+        }
+
+        var oldMode = worker.ViewMode;
+        worker.ViewMode = WorkerViewMode.NeedsHelp;
+        worker.ViewContext = new WorkerViewContext
+        {
+            WorkerId = workerId,
+            Mode = WorkerViewMode.NeedsHelp,
+            HelpRequestedAt = DateTime.UtcNow,
+            HelpReason = reason,
+            CurrentUrl = currentUrl
+        };
+
+        _logger.LogWarning("🆘 Worker {WorkerId} requesting human help: {Reason}", workerId, reason);
+
+        // Fire events
+        OnWorkerViewModeChanged(workerId, oldMode, WorkerViewMode.NeedsHelp);
+        WorkerHelpRequested?.Invoke(this, new WorkerHelpRequestedEventArgs(worker, reason, currentUrl));
+
+        // Wait for resolution
+        while (worker.ViewMode == WorkerViewMode.NeedsHelp)
+        {
+            await Task.Delay(500);
+            if (worker.StopRequested) break;
+        }
+    }
+
+    /// <summary>
+    /// Set worker view mode - เปลี่ยนโหมดการแสดงผลของ worker
+    /// </summary>
+    public void SetWorkerViewMode(string workerId, WorkerViewMode mode)
+    {
+        if (!_workers.TryGetValue(workerId, out var worker))
+        {
+            throw new ArgumentException($"Worker {workerId} not found");
+        }
+
+        var oldMode = worker.ViewMode;
+        if (oldMode == mode) return;
+
+        worker.ViewMode = mode;
+
+        if (worker.ViewContext == null)
+        {
+            worker.ViewContext = new WorkerViewContext { WorkerId = workerId };
+        }
+        worker.ViewContext.Mode = mode;
+        worker.ViewContext.LastActivityAt = DateTime.UtcNow;
+
+        _logger.LogInformation("Worker {WorkerId} view mode changed: {OldMode} -> {NewMode}",
+            workerId, oldMode, mode);
+
+        OnWorkerViewModeChanged(workerId, oldMode, mode);
+    }
+
+    /// <summary>
+    /// Get workers that need human help
+    /// </summary>
+    public IEnumerable<ManagedWorker> GetWorkersNeedingHelp()
+    {
+        return _workers.Values.Where(w => w.ViewMode == WorkerViewMode.NeedsHelp);
+    }
+
+    /// <summary>
+    /// Get workers that are currently visible in WebView
+    /// </summary>
+    public IEnumerable<ManagedWorker> GetVisibleWorkers()
+    {
+        return _workers.Values.Where(w => w.ViewMode != WorkerViewMode.Headless);
+    }
+
+    /// <summary>
+    /// Resume worker from human help mode
+    /// </summary>
+    public async Task ResumeWorkerFromHelpAsync(string workerId, LearnedWorkflow? newWorkflow = null)
+    {
+        if (!_workers.TryGetValue(workerId, out var worker))
+        {
+            throw new ArgumentException($"Worker {workerId} not found");
+        }
+
+        if (worker.ViewMode != WorkerViewMode.NeedsHelp && worker.ViewMode != WorkerViewMode.HumanControl)
+        {
+            _logger.LogWarning("Worker {WorkerId} is not in help mode, current mode: {Mode}",
+                workerId, worker.ViewMode);
+            return;
+        }
+
+        var recordedSteps = worker.ViewContext?.RecordedSteps ?? new List<RecordedStep>();
+
+        // Transition through learning state if there are recorded steps
+        if (recordedSteps.Count > 0)
+        {
+            SetWorkerViewMode(workerId, WorkerViewMode.Learning);
+
+            _logger.LogInformation("Worker {WorkerId} learning from {StepCount} recorded steps",
+                workerId, recordedSteps.Count);
+
+            // Fire learning event
+            HumanInterventionComplete?.Invoke(this, new HumanInterventionCompleteEventArgs(
+                workerId, recordedSteps, true)
+            {
+                GeneratedWorkflow = newWorkflow,
+                Message = $"Learned from {recordedSteps.Count} steps"
+            });
+
+            // Give time for learning to process
+            await Task.Delay(1000);
+        }
+
+        // Resume to headless mode
+        SetWorkerViewMode(workerId, WorkerViewMode.Resuming);
+        await Task.Delay(500);
+        SetWorkerViewMode(workerId, WorkerViewMode.Headless);
+
+        // Clear help context
+        if (worker.ViewContext != null)
+        {
+            worker.ViewContext.HelpReason = null;
+            worker.ViewContext.HelpRequestedAt = null;
+            worker.ViewContext.RecordedSteps.Clear();
+        }
+
+        _logger.LogInformation("Worker {WorkerId} resumed from human help", workerId);
+    }
+
+    /// <summary>
+    /// Start recording steps for a worker in human control mode
+    /// </summary>
+    public void StartRecording(string workerId)
+    {
+        if (!_workers.TryGetValue(workerId, out var worker))
+        {
+            throw new ArgumentException($"Worker {workerId} not found");
+        }
+
+        SetWorkerViewMode(workerId, WorkerViewMode.HumanControl);
+
+        if (worker.ViewContext == null)
+        {
+            worker.ViewContext = new WorkerViewContext { WorkerId = workerId };
+        }
+        worker.ViewContext.RecordedSteps.Clear();
+
+        _logger.LogInformation("Started recording for worker {WorkerId}", workerId);
+    }
+
+    /// <summary>
+    /// Add a recorded step during human control
+    /// </summary>
+    public void AddRecordedStep(string workerId, RecordedStep step)
+    {
+        if (!_workers.TryGetValue(workerId, out var worker))
+        {
+            throw new ArgumentException($"Worker {workerId} not found");
+        }
+
+        if (worker.ViewContext == null)
+        {
+            worker.ViewContext = new WorkerViewContext { WorkerId = workerId };
+        }
+
+        step.StepNumber = worker.ViewContext.RecordedSteps.Count + 1;
+        step.Timestamp = DateTime.UtcNow;
+        worker.ViewContext.RecordedSteps.Add(step);
+        worker.ViewContext.LastActivityAt = DateTime.UtcNow;
+
+        _logger.LogDebug("Recorded step {StepNumber} for worker {WorkerId}: {ActionType}",
+            step.StepNumber, workerId, step.ActionType);
+    }
+
+    /// <summary>
+    /// Get recorded steps for a worker
+    /// </summary>
+    public List<RecordedStep> GetRecordedSteps(string workerId)
+    {
+        if (!_workers.TryGetValue(workerId, out var worker))
+        {
+            return new List<RecordedStep>();
+        }
+
+        return worker.ViewContext?.RecordedSteps ?? new List<RecordedStep>();
+    }
+
+    /// <summary>
+    /// Raise worker help requested event (for internal use)
+    /// </summary>
+    internal void RaiseWorkerHelpRequested(WorkerHelpRequestedEventArgs args)
+    {
+        WorkerHelpRequested?.Invoke(this, args);
+    }
+
+    #endregion
+
     #region Event Handlers
 
     private void OnWorkerStateChanged(ManagedWorker worker, WorkerState newState, string reason)
     {
         WorkerStateChanged?.Invoke(this, new WorkerStateChangedEventArgs(worker, newState, reason));
+    }
+
+    private void OnWorkerViewModeChanged(string workerId, WorkerViewMode oldMode, WorkerViewMode newMode)
+    {
+        WorkerViewModeChanged?.Invoke(this, new WorkerViewModeChangedEventArgs(workerId, oldMode, newMode));
     }
 
     #endregion
@@ -808,6 +1023,10 @@ public class ManagedWorker
     // CPU assignment
     public int PreferredCore { get; set; }
 
+    // View Mode for WebView integration
+    public WorkerViewMode ViewMode { get; set; } = WorkerViewMode.Headless;
+    public WorkerViewContext? ViewContext { get; set; }
+
     // Internal
     internal Func<ManagedWorker, CancellationToken, Task>? WorkFunction { get; set; }
     internal Task? WorkerTask { get; set; }
@@ -831,6 +1050,21 @@ public class ManagedWorker
         WorkerState.Error => "🔴",    // Red - error
         _ => "⚪"
     };
+
+    /// <summary>
+    /// Check if worker needs human help
+    /// </summary>
+    public bool NeedsHelp => ViewMode == WorkerViewMode.NeedsHelp;
+
+    /// <summary>
+    /// Check if worker is being viewed
+    /// </summary>
+    public bool IsBeingViewed => ViewMode != WorkerViewMode.Headless;
+
+    /// <summary>
+    /// Check if worker is under human control
+    /// </summary>
+    public bool IsHumanControlled => ViewMode == WorkerViewMode.HumanControl;
 }
 
 /// <summary>

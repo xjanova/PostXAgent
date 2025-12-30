@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:converters="clr-namespace:AIManager.UI.Converters"
-             ShutdownMode="OnMainWindowClose">
+             ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -19,6 +19,7 @@
 
             <!-- Global Converters -->
             <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <converters:SuccessRateColorConverter x:Key="SuccessRateColorConverter"/>
             <converters:BoolToStatusConverter x:Key="BoolToStatusConverter"/>
             <converters:WorkerStateColorConverter x:Key="WorkerStateColorConverter"/>

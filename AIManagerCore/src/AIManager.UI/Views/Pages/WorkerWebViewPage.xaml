@@ -1,0 +1,367 @@
+<Page x:Class="AIManager.UI.Views.Pages.WorkerWebViewPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+      mc:Ignorable="d"
+      Title="Worker WebView"
+      d:DesignHeight="800" d:DesignWidth="1200">
+
+    <Page.Resources>
+        <!-- Worker Card Style -->
+        <Style x:Key="WorkerCard" TargetType="Border">
+            <Setter Property="Background" Value="#1A1A2E"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <!-- Status Badge Style -->
+        <Style x:Key="StatusBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+
+        <!-- Control Button Style -->
+        <Style x:Key="ControlButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Margin" Value="5,0"/>
+        </Style>
+
+        <!-- Emergency Button Style -->
+        <Style x:Key="EmergencyButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+            <Setter Property="Background" Value="#EF4444"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Margin" Value="5,0"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- SIDEBAR - Worker List                                   -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <Border Grid.Column="0" Background="#12121A" CornerRadius="16" Margin="0,0,15,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <StackPanel Grid.Row="0" Margin="15">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="MonitorEye" Width="24" Height="24"
+                                                 Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                        <TextBlock Text="Worker View" FontSize="18" FontWeight="Bold"
+                                   Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="Monitor and assist workers" FontSize="11"
+                               Foreground="#808080" Margin="34,4,0,0"/>
+                </StackPanel>
+
+                <!-- Needs Help Section -->
+                <Expander Grid.Row="1" Header="🆘 NEEDS HELP" IsExpanded="True" Margin="10,0,10,10"
+                          Background="#2D1F1F" Foreground="White"
+                          Visibility="{Binding HasWorkersNeedingHelp, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <ItemsControl x:Name="NeedsHelpList" ItemsSource="{Binding WorkersNeedingHelp}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource WorkerCard}"
+                                        Background="#3D2222"
+                                        MouseLeftButtonDown="WorkerCard_Click"
+                                        Tag="{Binding Id}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Status Indicator -->
+                                        <Border Grid.Column="0" Width="12" Height="12" CornerRadius="6"
+                                                Background="#F59E0B" Margin="0,0,10,0" VerticalAlignment="Center">
+                                            <Border.Effect>
+                                                <DropShadowEffect Color="#F59E0B" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/>
+                                            </Border.Effect>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"/>
+                                            <TextBlock Text="{Binding PlatformName}" FontSize="10" Foreground="#808080"/>
+                                            <TextBlock Text="{Binding HelpReason}" FontSize="10" Foreground="#EF4444"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+
+                <!-- Active Workers Section -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="10,0,10,10">
+                    <StackPanel>
+                        <TextBlock Text="ACTIVE WORKERS" FontSize="10" Foreground="#606060"
+                                   FontWeight="SemiBold" Margin="5,0,0,10"/>
+
+                        <ItemsControl x:Name="ActiveWorkersList" ItemsSource="{Binding ActiveWorkers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource WorkerCard}"
+                                            MouseLeftButtonDown="WorkerCard_Click"
+                                            Tag="{Binding Id}">
+                                        <Border.Background>
+                                            <SolidColorBrush Color="{Binding ViewModeColor}" Opacity="0.15"/>
+                                        </Border.Background>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Status Emoji -->
+                                            <TextBlock Grid.Column="0" Text="{Binding StateEmoji}"
+                                                       FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border CornerRadius="6" Padding="6,2" Background="#1A1A2E">
+                                                        <TextBlock Text="{Binding PlatformName}" FontSize="9" Foreground="#06B6D4"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding ViewMode}" FontSize="9"
+                                                               Foreground="#808080" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- View indicator -->
+                                            <materialDesign:PackIcon Grid.Column="2" Kind="Eye" Width="16" Height="16"
+                                                                     Foreground="#06B6D4" VerticalAlignment="Center"
+                                                                     Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Refresh Button -->
+                <Button Grid.Row="3" Content="Refresh" Margin="15"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Click="BtnRefresh_Click">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Refresh" VerticalAlignment="Center"/>
+                                <TextBlock Text="Refresh" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- MAIN AREA - WebView & Controls                          -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Control Bar -->
+            <Border Grid.Row="0" Background="#12121A" CornerRadius="12" Padding="15" Margin="0,0,0,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Status & URL Info -->
+                    <StackPanel Grid.Column="0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="TxtSelectedWorker" Text="No worker selected"
+                                       FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Border x:Name="StatusBadge" Style="{StaticResource StatusBadge}"
+                                    Background="#1A1A2E" Margin="15,0,0,0" Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#4CAF50" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="TxtStatus" Text="View Only" FontSize="11"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock x:Name="TxtCurrentUrl" Text="" FontSize="11" Foreground="#808080"
+                                   TextTrimming="CharacterEllipsis" Margin="0,4,0,0" MaxWidth="500"/>
+                    </StackPanel>
+
+                    <!-- Control Buttons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <!-- View Only Button -->
+                        <Button x:Name="BtnViewOnly" Click="BtnViewOnly_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Height="36" Margin="5,0" IsEnabled="False">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Eye" VerticalAlignment="Center"/>
+                                <TextBlock Text="View Only" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Assist Button -->
+                        <Button x:Name="BtnAssist" Click="BtnAssist_Click"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="#8B5CF6" Height="36" Margin="5,0" IsEnabled="False">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="HandBackRight" VerticalAlignment="Center"/>
+                                <TextBlock Text="Assist" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Take Control Button (Emergency) -->
+                        <Button x:Name="BtnTakeControl" Click="BtnTakeControl_Click"
+                                Style="{StaticResource EmergencyButton}" IsEnabled="False">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="AlertCircle" VerticalAlignment="Center"/>
+                                <TextBlock Text="TAKE CONTROL" Margin="8,0,0,0" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Done Teaching Button (visible in HumanControl mode) -->
+                        <Button x:Name="BtnDoneTeaching" Click="BtnDoneTeaching_Click"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="#10B981" Height="36" Margin="5,0" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Check" VerticalAlignment="Center"/>
+                                <TextBlock Text="Done Teaching" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- WebView Container -->
+            <Border Grid.Row="1" Background="#0A0A0F" CornerRadius="12" ClipToBounds="True">
+                <Grid>
+                    <!-- WebView2 -->
+                    <wv2:WebView2 x:Name="WorkerWebView"
+                                  Visibility="Collapsed"
+                                  NavigationCompleted="WorkerWebView_NavigationCompleted"
+                                  WebMessageReceived="WorkerWebView_WebMessageReceived"/>
+
+                    <!-- Overlay for View-Only Mode -->
+                    <Border x:Name="ViewOnlyOverlay" Background="#80000000"
+                            Visibility="Collapsed" IsHitTestVisible="True">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Eye" Width="48" Height="48" Foreground="White"
+                                                     HorizontalAlignment="Center" Opacity="0.6"/>
+                            <TextBlock Text="VIEW ONLY MODE" FontSize="16" FontWeight="Bold"
+                                       Foreground="White" Opacity="0.6" Margin="0,15,0,0"/>
+                            <TextBlock Text="Click 'Assist' or 'Take Control' to interact"
+                                       FontSize="12" Foreground="White" Opacity="0.4" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- No Worker Selected Placeholder -->
+                    <Border x:Name="NoWorkerPlaceholder" Background="#12121A">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="MonitorOff" Width="64" Height="64"
+                                                     Foreground="#404040" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Select a Worker to View" FontSize="18" FontWeight="SemiBold"
+                                       Foreground="#606060" Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Choose a worker from the sidebar to see its browser view"
+                                       FontSize="12" Foreground="#404040" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Learning Progress Overlay -->
+                    <Border x:Name="LearningOverlay" Background="#CC000000" Visibility="Collapsed">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <ProgressBar IsIndeterminate="True" Width="200" Height="4"/>
+                            <TextBlock Text="Processing learned steps..." FontSize="16"
+                                       Foreground="White" Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="TxtLearningProgress" Text="0 steps recorded" FontSize="12"
+                                       Foreground="#808080" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Recording Panel -->
+            <Border Grid.Row="2" x:Name="RecordingPanel" Background="#12121A"
+                    CornerRadius="12" Padding="15" Margin="0,15,0,0" Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Recording Info -->
+                    <StackPanel Grid.Column="0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="12" Height="12" Fill="#EF4444" Margin="0,0,10,0">
+                                <Ellipse.Effect>
+                                    <DropShadowEffect Color="#EF4444" BlurRadius="8" ShadowDepth="0"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                            <TextBlock Text="RECORDING" FontWeight="Bold" Foreground="#EF4444"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                            <ItemsControl x:Name="RecordedStepsList" ItemsSource="{Binding RecordedSteps}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="{Binding StepNumber, StringFormat={}{0}.}"
+                                                       FontSize="11" Foreground="#606060" Width="25"/>
+                                            <TextBlock Text="{Binding ActionType}" FontSize="11"
+                                                       Foreground="#8B5CF6" Width="60"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="11"
+                                                       Foreground="#A0A0A0" TextTrimming="CharacterEllipsis" MaxWidth="400"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+
+                    <!-- Recording Controls -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                        <Button x:Name="BtnSaveWorkflow" Click="BtnSaveWorkflow_Click"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="#10B981" Height="32" Margin="5,0">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ContentSave" VerticalAlignment="Center" Width="16" Height="16"/>
+                                <TextBlock Text="Save" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="BtnCancelRecording" Click="BtnCancelRecording_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Height="32" Margin="5,0">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Cancel" VerticalAlignment="Center" Width="16" Height="16"/>
+                                <TextBlock Text="Cancel" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

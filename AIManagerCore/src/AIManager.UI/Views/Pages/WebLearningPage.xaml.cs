@@ -19,9 +19,17 @@ public partial class WebLearningPage : Page
 {
     private readonly ILogger<WebLearningPage>? _logger;
     private readonly WorkflowStorage? _workflowStorage;
+    private readonly AutoLearningEngine? _autoLearningEngine;
+    private readonly AIGuidedTeacher? _aiGuidedTeacher;
     private bool _isRecording;
+    private bool _isAutoLearningMode;
+    private bool _isGuidedTeachingMode;
     private readonly ObservableCollection<RecordedStepViewModel> _recordedSteps = new();
+    private readonly ObservableCollection<TeachingStepViewModel> _teachingSteps = new();
     private string? _currentSessionId;
+    private WorkflowSuggestion? _currentSuggestion;
+    private TeachingGuideline? _currentGuideline;
+    private int _currentTeachingStepIndex;
 
     // Injected Recording Script
     private const string RecordingScript = @"
@@ -150,6 +158,8 @@ public partial class WebLearningPage : Page
             var services = App.Services;
             _logger = services?.GetService<ILogger<WebLearningPage>>();
             _workflowStorage = services?.GetService<WorkflowStorage>();
+            _autoLearningEngine = services?.GetService<AutoLearningEngine>();
+            _aiGuidedTeacher = services?.GetService<AIGuidedTeacher>();
         }
         catch
         {
@@ -157,6 +167,7 @@ public partial class WebLearningPage : Page
         }
 
         StepsItemsControl.ItemsSource = _recordedSteps;
+        TeachingStepsControl.ItemsSource = _teachingSteps;
     }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
@@ -242,6 +253,7 @@ public partial class WebLearningPage : Page
 
     private void AddRecordedStep(RecordedStep step)
     {
+        var confidence = CalculateStepConfidence(step);
         var viewModel = new RecordedStepViewModel
         {
             Index = _recordedSteps.Count,
@@ -253,11 +265,23 @@ public partial class WebLearningPage : Page
             Value = step.Value,
             ValueText = !string.IsNullOrEmpty(step.Value) ? $"Value: {step.Value}" : null,
             HasValue = !string.IsNullOrEmpty(step.Value),
-            OriginalStep = step
+            OriginalStep = step,
+            Confidence = confidence
         };
 
         _recordedSteps.Add(viewModel);
         UpdateStepCount();
+        UpdateConfidence();
+
+        // Clear redo stack when new step added
+        _redoStack.Clear();
+        UpdateUndoRedoButtons();
+
+        // Validate against teaching guideline if in guided mode
+        if (_isGuidedTeachingMode && _currentGuideline != null)
+        {
+            ValidateTeachingStep(step);
+        }
     }
 
     private string GetActionText(string action)
@@ -353,18 +377,30 @@ public partial class WebLearningPage : Page
 
         _isRecording = true;
         _currentSessionId = Guid.NewGuid().ToString();
+        SaveStateForUndo();
         _recordedSteps.Clear();
+        _currentTeachingStepIndex = 0;
 
         // Update UI
         StartRecordingButton.IsEnabled = false;
         StopRecordingButton.IsEnabled = true;
         RecordingIndicator.Visibility = Visibility.Visible;
+        RecordingBorder.Visibility = Visibility.Visible;
         PlatformComboBox.IsEnabled = false;
         TaskTypeComboBox.IsEnabled = false;
+        AiSuggestionPanel.Visibility = Visibility.Collapsed;
+
+        // Reset confidence
+        ConfidenceBar.Value = 0;
+        ConfidenceText.Text = "0%";
+
+        // Load AI Teaching Guidelines
+        await LoadTeachingGuidelinesAsync();
 
         // Inject recording script
         await InjectRecordingScriptAsync();
 
+        ShowStatus("เริ่มบันทึกการกระทำ กรุณาทำตาม AI Guide...", "info");
         _logger?.LogInformation("Recording started - Session: {SessionId}", _currentSessionId);
     }
 
@@ -378,15 +414,30 @@ public partial class WebLearningPage : Page
         if (!_isRecording) return;
 
         _isRecording = false;
+        _isGuidedTeachingMode = false;
 
         // Update UI
         StartRecordingButton.IsEnabled = true;
         StopRecordingButton.IsEnabled = false;
         RecordingIndicator.Visibility = Visibility.Collapsed;
+        RecordingBorder.Visibility = Visibility.Collapsed;
+        TeachingGuidelinesPanel.Visibility = Visibility.Collapsed;
         PlatformComboBox.IsEnabled = true;
         TaskTypeComboBox.IsEnabled = true;
 
         _logger?.LogInformation("Recording stopped - {Count} steps recorded", _recordedSteps.Count);
+
+        // Show status and AI suggestions
+        if (_recordedSteps.Count > 0)
+        {
+            var confidence = _recordedSteps.Average(s => s.Confidence);
+            ShowStatus($"บันทึกเสร็จสิ้น! ได้ {_recordedSteps.Count} ขั้นตอน (Confidence: {confidence:P0})", "success");
+            GenerateAiSuggestions();
+        }
+        else
+        {
+            ShowStatus("ยังไม่มีการกระทำที่บันทึกได้", "warning");
+        }
     }
 
     private void BackButton_Click(object sender, RoutedEventArgs e)
@@ -465,18 +516,938 @@ public partial class WebLearningPage : Page
     {
         if (sender is Button btn && btn.Tag is int index && index >= 0 && index < _recordedSteps.Count)
         {
+            SaveStateForUndo();
             _recordedSteps.RemoveAt(index);
-
-            // Re-index remaining steps
-            for (int i = 0; i < _recordedSteps.Count; i++)
-            {
-                _recordedSteps[i].Index = i;
-                _recordedSteps[i].StepNumber = (i + 1).ToString();
-            }
-
-            UpdateStepCount();
+            ReindexSteps();
+            UpdateConfidence();
+            ShowStatus("ลบ Step แล้ว", "info");
         }
     }
+
+    private void MoveUpButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is int index && index > 0 && index < _recordedSteps.Count)
+        {
+            SaveStateForUndo();
+            var item = _recordedSteps[index];
+            _recordedSteps.RemoveAt(index);
+            _recordedSteps.Insert(index - 1, item);
+            ReindexSteps();
+        }
+    }
+
+    private void MoveDownButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is int index && index >= 0 && index < _recordedSteps.Count - 1)
+        {
+            SaveStateForUndo();
+            var item = _recordedSteps[index];
+            _recordedSteps.RemoveAt(index);
+            _recordedSteps.Insert(index + 1, item);
+            ReindexSteps();
+        }
+    }
+
+    private void DuplicateStepButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is int index && index >= 0 && index < _recordedSteps.Count)
+        {
+            SaveStateForUndo();
+            var original = _recordedSteps[index];
+            var clone = new RecordedStepViewModel
+            {
+                Index = index + 1,
+                StepNumber = (index + 2).ToString(),
+                Action = original.Action,
+                ActionText = original.ActionText,
+                ActionColor = original.ActionColor,
+                ElementDescription = original.ElementDescription,
+                Value = original.Value,
+                ValueText = original.ValueText,
+                HasValue = original.HasValue,
+                OriginalStep = original.OriginalStep,
+                Confidence = original.Confidence
+            };
+            _recordedSteps.Insert(index + 1, clone);
+            ReindexSteps();
+            ShowStatus($"คัดลอก Step #{original.StepNumber} แล้ว", "success");
+        }
+    }
+
+    private void UndoButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_undoStack.Count == 0) return;
+
+        var currentState = _recordedSteps.ToList();
+        _redoStack.Push(currentState);
+
+        var previousState = _undoStack.Pop();
+        _recordedSteps.Clear();
+        foreach (var step in previousState)
+        {
+            _recordedSteps.Add(step);
+        }
+
+        UpdateUndoRedoButtons();
+        UpdateStepCount();
+        UpdateConfidence();
+    }
+
+    private void RedoButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_redoStack.Count == 0) return;
+
+        var currentState = _recordedSteps.ToList();
+        _undoStack.Push(currentState);
+
+        var nextState = _redoStack.Pop();
+        _recordedSteps.Clear();
+        foreach (var step in nextState)
+        {
+            _recordedSteps.Add(step);
+        }
+
+        UpdateUndoRedoButtons();
+        UpdateStepCount();
+        UpdateConfidence();
+    }
+
+    private void DismissSuggestionButton_Click(object sender, RoutedEventArgs e)
+    {
+        AiSuggestionPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void DismissStatusButton_Click(object sender, RoutedEventArgs e)
+    {
+        StatusBar.Visibility = Visibility.Collapsed;
+    }
+
+    #region Auto Learning Mode
+
+    private void AutoLearningToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        _isAutoLearningMode = AutoLearningToggle.IsChecked == true;
+
+        if (_isAutoLearningMode)
+        {
+            // Show auto learning panel, hide suggestion panel
+            AutoLearningPanel.Visibility = Visibility.Visible;
+            AiSuggestionPanel.Visibility = Visibility.Collapsed;
+
+            // Start page analysis
+            _ = AnalyzeCurrentPageAsync();
+
+            ShowStatus("เปิดโหมด AI Auto-Learning - AI จะวิเคราะห์และเรียนรู้อัตโนมัติ", "success");
+            _logger?.LogInformation("Auto-Learning mode enabled");
+        }
+        else
+        {
+            AutoLearningPanel.Visibility = Visibility.Collapsed;
+            ShowStatus("ปิดโหมด Auto-Learning แล้ว", "info");
+            _logger?.LogInformation("Auto-Learning mode disabled");
+        }
+    }
+
+    private async Task AnalyzeCurrentPageAsync()
+    {
+        if (WebBrowser.CoreWebView2 == null) return;
+
+        try
+        {
+            AutoLearningStatusText.Text = "กำลังวิเคราะห์หน้าเว็บ...";
+            AutoLearningProgress.IsIndeterminate = true;
+            DetectedElementsPanel.Children.Clear();
+
+            var url = WebBrowser.CoreWebView2.Source ?? "";
+            var pageHtml = await WebBrowser.CoreWebView2.ExecuteScriptAsync(
+                "document.documentElement.outerHTML");
+
+            // Unescape JSON string
+            pageHtml = System.Text.RegularExpressions.Regex.Unescape(
+                pageHtml.Trim('"'));
+
+            // Detect platform
+            var detectedPlatform = DetectPlatformFromUrl(url);
+            AutoLearningPlatformText.Text = detectedPlatform;
+
+            // Update platform combobox if auto-detected
+            foreach (ComboBoxItem item in PlatformComboBox.Items)
+            {
+                if (item.Tag?.ToString()?.Equals(detectedPlatform, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    PlatformComboBox.SelectedItem = item;
+                    break;
+                }
+            }
+
+            if (_autoLearningEngine != null)
+            {
+                // Use AutoLearningEngine to analyze
+                _currentSuggestion = await _autoLearningEngine.AnalyzeAndSuggestAsync(
+                    url, pageHtml, null, CancellationToken.None);
+
+                UpdateAutoLearningUI(_currentSuggestion);
+            }
+            else
+            {
+                // Fallback: basic page analysis
+                await PerformBasicPageAnalysisAsync(pageHtml);
+            }
+
+            AutoLearningProgress.IsIndeterminate = false;
+            AutoLearningProgress.Value = 100;
+            AutoLearningStatusText.Text = "วิเคราะห์เสร็จสิ้น";
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to analyze page");
+            AutoLearningStatusText.Text = "เกิดข้อผิดพลาดในการวิเคราะห์";
+            AutoLearningProgress.IsIndeterminate = false;
+        }
+    }
+
+    private void UpdateAutoLearningUI(WorkflowSuggestion suggestion)
+    {
+        if (suggestion == null) return;
+
+        // Update status
+        if (suggestion.Success)
+        {
+            AutoLearningStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+            AutoLearningStatusText.Text = $"พบ {suggestion.ExistingWorkflows.Count} workflow ที่มีอยู่แล้ว";
+
+            if (suggestion.NeedsHumanTeaching)
+            {
+                AutoLearningStatusText.Text += " (แนะนำให้สอน AI)";
+                AutoLearningStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+            }
+        }
+        else
+        {
+            AutoLearningStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+            AutoLearningStatusText.Text = suggestion.Error ?? "ไม่สามารถวิเคราะห์ได้";
+        }
+
+        // Show detected elements
+        DetectedElementsPanel.Children.Clear();
+
+        if (!string.IsNullOrEmpty(suggestion.PageType))
+        {
+            AddDetectedElementTag($"Page: {suggestion.PageType}", "#06B6D4");
+        }
+
+        if (suggestion.ExistingWorkflows.Any())
+        {
+            AddDetectedElementTag($"{suggestion.ExistingWorkflows.Count} Workflows", "#10B981");
+        }
+
+        if (suggestion.SuggestedSteps.Any())
+        {
+            AddDetectedElementTag($"{suggestion.SuggestedSteps.Count} Steps", "#8B5CF6");
+        }
+
+        if (suggestion.Confidence >= 0.8)
+        {
+            AddDetectedElementTag($"High Confidence", "#10B981");
+        }
+        else if (suggestion.Confidence >= 0.5)
+        {
+            AddDetectedElementTag($"Medium Confidence", "#F59E0B");
+        }
+        else
+        {
+            AddDetectedElementTag($"Low Confidence", "#EF4444");
+        }
+    }
+
+    private async Task PerformBasicPageAnalysisAsync(string pageHtml)
+    {
+        // Basic analysis without AutoLearningEngine
+        DetectedElementsPanel.Children.Clear();
+
+        // Count elements
+        var buttonCount = System.Text.RegularExpressions.Regex.Matches(
+            pageHtml, "<button", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        var inputCount = System.Text.RegularExpressions.Regex.Matches(
+            pageHtml, "<input", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+        var formCount = System.Text.RegularExpressions.Regex.Matches(
+            pageHtml, "<form", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+
+        if (buttonCount > 0) AddDetectedElementTag($"{buttonCount} Buttons", "#4CAF50");
+        if (inputCount > 0) AddDetectedElementTag($"{inputCount} Inputs", "#2196F3");
+        if (formCount > 0) AddDetectedElementTag($"{formCount} Forms", "#FF9800");
+
+        // Detect page type
+        var pageType = "Unknown";
+        if (pageHtml.Contains("login", StringComparison.OrdinalIgnoreCase) ||
+            pageHtml.Contains("password", StringComparison.OrdinalIgnoreCase))
+        {
+            pageType = "Login";
+        }
+        else if (pageHtml.Contains("compose", StringComparison.OrdinalIgnoreCase) ||
+                 pageHtml.Contains("create post", StringComparison.OrdinalIgnoreCase))
+        {
+            pageType = "Compose";
+        }
+        else if (pageHtml.Contains("feed", StringComparison.OrdinalIgnoreCase) ||
+                 pageHtml.Contains("timeline", StringComparison.OrdinalIgnoreCase))
+        {
+            pageType = "Feed";
+        }
+
+        AddDetectedElementTag($"Page: {pageType}", "#06B6D4");
+        AutoLearningStatusText.Text = $"พบ {buttonCount} buttons, {inputCount} inputs";
+
+        await Task.CompletedTask;
+    }
+
+    private void AddDetectedElementTag(string text, string colorHex)
+    {
+        var color = (Color)ColorConverter.ConvertFromString(colorHex);
+        var border = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(40, color.R, color.G, color.B)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(80, color.R, color.G, color.B)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 4, 8, 4),
+            Margin = new Thickness(0, 0, 6, 6)
+        };
+
+        var textBlock = new TextBlock
+        {
+            Text = text,
+            Foreground = new SolidColorBrush(color),
+            FontSize = 10,
+            FontWeight = FontWeights.SemiBold
+        };
+
+        border.Child = textBlock;
+        DetectedElementsPanel.Children.Add(border);
+    }
+
+    private string DetectPlatformFromUrl(string url)
+    {
+        url = url.ToLowerInvariant();
+
+        if (url.Contains("facebook.com") || url.Contains("fb.com")) return "Facebook";
+        if (url.Contains("instagram.com")) return "Instagram";
+        if (url.Contains("tiktok.com")) return "TikTok";
+        if (url.Contains("twitter.com") || url.Contains("x.com")) return "Twitter";
+        if (url.Contains("youtube.com") || url.Contains("youtu.be")) return "YouTube";
+        if (url.Contains("line.me") || url.Contains("lineblog")) return "LINE";
+        if (url.Contains("threads.net")) return "Threads";
+        if (url.Contains("linkedin.com")) return "LinkedIn";
+        if (url.Contains("pinterest.com")) return "Pinterest";
+
+        return "Custom";
+    }
+
+    private async void GenerateWorkflowButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_autoLearningEngine == null)
+        {
+            MessageBox.Show("AutoLearningEngine ไม่พร้อมใช้งาน", "แจ้งเตือน",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            GenerateWorkflowButton.IsEnabled = false;
+            AutoLearningStatusText.Text = "กำลังสร้าง Workflow อัตโนมัติ...";
+            AutoLearningProgress.IsIndeterminate = true;
+
+            var url = WebBrowser.CoreWebView2?.Source ?? "";
+            var pageHtml = await WebBrowser.CoreWebView2!.ExecuteScriptAsync(
+                "document.documentElement.outerHTML");
+            pageHtml = System.Text.RegularExpressions.Regex.Unescape(pageHtml.Trim('"'));
+
+            var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Custom";
+            var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "post";
+
+            var workflow = await _autoLearningEngine.GenerateWorkflowForNewPlatformAsync(
+                platform, taskType, pageHtml, null, CancellationToken.None);
+
+            if (workflow != null)
+            {
+                // Populate recorded steps from generated workflow
+                _recordedSteps.Clear();
+                foreach (var step in workflow.Steps)
+                {
+                    var viewModel = new RecordedStepViewModel
+                    {
+                        Index = step.Order,
+                        StepNumber = (step.Order + 1).ToString(),
+                        Action = step.Action.ToString().ToLower(),
+                        ActionText = GetActionText(step.Action.ToString().ToLower()),
+                        ActionColor = GetActionColor(step.Action.ToString().ToLower()),
+                        ElementDescription = step.Description ?? step.Selector.AIDescription ?? "Unknown",
+                        Value = step.InputValue,
+                        ValueText = !string.IsNullOrEmpty(step.InputValue) ? $"Value: {step.InputValue}" : null,
+                        HasValue = !string.IsNullOrEmpty(step.InputValue),
+                        Confidence = step.ConfidenceScore
+                    };
+                    _recordedSteps.Add(viewModel);
+                }
+
+                UpdateStepCount();
+                UpdateConfidence();
+
+                // Set workflow name
+                WorkflowNameTextBox.Text = $"{platform} {taskType} (Auto-generated)";
+                WorkflowDescriptionTextBox.Text = $"AI-generated workflow for {platform}. " +
+                    $"Confidence: {workflow.ConfidenceScore:P0}. Please review and test before saving.";
+
+                ShowStatus($"สร้าง Workflow อัตโนมัติสำเร็จ! มี {workflow.Steps.Count} steps", "success");
+                AutoLearningStatusText.Text = "สร้าง Workflow สำเร็จ - กรุณาตรวจสอบก่อนบันทึก";
+            }
+            else
+            {
+                ShowStatus("ไม่สามารถสร้าง Workflow ได้ ลองสอน AI ด้วยการบันทึกแทน", "warning");
+                AutoLearningStatusText.Text = "ไม่พบ patterns ที่เพียงพอ";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to generate workflow");
+            ShowStatus($"เกิดข้อผิดพลาด: {ex.Message}", "error");
+            AutoLearningStatusText.Text = "เกิดข้อผิดพลาด";
+        }
+        finally
+        {
+            GenerateWorkflowButton.IsEnabled = true;
+            AutoLearningProgress.IsIndeterminate = false;
+        }
+    }
+
+    private async void TransferLearningButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_autoLearningEngine == null || _workflowStorage == null)
+        {
+            MessageBox.Show("Services ไม่พร้อมใช้งาน", "แจ้งเตือน",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            // Get existing workflows to transfer from
+            var workflows = await _workflowStorage.GetAllWorkflowsAsync(CancellationToken.None);
+            var humanTrainedWorkflows = workflows
+                .Where(w => w.IsHumanTrained && w.IsActive)
+                .OrderByDescending(w => w.GetSuccessRate())
+                .Take(5)
+                .ToList();
+
+            if (!humanTrainedWorkflows.Any())
+            {
+                MessageBox.Show("ยังไม่มี Workflow ที่มนุษย์สอนไว้\n\n" +
+                    "กรุณาบันทึก workflow อย่างน้อย 1 รายการก่อนใช้ Transfer Learning",
+                    "แจ้งเตือน", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var workflowNames = string.Join("\n", humanTrainedWorkflows.Select(w =>
+                $"• {w.Platform}: {w.Name} ({w.GetSuccessRate():P0} success)"));
+
+            var result = MessageBox.Show(
+                $"พบ {humanTrainedWorkflows.Count} workflows ที่สามารถ transfer ได้:\n\n" +
+                $"{workflowNames}\n\n" +
+                "ต้องการ transfer learning จาก workflow ที่ดีที่สุดหรือไม่?",
+                "Transfer Learning",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                TransferLearningButton.IsEnabled = false;
+                AutoLearningStatusText.Text = "กำลัง Transfer Learning...";
+                AutoLearningProgress.IsIndeterminate = true;
+
+                var sourceWorkflow = humanTrainedWorkflows.First();
+                var targetPlatform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Custom";
+
+                var pageHtml = await WebBrowser.CoreWebView2!.ExecuteScriptAsync(
+                    "document.documentElement.outerHTML");
+                pageHtml = System.Text.RegularExpressions.Regex.Unescape(pageHtml.Trim('"'));
+
+                var transferredWorkflow = await _autoLearningEngine.TransferWorkflowAsync(
+                    sourceWorkflow.Id, targetPlatform, pageHtml, CancellationToken.None);
+
+                if (transferredWorkflow != null)
+                {
+                    // Show transferred workflow
+                    _recordedSteps.Clear();
+                    foreach (var step in transferredWorkflow.Steps)
+                    {
+                        var viewModel = new RecordedStepViewModel
+                        {
+                            Index = step.Order,
+                            StepNumber = (step.Order + 1).ToString(),
+                            Action = step.Action.ToString().ToLower(),
+                            ActionText = GetActionText(step.Action.ToString().ToLower()),
+                            ActionColor = GetActionColor(step.Action.ToString().ToLower()),
+                            ElementDescription = step.Description ?? "Unknown",
+                            Confidence = step.ConfidenceScore
+                        };
+                        _recordedSteps.Add(viewModel);
+                    }
+
+                    UpdateStepCount();
+                    UpdateConfidence();
+
+                    WorkflowNameTextBox.Text = $"{targetPlatform} {sourceWorkflow.Name} (Transferred)";
+                    WorkflowDescriptionTextBox.Text = $"Transferred from {sourceWorkflow.Platform}. " +
+                        $"Original confidence: {sourceWorkflow.ConfidenceScore:P0}";
+
+                    ShowStatus($"Transfer Learning สำเร็จ! {transferredWorkflow.Steps.Count} steps", "success");
+                }
+                else
+                {
+                    ShowStatus("ไม่สามารถ transfer ได้ - platforms อาจแตกต่างกันเกินไป", "warning");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to transfer learning");
+            ShowStatus($"เกิดข้อผิดพลาด: {ex.Message}", "error");
+        }
+        finally
+        {
+            TransferLearningButton.IsEnabled = true;
+            AutoLearningProgress.IsIndeterminate = false;
+            AutoLearningStatusText.Text = "พร้อมใช้งาน";
+        }
+    }
+
+    #endregion
+
+    #region AI Guided Teaching
+
+    private async Task LoadTeachingGuidelinesAsync()
+    {
+        var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
+        var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "post";
+
+        _teachingSteps.Clear();
+        _currentTeachingStepIndex = 0;
+
+        if (_aiGuidedTeacher != null)
+        {
+            try
+            {
+                var url = WebBrowser.CoreWebView2?.Source ?? "";
+                var pageHtml = await WebBrowser.CoreWebView2!.ExecuteScriptAsync(
+                    "document.documentElement.outerHTML");
+                pageHtml = System.Text.RegularExpressions.Regex.Unescape(pageHtml.Trim('"'));
+
+                _currentGuideline = await _aiGuidedTeacher.GenerateTeachingGuidelineAsync(
+                    platform, taskType, pageHtml, url, null, CancellationToken.None);
+
+                if (_currentGuideline != null && _currentGuideline.Steps.Any())
+                {
+                    _isGuidedTeachingMode = true;
+
+                    // Populate teaching steps
+                    foreach (var step in _currentGuideline.Steps)
+                    {
+                        _teachingSteps.Add(new TeachingStepViewModel
+                        {
+                            StepNumber = step.StepNumber,
+                            ActionType = step.Action.ToUpper(),
+                            ActionColor = GetActionColor(step.Action),
+                            Description = step.Description,
+                            DescriptionThai = step.DescriptionThai,
+                            ElementHint = step.ElementHint,
+                            InputHint = step.InputHint,
+                            IsOptional = step.IsOptional,
+                            IsOptionalText = "(ข้ามได้)",
+                            IsCurrent = step.StepNumber == 1,
+                            IsCompleted = false,
+                            HasElementHint = !string.IsNullOrEmpty(step.ElementHint),
+                            HasInputHint = !string.IsNullOrEmpty(step.InputHint)
+                        });
+                    }
+
+                    // Update UI
+                    TeachingGuidelinesPanel.Visibility = Visibility.Visible;
+                    TeachingGuideSubtitle.Text = $"ทำตามขั้นตอนเพื่อสอน AI สร้าง {taskType} workflow";
+                    UpdateTeachingProgress();
+
+                    _logger?.LogInformation("Teaching guideline loaded: {Platform} {TaskType} with {Steps} steps",
+                        platform, taskType, _currentGuideline.Steps.Count);
+                }
+                else
+                {
+                    // No guideline available - show basic mode message
+                    _isGuidedTeachingMode = false;
+                    TeachingGuidelinesPanel.Visibility = Visibility.Collapsed;
+                    ShowStatus("ไม่พบ template สำหรับ platform นี้ - บันทึกอิสระ", "info");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load teaching guideline");
+                _isGuidedTeachingMode = false;
+                TeachingGuidelinesPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+        else
+        {
+            // AI Teacher not available - use fallback templates
+            LoadFallbackTeachingGuideline(platform, taskType);
+        }
+    }
+
+    private void LoadFallbackTeachingGuideline(string platform, string taskType)
+    {
+        // Basic fallback template for common task types
+        var steps = new List<TeachingStepViewModel>();
+
+        switch (taskType.ToLower())
+        {
+            case "post":
+                steps.Add(CreateTeachingStep(1, "click", "คลิกปุ่มสร้างโพสต์", "Click create post button", "Look for 'Create Post', 'What's on your mind?' or '+' button"));
+                steps.Add(CreateTeachingStep(2, "type", "พิมพ์เนื้อหาโพสต์", "Type post content", "Text input area", "[POST_CONTENT]"));
+                steps.Add(CreateTeachingStep(3, "upload", "อัพโหลดรูปภาพ (ถ้ามี)", "Upload image (optional)", "Photo/Media button", isOptional: true));
+                steps.Add(CreateTeachingStep(4, "click", "คลิกปุ่มโพสต์", "Click post/submit button", "Post, Share, or Submit button"));
+                break;
+
+            case "login":
+                steps.Add(CreateTeachingStep(1, "type", "กรอกอีเมลหรือชื่อผู้ใช้", "Enter email or username", "Email/Username input", "[EMAIL]"));
+                steps.Add(CreateTeachingStep(2, "type", "กรอกรหัสผ่าน", "Enter password", "Password input", "[PASSWORD]"));
+                steps.Add(CreateTeachingStep(3, "click", "คลิกปุ่มเข้าสู่ระบบ", "Click login button", "Login, Sign in, or Submit button"));
+                break;
+
+            case "upload":
+                steps.Add(CreateTeachingStep(1, "click", "คลิกปุ่มอัพโหลด", "Click upload button", "Upload, +, or Add media button"));
+                steps.Add(CreateTeachingStep(2, "upload", "เลือกไฟล์ที่ต้องการอัพโหลด", "Select file to upload", "File input"));
+                steps.Add(CreateTeachingStep(3, "type", "เพิ่มคำอธิบาย (ถ้ามี)", "Add description (optional)", "Caption or description input", isOptional: true));
+                steps.Add(CreateTeachingStep(4, "click", "คลิกปุ่มยืนยัน", "Click confirm button", "Post, Share, or Upload button"));
+                break;
+
+            default:
+                // Generic steps
+                steps.Add(CreateTeachingStep(1, "click", "คลิก element แรก", "Click first element", "Target element"));
+                steps.Add(CreateTeachingStep(2, "type", "กรอกข้อมูล (ถ้ามี)", "Enter data (if any)", "Input field", isOptional: true));
+                steps.Add(CreateTeachingStep(3, "click", "คลิกปุ่มยืนยัน", "Click confirm", "Submit button"));
+                break;
+        }
+
+        _teachingSteps.Clear();
+        foreach (var step in steps)
+        {
+            _teachingSteps.Add(step);
+        }
+
+        if (steps.Any())
+        {
+            _isGuidedTeachingMode = true;
+            _teachingSteps[0].IsCurrent = true;
+            TeachingGuidelinesPanel.Visibility = Visibility.Visible;
+            TeachingGuideSubtitle.Text = $"ทำตามขั้นตอนเพื่อสอน AI สร้าง {taskType} workflow";
+            UpdateTeachingProgress();
+        }
+    }
+
+    private TeachingStepViewModel CreateTeachingStep(int number, string action, string thaiDesc, string engDesc,
+        string elementHint, string? inputHint = null, bool isOptional = false)
+    {
+        return new TeachingStepViewModel
+        {
+            StepNumber = number,
+            ActionType = action.ToUpper(),
+            ActionColor = GetActionColor(action),
+            Description = engDesc,
+            DescriptionThai = thaiDesc,
+            ElementHint = elementHint,
+            InputHint = inputHint,
+            IsOptional = isOptional,
+            IsOptionalText = "(ข้ามได้)",
+            IsCurrent = false,
+            IsCompleted = false,
+            HasElementHint = !string.IsNullOrEmpty(elementHint),
+            HasInputHint = !string.IsNullOrEmpty(inputHint)
+        };
+    }
+
+    private void ValidateTeachingStep(RecordedStep recordedStep)
+    {
+        if (_currentTeachingStepIndex >= _teachingSteps.Count) return;
+
+        var currentStep = _teachingSteps[_currentTeachingStepIndex];
+        var expectedAction = currentStep.ActionType.ToLower();
+        var actualAction = recordedStep.Action?.ToLower() ?? "";
+
+        // Check if action matches (with some flexibility)
+        var isMatch = actualAction == expectedAction ||
+                      (expectedAction == "click" && (actualAction == "click" || actualAction == "submit")) ||
+                      (expectedAction == "type" && actualAction == "type") ||
+                      (expectedAction == "upload" && (actualAction == "upload" || actualAction == "change"));
+
+        if (isMatch)
+        {
+            // Mark current step as completed
+            currentStep.IsCompleted = true;
+            currentStep.IsCurrent = false;
+
+            // Show success feedback
+            ShowValidationFeedback(true, $"ขั้นตอนที่ {currentStep.StepNumber} ถูกต้อง!");
+
+            // Move to next step
+            _currentTeachingStepIndex++;
+            if (_currentTeachingStepIndex < _teachingSteps.Count)
+            {
+                _teachingSteps[_currentTeachingStepIndex].IsCurrent = true;
+            }
+
+            UpdateTeachingProgress();
+
+            // Check if all steps completed
+            if (_currentTeachingStepIndex >= _teachingSteps.Count)
+            {
+                ShowStatus("สอน AI เสร็จสมบูรณ์! กรุณาตั้งชื่อและบันทึก Workflow", "success");
+            }
+        }
+        else if (!currentStep.IsOptional)
+        {
+            // Wrong action for non-optional step
+            ShowValidationFeedback(false, $"คาดหวัง: {currentStep.ActionType} - แต่ได้: {actualAction.ToUpper()}");
+        }
+        // If optional step doesn't match, skip it silently
+        else
+        {
+            // Skip optional step if action doesn't match
+            currentStep.IsCurrent = false;
+            _currentTeachingStepIndex++;
+            if (_currentTeachingStepIndex < _teachingSteps.Count)
+            {
+                _teachingSteps[_currentTeachingStepIndex].IsCurrent = true;
+            }
+            UpdateTeachingProgress();
+
+            // Re-validate against new current step
+            ValidateTeachingStep(recordedStep);
+        }
+
+        // Refresh the items control
+        TeachingStepsControl.Items.Refresh();
+    }
+
+    private void ShowValidationFeedback(bool success, string message)
+    {
+        ValidationFeedbackPanel.Visibility = Visibility.Visible;
+        ValidationText.Text = message;
+
+        if (success)
+        {
+            ValidationIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
+            ValidationIcon.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+            ValidationText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        }
+        else
+        {
+            ValidationIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.AlertCircle;
+            ValidationIcon.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+            ValidationText.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+        }
+
+        // Auto-hide after 3 seconds
+        Task.Delay(3000).ContinueWith(_ =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ValidationFeedbackPanel.Visibility = Visibility.Collapsed;
+            });
+        });
+    }
+
+    private void UpdateTeachingProgress()
+    {
+        var completedCount = _teachingSteps.Count(s => s.IsCompleted);
+        var totalCount = _teachingSteps.Count;
+
+        if (totalCount > 0)
+        {
+            var progress = (double)completedCount / totalCount * 100;
+            TeachingProgressBar.Value = progress;
+            TeachingProgressText.Text = $"Step {Math.Min(completedCount + 1, totalCount)}/{totalCount}";
+        }
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private readonly Stack<List<RecordedStepViewModel>> _undoStack = new();
+    private readonly Stack<List<RecordedStepViewModel>> _redoStack = new();
+
+    private void SaveStateForUndo()
+    {
+        _undoStack.Push(_recordedSteps.ToList());
+        _redoStack.Clear();
+        UpdateUndoRedoButtons();
+    }
+
+    private void UpdateUndoRedoButtons()
+    {
+        UndoButton.IsEnabled = _undoStack.Count > 0;
+        RedoButton.IsEnabled = _redoStack.Count > 0;
+    }
+
+    private void ReindexSteps()
+    {
+        for (int i = 0; i < _recordedSteps.Count; i++)
+        {
+            _recordedSteps[i].Index = i;
+            _recordedSteps[i].StepNumber = (i + 1).ToString();
+        }
+        UpdateStepCount();
+    }
+
+    private void UpdateConfidence()
+    {
+        if (_recordedSteps.Count == 0)
+        {
+            ConfidenceBar.Value = 0;
+            ConfidenceText.Text = "0%";
+            return;
+        }
+
+        var avgConfidence = _recordedSteps.Average(s => s.Confidence);
+        ConfidenceBar.Value = avgConfidence * 100;
+        ConfidenceText.Text = $"{avgConfidence:P0}";
+
+        // Update color based on confidence
+        if (avgConfidence >= 0.8)
+            ConfidenceText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        else if (avgConfidence >= 0.6)
+            ConfidenceText.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+        else
+            ConfidenceText.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+    }
+
+    private double CalculateStepConfidence(RecordedStep step)
+    {
+        if (step.Element == null) return 0.5;
+
+        double confidence = 0.5;
+
+        // ID that's not dynamic
+        if (!string.IsNullOrEmpty(step.Element.Id) && !IsDynamicId(step.Element.Id))
+            confidence += 0.3;
+
+        // data-testid
+        if (step.Element.Attributes?.ContainsKey("data-testid") == true)
+            confidence += 0.3;
+
+        // aria-label
+        if (step.Element.Attributes?.ContainsKey("aria-label") == true)
+            confidence += 0.2;
+
+        // name attribute
+        if (!string.IsNullOrEmpty(step.Element.Name))
+            confidence += 0.15;
+
+        return Math.Min(1.0, confidence);
+    }
+
+    private bool IsDynamicId(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return true;
+        if (id.Length > 30) return true;
+        if (id.Count(char.IsDigit) > id.Length * 0.5) return true;
+        var dynamicPrefixes = new[] { "ember", "react", "ng-", "_", "svelte", "vue-" };
+        return dynamicPrefixes.Any(p => id.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ShowStatus(string message, string type)
+    {
+        StatusText.Text = message;
+        StatusBar.Visibility = Visibility.Visible;
+
+        // Set icon and color based on type
+        switch (type)
+        {
+            case "success":
+                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
+                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                break;
+            case "warning":
+                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Alert;
+                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+                break;
+            case "error":
+                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.AlertCircle;
+                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                break;
+            default:
+                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Information;
+                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(59, 130, 246));
+                break;
+        }
+
+        // Auto-hide after 5 seconds
+        Task.Delay(5000).ContinueWith(_ =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (StatusText.Text == message)
+                {
+                    StatusBar.Visibility = Visibility.Collapsed;
+                }
+            });
+        });
+    }
+
+    private void GenerateAiSuggestions()
+    {
+        var suggestions = new List<string>();
+
+        // Check for quick succession actions
+        for (int i = 1; i < _recordedSteps.Count; i++)
+        {
+            if (_recordedSteps[i].OriginalStep?.Timestamp != null &&
+                _recordedSteps[i - 1].OriginalStep?.Timestamp != null)
+            {
+                var timeDiff = _recordedSteps[i].OriginalStep!.Timestamp -
+                               _recordedSteps[i - 1].OriginalStep!.Timestamp;
+                if (timeDiff.TotalMilliseconds < 200)
+                {
+                    suggestions.Add("พบการกระทำที่เร็วเกินไป แนะนำเพิ่ม Wait step");
+                    break;
+                }
+            }
+        }
+
+        // Check for low confidence selectors
+        var lowConfidenceSteps = _recordedSteps.Where(s => s.Confidence < 0.6).ToList();
+        if (lowConfidenceSteps.Count > 0)
+        {
+            suggestions.Add($"มี {lowConfidenceSteps.Count} step ที่ selector อาจไม่เสถียร");
+        }
+
+        // Check for type actions without preceding click
+        for (int i = 0; i < _recordedSteps.Count; i++)
+        {
+            if (_recordedSteps[i].Action == "type" &&
+                (i == 0 || _recordedSteps[i - 1].Action != "click"))
+            {
+                suggestions.Add($"Step #{_recordedSteps[i].StepNumber} อาจต้อง click element ก่อนพิมพ์");
+                break;
+            }
+        }
+
+        if (suggestions.Count > 0)
+        {
+            AiSuggestionText.Text = string.Join("\n• ", new[] { "" }.Concat(suggestions));
+            AiSuggestionPanel.Visibility = Visibility.Visible;
+        }
+    }
+
+    #endregion
 
     private async void TestWorkflowButton_Click(object sender, RoutedEventArgs e)
     {
@@ -713,6 +1684,34 @@ public class RecordedStepViewModel
     public string? ValueText { get; set; }
     public bool HasValue { get; set; }
     public RecordedStep? OriginalStep { get; set; }
+    public double Confidence { get; set; } = 0.8;
+    public string ConfidenceDisplay => Confidence >= 0.8 ? "High" : Confidence >= 0.6 ? "Medium" : "Low";
+    public Brush ConfidenceColor => Confidence >= 0.8
+        ? new SolidColorBrush(Color.FromRgb(16, 185, 129))    // Green
+        : Confidence >= 0.6
+            ? new SolidColorBrush(Color.FromRgb(245, 158, 11)) // Orange
+            : new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+}
+
+/// <summary>
+/// ViewModel for teaching step display in AI Guided Teaching panel
+/// </summary>
+public class TeachingStepViewModel
+{
+    public int StepNumber { get; set; }
+    public string ActionType { get; set; } = "";
+    public Brush ActionColor { get; set; } = Brushes.Gray;
+    public string Description { get; set; } = "";
+    public string DescriptionThai { get; set; } = "";
+    public string? ElementHint { get; set; }
+    public string? InputHint { get; set; }
+    public bool IsOptional { get; set; }
+    public string IsOptionalText { get; set; } = "(optional)";
+    public bool IsCurrent { get; set; }
+    public bool IsCompleted { get; set; }
+    public bool IsNotCompleted => !IsCompleted;
+    public bool HasElementHint { get; set; }
+    public bool HasInputHint { get; set; }
 }
 
 public class WebViewMessage

@@ -13,20 +13,45 @@ public partial class SetupWizardWindow : Window
 
     public SetupWizardWindow(FirstRunDetectionService firstRunService)
     {
-        InitializeComponent();
-        _firstRunService = firstRunService;
-
-        // Initialize setup pages
-        _pages = new Page[]
+        try
         {
-            new WelcomePage(),
-            new DatabaseSetupPage(),
-            new AIProvidersSetupPage(),
-            new CompletionPage()
-        };
+            InitializeComponent();
+            _firstRunService = firstRunService;
 
-        // Show first page
-        NavigateToStep(1);
+            // Initialize setup pages
+            _pages = new Page[]
+            {
+                new WelcomePage(),
+                new DatabaseSetupPage(),
+                new AIProvidersSetupPage(),
+                new CompletionPage()
+            };
+
+            // Show first page
+            NavigateToStep(1);
+
+            // Subscribe to window events for debugging
+            Loaded += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine("SetupWizardWindow Loaded successfully");
+            };
+
+            Closing += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine($"SetupWizardWindow Closing. DialogResult: {DialogResult}");
+            };
+
+            Closed += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine("SetupWizardWindow Closed");
+            };
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error initializing Setup Wizard:\n{ex.Message}\n\n{ex.StackTrace}",
+                "Setup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
+        }
     }
 
     private void NavigateToStep(int step)

@@ -366,6 +366,110 @@ public class PostPublisherService
     }
 
     #endregion
+
+    #region Video Publishing
+
+    /// <summary>
+    /// Publish video to a platform
+    /// เผยแพร่วิดีโอไปยัง platform
+    /// </summary>
+    public async Task<PostResult> PublishVideoAsync(
+        VideoPostRequest request,
+        CancellationToken ct = default)
+    {
+        _logger.LogInformation("Publishing video to {Platform}: {VideoPath}",
+            request.Platform, request.VideoPath);
+
+        try
+        {
+            // TODO: Implement actual video upload for each platform
+            // For now, return placeholder result
+            // Each platform has different video upload APIs
+
+            switch (request.Platform)
+            {
+                case AIManager.Core.Models.SocialPlatform.Facebook:
+                    return await PublishVideoToFacebookAsync(request, ct);
+
+                case AIManager.Core.Models.SocialPlatform.TikTok:
+                    return await PublishVideoToTikTokAsync(request, ct);
+
+                case AIManager.Core.Models.SocialPlatform.YouTube:
+                    return await PublishVideoToYouTubeAsync(request, ct);
+
+                case AIManager.Core.Models.SocialPlatform.Instagram:
+                    return await PublishVideoToInstagramAsync(request, ct);
+
+                default:
+                    _logger.LogWarning("Video publishing not implemented for {Platform}", request.Platform);
+                    return new PostResult
+                    {
+                        Success = false,
+                        Error = $"Video publishing not implemented for {request.Platform}"
+                    };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish video to {Platform}", request.Platform);
+            return new PostResult
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
+    }
+
+    private Task<PostResult> PublishVideoToFacebookAsync(VideoPostRequest request, CancellationToken ct)
+    {
+        // TODO: Implement Facebook video upload using Graph API
+        // POST /{page-id}/videos with video file
+        _logger.LogInformation("[PLACEHOLDER] Publishing video to Facebook");
+        return Task.FromResult(new PostResult
+        {
+            Success = true,
+            PostId = $"fb_video_{Guid.NewGuid():N}",
+            PostUrl = $"https://facebook.com/video/{Guid.NewGuid():N}"
+        });
+    }
+
+    private Task<PostResult> PublishVideoToTikTokAsync(VideoPostRequest request, CancellationToken ct)
+    {
+        // TODO: Implement TikTok video upload using Content Posting API
+        _logger.LogInformation("[PLACEHOLDER] Publishing video to TikTok");
+        return Task.FromResult(new PostResult
+        {
+            Success = true,
+            PostId = $"tt_video_{Guid.NewGuid():N}",
+            PostUrl = $"https://tiktok.com/@user/video/{Guid.NewGuid():N}"
+        });
+    }
+
+    private Task<PostResult> PublishVideoToYouTubeAsync(VideoPostRequest request, CancellationToken ct)
+    {
+        // TODO: Implement YouTube video upload using Data API v3
+        _logger.LogInformation("[PLACEHOLDER] Publishing video to YouTube");
+        return Task.FromResult(new PostResult
+        {
+            Success = true,
+            PostId = $"yt_video_{Guid.NewGuid():N}",
+            PostUrl = $"https://youtube.com/watch?v={Guid.NewGuid():N}"
+        });
+    }
+
+    private Task<PostResult> PublishVideoToInstagramAsync(VideoPostRequest request, CancellationToken ct)
+    {
+        // TODO: Implement Instagram video upload (Reels) using Instagram Content Publishing API
+        _logger.LogInformation("[PLACEHOLDER] Publishing video to Instagram");
+        return Task.FromResult(new PostResult
+        {
+            Success = true,
+            PostId = $"ig_video_{Guid.NewGuid():N}",
+            PostUrl = $"https://instagram.com/reel/{Guid.NewGuid():N}"
+        });
+    }
+
+    #endregion
 }
 
 /// <summary>

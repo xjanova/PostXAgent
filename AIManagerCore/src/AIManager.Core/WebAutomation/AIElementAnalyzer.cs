@@ -1,6 +1,7 @@
 using AIManager.Core.WebAutomation.Models;
 using AIManager.Core.Services;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace AIManager.Core.WebAutomation;
@@ -13,10 +14,10 @@ public class AIElementAnalyzer
     private readonly ILogger<AIElementAnalyzer> _logger;
     private readonly ContentGeneratorService _aiService;
 
-    public AIElementAnalyzer(ILogger<AIElementAnalyzer> logger)
+    public AIElementAnalyzer(ILogger<AIElementAnalyzer> logger, ContentGeneratorService? aiService = null)
     {
         _logger = logger;
-        _aiService = new ContentGeneratorService();
+        _aiService = aiService ?? new ContentGeneratorService();
     }
 
     /// <summary>
@@ -416,21 +417,114 @@ HTML snippet (first 5000 chars):
 
     private ElementSelector? ParseSelectorFromAIResponse(string response)
     {
-        // Try to extract selector from AI response
-        var cssMatch = Regex.Match(response, @"([.#]?[\w\-\[\]=\""'\s>:]+)");
-        if (cssMatch.Success)
+        // Clean up the response
+        var cleanedResponse = response.Trim();
+
+        // Try to extract JSON first (most reliable)
+        try
         {
-            var value = cssMatch.Groups[1].Value.Trim();
-            if (!string.IsNullOrEmpty(value))
+            var jsonMatch = Regex.Match(cleanedResponse, @"\{[^{}]*""selector""[^{}]*\}", RegexOptions.Singleline);
+            if (jsonMatch.Success)
+            {
+                using var doc = JsonDocument.Parse(jsonMatch.Value);
+                if (doc.RootElement.TryGetProperty("selector", out var selectorProp))
+                {
+                    var selectorValue = selectorProp.GetString();
+                    if (!string.IsNullOrEmpty(selectorValue))
+                    {
+                        return CreateSelectorFromValue(selectorValue);
+                    }
+                }
+            }
+        }
+        catch { /* JSON parsing failed, try other methods */ }
+
+        // Try to find XPath (starts with // or /)
+        var xpathMatch = Regex.Match(cleanedResponse, @"(//[^\s""'<>]+|/html[^\s""'<>]+)");
+        if (xpathMatch.Success)
+        {
+            return new ElementSelector
+            {
+                Type = SelectorType.XPath,
+                Value = xpathMatch.Groups[1].Value.Trim(),
+                Confidence = 0.7
+            };
+        }
+
+        // Try to find CSS selector (# or . prefix, or tag[attr])
+        var cssPatterns = new[]
+        {
+            @"(#[\w-]+)",                              // ID selector
+            @"(\.[\w-]+(?:\.[\w-]+)*)",                // Class selector
+            @"(\[[\w-]+=[""'][^""']+[""']\])",         // Attribute selector
+            @"([\w]+(?:\[[\w-]+=[""'][^""']+[""']\])+)", // Tag with attribute
+            @"([\w]+\.[\w-]+)",                        // Tag with class
+            @"([\w]+#[\w-]+)"                          // Tag with ID
+        };
+
+        foreach (var pattern in cssPatterns)
+        {
+            var match = Regex.Match(cleanedResponse, pattern);
+            if (match.Success)
             {
                 return new ElementSelector
                 {
-                    Type = value.StartsWith("//") ? SelectorType.XPath : SelectorType.CSS,
-                    Value = value
+                    Type = SelectorType.CSS,
+                    Value = match.Groups[1].Value.Trim(),
+                    Confidence = 0.65
                 };
             }
         }
+
+        // Try to extract from code blocks
+        var codeBlockMatch = Regex.Match(cleanedResponse, @"```(?:css|xpath|selector)?\s*\n?([^\n`]+)", RegexOptions.IgnoreCase);
+        if (codeBlockMatch.Success)
+        {
+            return CreateSelectorFromValue(codeBlockMatch.Groups[1].Value.Trim());
+        }
+
+        // Try quoted strings
+        var quotedMatch = Regex.Match(cleanedResponse, @"[""']([#.\[\]\/\w\-=@:]+)[""']");
+        if (quotedMatch.Success)
+        {
+            return CreateSelectorFromValue(quotedMatch.Groups[1].Value.Trim());
+        }
+
+        // Last resort: look for any selector-like pattern
+        var genericMatch = Regex.Match(cleanedResponse, @"([#.]?[\w][\w\-]*(?:\s*>\s*[\w\-\.\#\[\]=]+)*)");
+        if (genericMatch.Success)
+        {
+            var value = genericMatch.Groups[1].Value.Trim();
+            if (value.Length >= 2 && !IsCommonWord(value))
+            {
+                return CreateSelectorFromValue(value);
+            }
+        }
+
+        _logger.LogDebug("Could not parse selector from AI response: {Response}",
+            cleanedResponse.Length > 100 ? cleanedResponse[..100] + "..." : cleanedResponse);
         return null;
+    }
+
+    private ElementSelector CreateSelectorFromValue(string value)
+    {
+        var isXPath = value.StartsWith("//") || value.StartsWith("/html");
+        return new ElementSelector
+        {
+            Type = isXPath ? SelectorType.XPath : SelectorType.CSS,
+            Value = value,
+            Confidence = isXPath ? 0.6 : 0.7
+        };
+    }
+
+    private static bool IsCommonWord(string value)
+    {
+        var commonWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "the", "this", "that", "element", "selector", "css", "xpath",
+            "button", "input", "div", "span", "form", "click", "type"
+        };
+        return commonWords.Contains(value);
     }
 
     private ElementSelector CreateSelectorFromElement(RecordedElement element)
