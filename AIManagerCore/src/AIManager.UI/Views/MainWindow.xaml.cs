@@ -304,6 +304,7 @@ public partial class MainWindow : Window
             "ContentCreator" => new ContentCreatorPage(),
             "Chat" => new ChatPage(),
             "ImageGenerator" => new ImageGeneratorPage(),
+            "SunoOptions" => new SunoOptionsPage(),
             "ModelManager" => new ModelManagerPage(),
             "WorkflowEditor" => new WorkflowEditorPage(),
             "WorkflowMonitor" => new WorkflowMonitorPage(),
