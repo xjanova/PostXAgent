@@ -19,7 +19,7 @@
       "action": "Navigate",
       "description": "ไปหน้าสร้างเพลง",
       "element_selector": {
-        "type": "Smart",
+        "type": "URL",
         "value": "https://suno.com/create",
         "confidence": 1.0
       },
