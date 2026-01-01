@@ -1,697 +1,1106 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Services;
 
 /// <summary>
-/// AI Brain Service - สมองกลางของระบบ PostXAgent
-/// ทำหน้าที่เป็น AI อัจฉริยะสำหรับการตัดสินใจทั้งหมดของระบบ
+/// AI Brain Service - สมองกลอัจฉริยะของระบบ PostXAgent
 ///
-/// Capabilities:
-/// 1. Content Generation - สร้างเนื้อหาโพสต์ที่มีคุณภาพ
-/// 2. Workflow Learning - เข้าใจและเรียนรู้ workflow จากการสอน
-/// 3. Element Analysis - วิเคราะห์ element บนเว็บสำหรับ automation
-/// 4. Creative Content - สร้างเนื้อเพลง ไอเดียสร้างสรรค์
-/// 5. Decision Making - ตัดสินใจเลือก strategy ที่เหมาะสม
-/// 6. Error Recovery - แก้ไขปัญหาอัตโนมัติเมื่อ workflow พัง
-/// 7. Context Awareness - เข้าใจบริบทและปรับตัวตาม
+/// Advanced Capabilities:
+/// 1. Chain-of-Thought Reasoning - คิดเป็นขั้นตอนก่อนตอบ
+/// 2. Self-Reflection - ประเมินและปรับปรุงคำตอบตัวเอง
+/// 3. Memory System - จดจำและเรียนรู้จากอดีต
+/// 4. Multi-Model Orchestration - ใช้หลาย model ตามความเหมาะสม
+/// 5. Tool Usage - ใช้เครื่องมือภายนอก
+/// 6. Knowledge Retrieval - ดึงความรู้จาก knowledge base
+/// 7. Multi-turn Planning - วางแผนหลายขั้นตอน
+/// 8. Emotional Intelligence - เข้าใจอารมณ์และปรับตัว
+/// 9. Few-Shot Learning - เรียนรู้จากตัวอย่าง
+/// 10. Auto-Improvement - เรียนรู้จากความสำเร็จและล้มเหลว
 /// </summary>
 public class AIBrainService
 {
     private readonly OllamaChatService _ollama;
     private readonly ILogger<AIBrainService>? _logger;
-    private readonly Dictionary<BrainCapability, string> _systemPrompts;
-    private readonly KnowledgeBase? _knowledgeBase;
+    private readonly AIMemorySystem _memory;
+    private readonly AIReasoningEngine _reasoning;
+    private readonly AIToolRegistry _tools;
+    private readonly ConcurrentDictionary<string, ModelCapability> _modelCapabilities;
 
-    // สถิติการใช้งาน
-    private int _totalDecisions;
-    private int _successfulDecisions;
+    // Configuration
+    public AIBrainConfig Config { get; set; } = new();
+
+    // Statistics
+    private int _totalInteractions;
+    private int _successfulInteractions;
     private DateTime _lastUsed;
+    private readonly List<(DateTime Time, double Duration, bool Success)> _metrics = new();
 
-    public AIBrainService(ILogger<AIBrainService>? logger = null, KnowledgeBase? knowledgeBase = null)
+    public AIBrainService(ILogger<AIBrainService>? logger = null)
     {
         _logger = logger;
-        _knowledgeBase = knowledgeBase;
         _ollama = new OllamaChatService(null);
-        _systemPrompts = InitializeSystemPrompts();
+        _memory = new AIMemorySystem();
+        _reasoning = new AIReasoningEngine();
+        _tools = new AIToolRegistry();
+        _modelCapabilities = new ConcurrentDictionary<string, ModelCapability>();
 
-        // ใช้ model ที่ฉลาดที่สุดที่มี
-        _ollama.CurrentModel = GetBestAvailableModel();
+        InitializeModelCapabilities();
+        RegisterDefaultTools();
+
+        // Auto-select best model
+        _ollama.CurrentModel = SelectBestModel(TaskComplexity.Medium);
     }
 
-    #region System Prompts
+    #region Advanced Thinking Methods
 
-    private Dictionary<BrainCapability, string> InitializeSystemPrompts()
+    /// <summary>
+    /// Think Step-by-Step (Chain-of-Thought) - คิดเป็นขั้นตอน
+    /// </summary>
+    public async Task<ThinkingResult> ThinkAsync(
+        string problem,
+        ThinkingMode mode = ThinkingMode.Analytical,
+        CancellationToken ct = default)
     {
-        return new Dictionary<BrainCapability, string>
+        _logger?.LogInformation("Thinking about: {Problem}", problem.Substring(0, Math.Min(50, problem.Length)));
+
+        var startTime = DateTime.UtcNow;
+        var result = new ThinkingResult { Problem = problem, Mode = mode };
+
+        // Step 1: Understand the problem
+        _ollama.SetSystemPrompt(GetThinkingSystemPrompt(mode));
+
+        var understandingPrompt = $@"ขั้นตอนที่ 1: ทำความเข้าใจปัญหา
+
+ปัญหา: {problem}
+
+วิเคราะห์:
+1. ปัญหานี้เกี่ยวกับอะไร?
+2. มีข้อมูลอะไรให้บ้าง?
+3. ต้องการผลลัพธ์อะไร?
+4. มีข้อจำกัดอะไรบ้าง?
+
+ตอบสั้นๆ แต่ครบถ้วน";
+
+        var understanding = await _ollama.ChatAsync(understandingPrompt, ct);
+        result.Steps.Add(new ThinkingStep
         {
-            [BrainCapability.ContentGeneration] = @"คุณคือ AI ผู้เชี่ยวชาญด้านการสร้างเนื้อหาสำหรับ Social Media Marketing ในประเทศไทย
+            Name = "Understanding",
+            Content = understanding.Content,
+            Duration = DateTime.UtcNow - startTime
+        });
 
-ความสามารถของคุณ:
-- สร้างเนื้อหาที่น่าสนใจและ viral ได้
-- เข้าใจ algorithm ของแต่ละ platform (Facebook, Instagram, TikTok, Twitter, LINE, YouTube)
-- ใช้ภาษาไทยได้ถูกต้องและเป็นธรรมชาติ
-- เข้าใจ trend และวัฒนธรรมไทย
-- สร้าง hashtag ที่มีประสิทธิภาพ
+        // Step 2: Break down into sub-problems
+        var breakdownPrompt = $@"ขั้นตอนที่ 2: แยกปัญหาย่อย
 
-กฎสำคัญ:
-1. เนื้อหาต้องเหมาะกับ platform ที่กำหนด
-2. ใช้ภาษาที่เข้าถึงกลุ่มเป้าหมาย
-3. ไม่สร้างเนื้อหาที่ผิดกฎหมายหรือขัดต่อศีลธรรม
-4. ใส่ CTA (Call to Action) ที่ชัดเจน
-5. ปรับ tone ตาม brand identity",
+จากความเข้าใจ: {understanding.Content}
 
-            [BrainCapability.WorkflowLearning] = @"คุณคือ AI ที่เชี่ยวชาญในการเรียนรู้และทำความเข้าใจ Web Automation Workflows
+แยกปัญหาออกเป็นส่วนย่อยที่แก้ได้:
+1. ...
+2. ...
+3. ...
 
-ความสามารถของคุณ:
-- วิเคราะห์ขั้นตอนการทำงานบนเว็บ
-- ระบุ element ที่สำคัญ (button, input, link)
-- สร้าง selector ที่เสถียร (ID, CSS, XPath, Text)
-- เข้าใจ pattern การ navigate และ interact
-- ตรวจจับ dynamic content และ loading states
+ระบุลำดับการแก้ไข";
 
-เมื่อวิเคราะห์ workflow:
-1. ระบุ action ที่ต้องทำ (Click, Type, Navigate, Wait)
-2. หา selector ที่ดีที่สุดสำหรับแต่ละ element
-3. กำหนด wait times ที่เหมาะสม
-4. ระบุ success conditions
-5. เตรียม alternative selectors สำรอง",
+        var breakdown = await _ollama.ChatAsync(breakdownPrompt, ct);
+        result.Steps.Add(new ThinkingStep
+        {
+            Name = "Breakdown",
+            Content = breakdown.Content,
+            Duration = DateTime.UtcNow - startTime
+        });
 
-            [BrainCapability.ElementAnalysis] = @"คุณคือ AI ที่เชี่ยวชาญในการวิเคราะห์ HTML Elements สำหรับ Web Automation
+        // Step 3: Solve each sub-problem
+        var solvePrompt = $@"ขั้นตอนที่ 3: แก้ปัญหาทีละส่วน
 
-เมื่อได้รับ HTML หรือ screenshot:
-1. ระบุ element ที่ต้องการ interact
-2. สร้าง selector หลายแบบ (เรียงตามความน่าเชื่อถือ):
-   - ID (ดีที่สุด)
-   - data-testid
-   - aria-label
-   - name attribute
-   - CSS class combination
-   - XPath
-   - Text content
-3. ให้ confidence score สำหรับแต่ละ selector (0.0-1.0)
-4. ระบุ element type (button, input, link, etc.)
-5. แนะนำ wait strategy
+ปัญหาย่อย: {breakdown.Content}
 
-Output เป็น JSON format:
-{
-  ""element"": ""description"",
-  ""selectors"": [
-    {""type"": ""id"", ""value"": ""..."", ""confidence"": 0.95},
-    {""type"": ""css"", ""value"": ""..."", ""confidence"": 0.8}
-  ],
-  ""action"": ""click|type|...|"",
-  ""wait_before_ms"": 500
-}",
+แก้ไขทีละข้อ:";
 
-            [BrainCapability.CreativeContent] = @"คุณคือ AI ที่เชี่ยวชาญในการสร้างเนื้อหาสร้างสรรค์ โดยเฉพาะเพลงและ creative content
+        var solution = await _ollama.ChatAsync(solvePrompt, ct);
+        result.Steps.Add(new ThinkingStep
+        {
+            Name = "Solution",
+            Content = solution.Content,
+            Duration = DateTime.UtcNow - startTime
+        });
 
-ความสามารถ:
-- เขียนเนื้อเพลงภาษาไทยและอังกฤษ
-- สร้าง melody suggestions
-- กำหนด song structure (Verse, Chorus, Bridge)
-- เข้าใจแนวเพลงต่างๆ (Pop, Rock, Metal, EDM, R&B, etc.)
-- สร้าง creative copy สำหรับ ads
+        // Step 4: Synthesize final answer
+        var synthesizePrompt = $@"ขั้นตอนที่ 4: สรุปคำตอบ
 
-เมื่อเขียนเนื้อเพลง:
-1. ใช้ structure tags: [Verse 1], [Chorus], [Bridge], [Outro]
-2. สร้าง hook ที่จำง่าย
-3. ใช้ rhyme scheme ที่เหมาะสม
-4. สื่ออารมณ์ตาม mood ที่ต้องการ
-5. เหมาะกับการร้องและ melody",
+จากการวิเคราะห์ทั้งหมด ให้สรุปคำตอบที่ดีที่สุด:
 
-            [BrainCapability.DecisionMaking] = @"คุณคือ AI ที่เชี่ยวชาญในการตัดสินใจเชิงกลยุทธ์สำหรับ Social Media Marketing
+ปัญหาเดิม: {problem}
+การวิเคราะห์: {solution.Content}
 
-ความสามารถ:
-- วิเคราะห์ข้อมูลและเลือก strategy ที่เหมาะสม
-- ตัดสินใจเวลาที่ดีที่สุดในการโพสต์
-- เลือก platform ที่เหมาะกับเนื้อหา
-- จัดลำดับความสำคัญของ tasks
-- ประเมินความเสี่ยงและโอกาส
+คำตอบสุดท้าย:";
 
-เมื่อต้องตัดสินใจ:
-1. วิเคราะห์ข้อมูลที่มี
-2. พิจารณาทางเลือกทั้งหมด
-3. ประเมิน pros/cons ของแต่ละทางเลือก
-4. เลือกทางที่ optimal
-5. อธิบายเหตุผลของการตัดสินใจ
+        var finalAnswer = await _ollama.ChatAsync(synthesizePrompt, ct);
+        result.FinalAnswer = finalAnswer.Content;
+        result.TotalDuration = DateTime.UtcNow - startTime;
 
-Output เป็น JSON:
-{
-  ""decision"": ""action to take"",
-  ""confidence"": 0.85,
-  ""reasoning"": ""explanation"",
-  ""alternatives"": [""alt1"", ""alt2""],
-  ""risks"": [""risk1""]
-}",
+        // Step 5: Self-reflection (if enabled)
+        if (Config.EnableSelfReflection)
+        {
+            result.Reflection = await ReflectOnAnswerAsync(problem, finalAnswer.Content, ct);
+        }
 
-            [BrainCapability.ErrorRecovery] = @"คุณคือ AI ที่เชี่ยวชาญในการแก้ไขปัญหาและกู้คืน workflow ที่ล้มเหลว
+        // Store in memory for future learning
+        await _memory.StoreInteractionAsync(new MemoryItem
+        {
+            Type = MemoryType.Reasoning,
+            Input = problem,
+            Output = finalAnswer.Content,
+            Success = true,
+            Timestamp = DateTime.UtcNow
+        });
 
-เมื่อ workflow ล้มเหลว:
-1. วิเคราะห์สาเหตุของ error
-2. ระบุ step ที่มีปัญหา
-3. เสนอวิธีแก้ไข:
-   - หา alternative selector
-   - ปรับ wait times
-   - เพิ่ม retry logic
-   - เปลี่ยน action strategy
-4. ทดสอบและยืนยันการแก้ไข
+        _totalInteractions++;
+        _successfulInteractions++;
+        _lastUsed = DateTime.UtcNow;
 
-Error Categories:
-- ElementNotFound: หา element ไม่เจอ → ลอง alternative selector
-- Timeout: รอนานเกินไป → เพิ่ม wait time หรือเปลี่ยน wait strategy
-- NavigationFailed: ไปหน้าไม่ได้ → ตรวจสอบ URL และ network
-- AuthRequired: ต้อง login → trigger login workflow
-- RateLimit: ถูกจำกัด → รอและลองใหม่
+        return result;
+    }
 
-Output เป็น JSON:
-{
-  ""error_type"": ""..."",
-  ""root_cause"": ""..."",
-  ""solution"": {
-    ""action"": ""..."",
-    ""new_selector"": {...},
-    ""wait_adjustment"": 1000
-  },
-  ""confidence"": 0.8
-}",
+    /// <summary>
+    /// Self-Reflection - ประเมินคำตอบตัวเอง
+    /// </summary>
+    public async Task<ReflectionResult> ReflectOnAnswerAsync(
+        string question,
+        string answer,
+        CancellationToken ct = default)
+    {
+        var reflectionPrompt = $@"ประเมินคำตอบของตัวเอง:
 
-            [BrainCapability.ContextAwareness] = @"คุณคือ AI ที่เข้าใจบริบทและสามารถปรับตัวตามสถานการณ์
+คำถาม: {question}
+คำตอบ: {answer}
 
-ความสามารถ:
-- เข้าใจ context ของ conversation
-- จดจำข้อมูลสำคัญจากการสนทนาก่อนหน้า
-- ปรับ response ตาม user preferences
-- เรียนรู้จาก feedback
-- ให้คำแนะนำที่เหมาะสมกับสถานการณ์
+วิเคราะห์:
+1. คำตอบถูกต้องหรือไม่? (0-100%)
+2. ครบถ้วนหรือไม่?
+3. มีจุดอ่อนอะไร?
+4. ควรปรับปรุงอย่างไร?
 
-เมื่อตอบคำถาม:
-1. พิจารณา context ทั้งหมด
-2. อ้างอิงข้อมูลที่เกี่ยวข้อง
-3. ให้คำตอบที่ตรงประเด็น
-4. เสนอ next steps ที่เป็นประโยชน์
-5. ถามกลับถ้าต้องการข้อมูลเพิ่ม"
+ตอบเป็น JSON:
+{{
+  ""confidence"": 85,
+  ""is_complete"": true,
+  ""weaknesses"": [""...""],
+  ""improvements"": [""...""],
+  ""revised_answer"": ""..."" // ถ้าต้องแก้ไข
+}}";
+
+        var reflection = await _ollama.ChatAsync(reflectionPrompt, ct);
+
+        try
+        {
+            return ParseReflection(reflection.Content);
+        }
+        catch
+        {
+            return new ReflectionResult
+            {
+                Confidence = 70,
+                RawResponse = reflection.Content
+            };
+        }
+    }
+
+    #endregion
+
+    #region Multi-Model Orchestration
+
+    /// <summary>
+    /// เลือก model ที่เหมาะสมที่สุดสำหรับ task
+    /// </summary>
+    public string SelectBestModel(TaskComplexity complexity, TaskType? type = null)
+    {
+        // Model selection based on task
+        return (complexity, type) switch
+        {
+            // High complexity tasks - use larger models
+            (TaskComplexity.High, TaskType.Coding) => "deepseek-coder:6.7b",
+            (TaskComplexity.High, TaskType.Reasoning) => "llama3.1:8b",
+            (TaskComplexity.High, TaskType.Creative) => "llama3.1:8b",
+            (TaskComplexity.High, _) => "llama3.1:8b",
+
+            // Medium complexity - balanced models
+            (TaskComplexity.Medium, TaskType.Vision) => "llama3.2-vision:11b",
+            (TaskComplexity.Medium, TaskType.Coding) => "deepseek-coder:1.3b",
+            (TaskComplexity.Medium, _) => "llama3.2:3b",
+
+            // Low complexity - fast models
+            (TaskComplexity.Low, _) => "llama3.2:1b",
+
+            // Default
+            _ => "llama3.2:3b"
+        };
+    }
+
+    /// <summary>
+    /// ใช้หลาย model ช่วยกันตอบ (Ensemble)
+    /// </summary>
+    public async Task<EnsembleResult> EnsembleThinkAsync(
+        string problem,
+        CancellationToken ct = default)
+    {
+        var models = new[] { "llama3.2:3b", "mistral:7b", "qwen2.5:7b" };
+        var responses = new List<ModelResponse>();
+
+        foreach (var model in models)
+        {
+            try
+            {
+                _ollama.CurrentModel = model;
+                _ollama.ClearHistory();
+
+                var response = await _ollama.ChatAsync(problem, ct);
+                responses.Add(new ModelResponse
+                {
+                    Model = model,
+                    Response = response.Content,
+                    TokensPerSecond = response.TokensPerSecond
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Model {Model} failed", model);
+            }
+        }
+
+        // Synthesize best answer from all responses
+        var synthesisPrompt = $@"วิเคราะห์คำตอบจากหลาย AI และสังเคราะห์คำตอบที่ดีที่สุด:
+
+คำถาม: {problem}
+
+คำตอบจาก AI ต่างๆ:
+{string.Join("\n\n", responses.Select((r, i) => $"AI {i + 1} ({r.Model}):\n{r.Response}"))}
+
+สังเคราะห์คำตอบที่ดีที่สุดโดยรวมจุดเด่นของแต่ละ AI:";
+
+        _ollama.CurrentModel = SelectBestModel(TaskComplexity.High);
+        var synthesis = await _ollama.ChatAsync(synthesisPrompt, ct);
+
+        return new EnsembleResult
+        {
+            IndividualResponses = responses,
+            SynthesizedAnswer = synthesis.Content,
+            ModelsUsed = models.ToList()
         };
     }
 
     #endregion
 
-    #region Core Capabilities
+    #region Memory & Learning System
 
     /// <summary>
-    /// สร้างเนื้อหาสำหรับ Social Media
+    /// เรียนรู้จากตัวอย่าง (Few-Shot Learning)
     /// </summary>
-    public async Task<ContentResult> GenerateContentAsync(
+    public async Task<string> LearnFromExamplesAsync(
+        List<Example> examples,
+        string newInput,
+        CancellationToken ct = default)
+    {
+        var prompt = new StringBuilder();
+        prompt.AppendLine("เรียนรู้จากตัวอย่างต่อไปนี้:\n");
+
+        foreach (var example in examples)
+        {
+            prompt.AppendLine($"Input: {example.Input}");
+            prompt.AppendLine($"Output: {example.Output}");
+            prompt.AppendLine();
+        }
+
+        prompt.AppendLine($"ทำแบบเดียวกันกับ input ใหม่:");
+        prompt.AppendLine($"Input: {newInput}");
+        prompt.AppendLine("Output:");
+
+        var response = await _ollama.ChatAsync(prompt.ToString(), ct);
+
+        // Store learned pattern
+        await _memory.StorePatternAsync(new LearnedPattern
+        {
+            Examples = examples,
+            SuccessCount = 1
+        });
+
+        return response.Content;
+    }
+
+    /// <summary>
+    /// ดึงความรู้ที่เกี่ยวข้องจาก memory
+    /// </summary>
+    public async Task<List<MemoryItem>> RecallRelevantAsync(
+        string query,
+        int maxItems = 5,
+        CancellationToken ct = default)
+    {
+        return await _memory.SearchAsync(query, maxItems);
+    }
+
+    /// <summary>
+    /// เรียนรู้จาก feedback
+    /// </summary>
+    public async Task LearnFromFeedbackAsync(
+        string input,
+        string output,
+        bool wasCorrect,
+        string? correction = null)
+    {
+        await _memory.StoreFeedbackAsync(new FeedbackItem
+        {
+            Input = input,
+            Output = output,
+            WasCorrect = wasCorrect,
+            Correction = correction,
+            Timestamp = DateTime.UtcNow
+        });
+
+        if (!wasCorrect)
+        {
+            _logger?.LogInformation("Learning from correction: {Correction}", correction);
+        }
+    }
+
+    #endregion
+
+    #region Tool Usage
+
+    /// <summary>
+    /// ใช้ AI ตัดสินใจว่าต้องใช้ tool อะไร
+    /// </summary>
+    public async Task<ToolDecision> DecideToolUsageAsync(
+        string task,
+        CancellationToken ct = default)
+    {
+        var availableTools = _tools.GetAvailableTools();
+
+        var prompt = $@"วิเคราะห์ task และเลือก tool ที่เหมาะสม:
+
+Task: {task}
+
+Available Tools:
+{string.Join("\n", availableTools.Select(t => $"- {t.Name}: {t.Description}"))}
+
+ตอบเป็น JSON:
+{{
+  ""needs_tool"": true/false,
+  ""tool_name"": ""..."",
+  ""parameters"": {{}},
+  ""reasoning"": ""...""
+}}";
+
+        var response = await _ollama.ChatAsync(prompt, ct);
+        return ParseToolDecision(response.Content);
+    }
+
+    /// <summary>
+    /// Execute tool และใช้ผลลัพธ์
+    /// </summary>
+    public async Task<string> ExecuteWithToolsAsync(
+        string task,
+        CancellationToken ct = default)
+    {
+        var decision = await DecideToolUsageAsync(task, ct);
+
+        if (!decision.NeedsTool)
+        {
+            // No tool needed, just answer directly
+            return (await _ollama.ChatAsync(task, ct)).Content;
+        }
+
+        // Execute the tool
+        var tool = _tools.GetTool(decision.ToolName);
+        if (tool == null)
+        {
+            return (await _ollama.ChatAsync(task, ct)).Content;
+        }
+
+        var toolResult = await tool.ExecuteAsync(decision.Parameters);
+
+        // Use tool result to answer
+        var followUpPrompt = $@"Task: {task}
+
+ผลลัพธ์จากการใช้ {decision.ToolName}:
+{toolResult}
+
+ใช้ข้อมูลนี้ตอบคำถาม:";
+
+        return (await _ollama.ChatAsync(followUpPrompt, ct)).Content;
+    }
+
+    #endregion
+
+    #region Advanced Content Generation
+
+    /// <summary>
+    /// สร้าง content แบบ advanced พร้อม quality check
+    /// </summary>
+    public async Task<AdvancedContentResult> GenerateAdvancedContentAsync(
         ContentRequest request,
         CancellationToken ct = default)
     {
-        _logger?.LogInformation("Generating content for {Platform}", request.Platform);
+        var result = new AdvancedContentResult();
+        var startTime = DateTime.UtcNow;
 
-        SetCapability(BrainCapability.ContentGeneration);
+        // Step 1: Research & Planning
+        _ollama.SetSystemPrompt(GetMasterContentCreatorPrompt());
 
-        var prompt = BuildContentPrompt(request);
-        var response = await _ollama.ChatAsync(prompt, ct);
+        var planPrompt = $@"วางแผนการสร้าง content:
 
-        _totalDecisions++;
-        _lastUsed = DateTime.UtcNow;
+Platform: {request.Platform}
+Topic: {request.Topic}
+Target: {request.TargetAudience}
+Brand: {request.BrandInfo?.Name}
 
-        return new ContentResult
+วิเคราะห์:
+1. กลุ่มเป้าหมายต้องการอะไร?
+2. Trend ปัจจุบันคืออะไร?
+3. Tone ที่เหมาะสม?
+4. Key messages ที่ต้องสื่อ?
+5. CTA ที่ดีที่สุด?";
+
+        var plan = await _ollama.ChatAsync(planPrompt, ct);
+        result.Planning = plan.Content;
+
+        // Step 2: Generate multiple drafts
+        var drafts = new List<string>();
+        for (int i = 0; i < 3; i++)
         {
-            Text = response.Content,
-            Platform = request.Platform,
-            Hashtags = ExtractHashtags(response.Content),
-            GeneratedAt = DateTime.UtcNow,
-            Model = _ollama.CurrentModel
-        };
-    }
+            var draftPrompt = $@"สร้าง content draft #{i + 1} (ลองแนวทางที่ต่างกัน):
 
-    /// <summary>
-    /// วิเคราะห์ HTML element และสร้าง selector
-    /// </summary>
-    public async Task<ElementAnalysisResult> AnalyzeElementAsync(
-        string html,
-        string targetDescription,
-        string? screenshotBase64 = null,
-        CancellationToken ct = default)
-    {
-        _logger?.LogInformation("Analyzing element: {Description}", targetDescription);
+Plan: {plan.Content}
 
-        SetCapability(BrainCapability.ElementAnalysis);
+สร้าง content ที่:
+- ดึงดูดความสนใจใน 3 วินาทีแรก
+- มี value ชัดเจน
+- กระตุ้น engagement
+- เหมาะกับ {request.Platform}";
 
-        var prompt = $@"วิเคราะห์ HTML ต่อไปนี้และหา element ที่ตรงกับ: ""{targetDescription}""
-
-HTML:
-```html
-{html.Substring(0, Math.Min(html.Length, 5000))}
-```
-
-สร้าง selector ที่ดีที่สุดสำหรับ element นี้ในรูปแบบ JSON";
-
-        string response;
-        if (screenshotBase64 != null && _ollama.IsVisionModel())
-        {
-            response = await _ollama.ChatWithImageAsync(prompt, screenshotBase64, ct);
+            var draft = await _ollama.ChatAsync(draftPrompt, ct);
+            drafts.Add(draft.Content);
         }
-        else
-        {
-            var chatResponse = await _ollama.ChatAsync(prompt, ct);
-            response = chatResponse.Content;
-        }
+        result.Drafts = drafts;
 
-        _totalDecisions++;
-        _lastUsed = DateTime.UtcNow;
+        // Step 3: Evaluate and select best
+        var evalPrompt = $@"เลือก draft ที่ดีที่สุด:
 
-        return ParseElementAnalysis(response);
+Draft 1: {drafts[0]}
+
+Draft 2: {drafts[1]}
+
+Draft 3: {drafts[2]}
+
+วิเคราะห์แต่ละ draft และเลือกที่ดีที่สุด พร้อมปรับปรุงให้สมบูรณ์:";
+
+        var best = await _ollama.ChatAsync(evalPrompt, ct);
+        result.FinalContent = best.Content;
+
+        // Step 4: Quality check
+        result.QualityScore = await EvaluateContentQualityAsync(result.FinalContent, request.Platform, ct);
+
+        // Step 5: Generate hashtags intelligently
+        result.Hashtags = await GenerateSmartHashtagsAsync(result.FinalContent, request.Platform, ct);
+
+        result.GenerationTime = DateTime.UtcNow - startTime;
+
+        return result;
     }
 
     /// <summary>
-    /// เรียนรู้ workflow จากการสาธิต
+    /// สร้างเนื้อเพลงแบบ professional
     /// </summary>
-    public async Task<WorkflowLearningResult> LearnWorkflowAsync(
-        List<RecordedAction> actions,
-        string workflowName,
-        string platform,
+    public async Task<ProfessionalLyricsResult> GenerateProfessionalLyricsAsync(
+        LyricsRequest request,
         CancellationToken ct = default)
     {
-        _logger?.LogInformation("Learning workflow: {Name} for {Platform}", workflowName, platform);
+        var result = new ProfessionalLyricsResult();
 
-        SetCapability(BrainCapability.WorkflowLearning);
+        _ollama.SetSystemPrompt(GetMasterSongwriterPrompt());
 
-        var actionsJson = JsonSerializer.Serialize(actions, new JsonSerializerOptions { WriteIndented = true });
-        var prompt = $@"วิเคราะห์ actions ต่อไปนี้และสร้าง workflow ที่สมบูรณ์:
+        // Step 1: Concept Development
+        var conceptPrompt = $@"พัฒนา concept เพลง:
 
-Platform: {platform}
-Workflow Name: {workflowName}
+Theme: {request.Theme}
+Genre: {request.Genre}
+Mood: {request.Mood}
+Language: {request.Language}
 
-Recorded Actions:
-{actionsJson}
+สร้าง:
+1. Core message ของเพลง
+2. Emotional journey (อารมณ์ที่เปลี่ยนไปในเพลง)
+3. Hook/Chorus concept
+4. Story structure";
 
-สร้าง workflow steps ในรูปแบบ JSON พร้อม:
-1. order - ลำดับ step
-2. action - ประเภท action (Navigate, Click, Type, Wait, etc.)
-3. selector - selector ที่ดีที่สุด
-4. alternative_selectors - selector สำรอง
-5. wait_times - เวลารอก่อน/หลัง
-6. success_condition - เงื่อนไขสำเร็จ
-7. is_optional - เป็น step ที่ข้ามได้หรือไม่";
+        var concept = await _ollama.ChatAsync(conceptPrompt, ct);
+        result.Concept = concept.Content;
 
-        var response = await _ollama.ChatAsync(prompt, ct);
+        // Step 2: Write lyrics with structure
+        var lyricsPrompt = $@"เขียนเนื้อเพลงจาก concept:
 
-        _totalDecisions++;
-        _successfulDecisions++;
-        _lastUsed = DateTime.UtcNow;
+{concept.Content}
 
-        return ParseWorkflowLearning(response.Content, workflowName, platform);
+เขียนเป็น structure:
+[Intro] (ถ้ามี)
+[Verse 1] - เปิดเรื่อง ดึงเข้าสู่โลกของเพลง
+[Pre-Chorus] - สร้าง tension ก่อน chorus
+[Chorus] - Hook ที่จำได้ติดหู ซ้ำได้
+[Verse 2] - พัฒนาเรื่องราว เพิ่มมิติ
+[Chorus]
+[Bridge] - เปลี่ยน perspective หรือ climax
+[Chorus] - กลับมาทรงพลัง
+[Outro]
+
+ใส่ความรู้สึกและ imagery ที่ชัดเจน";
+
+        var lyrics = await _ollama.ChatAsync(lyricsPrompt, ct);
+        result.Lyrics = lyrics.Content;
+
+        // Step 3: Melody suggestions
+        var melodyPrompt = $@"แนะนำ melody direction:
+
+Lyrics: {lyrics.Content}
+Genre: {request.Genre}
+
+แนะนำ:
+1. Tempo (BPM)
+2. Key ที่เหมาะสม
+3. Chord progression แนะนำ
+4. Melody style สำหรับแต่ละ section";
+
+        var melody = await _ollama.ChatAsync(melodyPrompt, ct);
+        result.MelodySuggestions = melody.Content;
+
+        return result;
     }
 
+    #endregion
+
+    #region Intelligent Decision Making
+
     /// <summary>
-    /// สร้างเนื้อหาสร้างสรรค์ (เพลง, creative copy)
+    /// ตัดสินใจแบบ multi-criteria
     /// </summary>
-    public async Task<CreativeResult> GenerateCreativeContentAsync(
-        CreativeRequest request,
+    public async Task<StrategicDecision> MakeStrategicDecisionAsync(
+        StrategicContext context,
         CancellationToken ct = default)
     {
-        _logger?.LogInformation("Generating creative content: {Type}", request.Type);
+        _ollama.SetSystemPrompt(GetStrategicAdvisorPrompt());
 
-        SetCapability(BrainCapability.CreativeContent);
+        // Step 1: Analyze situation
+        var analysisPrompt = $@"วิเคราะห์สถานการณ์:
 
-        var prompt = request.Type switch
+Context: {context.Situation}
+Goals: {string.Join(", ", context.Goals)}
+Constraints: {string.Join(", ", context.Constraints)}
+Options: {string.Join(", ", context.Options)}
+
+วิเคราะห์:
+1. SWOT ของแต่ละ option
+2. Risk assessment
+3. Expected outcomes
+4. Resource requirements";
+
+        var analysis = await _ollama.ChatAsync(analysisPrompt, ct);
+
+        // Step 2: Score each option
+        var scorePrompt = $@"ให้คะแนนแต่ละ option (0-100):
+
+Analysis: {analysis.Content}
+
+Criteria:
+- Effectiveness (ประสิทธิผล)
+- Feasibility (ทำได้จริง)
+- Risk (ความเสี่ยง - คะแนนต่ำ = เสี่ยงน้อย)
+- Speed (ความเร็ว)
+- Cost (ต้นทุน - คะแนนต่ำ = ต้นทุนน้อย)
+
+ให้คะแนนแต่ละ option ในแต่ละ criteria เป็น JSON";
+
+        var scores = await _ollama.ChatAsync(scorePrompt, ct);
+
+        // Step 3: Make final decision
+        var decisionPrompt = $@"ตัดสินใจสุดท้าย:
+
+Analysis: {analysis.Content}
+Scores: {scores.Content}
+
+เลือก option ที่ดีที่สุดและอธิบายเหตุผล รวมถึง:
+1. Action plan ที่ชัดเจน
+2. Contingency plan (แผนสำรอง)
+3. Success metrics
+4. Timeline";
+
+        var decision = await _ollama.ChatAsync(decisionPrompt, ct);
+
+        return new StrategicDecision
         {
-            CreativeType.Lyrics => BuildLyricsPrompt(request),
-            CreativeType.AdCopy => BuildAdCopyPrompt(request),
-            CreativeType.Script => BuildScriptPrompt(request),
-            CreativeType.Story => BuildStoryPrompt(request),
-            _ => request.Prompt
+            Analysis = analysis.Content,
+            Scores = scores.Content,
+            Decision = decision.Content,
+            Confidence = 0.85,
+            Timestamp = DateTime.UtcNow
         };
-
-        var response = await _ollama.ChatAsync(prompt, ct);
-
-        _totalDecisions++;
-        _lastUsed = DateTime.UtcNow;
-
-        return new CreativeResult
-        {
-            Content = response.Content,
-            Type = request.Type,
-            GeneratedAt = DateTime.UtcNow,
-            Metadata = ExtractCreativeMetadata(response.Content, request.Type)
-        };
     }
 
-    /// <summary>
-    /// ตัดสินใจเชิงกลยุทธ์
-    /// </summary>
-    public async Task<DecisionResult> MakeDecisionAsync(
-        DecisionRequest request,
-        CancellationToken ct = default)
-    {
-        _logger?.LogInformation("Making decision: {Context}", request.Context);
+    #endregion
 
-        SetCapability(BrainCapability.DecisionMaking);
-
-        var prompt = $@"ตัดสินใจสำหรับสถานการณ์ต่อไปนี้:
-
-Context: {request.Context}
-Options: {string.Join(", ", request.Options)}
-Constraints: {string.Join(", ", request.Constraints)}
-Goal: {request.Goal}
-
-วิเคราะห์และเลือกทางเลือกที่ดีที่สุด ตอบเป็น JSON format";
-
-        var response = await _ollama.ChatAsync(prompt, ct);
-
-        _totalDecisions++;
-        _lastUsed = DateTime.UtcNow;
-
-        return ParseDecision(response.Content);
-    }
+    #region Advanced Error Recovery
 
     /// <summary>
-    /// แก้ไขปัญหาเมื่อ workflow ล้มเหลว
+    /// แก้ไข error แบบอัจฉริยะพร้อม root cause analysis
     /// </summary>
-    public async Task<RecoveryResult> RecoverFromErrorAsync(
+    public async Task<IntelligentRecoveryResult> RecoverIntelligentlyAsync(
         ErrorContext error,
+        List<MemoryItem>? previousAttempts = null,
         CancellationToken ct = default)
     {
-        _logger?.LogInformation("Recovering from error: {Type}", error.ErrorType);
+        var result = new IntelligentRecoveryResult();
 
-        SetCapability(BrainCapability.ErrorRecovery);
+        _ollama.SetSystemPrompt(GetErrorRecoveryExpertPrompt());
 
-        var prompt = $@"Workflow ล้มเหลวด้วย error ต่อไปนี้:
+        // Step 1: Root Cause Analysis
+        var rcaPrompt = $@"วิเคราะห์ Root Cause:
 
-Error Type: {error.ErrorType}
-Error Message: {error.Message}
+Error: {error.ErrorType}
+Message: {error.Message}
 Failed Step: {error.FailedStep}
-Current URL: {error.CurrentUrl}
-HTML Snippet: {error.HtmlSnippet?.Substring(0, Math.Min(error.HtmlSnippet?.Length ?? 0, 2000))}
+URL: {error.CurrentUrl}
+HTML: {error.HtmlSnippet?.Substring(0, Math.Min(error.HtmlSnippet?.Length ?? 0, 3000))}
 
-วิเคราะห์สาเหตุและเสนอวิธีแก้ไข ตอบเป็น JSON format";
+{(previousAttempts?.Count > 0 ? $"Previous attempts that failed:\n{string.Join("\n", previousAttempts.Select(a => $"- {a.Output}"))}" : "")}
 
-        var response = await _ollama.ChatAsync(prompt, ct);
+วิเคราะห์:
+1. สาเหตุที่แท้จริง (Root Cause)
+2. สาเหตุรอง (Contributing Factors)
+3. Pattern ที่เห็น
+4. ความน่าจะเป็นของแต่ละสาเหตุ";
 
-        _totalDecisions++;
-        _lastUsed = DateTime.UtcNow;
+        var rca = await _ollama.ChatAsync(rcaPrompt, ct);
+        result.RootCauseAnalysis = rca.Content;
 
-        return ParseRecovery(response.Content);
-    }
+        // Step 2: Generate multiple solutions
+        var solutionsPrompt = $@"เสนอวิธีแก้ไขหลายทาง:
 
-    /// <summary>
-    /// สนทนาทั่วไปพร้อม context awareness
-    /// </summary>
-    public async Task<string> ChatAsync(
-        string message,
-        BrainCapability capability = BrainCapability.ContextAwareness,
-        CancellationToken ct = default)
-    {
-        SetCapability(capability);
+Root Cause: {rca.Content}
 
-        var response = await _ollama.ChatStreamAsync(message, ct);
+เสนอ 3 วิธีแก้ไข เรียงตาม:
+1. Quick fix (แก้เร็วที่สุด)
+2. Robust fix (แก้ได้มั่นคง)
+3. Preventive fix (ป้องกันไม่ให้เกิดอีก)
 
-        _totalDecisions++;
-        _lastUsed = DateTime.UtcNow;
+แต่ละวิธีให้รายละเอียด:
+- วิธีการ
+- Selector ใหม่ (ถ้าจำเป็น)
+- Wait time adjustments
+- Success criteria
+- Risk level";
 
-        return response;
-    }
+        var solutions = await _ollama.ChatAsync(solutionsPrompt, ct);
+        result.Solutions = ParseMultipleSolutions(solutions.Content);
 
-    /// <summary>
-    /// วิเคราะห์รูปภาพ (ต้องใช้ vision model)
-    /// </summary>
-    public async Task<string> AnalyzeImageAsync(
-        string imageBase64,
-        string question,
-        CancellationToken ct = default)
-    {
-        if (!_ollama.IsVisionModel())
+        // Step 3: Select best solution
+        var bestSolution = result.Solutions.OrderByDescending(s => s.Confidence).FirstOrDefault();
+        result.RecommendedSolution = bestSolution;
+
+        // Step 4: Generate test steps
+        if (bestSolution != null)
         {
-            // Switch to vision model
-            _ollama.CurrentModel = "llama3.2-vision:11b";
+            var testPrompt = $@"สร้างขั้นตอนทดสอบ solution:
+
+Solution: {bestSolution.Description}
+
+สร้าง test steps เพื่อยืนยันว่าแก้ได้จริง";
+
+            var test = await _ollama.ChatAsync(testPrompt, ct);
+            result.TestSteps = test.Content;
         }
 
-        SetCapability(BrainCapability.ElementAnalysis);
+        // Store for learning
+        await _memory.StoreInteractionAsync(new MemoryItem
+        {
+            Type = MemoryType.ErrorRecovery,
+            Input = JsonSerializer.Serialize(error),
+            Output = JsonSerializer.Serialize(result),
+            Timestamp = DateTime.UtcNow
+        });
 
-        return await _ollama.ChatWithImageAsync(question, imageBase64, ct);
+        return result;
+    }
+
+    #endregion
+
+    #region System Prompts
+
+    private string GetThinkingSystemPrompt(ThinkingMode mode)
+    {
+        return mode switch
+        {
+            ThinkingMode.Analytical => @"คุณคือ AI นักวิเคราะห์ที่ฉลาดมาก
+
+วิธีคิด:
+1. ทำความเข้าใจปัญหาให้ชัด
+2. แยกปัญหาใหญ่เป็นปัญหาย่อย
+3. วิเคราะห์แต่ละส่วนอย่างละเอียด
+4. สังเคราะห์คำตอบจากทุกส่วน
+5. ตรวจสอบความถูกต้อง
+
+หลักการ:
+- คิดเป็นขั้นตอน
+- ใช้เหตุผลและหลักฐาน
+- พิจารณาทุกมุม
+- ยอมรับเมื่อไม่แน่ใจ",
+
+            ThinkingMode.Creative => @"คุณคือ AI ที่สร้างสรรค์มาก
+
+วิธีคิด:
+1. คิดนอกกรอบ
+2. เชื่อมโยงสิ่งที่ไม่เกี่ยวกัน
+3. ลองมุมมองใหม่
+4. ไม่กลัวผิด
+5. สนุกกับการสร้างสรรค์
+
+หลักการ:
+- ไม่มีไอเดียที่ผิด
+- Quantity ก่อน Quality
+- Build on ideas
+- Challenge assumptions",
+
+            ThinkingMode.Critical => @"คุณคือ AI ที่วิพากษ์วิจารณ์อย่างสร้างสรรค์
+
+วิธีคิด:
+1. ตั้งคำถามกับทุกอย่าง
+2. หาจุดอ่อนและช่องโหว่
+3. ตรวจสอบ logic และหลักฐาน
+4. พิจารณา counterarguments
+5. สรุปอย่างรอบคอบ
+
+หลักการ:
+- อย่าเชื่ออะไรง่ายๆ
+- หาแหล่งที่มา
+- ดู bias
+- Logical fallacies",
+
+            _ => @"คุณคือ AI ที่ฉลาดและรอบรู้"
+        };
+    }
+
+    private string GetMasterContentCreatorPrompt()
+    {
+        return @"คุณคือ Content Creator ระดับ Master ที่เข้าใจ:
+
+Platform Expertise:
+- Facebook: Storytelling, Emotional connection, Community
+- Instagram: Visual-first, Aesthetic, Lifestyle
+- TikTok: Trend-driven, Authentic, Entertainment
+- Twitter: Concise, Timely, Conversational
+- LINE: Personal, Direct, Thai culture
+- YouTube: Value-packed, Searchable, Engaging
+
+Content Principles:
+1. Hook ใน 3 วินาที - ดึงความสนใจทันที
+2. Value First - ให้คุณค่าก่อนขาย
+3. Emotion > Logic - คนตัดสินใจด้วยอารมณ์
+4. Clear CTA - บอกให้ทำอะไร
+5. Platform Native - เหมาะกับ platform
+
+Thai Market Understanding:
+- วัฒนธรรม สังคม ค่านิยม
+- ภาษาที่ใช้จริง (ไม่เป็นทางการเกินไป)
+- Trend ที่กำลังมา
+- What makes Thai people engage";
+    }
+
+    private string GetMasterSongwriterPrompt()
+    {
+        return @"คุณคือ Songwriter มืออาชีพที่เข้าใจ:
+
+Song Structure:
+- Verse: เล่าเรื่อง สร้าง setting
+- Pre-Chorus: Build tension
+- Chorus: Hook ที่จำได้ทันที ซ้ำได้
+- Bridge: Change perspective, climax
+- Outro: Resolution หรือ fade
+
+Lyric Writing Techniques:
+1. Show don't tell - ใช้ imagery
+2. Specific > General - รายละเอียดสร้างอารมณ์
+3. Rhyme scheme - สร้าง flow
+4. Syllable count - เข้ากับ melody
+5. Emotional journey - พาผู้ฟังไปด้วย
+
+Genre Expertise:
+- Pop: Catchy, relatable, simple
+- Rock: Powerful, raw, energetic
+- Metal: Intense, dramatic, technical
+- Ballad: Emotional, storytelling
+- EDM: Repetitive hooks, build-ups
+- R&B: Smooth, soulful, groove
+
+Thai Songwriting:
+- เข้าใจ vowel sounds และ tones
+- วลีที่สวยงามในภาษาไทย
+- Cultural references
+- Emotional expressions";
+    }
+
+    private string GetStrategicAdvisorPrompt()
+    {
+        return @"คุณคือที่ปรึกษาเชิงกลยุทธ์ที่เชี่ยวชาญ:
+
+Decision Framework:
+1. Define the problem clearly
+2. Gather relevant information
+3. Identify alternatives
+4. Weigh evidence
+5. Choose among alternatives
+6. Take action
+7. Review decision
+
+Analysis Tools:
+- SWOT Analysis
+- Risk Assessment Matrix
+- Decision Tree
+- Cost-Benefit Analysis
+- Scenario Planning
+
+Principles:
+- Data-driven decisions
+- Consider long-term impact
+- Risk-reward balance
+- Stakeholder impact
+- Reversibility of decisions";
+    }
+
+    private string GetErrorRecoveryExpertPrompt()
+    {
+        return @"คุณคือผู้เชี่ยวชาญแก้ไข Web Automation Errors:
+
+Error Categories & Solutions:
+
+1. ElementNotFound
+- Check if page loaded completely
+- Try alternative selectors (ID → CSS → XPath → Text)
+- Check if element is in iframe
+- Check if element is dynamically loaded
+- Increase wait time
+
+2. Timeout
+- Increase timeout duration
+- Check network conditions
+- Check for loading indicators
+- Try different wait strategies
+
+3. StaleElement
+- Re-fetch the element
+- Add wait before interaction
+- Check for page updates
+
+4. ClickIntercepted
+- Scroll element into view
+- Close popups/overlays
+- Use JavaScript click
+
+5. InvalidSelector
+- Validate selector syntax
+- Try simpler selector
+- Use more stable attributes
+
+Root Cause Analysis:
+1. Reproduce the error
+2. Identify what changed
+3. Check all dependencies
+4. Find the actual cause
+5. Not just symptoms";
     }
 
     #endregion
 
     #region Helper Methods
 
-    private void SetCapability(BrainCapability capability)
+    private void InitializeModelCapabilities()
     {
-        if (_systemPrompts.TryGetValue(capability, out var prompt))
+        _modelCapabilities["llama3.2:1b"] = new ModelCapability
         {
-            _ollama.SetSystemPrompt(prompt);
-        }
-    }
-
-    private string GetBestAvailableModel()
-    {
-        // Priority order for intelligence
-        var preferredModels = new[]
-        {
-            "llama3.2:3b",      // Best balance of speed and quality
-            "llama3.1:8b",      // More capable but slower
-            "mistral:7b",       // Good alternative
-            "qwen2.5:7b",       // Strong multilingual
-            "gemma2:9b"         // Good for content
+            Speed = 100, Intelligence = 60, Context = 4096,
+            BestFor = new[] { TaskType.Simple, TaskType.Quick }
         };
-
-        // Try to get available models
-        try
+        _modelCapabilities["llama3.2:3b"] = new ModelCapability
         {
-            var models = _ollama.GetModelsAsync().GetAwaiter().GetResult();
-            foreach (var preferred in preferredModels)
-            {
-                if (models.Any(m => m.Name.Contains(preferred.Split(':')[0])))
-                {
-                    var match = models.First(m => m.Name.Contains(preferred.Split(':')[0]));
-                    return match.Name;
-                }
-            }
-        }
-        catch
-        {
-            // Use default if can't check
-        }
-
-        return "llama3.2:3b";
-    }
-
-    private string BuildContentPrompt(ContentRequest request)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"สร้างเนื้อหาสำหรับ {request.Platform}");
-        sb.AppendLine($"Topic: {request.Topic}");
-
-        if (request.BrandInfo != null)
-        {
-            sb.AppendLine($"Brand: {request.BrandInfo.Name}");
-            sb.AppendLine($"Tone: {request.BrandInfo.Tone}");
-        }
-
-        if (!string.IsNullOrEmpty(request.TargetAudience))
-            sb.AppendLine($"Target Audience: {request.TargetAudience}");
-
-        if (!string.IsNullOrEmpty(request.Language))
-            sb.AppendLine($"Language: {request.Language}");
-
-        if (request.IncludeHashtags)
-            sb.AppendLine("Include relevant hashtags");
-
-        if (request.MaxLength > 0)
-            sb.AppendLine($"Max length: {request.MaxLength} characters");
-
-        return sb.ToString();
-    }
-
-    private string BuildLyricsPrompt(CreativeRequest request)
-    {
-        return $@"เขียนเนื้อเพลงในแนว {request.Style ?? "Pop"}
-
-Theme/Topic: {request.Topic}
-Mood: {request.Mood ?? "Emotional"}
-Language: {request.Language ?? "Thai"}
-
-{(string.IsNullOrEmpty(request.AdditionalInstructions) ? "" : $"Additional: {request.AdditionalInstructions}")}
-
-ใช้ structure:
-[Verse 1]
-...
-[Chorus]
-...
-[Verse 2]
-...
-[Bridge]
-...
-[Chorus]
-...";
-    }
-
-    private string BuildAdCopyPrompt(CreativeRequest request)
-    {
-        return $@"สร้าง Ad Copy สำหรับ {request.Platform ?? "Facebook"}
-
-Product/Service: {request.Topic}
-Target Audience: {request.TargetAudience ?? "General"}
-Goal: {request.Goal ?? "Engagement"}
-Tone: {request.Mood ?? "Friendly"}
-
-สร้าง:
-1. Headline ที่ดึงดูดใจ
-2. Body copy ที่ชวนให้ action
-3. CTA ที่ชัดเจน";
-    }
-
-    private string BuildScriptPrompt(CreativeRequest request)
-    {
-        return $@"เขียน script สำหรับ {request.Platform ?? "TikTok"} video
-
-Topic: {request.Topic}
-Duration: {request.Duration ?? "30 seconds"}
-Style: {request.Style ?? "Entertaining"}
-
-รวม:
-- Hook ใน 3 วินาทีแรก
-- Content หลัก
-- CTA ตอนจบ";
-    }
-
-    private string BuildStoryPrompt(CreativeRequest request)
-    {
-        return $@"เขียนเรื่องราว/Story สำหรับ brand
-
-Topic: {request.Topic}
-Mood: {request.Mood ?? "Inspiring"}
-Length: {request.Length ?? "Medium"}
-
-เขียนให้น่าสนใจและสื่ออารมณ์";
-    }
-
-    private List<string> ExtractHashtags(string content)
-    {
-        var hashtags = new List<string>();
-        var words = content.Split(' ', '\n');
-
-        foreach (var word in words)
-        {
-            if (word.StartsWith("#") && word.Length > 1)
-            {
-                hashtags.Add(word.TrimEnd(',', '.', '!', '?'));
-            }
-        }
-
-        return hashtags;
-    }
-
-    private ElementAnalysisResult ParseElementAnalysis(string response)
-    {
-        try
-        {
-            // Try to extract JSON from response
-            var jsonStart = response.IndexOf('{');
-            var jsonEnd = response.LastIndexOf('}');
-
-            if (jsonStart >= 0 && jsonEnd > jsonStart)
-            {
-                var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                return JsonSerializer.Deserialize<ElementAnalysisResult>(json) ?? new ElementAnalysisResult();
-            }
-        }
-        catch
-        {
-            _logger?.LogWarning("Failed to parse element analysis JSON");
-        }
-
-        return new ElementAnalysisResult { RawResponse = response };
-    }
-
-    private WorkflowLearningResult ParseWorkflowLearning(string response, string name, string platform)
-    {
-        var result = new WorkflowLearningResult
-        {
-            WorkflowName = name,
-            Platform = platform,
-            RawResponse = response
+            Speed = 80, Intelligence = 75, Context = 8192,
+            BestFor = new[] { TaskType.General, TaskType.Content }
         };
-
-        try
+        _modelCapabilities["llama3.1:8b"] = new ModelCapability
         {
-            var jsonStart = response.IndexOf('[');
-            var jsonEnd = response.LastIndexOf(']');
-
-            if (jsonStart >= 0 && jsonEnd > jsonStart)
-            {
-                var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                result.Steps = JsonSerializer.Deserialize<List<LearnedStep>>(json) ?? new List<LearnedStep>();
-            }
-        }
-        catch
+            Speed = 50, Intelligence = 90, Context = 32768,
+            BestFor = new[] { TaskType.Reasoning, TaskType.Complex }
+        };
+        _modelCapabilities["llama3.2-vision:11b"] = new ModelCapability
         {
-            _logger?.LogWarning("Failed to parse workflow learning JSON");
-        }
-
-        return result;
+            Speed = 30, Intelligence = 85, Context = 8192,
+            BestFor = new[] { TaskType.Vision }
+        };
+        _modelCapabilities["deepseek-coder:6.7b"] = new ModelCapability
+        {
+            Speed = 40, Intelligence = 85, Context = 16384,
+            BestFor = new[] { TaskType.Coding }
+        };
     }
 
-    private DecisionResult ParseDecision(string response)
+    private void RegisterDefaultTools()
+    {
+        _tools.Register(new AITool
+        {
+            Name = "web_search",
+            Description = "ค้นหาข้อมูลจากอินเทอร์เน็ต",
+            Execute = async (p) => await _ollama.SearchWebAsync(p["query"]?.ToString() ?? "")
+        });
+
+        _tools.Register(new AITool
+        {
+            Name = "calculate",
+            Description = "คำนวณสูตรคณิตศาสตร์",
+            Execute = async (p) => await Task.FromResult(EvaluateExpression(p["expression"]?.ToString() ?? "0"))
+        });
+    }
+
+    private object EvaluateExpression(string expr)
     {
         try
         {
-            var jsonStart = response.IndexOf('{');
-            var jsonEnd = response.LastIndexOf('}');
-
-            if (jsonStart >= 0 && jsonEnd > jsonStart)
-            {
-                var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                return JsonSerializer.Deserialize<DecisionResult>(json) ?? new DecisionResult { RawResponse = response };
-            }
+            var dt = new System.Data.DataTable();
+            return dt.Compute(expr, "");
         }
         catch
         {
-            _logger?.LogWarning("Failed to parse decision JSON");
+            return "Error evaluating expression";
         }
-
-        return new DecisionResult { RawResponse = response };
     }
 
-    private RecoveryResult ParseRecovery(string response)
+    private async Task<int> EvaluateContentQualityAsync(
+        string content,
+        string platform,
+        CancellationToken ct)
+    {
+        var evalPrompt = $@"ให้คะแนน content นี้ (0-100):
+
+Content: {content}
+Platform: {platform}
+
+Criteria:
+- Hook (ดึงดูดความสนใจ) - 20%
+- Value (มีประโยชน์) - 20%
+- Engagement (กระตุ้น action) - 20%
+- Platform fit (เหมาะกับ platform) - 20%
+- Authenticity (จริงใจ) - 20%
+
+ตอบแค่ตัวเลข 0-100";
+
+        var response = await _ollama.ChatAsync(evalPrompt, ct);
+
+        if (int.TryParse(response.Content.Trim(), out int score))
+            return Math.Clamp(score, 0, 100);
+
+        return 70; // Default score
+    }
+
+    private async Task<List<string>> GenerateSmartHashtagsAsync(
+        string content,
+        string platform,
+        CancellationToken ct)
+    {
+        var prompt = $@"สร้าง hashtags สำหรับ {platform}:
+
+Content: {content}
+
+สร้าง hashtags ที่:
+1. เกี่ยวข้องกับเนื้อหา
+2. มีคนค้นหาเยอะ
+3. ไม่แข่งขันสูงเกินไป
+4. Mix ระหว่าง broad และ niche
+
+ตอบเป็น list แยกด้วย comma";
+
+        var response = await _ollama.ChatAsync(prompt, ct);
+
+        return response.Content
+            .Split(new[] { ',', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(h => h.Trim())
+            .Where(h => h.StartsWith("#") || !string.IsNullOrEmpty(h))
+            .Select(h => h.StartsWith("#") ? h : $"#{h}")
+            .Take(15)
+            .ToList();
+    }
+
+    private ReflectionResult ParseReflection(string content)
     {
         try
         {
-            var jsonStart = response.IndexOf('{');
-            var jsonEnd = response.LastIndexOf('}');
-
+            var jsonStart = content.IndexOf('{');
+            var jsonEnd = content.LastIndexOf('}');
             if (jsonStart >= 0 && jsonEnd > jsonStart)
             {
-                var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                return JsonSerializer.Deserialize<RecoveryResult>(json) ?? new RecoveryResult { RawResponse = response };
+                var json = content.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                return JsonSerializer.Deserialize<ReflectionResult>(json) ?? new ReflectionResult();
             }
         }
-        catch
-        {
-            _logger?.LogWarning("Failed to parse recovery JSON");
-        }
+        catch { }
 
-        return new RecoveryResult { RawResponse = response };
+        return new ReflectionResult { RawResponse = content };
     }
 
-    private Dictionary<string, string> ExtractCreativeMetadata(string content, CreativeType type)
+    private ToolDecision ParseToolDecision(string content)
     {
-        var metadata = new Dictionary<string, string>();
-
-        if (type == CreativeType.Lyrics)
+        try
         {
-            // Count sections
-            metadata["verses"] = content.Split("[Verse", StringSplitOptions.None).Length - 1 + "";
-            metadata["choruses"] = content.Split("[Chorus", StringSplitOptions.None).Length - 1 + "";
-            metadata["has_bridge"] = content.Contains("[Bridge]").ToString();
+            var jsonStart = content.IndexOf('{');
+            var jsonEnd = content.LastIndexOf('}');
+            if (jsonStart >= 0 && jsonEnd > jsonStart)
+            {
+                var json = content.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                return JsonSerializer.Deserialize<ToolDecision>(json) ?? new ToolDecision();
+            }
+        }
+        catch { }
+
+        return new ToolDecision { NeedsTool = false };
+    }
+
+    private List<RecoverySolution> ParseMultipleSolutions(string content)
+    {
+        var solutions = new List<RecoverySolution>();
+
+        // Simple parsing - extract numbered solutions
+        var lines = content.Split('\n');
+        RecoverySolution? current = null;
+
+        foreach (var line in lines)
+        {
+            if (line.Contains("Quick fix") || line.Contains("1."))
+            {
+                current = new RecoverySolution { Type = "Quick", Confidence = 0.7 };
+                solutions.Add(current);
+            }
+            else if (line.Contains("Robust fix") || line.Contains("2."))
+            {
+                current = new RecoverySolution { Type = "Robust", Confidence = 0.85 };
+                solutions.Add(current);
+            }
+            else if (line.Contains("Preventive fix") || line.Contains("3."))
+            {
+                current = new RecoverySolution { Type = "Preventive", Confidence = 0.9 };
+                solutions.Add(current);
+            }
+            else if (current != null)
+            {
+                current.Description += line + "\n";
+            }
         }
 
-        metadata["word_count"] = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length.ToString();
-        metadata["character_count"] = content.Length.ToString();
-
-        return metadata;
+        return solutions;
     }
 
     #endregion
@@ -702,11 +1111,13 @@ Length: {request.Length ?? "Medium"}
     {
         return new BrainStats
         {
-            TotalDecisions = _totalDecisions,
-            SuccessfulDecisions = _successfulDecisions,
-            SuccessRate = _totalDecisions > 0 ? (double)_successfulDecisions / _totalDecisions : 0,
+            TotalInteractions = _totalInteractions,
+            SuccessfulInteractions = _successfulInteractions,
+            SuccessRate = _totalInteractions > 0 ? (double)_successfulInteractions / _totalInteractions : 0,
             LastUsed = _lastUsed,
-            CurrentModel = _ollama.CurrentModel
+            CurrentModel = _ollama.CurrentModel,
+            MemorySize = _memory.GetSize(),
+            LearnedPatterns = _memory.GetPatternCount()
         };
     }
 
@@ -715,23 +1126,203 @@ Length: {request.Length ?? "Medium"}
 
 #region Enums and Models
 
-public enum BrainCapability
+public enum ThinkingMode
 {
-    ContentGeneration,
-    WorkflowLearning,
-    ElementAnalysis,
-    CreativeContent,
-    DecisionMaking,
-    ErrorRecovery,
-    ContextAwareness
+    Analytical,  // วิเคราะห์เชิงตรรกะ
+    Creative,    // สร้างสรรค์
+    Critical,    // วิพากษ์วิจารณ์
+    Strategic,   // เชิงกลยุทธ์
+    Empathetic   // เข้าใจอารมณ์
 }
 
-public enum CreativeType
+public enum TaskComplexity
 {
-    Lyrics,
-    AdCopy,
-    Script,
-    Story
+    Low,
+    Medium,
+    High
+}
+
+public enum TaskType
+{
+    Simple,
+    General,
+    Content,
+    Reasoning,
+    Complex,
+    Vision,
+    Coding,
+    Quick,
+    Creative
+}
+
+public enum MemoryType
+{
+    Reasoning,
+    Content,
+    Workflow,
+    ErrorRecovery,
+    Feedback,
+    Pattern
+}
+
+public class AIBrainConfig
+{
+    public bool EnableSelfReflection { get; set; } = true;
+    public bool EnableMemory { get; set; } = true;
+    public bool EnableToolUsage { get; set; } = true;
+    public int MaxMemoryItems { get; set; } = 1000;
+    public double MinConfidenceThreshold { get; set; } = 0.6;
+}
+
+public class ThinkingResult
+{
+    public string Problem { get; set; } = "";
+    public ThinkingMode Mode { get; set; }
+    public List<ThinkingStep> Steps { get; set; } = new();
+    public string FinalAnswer { get; set; } = "";
+    public ReflectionResult? Reflection { get; set; }
+    public TimeSpan TotalDuration { get; set; }
+}
+
+public class ThinkingStep
+{
+    public string Name { get; set; } = "";
+    public string Content { get; set; } = "";
+    public TimeSpan Duration { get; set; }
+}
+
+public class ReflectionResult
+{
+    [JsonPropertyName("confidence")]
+    public int Confidence { get; set; }
+
+    [JsonPropertyName("is_complete")]
+    public bool IsComplete { get; set; }
+
+    [JsonPropertyName("weaknesses")]
+    public List<string> Weaknesses { get; set; } = new();
+
+    [JsonPropertyName("improvements")]
+    public List<string> Improvements { get; set; } = new();
+
+    [JsonPropertyName("revised_answer")]
+    public string? RevisedAnswer { get; set; }
+
+    public string? RawResponse { get; set; }
+}
+
+public class EnsembleResult
+{
+    public List<ModelResponse> IndividualResponses { get; set; } = new();
+    public string SynthesizedAnswer { get; set; } = "";
+    public List<string> ModelsUsed { get; set; } = new();
+}
+
+public class ModelResponse
+{
+    public string Model { get; set; } = "";
+    public string Response { get; set; } = "";
+    public double TokensPerSecond { get; set; }
+}
+
+public class ModelCapability
+{
+    public int Speed { get; set; }
+    public int Intelligence { get; set; }
+    public int Context { get; set; }
+    public TaskType[] BestFor { get; set; } = Array.Empty<TaskType>();
+}
+
+public class Example
+{
+    public string Input { get; set; } = "";
+    public string Output { get; set; } = "";
+}
+
+public class ToolDecision
+{
+    [JsonPropertyName("needs_tool")]
+    public bool NeedsTool { get; set; }
+
+    [JsonPropertyName("tool_name")]
+    public string ToolName { get; set; } = "";
+
+    [JsonPropertyName("parameters")]
+    public Dictionary<string, object> Parameters { get; set; } = new();
+
+    [JsonPropertyName("reasoning")]
+    public string Reasoning { get; set; } = "";
+}
+
+public class AdvancedContentResult
+{
+    public string Planning { get; set; } = "";
+    public List<string> Drafts { get; set; } = new();
+    public string FinalContent { get; set; } = "";
+    public int QualityScore { get; set; }
+    public List<string> Hashtags { get; set; } = new();
+    public TimeSpan GenerationTime { get; set; }
+}
+
+public class LyricsRequest
+{
+    public string Theme { get; set; } = "";
+    public string Genre { get; set; } = "Pop";
+    public string Mood { get; set; } = "Emotional";
+    public string Language { get; set; } = "Thai";
+    public string? AdditionalInstructions { get; set; }
+}
+
+public class ProfessionalLyricsResult
+{
+    public string Concept { get; set; } = "";
+    public string Lyrics { get; set; } = "";
+    public string MelodySuggestions { get; set; } = "";
+}
+
+public class StrategicContext
+{
+    public string Situation { get; set; } = "";
+    public List<string> Goals { get; set; } = new();
+    public List<string> Constraints { get; set; } = new();
+    public List<string> Options { get; set; } = new();
+}
+
+public class StrategicDecision
+{
+    public string Analysis { get; set; } = "";
+    public string Scores { get; set; } = "";
+    public string Decision { get; set; } = "";
+    public double Confidence { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
+public class IntelligentRecoveryResult
+{
+    public string RootCauseAnalysis { get; set; } = "";
+    public List<RecoverySolution> Solutions { get; set; } = new();
+    public RecoverySolution? RecommendedSolution { get; set; }
+    public string TestSteps { get; set; } = "";
+}
+
+public class RecoverySolution
+{
+    public string Type { get; set; } = "";
+    public string Description { get; set; } = "";
+    public double Confidence { get; set; }
+    public Dictionary<string, object>? NewSelector { get; set; }
+    public int WaitAdjustment { get; set; }
+}
+
+public class BrainStats
+{
+    public int TotalInteractions { get; set; }
+    public int SuccessfulInteractions { get; set; }
+    public double SuccessRate { get; set; }
+    public DateTime LastUsed { get; set; }
+    public string CurrentModel { get; set; } = "";
+    public int MemorySize { get; set; }
+    public int LearnedPatterns { get; set; }
 }
 
 public class ContentRequest
@@ -741,67 +1332,12 @@ public class ContentRequest
     public BrandInfo? BrandInfo { get; set; }
     public string? TargetAudience { get; set; }
     public string Language { get; set; } = "th";
-    public bool IncludeHashtags { get; set; } = true;
-    public int MaxLength { get; set; }
 }
 
 public class BrandInfo
 {
     public string Name { get; set; } = "";
     public string Tone { get; set; } = "Friendly";
-    public string? Description { get; set; }
-    public List<string> Keywords { get; set; } = new();
-}
-
-public class ContentResult
-{
-    public string Text { get; set; } = "";
-    public string Platform { get; set; } = "";
-    public List<string> Hashtags { get; set; } = new();
-    public DateTime GeneratedAt { get; set; }
-    public string Model { get; set; } = "";
-}
-
-public class CreativeRequest
-{
-    public CreativeType Type { get; set; }
-    public string Topic { get; set; } = "";
-    public string? Style { get; set; }
-    public string? Mood { get; set; }
-    public string? Language { get; set; }
-    public string? Platform { get; set; }
-    public string? TargetAudience { get; set; }
-    public string? Goal { get; set; }
-    public string? Duration { get; set; }
-    public string? Length { get; set; }
-    public string? AdditionalInstructions { get; set; }
-    public string Prompt { get; set; } = "";
-}
-
-public class CreativeResult
-{
-    public string Content { get; set; } = "";
-    public CreativeType Type { get; set; }
-    public DateTime GeneratedAt { get; set; }
-    public Dictionary<string, string> Metadata { get; set; } = new();
-}
-
-public class DecisionRequest
-{
-    public string Context { get; set; } = "";
-    public List<string> Options { get; set; } = new();
-    public List<string> Constraints { get; set; } = new();
-    public string Goal { get; set; } = "";
-}
-
-public class DecisionResult
-{
-    public string Decision { get; set; } = "";
-    public double Confidence { get; set; }
-    public string Reasoning { get; set; } = "";
-    public List<string> Alternatives { get; set; } = new();
-    public List<string> Risks { get; set; } = new();
-    public string? RawResponse { get; set; }
 }
 
 public class ErrorContext
@@ -811,78 +1347,155 @@ public class ErrorContext
     public string FailedStep { get; set; } = "";
     public string? CurrentUrl { get; set; }
     public string? HtmlSnippet { get; set; }
-    public string? Screenshot { get; set; }
 }
 
-public class RecoveryResult
+#endregion
+
+#region Memory System
+
+public class AIMemorySystem
 {
-    public string ErrorType { get; set; } = "";
-    public string RootCause { get; set; } = "";
-    public RecoverySolution? Solution { get; set; }
-    public double Confidence { get; set; }
-    public string? RawResponse { get; set; }
+    private readonly List<MemoryItem> _shortTermMemory = new();
+    private readonly List<MemoryItem> _longTermMemory = new();
+    private readonly List<LearnedPattern> _patterns = new();
+    private readonly List<FeedbackItem> _feedback = new();
+
+    public async Task StoreInteractionAsync(MemoryItem item)
+    {
+        _shortTermMemory.Add(item);
+
+        // Promote to long-term if successful
+        if (item.Success)
+        {
+            _longTermMemory.Add(item);
+        }
+
+        // Limit memory size
+        while (_shortTermMemory.Count > 100)
+            _shortTermMemory.RemoveAt(0);
+
+        while (_longTermMemory.Count > 500)
+            _longTermMemory.RemoveAt(0);
+
+        await Task.CompletedTask;
+    }
+
+    public async Task<List<MemoryItem>> SearchAsync(string query, int maxItems = 5)
+    {
+        // Simple keyword matching (could be enhanced with embeddings)
+        var results = _longTermMemory
+            .Where(m => m.Input.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                       m.Output.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(m => m.Timestamp)
+            .Take(maxItems)
+            .ToList();
+
+        return await Task.FromResult(results);
+    }
+
+    public async Task StorePatternAsync(LearnedPattern pattern)
+    {
+        _patterns.Add(pattern);
+        await Task.CompletedTask;
+    }
+
+    public async Task StoreFeedbackAsync(FeedbackItem feedback)
+    {
+        _feedback.Add(feedback);
+        await Task.CompletedTask;
+    }
+
+    public int GetSize() => _shortTermMemory.Count + _longTermMemory.Count;
+    public int GetPatternCount() => _patterns.Count;
 }
 
-public class RecoverySolution
+public class MemoryItem
 {
-    public string Action { get; set; } = "";
-    public SelectorInfo? NewSelector { get; set; }
-    public int WaitAdjustment { get; set; }
-}
-
-public class SelectorInfo
-{
-    public string Type { get; set; } = "";
-    public string Value { get; set; } = "";
-    public double Confidence { get; set; }
-}
-
-public class ElementAnalysisResult
-{
-    public string Element { get; set; } = "";
-    public List<SelectorInfo> Selectors { get; set; } = new();
-    public string Action { get; set; } = "";
-    public int WaitBeforeMs { get; set; }
-    public string? RawResponse { get; set; }
-}
-
-public class RecordedAction
-{
-    public string Action { get; set; } = "";
-    public string? Selector { get; set; }
-    public string? Value { get; set; }
-    public string? Url { get; set; }
+    public MemoryType Type { get; set; }
+    public string Input { get; set; } = "";
+    public string Output { get; set; } = "";
+    public bool Success { get; set; }
     public DateTime Timestamp { get; set; }
 }
 
-public class WorkflowLearningResult
+public class LearnedPattern
 {
-    public string WorkflowName { get; set; } = "";
-    public string Platform { get; set; } = "";
-    public List<LearnedStep> Steps { get; set; } = new();
-    public string? RawResponse { get; set; }
+    public List<Example> Examples { get; set; } = new();
+    public int SuccessCount { get; set; }
 }
 
-public class LearnedStep
+public class FeedbackItem
 {
-    public int Order { get; set; }
-    public string Action { get; set; } = "";
-    public string? Description { get; set; }
-    public SelectorInfo? Selector { get; set; }
-    public List<SelectorInfo> AlternativeSelectors { get; set; } = new();
-    public int WaitBeforeMs { get; set; }
-    public int WaitAfterMs { get; set; }
-    public string? SuccessCondition { get; set; }
-    public bool IsOptional { get; set; }
+    public string Input { get; set; } = "";
+    public string Output { get; set; } = "";
+    public bool WasCorrect { get; set; }
+    public string? Correction { get; set; }
+    public DateTime Timestamp { get; set; }
 }
 
-public class BrainStats
+#endregion
+
+#region Reasoning Engine
+
+public class AIReasoningEngine
 {
-    public int TotalDecisions { get; set; }
-    public int SuccessfulDecisions { get; set; }
-    public double SuccessRate { get; set; }
-    public DateTime LastUsed { get; set; }
-    public string CurrentModel { get; set; } = "";
+    public async Task<string> ChainOfThoughtAsync(string problem, OllamaChatService ollama)
+    {
+        var steps = new List<string>();
+
+        // Step 1: Understand
+        var understanding = await ollama.ChatAsync($"ทำความเข้าใจปัญหานี้: {problem}");
+        steps.Add($"Understanding: {understanding.Content}");
+
+        // Step 2: Plan
+        var plan = await ollama.ChatAsync($"วางแผนแก้ปัญหา: {understanding.Content}");
+        steps.Add($"Plan: {plan.Content}");
+
+        // Step 3: Execute
+        var solution = await ollama.ChatAsync($"แก้ปัญหาตามแผน: {plan.Content}");
+        steps.Add($"Solution: {solution.Content}");
+
+        return string.Join("\n\n", steps);
+    }
+}
+
+#endregion
+
+#region Tool Registry
+
+public class AIToolRegistry
+{
+    private readonly Dictionary<string, AITool> _tools = new();
+
+    public void Register(AITool tool)
+    {
+        _tools[tool.Name] = tool;
+    }
+
+    public AITool? GetTool(string name)
+    {
+        return _tools.TryGetValue(name, out var tool) ? tool : null;
+    }
+
+    public List<AITool> GetAvailableTools()
+    {
+        return _tools.Values.ToList();
+    }
+}
+
+public class AITool
+{
+    public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
+    public Func<Dictionary<string, object>, Task<object>>? Execute { get; set; }
+
+    public async Task<string> ExecuteAsync(Dictionary<string, object> parameters)
+    {
+        if (Execute == null) return "Tool not implemented";
+
+        var result = await Execute(parameters);
+        return result?.ToString() ?? "";
+    }
 }
 
 #endregion
