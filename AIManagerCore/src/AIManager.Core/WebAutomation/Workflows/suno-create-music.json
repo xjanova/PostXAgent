@@ -1,0 +1,423 @@
+{
+  "id": "suno-create-metal-ballad-001",
+  "platform": "Suno",
+  "name": "create_music",
+  "description": "สร้างเพลง Metal Ballad และดาวน์โหลด MP3 จาก Suno AI",
+  "version": 1,
+  "task_type": "music_generation",
+  "is_human_trained": true,
+  "confidence_score": 0.9,
+  "is_active": true,
+  "success_count": 0,
+  "failure_count": 0,
+  "created_at": "2026-01-01T00:00:00Z",
+  "updated_at": "2026-01-01T00:00:00Z",
+  "steps": [
+    {
+      "id": "step-001",
+      "order": 0,
+      "action": "Navigate",
+      "description": "ไปหน้าสร้างเพลง",
+      "element_selector": {
+        "type": "Smart",
+        "value": "https://suno.com/create",
+        "confidence": 1.0
+      },
+      "wait_before_ms": 0,
+      "wait_after_ms": 3000,
+      "timeout_ms": 30000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 1.0,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-002",
+      "order": 1,
+      "action": "WaitForElement",
+      "description": "รอให้หน้าโหลดเสร็จ",
+      "element_selector": {
+        "type": "Placeholder",
+        "value": "lyrics",
+        "ai_description": "ช่องใส่เนื้อเพลง"
+      },
+      "wait_before_ms": 500,
+      "wait_after_ms": 500,
+      "timeout_ms": 15000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.95,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-003",
+      "order": 2,
+      "action": "Type",
+      "description": "ใส่เนื้อเพลง",
+      "element_selector": {
+        "type": "CSS",
+        "value": "textarea[placeholder*='lyrics']",
+        "ai_description": "ช่องใส่ Lyrics"
+      },
+      "alternative_selectors": [
+        { "type": "Placeholder", "value": "lyrics", "confidence": 0.9 },
+        { "type": "AriaLabel", "value": "Song lyrics", "confidence": 0.85 }
+      ],
+      "input_variable": "{{content.lyrics}}",
+      "wait_before_ms": 500,
+      "wait_after_ms": 500,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.95,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-004",
+      "order": 3,
+      "action": "Click",
+      "description": "คลิกที่ช่อง Styles",
+      "element_selector": {
+        "type": "CSS",
+        "value": "textarea[placeholder*='style'], input[placeholder*='style']",
+        "ai_description": "ช่องใส่ Style เพลง"
+      },
+      "wait_before_ms": 300,
+      "wait_after_ms": 300,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.9,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-005",
+      "order": 4,
+      "action": "Type",
+      "description": "ใส่ style เพลง",
+      "element_selector": {
+        "type": "CSS",
+        "value": "textarea[placeholder*='style'], input[placeholder*='style']"
+      },
+      "alternative_selectors": [
+        { "type": "Placeholder", "value": "style", "confidence": 0.9 },
+        { "type": "AriaLabel", "value": "Music style", "confidence": 0.85 }
+      ],
+      "input_value": "metal ballad, emotional, powerful vocals, guitar solo, orchestral elements",
+      "input_variable": "{{content.style}}",
+      "wait_before_ms": 300,
+      "wait_after_ms": 500,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.95,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-006",
+      "order": 5,
+      "action": "Type",
+      "description": "ใส่ชื่อเพลง",
+      "element_selector": {
+        "type": "CSS",
+        "value": "input[placeholder*='Song Title'], input[placeholder*='title']"
+      },
+      "alternative_selectors": [
+        { "type": "Placeholder", "value": "Song Title", "confidence": 0.9 },
+        { "type": "AriaLabel", "value": "Song title", "confidence": 0.85 }
+      ],
+      "input_variable": "{{content.song_title}}",
+      "wait_before_ms": 300,
+      "wait_after_ms": 500,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": true,
+      "confidence_score": 0.9,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-007",
+      "order": 6,
+      "action": "Click",
+      "description": "กดปุ่ม Create",
+      "element_selector": {
+        "type": "Text",
+        "value": "Create",
+        "ai_description": "ปุ่มสร้างเพลง"
+      },
+      "alternative_selectors": [
+        { "type": "AriaLabel", "value": "Create song", "confidence": 0.9 },
+        { "type": "CSS", "value": "button[type='submit']", "confidence": 0.8 },
+        { "type": "CSS", "value": "button:contains('Create')", "confidence": 0.85 }
+      ],
+      "wait_before_ms": 500,
+      "wait_after_ms": 2000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.95,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-008",
+      "order": 7,
+      "action": "Wait",
+      "description": "รอเพลงสร้างเสร็จ (ประมาณ 30-60 วินาที)",
+      "element_selector": {
+        "type": "Smart",
+        "value": "wait_for_generation"
+      },
+      "input_value": "60000",
+      "success_condition": {
+        "type": "ElementVisible",
+        "selector": {
+          "type": "Text",
+          "value": "{{content.song_title}}"
+        },
+        "expected_text": "{{content.song_title}}"
+      },
+      "wait_before_ms": 0,
+      "wait_after_ms": 2000,
+      "timeout_ms": 120000,
+      "retry_count": 1,
+      "is_optional": false,
+      "confidence_score": 0.85,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-009",
+      "order": 8,
+      "action": "Click",
+      "description": "คลิกเพลงที่ 1",
+      "element_selector": {
+        "type": "Text",
+        "value": "{{content.song_title}}",
+        "ai_description": "ชื่อเพลงที่สร้างเสร็จ"
+      },
+      "alternative_selectors": [
+        { "type": "CSS", "value": ".song-item:first-child", "confidence": 0.8 },
+        { "type": "CSS", "value": "[data-song-index='0']", "confidence": 0.75 }
+      ],
+      "wait_before_ms": 500,
+      "wait_after_ms": 1000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.9,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-010",
+      "order": 9,
+      "action": "Click",
+      "description": "คลิกเมนู More (...)",
+      "element_selector": {
+        "type": "AriaLabel",
+        "value": "More menu contents",
+        "ai_description": "ปุ่ม ... เปิดเมนู"
+      },
+      "alternative_selectors": [
+        { "type": "Text", "value": "...", "confidence": 0.85 },
+        { "type": "CSS", "value": "[data-menu-trigger]", "confidence": 0.8 },
+        { "type": "AriaLabel", "value": "More options", "confidence": 0.85 }
+      ],
+      "wait_before_ms": 500,
+      "wait_after_ms": 1000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.85,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-011",
+      "order": 10,
+      "action": "Hover",
+      "description": "Hover ที่ Download (เพื่อเปิด submenu)",
+      "element_selector": {
+        "type": "Text",
+        "value": "Download",
+        "ai_description": "เมนู Download - ต้อง hover เพื่อเปิด submenu"
+      },
+      "alternative_selectors": [
+        { "type": "AriaLabel", "value": "Download", "confidence": 0.9 },
+        { "type": "CSS", "value": "[data-menu-item='download']", "confidence": 0.8 }
+      ],
+      "wait_before_ms": 300,
+      "wait_after_ms": 1000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.9,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-012",
+      "order": 11,
+      "action": "Click",
+      "description": "คลิก MP3 Audio",
+      "element_selector": {
+        "type": "Text",
+        "value": "MP3 Audio",
+        "ai_description": "เลือกดาวน์โหลดเป็น MP3"
+      },
+      "alternative_selectors": [
+        { "type": "AriaLabel", "value": "MP3 Audio", "confidence": 0.9 },
+        { "type": "CSS", "value": "[data-format='mp3']", "confidence": 0.8 }
+      ],
+      "wait_before_ms": 300,
+      "wait_after_ms": 3000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.95,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-013",
+      "order": 12,
+      "action": "Wait",
+      "description": "รอดาวน์โหลดเสร็จ",
+      "element_selector": {
+        "type": "Smart",
+        "value": "wait_for_download"
+      },
+      "input_value": "5000",
+      "wait_before_ms": 0,
+      "wait_after_ms": 1000,
+      "timeout_ms": 30000,
+      "retry_count": 1,
+      "is_optional": false,
+      "confidence_score": 0.9,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-014",
+      "order": 13,
+      "action": "PressKey",
+      "description": "กลับไปหน้าเพลง (Escape หรือ navigate back)",
+      "element_selector": {
+        "type": "Smart",
+        "value": "Escape"
+      },
+      "input_value": "Escape",
+      "wait_before_ms": 500,
+      "wait_after_ms": 1000,
+      "timeout_ms": 5000,
+      "retry_count": 2,
+      "is_optional": true,
+      "confidence_score": 0.8,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-015",
+      "order": 14,
+      "action": "Click",
+      "description": "คลิกเพลงที่ 2",
+      "element_selector": {
+        "type": "CSS",
+        "value": ".song-item:nth-child(2)",
+        "ai_description": "เพลงที่ 2 ในรายการ"
+      },
+      "alternative_selectors": [
+        { "type": "CSS", "value": "[data-song-index='1']", "confidence": 0.8 }
+      ],
+      "wait_before_ms": 500,
+      "wait_after_ms": 1000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.85,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-016",
+      "order": 15,
+      "action": "Click",
+      "description": "คลิกเมนู More (...) เพลงที่ 2",
+      "element_selector": {
+        "type": "AriaLabel",
+        "value": "More menu contents"
+      },
+      "alternative_selectors": [
+        { "type": "Text", "value": "...", "confidence": 0.85 },
+        { "type": "CSS", "value": "[data-menu-trigger]", "confidence": 0.8 }
+      ],
+      "wait_before_ms": 500,
+      "wait_after_ms": 1000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.85,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-017",
+      "order": 16,
+      "action": "Hover",
+      "description": "Hover ที่ Download เพลงที่ 2",
+      "element_selector": {
+        "type": "Text",
+        "value": "Download"
+      },
+      "wait_before_ms": 300,
+      "wait_after_ms": 1000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.9,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-018",
+      "order": 17,
+      "action": "Click",
+      "description": "คลิก MP3 Audio เพลงที่ 2",
+      "element_selector": {
+        "type": "Text",
+        "value": "MP3 Audio"
+      },
+      "wait_before_ms": 300,
+      "wait_after_ms": 3000,
+      "timeout_ms": 10000,
+      "retry_count": 3,
+      "is_optional": false,
+      "confidence_score": 0.95,
+      "learned_from": "Manual"
+    },
+    {
+      "id": "step-019",
+      "order": 18,
+      "action": "Wait",
+      "description": "รอดาวน์โหลดเพลงที่ 2 เสร็จ",
+      "element_selector": {
+        "type": "Smart",
+        "value": "wait_for_download"
+      },
+      "input_value": "5000",
+      "wait_before_ms": 0,
+      "wait_after_ms": 1000,
+      "timeout_ms": 30000,
+      "retry_count": 1,
+      "is_optional": false,
+      "confidence_score": 0.9,
+      "learned_from": "Manual"
+    }
+  ],
+  "metadata": {
+    "default_style": "metal ballad, emotional, powerful vocals, guitar solo, orchestral elements",
+    "output_format": "MP3",
+    "songs_per_create": 2,
+    "folder_naming": "jk Ai - {style} - {date}",
+    "key_learnings": [
+      "Suno สร้าง 2 เพลงต่อ 1 ครั้ง Create",
+      "Download submenu ต้อง Hover ก่อนถึงจะเห็น MP3 option",
+      "ใช้ JavaScript mouseenter event ช่วยเปิด submenu ได้"
+    ]
+  },
+  "input_variables": {
+    "content.lyrics": "เนื้อเพลงที่ต้องการ",
+    "content.style": "แนวเพลง เช่น metal ballad, pop, rock",
+    "content.song_title": "ชื่อเพลง"
+  }
+}
