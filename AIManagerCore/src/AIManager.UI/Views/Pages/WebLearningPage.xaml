@@ -513,8 +513,8 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/> <!-- AI Panels (stacked) -->
+                    <RowDefinition Height="Auto"/> <!-- Action Buttons -->
                 </Grid.RowDefinitions>
 
                 <!-- Steps Header with Stats -->
@@ -699,9 +699,12 @@
                 </Border>
 
                 <!-- ═══════════════════════════════════════════════════════════════ -->
-                <!-- AI Teaching Guidelines Panel (shown during recording)          -->
+                <!-- AI Panels Container (only one visible at a time)               -->
                 <!-- ═══════════════════════════════════════════════════════════════ -->
-                <Border x:Name="TeachingGuidelinesPanel" Grid.Row="2" Visibility="Collapsed"
+                <StackPanel Grid.Row="2">
+
+                <!-- AI Teaching Guidelines Panel (shown during recording) -->
+                <Border x:Name="TeachingGuidelinesPanel" Visibility="Collapsed"
                         Background="#200EA5E9" CornerRadius="12" Padding="0" Margin="0,10,0,0"
                         BorderBrush="#400EA5E9" BorderThickness="1">
                     <Grid>
@@ -895,7 +898,7 @@
                 </Border>
 
                 <!-- AI Suggestions Panel -->
-                <Border x:Name="AiSuggestionPanel" Grid.Row="2" Visibility="Collapsed"
+                <Border x:Name="AiSuggestionPanel" Visibility="Collapsed"
                         Background="#20F59E0B" CornerRadius="10" Padding="12" Margin="0,10,0,0"
                         BorderBrush="#40F59E0B" BorderThickness="1">
                     <Grid>
@@ -921,7 +924,7 @@
                 </Border>
 
                 <!-- Auto Learning Panel (shown when Auto Learning is enabled) -->
-                <Border x:Name="AutoLearningPanel" Grid.Row="2" Visibility="Collapsed"
+                <Border x:Name="AutoLearningPanel" Visibility="Collapsed"
                         Background="#2010B981" CornerRadius="10" Padding="15" Margin="0,10,0,0"
                         BorderBrush="#4010B981" BorderThickness="1">
                     <StackPanel>
@@ -1035,6 +1038,8 @@
                         </Grid>
                     </StackPanel>
                 </Border>
+
+                </StackPanel> <!-- End of AI Panels Container -->
 
                 <!-- Save Workflow Panel -->
                 <Border Grid.Row="3" Background="#25000000" CornerRadius="12" Padding="15" Margin="0,10,0,0">

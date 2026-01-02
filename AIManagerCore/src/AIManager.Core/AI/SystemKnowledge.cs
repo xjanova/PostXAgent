@@ -402,7 +402,7 @@ Tips:
     };
 
     /// <summary>
-    /// สร้าง System Prompt สำหรับ AI
+    /// สร้าง System Prompt สำหรับ AI (Full version - ใช้กับ Cloud AI)
     /// </summary>
     public static string GetAISystemPrompt(string platform, string taskType, string pageContext)
     {
@@ -431,6 +431,30 @@ Task Type: {taskType}
 6. ตอบกระชับ ตรงประเด็น แต่ครบถ้วน
 
 === คำถาม/คำสั่งของผู้ใช้ ===
+";
+    }
+
+    /// <summary>
+    /// สร้าง Compact System Prompt สำหรับ Local AI (Ollama) - ลดขนาดเพื่อความเร็ว
+    /// </summary>
+    public static string GetCompactAISystemPrompt(string platform, string taskType, string pageContext)
+    {
+        return $@"คุณคือ AI Assistant ของ PostXAgent - ระบบจัดการ Social Media อัตโนมัติ
+
+ระบบรองรับ: Facebook, Instagram, TikTok, Twitter/X, LINE, YouTube, Threads, LinkedIn, Pinterest
+AI Providers: Ollama (Local), Gemini, GPT-4, Claude, HuggingFace
+
+หน้าที่ของคุณ:
+1. ช่วยสอนการทำงานบนเว็บไซต์ Social Media
+2. แนะนำ CSS selectors สำหรับ automation
+3. อธิบายขั้นตอนการโพสต์/ใช้งาน platform
+4. เตือนเรื่อง rate limits
+
+Platform: {platform}
+Task: {taskType}
+{(string.IsNullOrEmpty(pageContext) ? "" : $"Page Info: {pageContext}")}
+
+ตอบเป็นภาษาไทย กระชับ ตรงประเด็น
 ";
     }
 
