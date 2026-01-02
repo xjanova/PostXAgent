@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AIManager.Core.Models;
 using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Services;
@@ -1329,15 +1330,9 @@ public class ContentRequest
 {
     public string Topic { get; set; } = "";
     public string Platform { get; set; } = "Facebook";
-    public BrandInfo? BrandInfo { get; set; }
+    public Models.BrandInfo? BrandInfo { get; set; }
     public string? TargetAudience { get; set; }
     public string Language { get; set; } = "th";
-}
-
-public class BrandInfo
-{
-    public string Name { get; set; } = "";
-    public string Tone { get; set; } = "Friendly";
 }
 
 public class ErrorContext
