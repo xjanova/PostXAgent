@@ -97,14 +97,15 @@ public class DemoInfo
 
 /// <summary>
 /// License Validation Request - ส่งไป Server
+/// Uses xmanstudio API format
 /// </summary>
 public class LicenseValidationRequest
 {
     [JsonProperty("machine_id")]
     public string MachineId { get; set; } = "";
 
-    [JsonProperty("machine_hash")]
-    public string MachineHash { get; set; } = "";
+    [JsonProperty("machine_fingerprint")]
+    public string MachineFingerprint { get; set; } = "";
 
     [JsonProperty("license_key")]
     public string? LicenseKey { get; set; }
@@ -154,14 +155,15 @@ public class LicenseValidationResponse
 
 /// <summary>
 /// Demo Check Request
+/// Uses xmanstudio API format
 /// </summary>
 public class DemoCheckRequest
 {
     [JsonProperty("machine_id")]
     public string MachineId { get; set; } = "";
 
-    [JsonProperty("machine_hash")]
-    public string MachineHash { get; set; } = "";
+    [JsonProperty("machine_fingerprint")]
+    public string MachineFingerprint { get; set; } = "";
 
     [JsonProperty("hardware_info")]
     public MachineIdentity? HardwareInfo { get; set; }
@@ -199,6 +201,7 @@ public class DemoCheckResponse
 
 /// <summary>
 /// License Activation Request
+/// Uses xmanstudio API format
 /// </summary>
 public class LicenseActivationRequest
 {
@@ -208,8 +211,8 @@ public class LicenseActivationRequest
     [JsonProperty("machine_id")]
     public string MachineId { get; set; } = "";
 
-    [JsonProperty("machine_hash")]
-    public string MachineHash { get; set; } = "";
+    [JsonProperty("machine_fingerprint")]
+    public string MachineFingerprint { get; set; } = "";
 
     [JsonProperty("hardware_info")]
     public MachineIdentity? HardwareInfo { get; set; }

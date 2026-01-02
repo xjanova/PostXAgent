@@ -9,26 +9,12 @@ class Kernel extends ConsoleKernel
 {
     /**
      * Define the application's command schedule.
+     *
+     * Note: License/Rental management is now handled by xmanstudio external API
+     * See: https://github.com/xjanova/xmanstudio
      */
     protected function schedule(Schedule $schedule): void
     {
-        // === Rental Management ===
-        // Process expired rentals - mark as expired and notify
-        $schedule->command('rentals:process-expired')
-            ->hourly()
-            ->withoutOverlapping()
-            ->runInBackground();
-
-        // Send expiry reminders (3 days, 1 day, today)
-        $schedule->command('rentals:send-expiry-reminders')
-            ->dailyAt('09:00')
-            ->withoutOverlapping();
-
-        // Cancel pending payments older than 24 hours
-        $schedule->command('payments:cancel-stale --hours=24')
-            ->hourly()
-            ->withoutOverlapping();
-
         // === Account Management ===
         // Reset daily post counters for social accounts
         $schedule->command('accounts:reset-daily-counters')
