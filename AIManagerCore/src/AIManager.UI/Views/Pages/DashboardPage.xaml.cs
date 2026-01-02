@@ -19,10 +19,12 @@ public partial class DashboardPage : Page
     private readonly DateTime _startTime = DateTime.Now;
     private readonly PerformanceCounter? _cpuCounter;
 
-    // Chart data collections
-    private readonly ObservableCollection<ObservableValue> _cpuValues = new();
-    private readonly ObservableCollection<ObservableValue> _memoryValues = new();
-    private readonly ObservableCollection<ObservableValue> _tasksValues = new();
+    // Static chart data collections - persist across page navigations
+    private static readonly ObservableCollection<ObservableValue> _cpuValues = new();
+    private static readonly ObservableCollection<ObservableValue> _memoryValues = new();
+    private static readonly ObservableCollection<ObservableValue> _tasksValues = new();
+    private static bool _chartsInitialized = false;
+    private static readonly object _chartLock = new();
 
     // Platform colors for pie chart
     private static readonly Dictionary<SocialPlatform, string> PlatformColors = new()
@@ -105,12 +107,23 @@ public partial class DashboardPage : Page
 
     private void InitializeCharts()
     {
-        // Initialize with 60 data points (60 seconds of history)
-        for (int i = 0; i < 60; i++)
+        // Initialize with 60 data points only if not already initialized
+        lock (_chartLock)
         {
-            _cpuValues.Add(new ObservableValue(0));
-            _memoryValues.Add(new ObservableValue(0));
-            _tasksValues.Add(new ObservableValue(0));
+            if (!_chartsInitialized)
+            {
+                _cpuValues.Clear();
+                _memoryValues.Clear();
+                _tasksValues.Clear();
+
+                for (int i = 0; i < 60; i++)
+                {
+                    _cpuValues.Add(new ObservableValue(0));
+                    _memoryValues.Add(new ObservableValue(0));
+                    _tasksValues.Add(new ObservableValue(0));
+                }
+                _chartsInitialized = true;
+            }
         }
 
         // Performance Chart (CPU & Memory)
@@ -431,14 +444,17 @@ public partial class DashboardPage : Page
 
     private static void ShiftAndAdd(ObservableCollection<ObservableValue> collection, double newValue)
     {
-        // Remove first element
-        if (collection.Count > 0)
+        lock (_chartLock)
         {
-            collection.RemoveAt(0);
-        }
+            // Remove first element
+            if (collection.Count > 0)
+            {
+                collection.RemoveAt(0);
+            }
 
-        // Add new value at end
-        collection.Add(new ObservableValue(newValue));
+            // Add new value at end
+            collection.Add(new ObservableValue(newValue));
+        }
     }
 
     private static string FormatUptime(TimeSpan uptime)
