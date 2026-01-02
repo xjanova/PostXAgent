@@ -1,0 +1,568 @@
+<Page x:Class="AIManager.UI.Views.Pages.GpuNodeMonitorPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
+      Title="GPU Node Monitor"
+      Background="Transparent"
+      Loaded="Page_Loaded"
+      Unloaded="Page_Unloaded">
+
+    <Page.Resources>
+        <!-- Status indicator style with pulse animation -->
+        <Style x:Key="StatusIndicatorStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsBlinking}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard RepeatBehavior="Forever">
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                               From="1" To="0.3" Duration="0:0:0.5"
+                                               AutoReverse="True"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                <!-- Header with Stats Summary -->
+                <Grid Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="GPU Node Monitor" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock x:Name="TxtSubtitle" Text="จัดการและตรวจสอบ GPU Nodes ทั้งหมด"
+                                   FontSize="14" Foreground="#9CA3AF" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="BtnRefresh" Click="BtnRefresh_Click"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                ToolTip="รีเฟรช" Margin="0,0,8,0">
+                            <md:PackIcon Kind="Refresh" Width="20" Height="20"/>
+                        </Button>
+                        <Button x:Name="BtnAddNode" Click="BtnAddNode_Click"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                ToolTip="เพิ่ม Node" Margin="0,0,8,0">
+                            <md:PackIcon Kind="Plus" Width="20" Height="20"/>
+                        </Button>
+                        <Button x:Name="BtnSettings" Click="BtnSettings_Click"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                ToolTip="ตั้งค่า Scheduling">
+                            <md:PackIcon Kind="Cog" Width="20" Height="20"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Stats Cards -->
+                <UniformGrid Rows="1" Columns="6" Margin="0,0,0,20">
+                    <!-- Total Nodes -->
+                    <Border Background="#20FFFFFF" CornerRadius="12" Padding="16" Margin="0,0,8,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <md:PackIcon Kind="Server" Width="20" Height="20" Foreground="#8B5CF6"/>
+                                <TextBlock x:Name="TxtTotalNodes" Text="8" FontSize="24" FontWeight="Bold"
+                                           Foreground="White" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Total Nodes" Foreground="#9CA3AF" FontSize="12" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Running -->
+                    <Border Background="#20FFFFFF" CornerRadius="12" Padding="16" Margin="4,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="12" Height="12" Fill="#10B981"/>
+                                <TextBlock x:Name="TxtRunningNodes" Text="2" FontSize="24" FontWeight="Bold"
+                                           Foreground="#10B981" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Running" Foreground="#9CA3AF" FontSize="12" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Ready -->
+                    <Border Background="#20FFFFFF" CornerRadius="12" Padding="16" Margin="4,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="12" Height="12" Fill="#34D399"/>
+                                <TextBlock x:Name="TxtReadyNodes" Text="3" FontSize="24" FontWeight="Bold"
+                                           Foreground="#34D399" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Ready" Foreground="#9CA3AF" FontSize="12" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Errors -->
+                    <Border Background="#20FFFFFF" CornerRadius="12" Padding="16" Margin="4,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="12" Height="12" Fill="#EF4444"/>
+                                <TextBlock x:Name="TxtErrorNodes" Text="1" FontSize="24" FontWeight="Bold"
+                                           Foreground="#EF4444" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Errors" Foreground="#9CA3AF" FontSize="12" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Total Quota -->
+                    <Border Background="#20FFFFFF" CornerRadius="12" Padding="16" Margin="4,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <md:PackIcon Kind="Clock" Width="20" Height="20" Foreground="#3B82F6"/>
+                                <TextBlock x:Name="TxtTotalQuota" Text="45:30" FontSize="24" FontWeight="Bold"
+                                           Foreground="#3B82F6" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Quota Left" Foreground="#9CA3AF" FontSize="12" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- GPU Usage -->
+                    <Border Background="#20FFFFFF" CornerRadius="12" Padding="16" Margin="8,0,0,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <md:PackIcon Kind="Chip" Width="20" Height="20" Foreground="#F59E0B"/>
+                                <TextBlock x:Name="TxtGpuUsage" Text="75%" FontSize="24" FontWeight="Bold"
+                                           Foreground="#F59E0B" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="GPU Usage" Foreground="#9CA3AF" FontSize="12" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <!-- Active Node Card -->
+                <Border x:Name="ActiveNodeCard" Background="#301F2937" CornerRadius="16"
+                        Padding="20" Margin="0,0,0,20" BorderBrush="#10B981" BorderThickness="2">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Status Indicator -->
+                        <Border Background="#2010B981" CornerRadius="50" Width="80" Height="80"
+                                VerticalAlignment="Center">
+                            <Grid>
+                                <Ellipse Width="60" Height="60" Fill="#10B981" HorizontalAlignment="Center"
+                                         VerticalAlignment="Center" Opacity="0.3">
+                                    <Ellipse.Triggers>
+                                        <EventTrigger RoutedEvent="Loaded">
+                                            <BeginStoryboard>
+                                                <Storyboard RepeatBehavior="Forever">
+                                                    <DoubleAnimation Storyboard.TargetProperty="Width"
+                                                                   From="60" To="80" Duration="0:0:1"
+                                                                   AutoReverse="True"/>
+                                                    <DoubleAnimation Storyboard.TargetProperty="Height"
+                                                                   From="60" To="80" Duration="0:0:1"
+                                                                   AutoReverse="True"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
+                                    </Ellipse.Triggers>
+                                </Ellipse>
+                                <md:PackIcon x:Name="ActiveNodeIcon" Kind="CheckCircle"
+                                            Width="40" Height="40" Foreground="#10B981"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Active Node Info -->
+                        <StackPanel Grid.Column="1" Margin="20,0" VerticalAlignment="Center">
+                            <TextBlock Text="ACTIVE NODE" FontSize="11" Foreground="#10B981"
+                                       FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="TxtActiveNodeName" Text="Google Colab Pro #1"
+                                       FontSize="20" FontWeight="Bold" Foreground="White"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <md:PackIcon x:Name="ActiveProviderIcon" Kind="Google"
+                                            Width="16" Height="16" Foreground="#9CA3AF"/>
+                                <TextBlock x:Name="TxtActiveProvider" Text="Google Colab"
+                                           Foreground="#9CA3AF" FontSize="13" Margin="6,0,16,0"/>
+                                <md:PackIcon Kind="Chip" Width="16" Height="16" Foreground="#9CA3AF"/>
+                                <TextBlock x:Name="TxtActiveGpuType" Text="NVIDIA T4"
+                                           Foreground="#9CA3AF" FontSize="13" Margin="6,0,16,0"/>
+                                <md:PackIcon Kind="Email" Width="16" Height="16" Foreground="#9CA3AF"/>
+                                <TextBlock x:Name="TxtActiveAccount" Text="user@gmail.com"
+                                           Foreground="#9CA3AF" FontSize="13" Margin="6,0,0,0"/>
+                            </StackPanel>
+
+                            <!-- Progress bars -->
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Session Time -->
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="Session:" Foreground="#9CA3AF" FontSize="12"/>
+                                        <TextBlock x:Name="TxtActiveSession" Text="3:30:00 / 12:00:00"
+                                                   Foreground="White" FontSize="12" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                    <ProgressBar x:Name="PbActiveSession" Value="29" Height="6"
+                                                 Background="#30FFFFFF" Foreground="#10B981"/>
+                                </StackPanel>
+
+                                <!-- Quota -->
+                                <StackPanel Grid.Column="2">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="Quota:" Foreground="#9CA3AF" FontSize="12"/>
+                                        <TextBlock x:Name="TxtActiveQuota" Text="8:30 / 12:00"
+                                                   Foreground="White" FontSize="12" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                    <ProgressBar x:Name="PbActiveQuota" Value="71" Height="6"
+                                                 Background="#30FFFFFF" Foreground="#3B82F6"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Actions & GPU Stats -->
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,12">
+                                <Border Background="#201F2937" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <md:PackIcon Kind="Memory" Width="16" Height="16" Foreground="#F59E0B"/>
+                                        <TextBlock x:Name="TxtActiveGpuMem" Text="8.5/16 GB"
+                                                   Foreground="White" FontSize="13" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#201F2937" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <md:PackIcon Kind="Thermometer" Width="16" Height="16" Foreground="#EF4444"/>
+                                        <TextBlock x:Name="TxtActiveTemp" Text="68°C"
+                                                   Foreground="White" FontSize="13" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#201F2937" CornerRadius="8" Padding="12,6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <md:PackIcon Kind="Gauge" Width="16" Height="16" Foreground="#10B981"/>
+                                        <TextBlock x:Name="TxtActiveUtilization" Text="75%"
+                                                   Foreground="White" FontSize="13" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnPauseActive" Click="BtnPauseActive_Click"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                                        Foreground="#F59E0B" BorderBrush="#F59E0B" Padding="12,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <md:PackIcon Kind="Pause" Width="16" Height="16"/>
+                                        <TextBlock Text="Pause" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="BtnSwitchNode" Click="BtnSwitchNode_Click"
+                                        Style="{StaticResource MaterialDesignFlatMidBgButton}"
+                                        Background="#3B82F6" Foreground="White" Padding="12,6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <md:PackIcon Kind="SwapHorizontal" Width="16" Height="16"/>
+                                        <TextBlock Text="Switch Node" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Next Node Info -->
+                <Border x:Name="NextNodeCard" Background="#201F2937" CornerRadius="12"
+                        Padding="16" Margin="0,0,0,20" BorderBrush="#3B82F6" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <md:PackIcon Kind="ArrowRight" Width="24" Height="24" Foreground="#3B82F6"
+                                    VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="NEXT NODE (Auto-switch)" FontSize="10" Foreground="#3B82F6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="TxtNextNodeName" Text="Kaggle #1"
+                                           FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                                <Border Background="#203B82F6" CornerRadius="4" Padding="6,2" Margin="12,0,0,0">
+                                    <TextBlock x:Name="TxtNextNodeStatus" Text="Queued"
+                                               FontSize="11" Foreground="#3B82F6"/>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Switch in:" Foreground="#9CA3AF" FontSize="12"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtSwitchCountdown" Text="~8:25:00"
+                                       FontSize="16" FontWeight="Bold" Foreground="#3B82F6"
+                                       Margin="8,0,12,0" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnPrestartNext" Click="BtnPrestartNext_Click"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Foreground="#3B82F6" BorderBrush="#3B82F6" Padding="8,4"
+                                    ToolTip="Prestart node now">
+                                <md:PackIcon Kind="Rocket" Width="16" Height="16"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Node List Header -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="All GPU Nodes" FontSize="18" FontWeight="SemiBold"
+                               Foreground="White" VerticalAlignment="Center"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <ComboBox x:Name="CboFilter" Width="150" Margin="0,0,12,0"
+                                  SelectionChanged="CboFilter_SelectionChanged"
+                                  md:HintAssist.Hint="Filter by status">
+                            <ComboBoxItem Content="All Nodes" IsSelected="True"/>
+                            <ComboBoxItem Content="Running"/>
+                            <ComboBoxItem Content="Ready"/>
+                            <ComboBoxItem Content="Errors"/>
+                            <ComboBoxItem Content="Stopped"/>
+                        </ComboBox>
+                        <ComboBox x:Name="CboSort" Width="150"
+                                  SelectionChanged="CboSort_SelectionChanged"
+                                  md:HintAssist.Hint="Sort by">
+                            <ComboBoxItem Content="Priority" IsSelected="True"/>
+                            <ComboBoxItem Content="Name"/>
+                            <ComboBoxItem Content="Quota Remaining"/>
+                            <ComboBoxItem Content="Provider"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Node List -->
+                <ItemsControl x:Name="NodeListControl">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#151F2937" CornerRadius="12" Padding="16" Margin="0,0,0,8"
+                                    BorderThickness="1" Cursor="Hand"
+                                    MouseLeftButtonDown="NodeCard_Click">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#10B981"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#201F2937"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Status Indicator & Provider Icon -->
+                                    <Grid Width="48" Height="48" Margin="0,0,16,0">
+                                        <Border CornerRadius="8" Padding="8">
+                                            <Border.Background>
+                                                <SolidColorBrush Color="{Binding StatusColor}" Opacity="0.2"/>
+                                            </Border.Background>
+                                            <md:PackIcon Kind="{Binding ProviderIcon}"
+                                                        Width="24" Height="24"
+                                                        Foreground="{Binding StatusBrush}"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"/>
+                                        </Border>
+                                        <!-- Status dot -->
+                                        <Ellipse Width="14" Height="14"
+                                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                 Margin="0,0,-2,-2">
+                                            <Ellipse.Fill>
+                                                <SolidColorBrush Color="{Binding StatusColor}"/>
+                                            </Ellipse.Fill>
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsBlinking}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard RepeatBehavior="Forever">
+                                                                        <DoubleAnimation
+                                                                            Storyboard.TargetProperty="Opacity"
+                                                                            From="1" To="0.3" Duration="0:0:0.5"
+                                                                            AutoReverse="True"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                    </Grid>
+
+                                    <!-- Node Info -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
+                                                       Foreground="White"/>
+                                            <Border Background="#20FFFFFF" CornerRadius="4" Padding="6,2"
+                                                    Margin="8,0,0,0" Visibility="{Binding EmergencyVisibility}">
+                                                <TextBlock Text="EMERGENCY" FontSize="9" Foreground="#8B5CF6"
+                                                           FontWeight="Bold"/>
+                                            </Border>
+                                            <Border CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                                <Border.Background>
+                                                    <SolidColorBrush Color="{Binding StatusColor}" Opacity="0.2"/>
+                                                </Border.Background>
+                                                <TextBlock Text="{Binding StatusText}" FontSize="11"
+                                                           Foreground="{Binding StatusBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <TextBlock Text="{Binding ProviderName}" Foreground="#9CA3AF"
+                                                       FontSize="12"/>
+                                            <TextBlock Text=" | " Foreground="#4B5563"/>
+                                            <TextBlock Text="{Binding GpuTypeName}" Foreground="#9CA3AF"
+                                                       FontSize="12"/>
+                                            <TextBlock Text=" | " Foreground="#4B5563"/>
+                                            <TextBlock Text="{Binding AccountEmail}" Foreground="#6B7280"
+                                                       FontSize="12"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Quota & Session -->
+                                    <StackPanel Grid.Column="2" Width="180" Margin="16,0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <md:PackIcon Kind="Clock" Width="14" Height="14" Foreground="#3B82F6"/>
+                                            <TextBlock Text="Quota:" Foreground="#9CA3AF" FontSize="11"
+                                                       Margin="4,0,0,0"/>
+                                            <TextBlock Text="{Binding QuotaDisplay}" Foreground="White"
+                                                       FontSize="11" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                        <ProgressBar Value="{Binding QuotaPercent}" Height="4"
+                                                     Background="#30FFFFFF" Foreground="#3B82F6"/>
+                                        <TextBlock Text="{Binding SessionDisplay}" Foreground="#6B7280"
+                                                   FontSize="10" Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- GPU Stats -->
+                                    <StackPanel Grid.Column="3" Width="120" Margin="0,0,16,0"
+                                                Visibility="{Binding GpuStatsVisibility}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <md:PackIcon Kind="Memory" Width="12" Height="12" Foreground="#F59E0B"/>
+                                            <TextBlock Text="{Binding GpuMemDisplay}" Foreground="#9CA3AF"
+                                                       FontSize="11" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <md:PackIcon Kind="Gauge" Width="12" Height="12" Foreground="#10B981"/>
+                                            <TextBlock Text="{Binding GpuUtilDisplay}" Foreground="#9CA3AF"
+                                                       FontSize="11" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Actions -->
+                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Tag="{Binding Id}" Click="BtnStartNode_Click"
+                                                Style="{StaticResource MaterialDesignIconButton}"
+                                                Visibility="{Binding StartVisibility}"
+                                                ToolTip="Start" Width="36" Height="36">
+                                            <md:PackIcon Kind="Play" Width="18" Height="18" Foreground="#10B981"/>
+                                        </Button>
+                                        <Button Tag="{Binding Id}" Click="BtnPauseNode_Click"
+                                                Style="{StaticResource MaterialDesignIconButton}"
+                                                Visibility="{Binding PauseVisibility}"
+                                                ToolTip="Pause" Width="36" Height="36">
+                                            <md:PackIcon Kind="Pause" Width="18" Height="18" Foreground="#F59E0B"/>
+                                        </Button>
+                                        <Button Tag="{Binding Id}" Click="BtnStopNode_Click"
+                                                Style="{StaticResource MaterialDesignIconButton}"
+                                                Visibility="{Binding StopVisibility}"
+                                                ToolTip="Stop" Width="36" Height="36">
+                                            <md:PackIcon Kind="Stop" Width="18" Height="18" Foreground="#EF4444"/>
+                                        </Button>
+                                        <Button Tag="{Binding Id}" Click="BtnRebootNode_Click"
+                                                Style="{StaticResource MaterialDesignIconButton}"
+                                                Visibility="{Binding RebootVisibility}"
+                                                ToolTip="Reboot" Width="36" Height="36">
+                                            <md:PackIcon Kind="Restart" Width="18" Height="18" Foreground="#F97316"/>
+                                        </Button>
+                                        <Button Tag="{Binding Id}" Click="BtnSetActiveNode_Click"
+                                                Style="{StaticResource MaterialDesignIconButton}"
+                                                Visibility="{Binding SetActiveVisibility}"
+                                                ToolTip="Set as Active" Width="36" Height="36">
+                                            <md:PackIcon Kind="CheckCircle" Width="18" Height="18" Foreground="#3B82F6"/>
+                                        </Button>
+                                        <Button Tag="{Binding Id}" Click="BtnNodeMenu_Click"
+                                                Style="{StaticResource MaterialDesignIconButton}"
+                                                ToolTip="More" Width="36" Height="36">
+                                            <md:PackIcon Kind="DotsVertical" Width="18" Height="18" Foreground="#9CA3AF"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Recent Events -->
+                <Border Background="#101F2937" CornerRadius="12" Padding="16" Margin="0,20,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <md:PackIcon Kind="History" Width="20" Height="20" Foreground="#8B5CF6"/>
+                            <TextBlock Text="Recent Events" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="White" Margin="8,0,0,0"/>
+                        </StackPanel>
+
+                        <ItemsControl x:Name="EventsListControl" MaxHeight="200">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="8,6" Margin="0,0,0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <md:PackIcon Kind="{Binding EventIcon}" Width="16" Height="16"
+                                                        Foreground="{Binding EventColor}" Margin="0,0,8,0"
+                                                        VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock>
+                                                    <Run Text="{Binding NodeName}" Foreground="White" FontWeight="SemiBold"/>
+                                                    <Run Text=": " Foreground="#4B5563"/>
+                                                    <Run Text="{Binding Message}" Foreground="#9CA3AF"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding TimeAgo}"
+                                                       Foreground="#6B7280" FontSize="11"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
