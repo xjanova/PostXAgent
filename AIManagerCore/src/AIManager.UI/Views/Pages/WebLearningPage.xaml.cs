@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using AIManager.Core.AI;
 using AIManager.Core.WebAutomation;
 using AIManager.Core.WebAutomation.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -1208,28 +1209,11 @@ public partial class WebLearningPage : Page
 
     private string BuildOllamaPrompt(string userPrompt, string platform, string taskType, string pageContext)
     {
-        var systemPrompt = @"คุณเป็น AI ที่ช่วยสอนการทำงานบนเว็บไซต์ (Web Workflow Learning Assistant) สำหรับ Social Media Automation
-
-หน้าที่ของคุณคือ:
-1. ช่วยผู้ใช้เรียนรู้วิธีทำงานบนเว็บไซต์ต่างๆ (Facebook, Instagram, TikTok, etc.)
-2. อธิบายขั้นตอนการทำงานอย่างละเอียด
-3. ระบุ element ที่ต้องคลิกหรือกรอกข้อมูล
-4. ให้คำแนะนำเกี่ยวกับ selectors ที่เหมาะสม (CSS, XPath, data-testid)
-5. เตือนเรื่องความปลอดภัยและข้อควรระวัง
-
-ตอบเป็นภาษาไทยเสมอ ตอบกระชับและตรงประเด็น";
-
-        var contextInfo = $@"
-Platform: {platform}
-Task Type: {taskType}
-{pageContext}";
+        // Use comprehensive SystemKnowledge for AI context
+        var systemPrompt = SystemKnowledge.GetAISystemPrompt(platform, taskType, pageContext);
 
         return $@"{systemPrompt}
-
-Context ปัจจุบัน:
-{contextInfo}
-
-คำถาม/คำสั่งของผู้ใช้: {userPrompt}
+{userPrompt}
 
 คำตอบ:";
     }
@@ -1323,6 +1307,34 @@ Context ปัจจุบัน:
             "Coming Soon", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void OllamaStatus_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Show troubleshooting guide when status is clicked
+        var statusText = OllamaStatusText.Text;
+        if (statusText.Contains("Offline") || statusText.Contains("Error") || statusText.Contains("Timeout"))
+        {
+            var guide = SystemKnowledge.GetOllamaTroubleshootingGuide();
+            MessageBox.Show(guide, "วิธีแก้ไข Ollama", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else if (statusText.Contains("No models"))
+        {
+            MessageBox.Show($"กรุณาติดตั้ง model โดยเปิด Terminal แล้วรัน:\n\nollama pull {OllamaModel}\n\nรอจนเสร็จแล้วกดปุ่ม Refresh",
+                "ติดตั้ง Model", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show($"Ollama พร้อมใช้งานแล้ว!\n\nModel: {OllamaModel}\nEndpoint: {OllamaBaseUrl}\n\nลองพิมพ์คำสั่งในช่อง AI Command เช่น:\n- 'สอนวิธีโพสต์รูปบน Facebook'\n- 'ช่วยหาปุ่ม Login'\n- 'อธิบายระบบ PostXAgent'",
+                "Ollama Status", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private async void RefreshOllamaStatus_Click(object sender, RoutedEventArgs e)
+    {
+        OllamaStatusText.Text = "Checking...";
+        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow
+        await CheckOllamaStatusAsync();
+    }
+
     private async Task GenerateTeachingStepsFromAiResponseAsync(string response)
     {
         // Try to parse AI response into teaching steps
@@ -1387,22 +1399,64 @@ Context ปัจจุบัน:
     {
         try
         {
-            var response = await _httpClient.GetAsync($"{OllamaBaseUrl}/api/tags");
+            // Set timeout for quick check
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await _httpClient.GetAsync($"{OllamaBaseUrl}/api/tags", cts.Token);
+
             if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var hasModels = content.Contains("\"models\"") && !content.Contains("\"models\":[]");
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (hasModels)
+                    {
+                        OllamaStatusText.Text = $"Ollama Ready ({OllamaModel})";
+                        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Green
+                    }
+                    else
+                    {
+                        OllamaStatusText.Text = "Ollama: No models";
+                        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow
+                        ShowStatus($"กรุณาติดตั้ง model: ollama pull {OllamaModel}", "warning");
+                    }
+                });
+            }
+            else
             {
                 Dispatcher.Invoke(() =>
                 {
-                    OllamaStatusText.Text = "Ollama Ready";
-                    OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                    OllamaStatusText.Text = "Ollama Error";
+                    OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
                 });
             }
         }
-        catch
+        catch (TaskCanceledException)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                OllamaStatusText.Text = "Ollama Timeout";
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+                ShowStatus("Ollama ไม่ตอบสนอง - กรุณาตรวจสอบว่า Ollama กำลังทำงานอยู่", "error");
+            });
+        }
+        catch (HttpRequestException)
         {
             Dispatcher.Invoke(() =>
             {
                 OllamaStatusText.Text = "Ollama Offline";
-                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+                ShowStatus("ไม่สามารถเชื่อมต่อ Ollama ได้ - รัน 'ollama serve' ใน Terminal", "error");
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error checking Ollama status");
+            Dispatcher.Invoke(() =>
+            {
+                OllamaStatusText.Text = "Ollama Error";
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
             });
         }
     }
