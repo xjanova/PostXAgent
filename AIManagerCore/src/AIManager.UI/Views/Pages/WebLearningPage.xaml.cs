@@ -1148,11 +1148,18 @@ public partial class WebLearningPage : Page
                 OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
             }
         }
+        catch (TimeoutException ex)
+        {
+            _logger?.LogWarning(ex, "Ollama request timed out");
+            ShowStatus(ex.Message, "warning");
+            OllamaStatusText.Text = "Timeout";
+            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow - recoverable
+        }
         catch (HttpRequestException ex)
         {
             _logger?.LogError(ex, "Failed to connect to Ollama");
-            ShowStatus("ไม่สามารถเชื่อมต่อ Ollama ได้ กรุณาตรวจสอบว่า Ollama กำลังทำงานอยู่", "error");
-            OllamaStatusText.Text = "Disconnected";
+            ShowStatus("ไม่สามารถเชื่อมต่อ Ollama ได้ - รัน 'ollama serve' ใน Terminal", "error");
+            OllamaStatusText.Text = "Offline";
             OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
         }
         catch (Exception ex)
@@ -1209,11 +1216,12 @@ public partial class WebLearningPage : Page
 
     private string BuildOllamaPrompt(string userPrompt, string platform, string taskType, string pageContext)
     {
-        // Use comprehensive SystemKnowledge for AI context
-        var systemPrompt = SystemKnowledge.GetAISystemPrompt(platform, taskType, pageContext);
+        // Use compact SystemKnowledge for Ollama (faster, less tokens)
+        var systemPrompt = SystemKnowledge.GetCompactAISystemPrompt(platform, taskType, pageContext);
 
         return $@"{systemPrompt}
-{userPrompt}
+
+คำถาม: {userPrompt}
 
 คำตอบ:";
     }
@@ -1235,13 +1243,23 @@ public partial class WebLearningPage : Page
         var json = JsonConvert.SerializeObject(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"{OllamaBaseUrl}/api/generate", content);
-        response.EnsureSuccessStatusCode();
+        // Set timeout for generation (60 seconds - Ollama can be slow)
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 
-        var responseJson = await response.Content.ReadAsStringAsync();
-        var responseObj = JsonConvert.DeserializeObject<OllamaResponse>(responseJson);
+        try
+        {
+            var response = await _httpClient.PostAsync($"{OllamaBaseUrl}/api/generate", content, cts.Token);
+            response.EnsureSuccessStatusCode();
 
-        return responseObj?.Response ?? "";
+            var responseJson = await response.Content.ReadAsStringAsync();
+            var responseObj = JsonConvert.DeserializeObject<OllamaResponse>(responseJson);
+
+            return responseObj?.Response ?? "";
+        }
+        catch (TaskCanceledException)
+        {
+            throw new TimeoutException("Ollama ใช้เวลานานเกินไป (60 วินาที) - ลองใช้คำถามสั้นลง");
+        }
     }
 
     private void ShowAiResponse(string response)
