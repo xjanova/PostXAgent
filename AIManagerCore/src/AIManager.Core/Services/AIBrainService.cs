@@ -217,20 +217,20 @@ public class AIBrainService
     /// <summary>
     /// เลือก model ที่เหมาะสมที่สุดสำหรับ task
     /// </summary>
-    public string SelectBestModel(TaskComplexity complexity, TaskType? type = null)
+    public string SelectBestModel(TaskComplexity complexity, AITaskCategory? type = null)
     {
         // Model selection based on task
         return (complexity, type) switch
         {
             // High complexity tasks - use larger models
-            (TaskComplexity.High, TaskType.Coding) => "deepseek-coder:6.7b",
-            (TaskComplexity.High, TaskType.Reasoning) => "llama3.1:8b",
-            (TaskComplexity.High, TaskType.Creative) => "llama3.1:8b",
+            (TaskComplexity.High, AITaskCategory.Coding) => "deepseek-coder:6.7b",
+            (TaskComplexity.High, AITaskCategory.Reasoning) => "llama3.1:8b",
+            (TaskComplexity.High, AITaskCategory.Creative) => "llama3.1:8b",
             (TaskComplexity.High, _) => "llama3.1:8b",
 
             // Medium complexity - balanced models
-            (TaskComplexity.Medium, TaskType.Vision) => "llama3.2-vision:11b",
-            (TaskComplexity.Medium, TaskType.Coding) => "deepseek-coder:1.3b",
+            (TaskComplexity.Medium, AITaskCategory.Vision) => "llama3.2-vision:11b",
+            (TaskComplexity.Medium, AITaskCategory.Coding) => "deepseek-coder:1.3b",
             (TaskComplexity.Medium, _) => "llama3.2:3b",
 
             // Low complexity - fast models
@@ -927,27 +927,27 @@ Root Cause Analysis:
         _modelCapabilities["llama3.2:1b"] = new ModelCapability
         {
             Speed = 100, Intelligence = 60, Context = 4096,
-            BestFor = new[] { TaskType.Simple, TaskType.Quick }
+            BestFor = new[] { AITaskCategory.Simple, AITaskCategory.Quick }
         };
         _modelCapabilities["llama3.2:3b"] = new ModelCapability
         {
             Speed = 80, Intelligence = 75, Context = 8192,
-            BestFor = new[] { TaskType.General, TaskType.Content }
+            BestFor = new[] { AITaskCategory.General, AITaskCategory.Content }
         };
         _modelCapabilities["llama3.1:8b"] = new ModelCapability
         {
             Speed = 50, Intelligence = 90, Context = 32768,
-            BestFor = new[] { TaskType.Reasoning, TaskType.Complex }
+            BestFor = new[] { AITaskCategory.Reasoning, AITaskCategory.Complex }
         };
         _modelCapabilities["llama3.2-vision:11b"] = new ModelCapability
         {
             Speed = 30, Intelligence = 85, Context = 8192,
-            BestFor = new[] { TaskType.Vision }
+            BestFor = new[] { AITaskCategory.Vision }
         };
         _modelCapabilities["deepseek-coder:6.7b"] = new ModelCapability
         {
             Speed = 40, Intelligence = 85, Context = 16384,
-            BestFor = new[] { TaskType.Coding }
+            BestFor = new[] { AITaskCategory.Coding }
         };
     }
 
@@ -1143,7 +1143,7 @@ public enum TaskComplexity
     High
 }
 
-public enum TaskType
+public enum AITaskCategory
 {
     Simple,
     General,
@@ -1231,7 +1231,7 @@ public class ModelCapability
     public int Speed { get; set; }
     public int Intelligence { get; set; }
     public int Context { get; set; }
-    public TaskType[] BestFor { get; set; } = Array.Empty<TaskType>();
+    public AITaskCategory[] BestFor { get; set; } = Array.Empty<AITaskCategory>();
 }
 
 public class Example
