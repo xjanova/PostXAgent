@@ -85,36 +85,16 @@ public partial class StatusBar : UserControl
     }
 
     /// <summary>
-    /// รับข้อความจาก AI Assistant
+    /// รับข้อความจาก AI Assistant (handled by MainWindow header now)
     /// </summary>
     private void OnAIAssistantMessage(AIMessage message)
     {
+        // AI message display has been moved to MainWindow header
+        // This handler updates internal state only
         Dispatcher.Invoke(() =>
         {
-            // Update icon based on message type
-            AIMessageIcon.Kind = message.Type switch
-            {
-                AIMessageType.Warning => MaterialDesignThemes.Wpf.PackIconKind.AlertCircle,
-                AIMessageType.Celebration => MaterialDesignThemes.Wpf.PackIconKind.PartyPopper,
-                AIMessageType.Tip => MaterialDesignThemes.Wpf.PackIconKind.LightbulbOn,
-                AIMessageType.Suggestion => MaterialDesignThemes.Wpf.PackIconKind.CommentQuestion,
-                AIMessageType.SystemStatus => MaterialDesignThemes.Wpf.PackIconKind.ChartLine,
-                _ => MaterialDesignThemes.Wpf.PackIconKind.Robot
-            };
-
-            // Update icon color based on priority
-            AIMessageIcon.Foreground = message.Priority switch
-            {
-                AIMessagePriority.High => RedBrush,
-                AIMessagePriority.Low => GrayBrush,
-                _ => new SolidColorBrush(Color.FromRgb(139, 92, 246)) // Purple
-            };
-
-            // Update text with fade animation
-            TxtAIMessage.Text = message.Text;
-
-            // Store tooltip with full message
-            AIMessagePanel.ToolTip = $"{message.Type}: {message.Text}\n{message.Timestamp:HH:mm:ss}";
+            // Update tooltip on status bar to show AI status
+            ClaudeStatus.ToolTip = $"AI: {message.Type} - {message.Text}";
         });
     }
 

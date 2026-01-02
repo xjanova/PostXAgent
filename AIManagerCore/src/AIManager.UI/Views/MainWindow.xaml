@@ -285,6 +285,50 @@
                                     </StackPanel>
                                 </Button>
 
+                                <!-- Colab GPU Pool -->
+                                <Button x:Name="BtnColabGpu" Click="NavButton_Click" Tag="ColabGpu"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#204285F4" Offset="0"/>
+                                                    <GradientStop Color="#2034A853" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="GoogleCloud" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#4285F4"/>
+                                        </Border>
+                                        <TextBlock Text="Colab GPU" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#4285F4" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="POOL" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Workflow Manager -->
+                                <Button x:Name="BtnWorkflowManager" Click="NavButton_Click" Tag="WorkflowManager"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#2010B981" Offset="0"/>
+                                                    <GradientStop Color="#20F59E0B" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="PlaylistPlay" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#10B981"/>
+                                        </Border>
+                                        <TextBlock Text="Workflow Manager" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Background="#10B981" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="HOT" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
                                 <!-- Workflow Editor -->
                                 <Button x:Name="BtnWorkflow" Click="NavButton_Click" Tag="WorkflowEditor"
                                         Style="{StaticResource FuturisticNavButton}" Margin="5,3">
@@ -301,9 +345,6 @@
                                                                      Foreground="#FB923C"/>
                                         </Border>
                                         <TextBlock Text="Workflow Editor" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#F97316" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
-                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
-                                        </Border>
                                     </StackPanel>
                                 </Button>
 
@@ -499,6 +540,7 @@
                     <!-- ═══════════════════════════════════════════════ -->
                     <Grid Grid.Row="0" Margin="0,10,0,20">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
@@ -510,7 +552,43 @@
                                        Style="{StaticResource BodyText}" Margin="0,5,0,0"/>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
+                        <!-- AI Assistant Message Panel -->
+                        <Border Grid.Column="1" x:Name="AIMessageHeaderPanel" VerticalAlignment="Center"
+                                Margin="20,0,20,0" Background="#15FFFFFF" CornerRadius="15"
+                                Padding="12,6" Cursor="Hand" MouseLeftButtonDown="AIMessagePanel_Click"
+                                MinWidth="200" MaxWidth="500">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#8B5CF6" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
+                            </Border.Effect>
+                            <Grid ClipToBounds="True">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="AIMessageIcon" Kind="Robot" Width="18" Height="18"
+                                                         Foreground="#8B5CF6" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <!-- Marquee Container -->
+                                <Canvas Grid.Column="1" x:Name="MarqueeCanvas" ClipToBounds="True" Height="20">
+                                    <TextBlock x:Name="TxtAIMessage" Text="AI Assistant พร้อมช่วยเหลือ"
+                                               FontSize="13" Foreground="#E0E0E0" VerticalAlignment="Center"
+                                               Canvas.Top="0" Canvas.Left="0"/>
+                                </Canvas>
+                            </Grid>
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#25FFFFFF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Border.ToolTip>
+                                <ToolTip x:Name="AIMessageTooltip" Content="คลิกเพื่อพูดคุยกับ AI Assistant"/>
+                            </Border.ToolTip>
+                        </Border>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
                             <!-- Clock Display -->
                             <Border Style="{StaticResource GlassCardDark}" Padding="15,8" CornerRadius="10">
                                 <StackPanel Orientation="Horizontal">
@@ -523,7 +601,7 @@
                         </StackPanel>
 
                         <!-- Window Controls -->
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top">
                             <Button Click="MinimizeButton_Click"
                                     Style="{StaticResource MaterialDesignIconButton}"
                                     Width="36" Height="36" Margin="0,0,5,0">

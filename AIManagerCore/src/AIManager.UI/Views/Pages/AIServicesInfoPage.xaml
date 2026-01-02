@@ -1,0 +1,181 @@
+<Page x:Class="AIManager.UI.Views.Pages.AIServicesInfoPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      Title="AI Services Info"
+      Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="#15FFFFFF" CornerRadius="16" Padding="20" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Api" Width="32" Height="32"
+                                                     Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                            <TextBlock Text="AI Services &amp; API Reference" FontSize="24" FontWeight="Bold"
+                                       Margin="12,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="ข้อมูล API และการตั้งค่าสำหรับ AI Services ต่างๆ ที่รองรับ"
+                                   Opacity="0.6" FontSize="13" Margin="0,8,0,0"/>
+                    </StackPanel>
+
+                    <!-- Ollama Status -->
+                    <Border Grid.Column="1" x:Name="OllamaStatusPanel" Background="#20FFFFFF"
+                            CornerRadius="12" Padding="16" MinWidth="200">
+                        <StackPanel>
+                            <TextBlock Text="Ollama Status" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <Ellipse x:Name="OllamaStatusIndicator" Width="10" Height="10" Fill="#EF4444"/>
+                                <TextBlock x:Name="TxtOllamaStatus" Text="Checking..." Margin="8,0,0,0" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TxtOllamaModels" Text="" FontSize="11" Opacity="0.6" Margin="18,4,0,0"/>
+                            <Button x:Name="BtnRefreshOllama" Content="Refresh" Margin="0,8,0,0"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Click="BtnRefreshOllama_Click" Height="28" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Ollama Quick Setup -->
+            <Border Grid.Row="1" Background="#10FFFFFF" CornerRadius="12" Padding="16" Margin="0,0,0,20">
+                <Expander Header="Ollama Quick Setup Guide" IsExpanded="True">
+                    <StackPanel Margin="0,12,0,0">
+                        <TextBlock Text="1. ติดตั้ง Ollama" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <Border Background="#05FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Windows: ดาวน์โหลดจาก https://ollama.ai/download" FontFamily="Consolas" FontSize="12"/>
+                                <TextBlock Text="Mac: brew install ollama" FontFamily="Consolas" FontSize="12"/>
+                                <TextBlock Text="Linux: curl -fsSL https://ollama.ai/install.sh | sh" FontFamily="Consolas" FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="2. ดาวน์โหลด Model" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <Border Background="#05FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="ollama pull llama3.2          # 2GB, เร็ว" FontFamily="Consolas" FontSize="12"/>
+                                <TextBlock Text="ollama pull mistral           # 4GB, coding" FontFamily="Consolas" FontSize="12"/>
+                                <TextBlock Text="ollama pull nomic-embed-text  # 274MB, embeddings" FontFamily="Consolas" FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="3. ทดสอบ" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <Border Background="#05FFFFFF" CornerRadius="6" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="ollama run llama3.2" FontFamily="Consolas" FontSize="12"/>
+                                <TextBlock Text="curl http://localhost:11434/api/tags" FontFamily="Consolas" FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Button Content="Open Ollama Download Page" Margin="0,12,0,0"
+                                Style="{StaticResource MaterialDesignFlatMidBgButton}"
+                                Background="#8B5CF6" Foreground="White"
+                                Click="BtnOpenOllamaDownload_Click"/>
+                    </StackPanel>
+                </Expander>
+            </Border>
+
+            <!-- AI Services List -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Column - Services -->
+                <StackPanel Grid.Column="0" Margin="0,0,10,0" x:Name="ServicesPanel">
+                    <!-- Services will be generated programmatically -->
+                </StackPanel>
+
+                <!-- Right Column - API Reference -->
+                <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="12" Padding="16" Margin="10,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Ollama API Reference" FontSize="18" FontWeight="Bold" Margin="0,0,0,16"/>
+
+                        <!-- API Endpoints Table -->
+                        <Border Background="#05FFFFFF" CornerRadius="8" Padding="0" Margin="0,0,0,16">
+                            <DataGrid x:Name="EndpointsGrid" AutoGenerateColumns="False"
+                                      CanUserAddRows="False" CanUserDeleteRows="False"
+                                      IsReadOnly="True" HeadersVisibility="Column"
+                                      GridLinesVisibility="Horizontal"
+                                      Background="Transparent"
+                                      BorderThickness="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Method" Binding="{Binding Method}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#10B981"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Endpoint" Binding="{Binding Path}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontFamily" Value="Consolas"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <!-- Example Requests -->
+                        <TextBlock Text="Example Requests" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                        <Expander Header="POST /api/generate" Margin="0,0,0,8">
+                            <Border Background="#05FFFFFF" CornerRadius="6" Padding="12" Margin="0,8,0,0">
+                                <TextBlock FontFamily="Consolas" FontSize="11" TextWrapping="Wrap">
+                                    <Run Text='curl http://localhost:11434/api/generate -d "{'/><LineBreak/>
+                                    <Run Text='  "model": "llama3.2",'/><LineBreak/>
+                                    <Run Text='  "prompt": "Why is the sky blue?",'/><LineBreak/>
+                                    <Run Text='  "stream": false'/><LineBreak/>
+                                    <Run Text='}"'/>
+                                </TextBlock>
+                            </Border>
+                        </Expander>
+
+                        <Expander Header="POST /api/chat" Margin="0,0,0,8">
+                            <Border Background="#05FFFFFF" CornerRadius="6" Padding="12" Margin="0,8,0,0">
+                                <TextBlock FontFamily="Consolas" FontSize="11" TextWrapping="Wrap">
+                                    <Run Text='curl http://localhost:11434/api/chat -d "{'/><LineBreak/>
+                                    <Run Text='  "model": "llama3.2",'/><LineBreak/>
+                                    <Run Text='  "messages": ['/><LineBreak/>
+                                    <Run Text='    {"role": "user", "content": "Hello!"}'/><LineBreak/>
+                                    <Run Text='  ],'/><LineBreak/>
+                                    <Run Text='  "stream": false'/><LineBreak/>
+                                    <Run Text='}"'/>
+                                </TextBlock>
+                            </Border>
+                        </Expander>
+
+                        <Expander Header="POST /api/embeddings">
+                            <Border Background="#05FFFFFF" CornerRadius="6" Padding="12" Margin="0,8,0,0">
+                                <TextBlock FontFamily="Consolas" FontSize="11" TextWrapping="Wrap">
+                                    <Run Text='curl http://localhost:11434/api/embeddings -d "{'/><LineBreak/>
+                                    <Run Text='  "model": "nomic-embed-text",'/><LineBreak/>
+                                    <Run Text='  "prompt": "Hello world"'/><LineBreak/>
+                                    <Run Text='}"'/>
+                                </TextBlock>
+                            </Border>
+                        </Expander>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</Page>

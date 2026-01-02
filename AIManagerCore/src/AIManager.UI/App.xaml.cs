@@ -258,9 +258,12 @@ public partial class App : Application
         services.AddSingleton<AccountPoolManager>();
         services.AddSingleton<HuggingFaceModelManager>();
         services.AddSingleton<GpuRentalService>();
+        services.AddSingleton<ColabGpuPoolService>();
+        services.AddSingleton<GpuSetupGuideService>();
         services.AddSingleton<ContentGeneratorService>();
         services.AddSingleton<ImageGeneratorService>();
         services.AddSingleton<FirstRunDetectionService>();
+        services.AddSingleton<AIAssistantService>();
 
         // ViewModels
         services.AddTransient<MainViewModel>();
