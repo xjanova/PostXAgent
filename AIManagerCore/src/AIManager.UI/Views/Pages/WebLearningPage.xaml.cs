@@ -31,6 +31,10 @@ public partial class WebLearningPage : Page
     private TeachingGuideline? _currentGuideline;
     private int _currentTeachingStepIndex;
 
+    // Initial URL and platform passed from WorkflowManagerPage
+    private readonly string? _initialUrl;
+    private readonly string? _platformName;
+
     // Injected Recording Script
     private const string RecordingScript = @"
         (function() {
@@ -148,9 +152,12 @@ public partial class WebLearningPage : Page
         })();
     ";
 
-    public WebLearningPage()
+    public WebLearningPage(string? initialUrl = null, string? platformName = null)
     {
         InitializeComponent();
+
+        _initialUrl = initialUrl;
+        _platformName = platformName;
 
         // Try to get services from DI
         try
@@ -168,6 +175,34 @@ public partial class WebLearningPage : Page
 
         StepsItemsControl.ItemsSource = _recordedSteps;
         TeachingStepsControl.ItemsSource = _teachingSteps;
+
+        // Set initial URL if provided
+        if (!string.IsNullOrEmpty(_initialUrl))
+        {
+            UrlTextBox.Text = _initialUrl;
+        }
+
+        // Pre-select platform in combo box if provided
+        if (!string.IsNullOrEmpty(_platformName))
+        {
+            SelectPlatformInComboBox(_platformName);
+        }
+    }
+
+    /// <summary>
+    /// Pre-select platform in combo box based on platform name
+    /// </summary>
+    private void SelectPlatformInComboBox(string platformName)
+    {
+        foreach (ComboBoxItem item in PlatformComboBox.Items)
+        {
+            if (item.Content?.ToString()?.Equals(platformName, StringComparison.OrdinalIgnoreCase) == true ||
+                item.Tag?.ToString()?.Equals(platformName, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                PlatformComboBox.SelectedItem = item;
+                break;
+            }
+        }
     }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
@@ -181,8 +216,22 @@ public partial class WebLearningPage : Page
             // Set up message handler for recording
             WebBrowser.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
 
-            // Navigate to default URL
-            WebBrowser.CoreWebView2.Navigate(UrlTextBox.Text);
+            // Navigate to initial URL (from platform or URL textbox)
+            var navigateUrl = !string.IsNullOrEmpty(_initialUrl) ? _initialUrl : UrlTextBox.Text;
+            if (!string.IsNullOrEmpty(navigateUrl))
+            {
+                // Ensure URL has protocol
+                if (!navigateUrl.StartsWith("http://") && !navigateUrl.StartsWith("https://"))
+                {
+                    navigateUrl = "https://" + navigateUrl;
+                }
+                UrlTextBox.Text = navigateUrl;
+                LoadingIndicator.Visibility = Visibility.Visible;
+                WebBrowser.CoreWebView2.Navigate(navigateUrl);
+
+                _logger?.LogInformation("Navigating to platform URL: {Url} for platform: {Platform}",
+                    navigateUrl, _platformName ?? "Unknown");
+            }
         }
         catch (Exception ex)
         {

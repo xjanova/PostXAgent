@@ -299,7 +299,7 @@
             <ItemsControl Grid.Row="4" x:Name="PlatformStatusList">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <UniformGrid Rows="2" Columns="5"/>
+                        <UniformGrid Rows="2" Columns="7"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>

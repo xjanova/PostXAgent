@@ -1,0 +1,349 @@
+<Page x:Class="AIManager.UI.Views.Pages.ColabGpuPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      mc:Ignorable="d"
+      d:DesignHeight="800" d:DesignWidth="1200"
+      Title="Google Colab GPU Pool"
+      Background="Transparent">
+
+    <Page.Resources>
+        <!-- Account Card Style -->
+        <Style x:Key="AccountCard" TargetType="Border">
+            <Setter Property="Background" Value="#20FFFFFF"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- HEADER - Pool Status Overview                           -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <Border Grid.Row="0" Background="#15FFFFFF" CornerRadius="16" Padding="20" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <materialDesign:PackIcon Kind="GoogleCloud" Width="32" Height="32"
+                                                     Foreground="#4285F4" VerticalAlignment="Center"/>
+                            <TextBlock Text="Google Colab GPU Pool" FontSize="24" FontWeight="Bold"
+                                       Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <Border x:Name="PoolStatusBadge" Background="#10B981" CornerRadius="12"
+                                    Padding="12,4" Margin="20,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="TxtPoolStatus" Text="พร้อมใช้งาน" FontSize="12" FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock Text="จัดการ account pool สำหรับใช้งาน GPU จาก Google Colab ต่อเนื่อง"
+                                   Opacity="0.6" FontSize="13"/>
+
+                        <!-- Quick Stats -->
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Border Background="#208B5CF6" CornerRadius="8" Padding="12,8" Margin="0,0,12,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="AccountMultiple" Width="18" Height="18"
+                                                             Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtTotalAccounts" Text="0 Accounts" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#2010B981" CornerRadius="8" Padding="12,8" Margin="0,0,12,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="CheckCircle" Width="18" Height="18"
+                                                             Foreground="#10B981" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtActiveAccounts" Text="0 พร้อมใช้" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#2006B6D4" CornerRadius="8" Padding="12,8" Margin="0,0,12,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Clock" Width="18" Height="18"
+                                                             Foreground="#06B6D4" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtRemainingQuota" Text="0 ชม. เหลือ" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Current Session Info -->
+                    <Border Grid.Column="1" x:Name="CurrentSessionPanel" Background="#20FFFFFF"
+                            CornerRadius="12" Padding="16" MinWidth="250" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="Session ปัจจุบัน" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <Ellipse Width="10" Height="10" Fill="#10B981"/>
+                                <TextBlock x:Name="TxtCurrentAccount" Text="user@gmail.com" Margin="8,0,0,0" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Opacity="0.7">
+                                <materialDesign:PackIcon Kind="Gpu" Width="14" Height="14"/>
+                                <TextBlock x:Name="TxtCurrentGpu" Text="T4 (15GB)" Margin="6,0,0,0" FontSize="12"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Opacity="0.7">
+                                <materialDesign:PackIcon Kind="TimerOutline" Width="14" Height="14"/>
+                                <TextBlock x:Name="TxtSessionDuration" Text="0:00:00" Margin="6,0,0,0" FontSize="12"/>
+                            </StackPanel>
+                            <Button Content="จบ Session" Margin="0,12,0,0" Click="EndSession_Click"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Foreground="#EF4444" BorderBrush="#EF4444"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- SETTINGS & ACTIONS                                      -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <Border Grid.Row="1" Background="#10FFFFFF" CornerRadius="12" Padding="16" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Settings -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <!-- Rotation Strategy -->
+                        <StackPanel Margin="0,0,24,0">
+                            <TextBlock Text="Rotation Strategy" FontSize="11" Opacity="0.6" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="CmbRotationStrategy" Width="150"
+                                      SelectionChanged="RotationStrategy_Changed">
+                                <ComboBoxItem Content="Priority" Tag="Priority"/>
+                                <ComboBoxItem Content="Round Robin" Tag="RoundRobin"/>
+                                <ComboBoxItem Content="Least Used" Tag="LeastUsed"/>
+                                <ComboBoxItem Content="Random" Tag="Random"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Cooldown -->
+                        <StackPanel Margin="0,0,24,0">
+                            <TextBlock Text="Cooldown (นาที)" FontSize="11" Opacity="0.6" Margin="0,0,0,4"/>
+                            <TextBox x:Name="TxtCooldownMinutes" Width="80" Text="60"
+                                     TextChanged="Settings_Changed"/>
+                        </StackPanel>
+
+                        <!-- Quota Threshold -->
+                        <StackPanel Margin="0,0,24,0">
+                            <TextBlock Text="Quota Threshold (%)" FontSize="11" Opacity="0.6" Margin="0,0,0,4"/>
+                            <TextBox x:Name="TxtQuotaThreshold" Width="80" Text="90"
+                                     TextChanged="Settings_Changed"/>
+                        </StackPanel>
+
+                        <!-- Auto Failover -->
+                        <StackPanel Margin="0,0,24,0">
+                            <TextBlock Text="Auto Failover" FontSize="11" Opacity="0.6" Margin="0,0,0,4"/>
+                            <ToggleButton x:Name="TglAutoFailover" IsChecked="True"
+                                          Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                          Click="Settings_Changed"/>
+                        </StackPanel>
+
+                        <!-- Auto Rotate -->
+                        <StackPanel>
+                            <TextBlock Text="Auto Rotate" FontSize="11" Opacity="0.6" Margin="0,0,0,4"/>
+                            <ToggleButton x:Name="TglAutoRotate" IsChecked="True"
+                                          Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                          Click="Settings_Changed"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Actions -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Content="AI Setup Wizard" Click="OpenSetupWizard_Click"
+                                Style="{StaticResource MaterialDesignFlatMidBgButton}"
+                                Background="#10B981" Foreground="White" Margin="0,0,8,0"
+                                ToolTip="Open AI-guided setup wizard to add GPU provider accounts">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="RobotExcited" Width="18" Height="18" VerticalAlignment="Center"/>
+                                        <TextBlock Text="AI Setup Wizard" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                        <Button Content="API Reference" Click="OpenAIServicesInfo_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Margin="0,0,8,0"
+                                ToolTip="View AI Services API documentation and setup guides">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Api" Width="18" Height="18" VerticalAlignment="Center"/>
+                                        <TextBlock Text="API Reference" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                        <Button Content="เพิ่ม Account" Click="AddAccount_Click"
+                                Style="{StaticResource MaterialDesignFlatMidBgButton}"
+                                Background="#8B5CF6" Foreground="White" Margin="0,0,8,0">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Plus" Width="18" Height="18" VerticalAlignment="Center"/>
+                                        <TextBlock Text="เพิ่ม Account" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                        <Button Content="รีเฟรช" Click="Refresh_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" VerticalAlignment="Center"/>
+                                        <TextBlock Text="รีเฟรช" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- ACCOUNT LIST                                            -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="350"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Account Cards -->
+                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,20,0">
+                    <StackPanel x:Name="AccountsPanel">
+                        <!-- Empty State -->
+                        <Border x:Name="EmptyState" Background="#10FFFFFF" CornerRadius="16"
+                                Padding="40" HorizontalAlignment="Center" Visibility="Visible">
+                            <StackPanel HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="GoogleCloud" Width="64" Height="64"
+                                                         Opacity="0.3" HorizontalAlignment="Center"/>
+                                <TextBlock Text="ยังไม่มี Account" FontSize="18" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" Margin="0,16,0,0" Opacity="0.6"/>
+                                <TextBlock Text="เพิ่ม Google Account เพื่อเริ่มใช้งาน GPU จาก Colab"
+                                           HorizontalAlignment="Center" Opacity="0.4"/>
+                                <Button Content="เพิ่ม Account แรก" Margin="0,20,0,0" Click="AddAccount_Click"
+                                        Style="{StaticResource MaterialDesignFlatMidBgButton}"
+                                        Background="#8B5CF6" Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Account cards will be added here dynamically -->
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Help Panel -->
+                <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="12" Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="วิธีใช้งาน" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+                        <!-- Step 1 -->
+                        <StackPanel Margin="0,0,0,16">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="12" Background="#8B5CF6">
+                                    <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                                </Border>
+                                <TextBlock Text="เพิ่ม Google Accounts" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="เพิ่มหลาย Google account เพื่อใช้งาน GPU ต่อเนื่อง เมื่อ account หนึ่งหมดโควต้า จะเปลี่ยนไปใช้ account ถัดไปอัตโนมัติ"
+                                       TextWrapping="Wrap" Opacity="0.6" Margin="32,8,0,0" FontSize="12"/>
+                        </StackPanel>
+
+                        <!-- Step 2 -->
+                        <StackPanel Margin="0,0,0,16">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="12" Background="#10B981">
+                                    <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                                </Border>
+                                <TextBlock Text="ตั้งค่า Priority" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="กำหนด priority ให้แต่ละ account ตัวเลขต่ำจะถูกใช้ก่อน หรือเลือก rotation strategy อื่นๆ"
+                                       TextWrapping="Wrap" Opacity="0.6" Margin="32,8,0,0" FontSize="12"/>
+                        </StackPanel>
+
+                        <!-- Step 3 -->
+                        <StackPanel Margin="0,0,0,16">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="12" Background="#06B6D4">
+                                    <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                                </Border>
+                                <TextBlock Text="ใช้งาน GPU" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="ระบบจะเลือก account ที่พร้อมใช้งานให้อัตโนมัติ และหมุนเปลี่ยนเมื่อโควต้าใกล้หมด"
+                                       TextWrapping="Wrap" Opacity="0.6" Margin="32,8,0,0" FontSize="12"/>
+                        </StackPanel>
+
+                        <Border Height="1" Background="#20FFFFFF" Margin="0,8,0,16"/>
+
+                        <!-- Quota Info -->
+                        <TextBlock Text="โควต้า Colab" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Free Tier" Opacity="0.7"/>
+                            <TextBlock Grid.Column="1" Text="~12 ชม./วัน" FontWeight="SemiBold" Foreground="#10B981"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Pro ($9.99/เดือน)" Opacity="0.7"/>
+                            <TextBlock Grid.Column="1" Text="~24 ชม./วัน" FontWeight="SemiBold" Foreground="#8B5CF6"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Pro+ ($49.99/เดือน)" Opacity="0.7"/>
+                            <TextBlock Grid.Column="1" Text="~48 ชม./วัน" FontWeight="SemiBold" Foreground="#F59E0B"/>
+                        </Grid>
+
+                        <Border Height="1" Background="#20FFFFFF" Margin="0,16,0,16"/>
+
+                        <!-- GPU Types -->
+                        <TextBlock Text="GPU ที่รองรับ" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <WrapPanel>
+                            <Border Background="#20FFFFFF" CornerRadius="6" Padding="8,4" Margin="0,0,8,8">
+                                <TextBlock Text="T4 (15GB)" FontSize="11"/>
+                            </Border>
+                            <Border Background="#20FFFFFF" CornerRadius="6" Padding="8,4" Margin="0,0,8,8">
+                                <TextBlock Text="P100 (16GB)" FontSize="11"/>
+                            </Border>
+                            <Border Background="#20FFFFFF" CornerRadius="6" Padding="8,4" Margin="0,0,8,8">
+                                <TextBlock Text="V100 (16GB)" FontSize="11"/>
+                            </Border>
+                            <Border Background="#20FFFFFF" CornerRadius="6" Padding="8,4" Margin="0,0,8,8">
+                                <TextBlock Text="A100 (40GB)" FontSize="11"/>
+                            </Border>
+                            <Border Background="#20FFFFFF" CornerRadius="6" Padding="8,4" Margin="0,0,8,8">
+                                <TextBlock Text="L4 (24GB)" FontSize="11"/>
+                            </Border>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</Page>

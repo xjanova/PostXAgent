@@ -170,6 +170,14 @@ public class WorkflowStorage
     }
 
     /// <summary>
+    /// Alias for GetWorkflowsByPlatformAsync
+    /// </summary>
+    public Task<List<LearnedWorkflow>> GetWorkflowsForPlatformAsync(
+        string platform,
+        CancellationToken ct = default)
+        => GetWorkflowsByPlatformAsync(platform, ct);
+
+    /// <summary>
     /// ลบ Workflow
     /// </summary>
     public async Task DeleteWorkflowAsync(string id, CancellationToken ct = default)

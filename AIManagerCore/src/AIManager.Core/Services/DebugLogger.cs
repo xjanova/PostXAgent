@@ -16,12 +16,20 @@ public sealed class DebugLogger : IDisposable
 
     private readonly string _logDirectory;
     private readonly ConcurrentQueue<LogEntry> _logQueue = new();
+    private readonly List<LogEntry> _recentLogs = new();
+    private readonly object _recentLogsLock = new();
+    private const int MaxRecentLogs = 500;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _writeTask;
     private readonly object _fileLock = new();
     private StreamWriter? _currentWriter;
     private string _currentLogFile = "";
     private DateTime _currentDate = DateTime.MinValue;
+
+    /// <summary>
+    /// Event fired when a new log is added
+    /// </summary>
+    public event EventHandler<DebugLogEventArgs>? LogAdded;
 
     public enum LogLevel
     {
@@ -33,7 +41,10 @@ public sealed class DebugLogger : IDisposable
         Critical
     }
 
-    private record LogEntry(
+    /// <summary>
+    /// Log entry record - made public for UI consumption
+    /// </summary>
+    public record LogEntry(
         DateTime Timestamp,
         LogLevel Level,
         string Category,
@@ -155,8 +166,21 @@ public sealed class DebugLogger : IDisposable
 
         _logQueue.Enqueue(entry);
 
+        // Also store in recent logs for UI
+        lock (_recentLogsLock)
+        {
+            _recentLogs.Add(entry);
+            while (_recentLogs.Count > MaxRecentLogs)
+            {
+                _recentLogs.RemoveAt(0);
+            }
+        }
+
         // Also write to debug output
         Debug.WriteLine(FormatLogLine(entry));
+
+        // Fire event for UI subscribers
+        LogAdded?.Invoke(this, new DebugLogEventArgs(entry));
     }
 
     private async Task WriteLogsAsync()
@@ -312,6 +336,20 @@ public sealed class DebugLogger : IDisposable
     #region Utility Methods
 
     /// <summary>
+    /// Get recent log entries for UI display
+    /// </summary>
+    public List<LogEntry> GetRecentLogs(int count = 100)
+    {
+        lock (_recentLogsLock)
+        {
+            return _recentLogs
+                .TakeLast(count)
+                .Reverse()
+                .ToList();
+        }
+    }
+
+    /// <summary>
     /// Get path to today's log file
     /// </summary>
     public string GetCurrentLogFile() => _currentLogFile;
@@ -432,4 +470,17 @@ public static class LoggerExtensions
         [CallerMemberName] string? callerMethod = null,
         [CallerLineNumber] int callerLine = 0)
         => Logger.LogCritical(obj.GetType().Name, message, ex, callerFile, callerMethod, callerLine);
+}
+
+/// <summary>
+/// Event args for log added events
+/// </summary>
+public class DebugLogEventArgs : EventArgs
+{
+    public DebugLogger.LogEntry Log { get; }
+
+    public DebugLogEventArgs(DebugLogger.LogEntry log)
+    {
+        Log = log;
+    }
 }
