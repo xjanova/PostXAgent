@@ -134,11 +134,30 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- Center: Current Task (if any) -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
-                <TextBlock x:Name="TxtCurrentTask" Text="" FontSize="11" Opacity="0.6" MaxWidth="300"
-                           TextTrimming="CharacterEllipsis"/>
-            </StackPanel>
+            <!-- Center: AI Assistant Message -->
+            <Border Grid.Column="1" x:Name="AIMessagePanel" VerticalAlignment="Center" Margin="0,0,20,0"
+                    Background="#15FFFFFF" CornerRadius="12" Padding="10,4" Cursor="Hand"
+                    MouseLeftButtonDown="AIMessagePanel_Click">
+                <Border.Effect>
+                    <DropShadowEffect Color="#8B5CF6" BlurRadius="8" ShadowDepth="0" Opacity="0.3"/>
+                </Border.Effect>
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon x:Name="AIMessageIcon" Kind="Robot" Width="14" Height="14"
+                                             Foreground="#8B5CF6" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock x:Name="TxtAIMessage" Text="AI Assistant พร้อมช่วยเหลือ" FontSize="11"
+                               Foreground="#E0E0E0" MaxWidth="350" TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#25FFFFFF"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+            </Border>
 
             <!-- Right: System Info -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">

@@ -85,6 +85,9 @@ builder.Services.AddSingleton<ViralAnalysisService>();
 // Image Generator Service
 builder.Services.AddSingleton<ImageGeneratorService>();
 
+// AI Assistant Service (Status Bar messages)
+builder.Services.AddSingleton<AIAssistantService>();
+
 // Media Processing Services (Video/Audio)
 builder.Services.AddSingleton<FFmpegService>();
 builder.Services.AddSingleton<VideoProcessor>();

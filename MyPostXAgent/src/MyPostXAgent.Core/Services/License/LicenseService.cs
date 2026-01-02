@@ -45,6 +45,7 @@ public class LicenseService
 
     /// <summary>
     /// ตรวจสอบว่าสามารถใช้ Demo ได้หรือไม่
+    /// Uses xmanstudio API: POST /api/v1/license/demo/check
     /// </summary>
     public async Task<DemoCheckResponse> CheckDemoEligibilityAsync(CancellationToken ct = default)
     {
@@ -55,14 +56,14 @@ public class LicenseService
             var request = new DemoCheckRequest
             {
                 MachineId = machineId.MachineId,
-                MachineHash = machineId.MachineHash,
+                MachineFingerprint = machineId.MachineHash,
                 HardwareInfo = machineId,
                 AppVersion = _appVersion,
                 OsVersion = machineId.OsVersion
             };
 
             var response = await _httpClient.PostAsJsonAsync(
-                $"{_apiBaseUrl}/api/v1/license/check-demo",
+                $"{_apiBaseUrl}/api/v1/license/demo/check",
                 request,
                 ct);
 
@@ -100,6 +101,7 @@ public class LicenseService
 
     /// <summary>
     /// เปิดใช้งาน Demo
+    /// Uses xmanstudio API: POST /api/v1/license/demo
     /// </summary>
     public async Task<DemoCheckResponse> ActivateDemoAsync(CancellationToken ct = default)
     {
@@ -110,14 +112,14 @@ public class LicenseService
             var request = new DemoCheckRequest
             {
                 MachineId = machineId.MachineId,
-                MachineHash = machineId.MachineHash,
+                MachineFingerprint = machineId.MachineHash,
                 HardwareInfo = machineId,
                 AppVersion = _appVersion,
                 OsVersion = machineId.OsVersion
             };
 
             var response = await _httpClient.PostAsJsonAsync(
-                $"{_apiBaseUrl}/api/v1/license/activate-demo",
+                $"{_apiBaseUrl}/api/v1/license/demo",
                 request,
                 ct);
 
@@ -165,6 +167,7 @@ public class LicenseService
 
     /// <summary>
     /// เปิดใช้งาน License Key
+    /// Uses xmanstudio API: POST /api/v1/license/activate
     /// </summary>
     public async Task<LicenseActivationResponse> ActivateLicenseAsync(string licenseKey, CancellationToken ct = default)
     {
@@ -176,7 +179,7 @@ public class LicenseService
             {
                 LicenseKey = licenseKey.Trim().ToUpperInvariant(),
                 MachineId = machineId.MachineId,
-                MachineHash = machineId.MachineHash,
+                MachineFingerprint = machineId.MachineHash,
                 HardwareInfo = machineId,
                 AppVersion = _appVersion
             };
@@ -237,6 +240,7 @@ public class LicenseService
 
     /// <summary>
     /// ตรวจสอบความถูกต้องของ License กับ Server
+    /// Uses xmanstudio API: POST /api/v1/license/validate
     /// </summary>
     public async Task<LicenseValidationResponse> ValidateLicenseAsync(
         string? licenseKey = null,
@@ -249,7 +253,7 @@ public class LicenseService
             var request = new LicenseValidationRequest
             {
                 MachineId = machineId.MachineId,
-                MachineHash = machineId.MachineHash,
+                MachineFingerprint = machineId.MachineHash,
                 LicenseKey = licenseKey ?? _currentLicense?.LicenseKey,
                 HardwareInfo = machineId,
                 AppVersion = _appVersion,
@@ -315,7 +319,7 @@ public class LicenseService
             var request = new LicenseValidationRequest
             {
                 MachineId = machineId.MachineId,
-                MachineHash = machineId.MachineHash,
+                MachineFingerprint = machineId.MachineHash,
                 LicenseKey = _currentLicense?.LicenseKey,
                 AppVersion = _appVersion
             };

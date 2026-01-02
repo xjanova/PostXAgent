@@ -22,6 +22,7 @@ public partial class StatusBar : UserControl
     private readonly GpuRentalService? _gpuService;
     private readonly CoreDatabaseService? _coreDb;
     private readonly ComfyUIService _comfyService = new();
+    private readonly AIAssistantService _aiAssistant;
     private int _alertCount = 0;
 
     // Status colors
@@ -49,6 +50,7 @@ public partial class StatusBar : UserControl
     public event EventHandler? BackendClicked;
     public event EventHandler? ClaudeClicked;
     public event EventHandler? AlertsClicked;
+    public event EventHandler? AIMessageClicked;
 
     public StatusBar()
     {
@@ -58,6 +60,10 @@ public partial class StatusBar : UserControl
         _hfManager = App.Services?.GetService<HuggingFaceModelManager>();
         _gpuService = App.Services?.GetService<GpuRentalService>();
         _coreDb = App.Services?.GetService<CoreDatabaseService>();
+
+        // Initialize AI Assistant
+        _aiAssistant = App.Services?.GetService<AIAssistantService>() ?? new AIAssistantService();
+        _aiAssistant.OnNewMessage += OnAIAssistantMessage;
 
         // Subscribe to database events
         if (_coreDb != null)
@@ -76,6 +82,40 @@ public partial class StatusBar : UserControl
 
         Loaded += StatusBar_Loaded;
         Unloaded += StatusBar_Unloaded;
+    }
+
+    /// <summary>
+    /// รับข้อความจาก AI Assistant
+    /// </summary>
+    private void OnAIAssistantMessage(AIMessage message)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            // Update icon based on message type
+            AIMessageIcon.Kind = message.Type switch
+            {
+                AIMessageType.Warning => MaterialDesignThemes.Wpf.PackIconKind.AlertCircle,
+                AIMessageType.Celebration => MaterialDesignThemes.Wpf.PackIconKind.PartyPopper,
+                AIMessageType.Tip => MaterialDesignThemes.Wpf.PackIconKind.LightbulbOn,
+                AIMessageType.Suggestion => MaterialDesignThemes.Wpf.PackIconKind.CommentQuestion,
+                AIMessageType.SystemStatus => MaterialDesignThemes.Wpf.PackIconKind.ChartLine,
+                _ => MaterialDesignThemes.Wpf.PackIconKind.Robot
+            };
+
+            // Update icon color based on priority
+            AIMessageIcon.Foreground = message.Priority switch
+            {
+                AIMessagePriority.High => RedBrush,
+                AIMessagePriority.Low => GrayBrush,
+                _ => new SolidColorBrush(Color.FromRgb(139, 92, 246)) // Purple
+            };
+
+            // Update text with fade animation
+            TxtAIMessage.Text = message.Text;
+
+            // Store tooltip with full message
+            AIMessagePanel.ToolTip = $"{message.Type}: {message.Text}\n{message.Timestamp:HH:mm:ss}";
+        });
     }
 
     private void CoreDb_StatusChanged(object? sender, DatabaseStatus status)
@@ -168,19 +208,35 @@ public partial class StatusBar : UserControl
     private async void StatusBar_Loaded(object sender, RoutedEventArgs e)
     {
         _updateTimer.Start();
+        _aiAssistant.Start();
         await RefreshAllStatusAsync();
         UpdateMemoryUsage();
+        UpdateAIAssistantState();
     }
 
     private void StatusBar_Unloaded(object sender, RoutedEventArgs e)
     {
         _updateTimer.Stop();
+        _aiAssistant.Stop();
+    }
+
+    /// <summary>
+    /// อัพเดทสถานะระบบให้ AI Assistant
+    /// </summary>
+    private void UpdateAIAssistantState()
+    {
+        var process = System.Diagnostics.Process.GetCurrentProcess();
+        _aiAssistant.MemoryUsageMB = process.WorkingSet64 / (1024 * 1024);
+        _aiAssistant.IsOllamaOnline = OllamaIndicator.Fill == GreenBrush;
+        _aiAssistant.IsComfyUIOnline = ComfyIndicator.Fill == GreenBrush;
+        _aiAssistant.IsBackendOnline = BackendIndicator.Fill == GreenBrush;
     }
 
     private async void UpdateTimer_Tick(object? sender, EventArgs e)
     {
         await RefreshAllStatusAsync();
         UpdateMemoryUsage();
+        UpdateAIAssistantState();
     }
 
     /// <summary>
@@ -570,17 +626,6 @@ public partial class StatusBar : UserControl
     }
 
     /// <summary>
-    /// อัพเดท current task
-    /// </summary>
-    public void SetCurrentTask(string? taskDescription)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            TxtCurrentTask.Text = taskDescription ?? "";
-        });
-    }
-
-    /// <summary>
     /// ตั้งค่า HuggingFace token
     /// </summary>
     public void SetHuggingFaceToken(string token)
@@ -629,5 +674,42 @@ public partial class StatusBar : UserControl
         // Reset alert count when clicked
         _alertCount = 0;
         AlertsBadge.Visibility = Visibility.Collapsed;
+    }
+
+    private void AIMessagePanel_Click(object sender, MouseButtonEventArgs e)
+    {
+        AIMessageClicked?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// แจ้ง AI Assistant ว่า Task สำเร็จ
+    /// </summary>
+    public void NotifyTaskCompleted(string platform, string taskType)
+    {
+        _aiAssistant.NotifyTaskCompleted(platform, taskType);
+    }
+
+    /// <summary>
+    /// แจ้ง AI Assistant ว่า Task ล้มเหลว
+    /// </summary>
+    public void NotifyTaskFailed(string platform, string error)
+    {
+        _aiAssistant.NotifyTaskFailed(platform, error);
+    }
+
+    /// <summary>
+    /// อัพเดทจำนวน pending tasks
+    /// </summary>
+    public void UpdatePendingTasks(int count)
+    {
+        _aiAssistant.PendingTasks = count;
+    }
+
+    /// <summary>
+    /// อัพเดทจำนวน active workers
+    /// </summary>
+    public void UpdateActiveWorkers(int count)
+    {
+        _aiAssistant.ActiveWorkers = count;
     }
 }

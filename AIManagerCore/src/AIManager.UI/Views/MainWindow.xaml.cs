@@ -3,12 +3,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using AIManager.Core.Orchestrator;
+using AIManager.Core.Services;
 using AIManager.UI.Views.Pages;
 
 namespace AIManager.UI.Views;
@@ -16,11 +18,15 @@ namespace AIManager.UI.Views;
 public partial class MainWindow : Window
 {
     private readonly ProcessOrchestrator _orchestrator;
+    private readonly AIAssistantService _aiAssistant;
     private readonly DispatcherTimer _clockTimer;
     private readonly DispatcherTimer _rgbTimer;
+    private readonly DispatcherTimer _marqueeTimer;
     private Button? _selectedNavButton;
     private readonly string _logoPath;
     private double _rgbHue = 0;
+    private Storyboard? _marqueeStoryboard;
+    private bool _isMarqueeNeeded = false;
 
     // RGB colors for smooth cycling
     private readonly Color[] _rgbColors = new[]
@@ -42,6 +48,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _orchestrator = App.Services.GetRequiredService<ProcessOrchestrator>();
+        _aiAssistant = App.Services.GetRequiredService<AIAssistantService>();
 
         // Logo path - check multiple locations
         _logoPath = FindLogoPath();
@@ -61,6 +68,17 @@ public partial class MainWindow : Window
         };
         _rgbTimer.Tick += RgbTimer_Tick;
         _rgbTimer.Start();
+
+        // Setup marquee timer for checking text overflow
+        _marqueeTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(100)
+        };
+        _marqueeTimer.Tick += MarqueeTimer_Tick;
+
+        // Subscribe to AI Assistant messages
+        _aiAssistant.OnNewMessage += OnAIAssistantMessage;
+        _aiAssistant.Start();
 
         // Subscribe to orchestrator events
         _orchestrator.StatsUpdated += OnStatsUpdated;
@@ -90,6 +108,8 @@ public partial class MainWindow : Window
         {
             _clockTimer.Stop();
             _rgbTimer.Stop();
+            _marqueeTimer.Stop();
+            _aiAssistant.Stop();
             LavaBackground?.StopAnimation();
             _orchestrator.Dispose();
         };
@@ -285,12 +305,12 @@ public partial class MainWindow : Window
     /// <summary>
     /// Public method to navigate to a specific page - for use from other pages
     /// </summary>
-    public void NavigateToPage(string pageName)
+    public void NavigateToPage(string pageName, string? initialUrl = null, string? platformName = null)
     {
-        NavigateTo(pageName);
+        NavigateTo(pageName, initialUrl, platformName);
     }
 
-    private void NavigateTo(string pageName)
+    private void NavigateTo(string pageName, string? initialUrl = null, string? platformName = null)
     {
         PageTitle.Text = pageName;
 
@@ -305,9 +325,14 @@ public partial class MainWindow : Window
             "Chat" => new ChatPage(),
             "ImageGenerator" => new ImageGeneratorPage(),
             "ModelManager" => new ModelManagerPage(),
+            "ColabGpu" => new ColabGpuPage(),
+            "GpuNodeMonitor" => new GpuNodeMonitorPage(),
+            "GpuSetupWizard" => new GpuSetupWizardPage(),
+            "AIServicesInfo" => new AIServicesInfoPage(),
+            "WorkflowManager" => new WorkflowManagerPage(),
             "WorkflowEditor" => new WorkflowEditorPage(),
             "WorkflowMonitor" => new WorkflowMonitorPage(),
-            "WebLearning" => new WebLearningPage(),
+            "WebLearning" => new WebLearningPage(initialUrl, platformName),
             "WorkerWebView" => new WorkerWebViewPage(),
             "Strategies" => new StrategiesPage(),
             "ApiKeys" => new ApiKeysPage(),
@@ -477,5 +502,140 @@ public partial class MainWindow : Window
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "PostXAgent", "logo.png");
+    }
+
+    /// <summary>
+    /// Handle AI Assistant message updates
+    /// </summary>
+    private void OnAIAssistantMessage(AIMessage message)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            // Stop any existing marquee animation
+            StopMarquee();
+
+            // Update text and icon
+            TxtAIMessage.Text = message.Text;
+
+            // Update icon based on message type
+            AIMessageIcon.Kind = message.Icon switch
+            {
+                "PartyPopper" => MaterialDesignThemes.Wpf.PackIconKind.PartyPopper,
+                "AlertCircle" => MaterialDesignThemes.Wpf.PackIconKind.AlertCircle,
+                "CheckCircle" => MaterialDesignThemes.Wpf.PackIconKind.CheckCircle,
+                "Lightbulb" => MaterialDesignThemes.Wpf.PackIconKind.Lightbulb,
+                "ChartLine" => MaterialDesignThemes.Wpf.PackIconKind.ChartLine,
+                "Memory" => MaterialDesignThemes.Wpf.PackIconKind.Memory,
+                "Cpu" => MaterialDesignThemes.Wpf.PackIconKind.Chip,
+                "Cog" => MaterialDesignThemes.Wpf.PackIconKind.Cog,
+                "ListCheck" => MaterialDesignThemes.Wpf.PackIconKind.FormatListChecks,
+                "Keyboard" => MaterialDesignThemes.Wpf.PackIconKind.Keyboard,
+                "Clock" => MaterialDesignThemes.Wpf.PackIconKind.Clock,
+                "ChartBar" => MaterialDesignThemes.Wpf.PackIconKind.ChartBar,
+                "Share" => MaterialDesignThemes.Wpf.PackIconKind.ShareVariant,
+                "Image" => MaterialDesignThemes.Wpf.PackIconKind.Image,
+                "MessageCircle" => MaterialDesignThemes.Wpf.PackIconKind.MessageText,
+                "GitBranch" => MaterialDesignThemes.Wpf.PackIconKind.SourceBranch,
+                _ => MaterialDesignThemes.Wpf.PackIconKind.Robot
+            };
+
+            // Update icon color based on message type
+            AIMessageIcon.Foreground = message.Type switch
+            {
+                AIMessageType.Warning => new SolidColorBrush(Color.FromRgb(244, 67, 54)),   // Red
+                AIMessageType.Celebration => new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
+                AIMessageType.Suggestion => new SolidColorBrush(Color.FromRgb(255, 193, 7)), // Yellow
+                _ => new SolidColorBrush(Color.FromRgb(139, 92, 246))  // Purple (default)
+            };
+
+            // Update tooltip with full message
+            AIMessageTooltip.Content = message.Text;
+
+            // Check if marquee is needed after layout update
+            _marqueeTimer.Start();
+        });
+    }
+
+    /// <summary>
+    /// Check if text overflows and needs marquee
+    /// </summary>
+    private void MarqueeTimer_Tick(object? sender, EventArgs e)
+    {
+        _marqueeTimer.Stop();
+
+        // Measure text width
+        TxtAIMessage.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var textWidth = TxtAIMessage.DesiredSize.Width;
+        var canvasWidth = MarqueeCanvas.ActualWidth;
+
+        if (canvasWidth <= 0) return;
+
+        if (textWidth > canvasWidth)
+        {
+            // Text is too long - start marquee animation
+            _isMarqueeNeeded = true;
+            StartMarquee(textWidth, canvasWidth);
+        }
+        else
+        {
+            // Text fits - center it
+            _isMarqueeNeeded = false;
+            Canvas.SetLeft(TxtAIMessage, 0);
+        }
+    }
+
+    /// <summary>
+    /// Start marquee scrolling animation
+    /// </summary>
+    private void StartMarquee(double textWidth, double canvasWidth)
+    {
+        StopMarquee();
+
+        // Create smooth scrolling animation
+        var animation = new DoubleAnimation
+        {
+            From = 0,
+            To = -(textWidth + 50), // Scroll completely off + gap
+            Duration = TimeSpan.FromSeconds(textWidth / 50), // Speed: 50 pixels per second
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+
+        // Add ease for smooth feel
+        animation.EasingFunction = new LinearEasing();
+
+        _marqueeStoryboard = new Storyboard();
+        _marqueeStoryboard.Children.Add(animation);
+        Storyboard.SetTarget(animation, TxtAIMessage);
+        Storyboard.SetTargetProperty(animation, new PropertyPath("(Canvas.Left)"));
+
+        _marqueeStoryboard.Begin();
+    }
+
+    /// <summary>
+    /// Stop marquee animation
+    /// </summary>
+    private void StopMarquee()
+    {
+        _marqueeStoryboard?.Stop();
+        _marqueeStoryboard = null;
+        Canvas.SetLeft(TxtAIMessage, 0);
+    }
+
+    /// <summary>
+    /// Handle AI Message Panel click - open AI Chat page
+    /// </summary>
+    private void AIMessagePanel_Click(object sender, MouseButtonEventArgs e)
+    {
+        NavigateTo("Chat");
+        UpdateSelectedNav(BtnChat);
+    }
+
+    /// <summary>
+    /// Linear easing for smooth marquee
+    /// </summary>
+    private class LinearEasing : EasingFunctionBase
+    {
+        protected override double EaseInCore(double normalizedTime) => normalizedTime;
+        protected override Freezable CreateInstanceCore() => new LinearEasing();
     }
 }
