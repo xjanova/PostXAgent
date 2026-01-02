@@ -187,8 +187,11 @@
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- AI COMMAND PROMPT - สั่งงาน AI ด้วยข้อความ                       -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="1" Margin="15,0,15,10" Visibility="{Binding ElementName=AutoLearningToggle, Path=IsChecked, Converter={StaticResource BoolToVis}}">
-            <Border Background="#25000000" CornerRadius="12" Padding="15">
+        <StackPanel Grid.Row="1" Margin="15,0,15,10"
+                    Visibility="{Binding ElementName=AutoLearningToggle, Path=IsChecked, Converter={StaticResource BoolToVis}}">
+
+            <!-- AI Prompt Input -->
+            <Border x:Name="AiPromptPanel" Background="#25000000" CornerRadius="12" Padding="15" Margin="0,0,0,10">
                 <Border.Effect>
                     <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="0" Opacity="0.2"/>
                 </Border.Effect>
@@ -275,12 +278,10 @@
                     </Button>
                 </Grid>
             </Border>
-        </Border>
 
-        <!-- AI Response Panel (shows after sending prompt) -->
-        <Border x:Name="AiResponsePanel" Grid.Row="1" Margin="15,0,15,10" Visibility="Collapsed">
-            <Border Background="#208B5CF6" CornerRadius="12" Padding="15"
-                    BorderBrush="#408B5CF6" BorderThickness="1">
+            <!-- AI Response Panel (shows after sending prompt) -->
+            <Border x:Name="AiResponsePanel" Background="#208B5CF6" CornerRadius="12" Padding="15"
+                    BorderBrush="#408B5CF6" BorderThickness="1" Visibility="Collapsed">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -310,7 +311,7 @@
                     <TextBlock x:Name="AiResponseText" Grid.Row="1"
                                Text="" Foreground="#EEFFFFFF"
                                FontSize="13" TextWrapping="Wrap" Margin="0,10,0,0"
-                               MaxHeight="120"/>
+                               MaxHeight="150"/>
 
                     <!-- Action Buttons -->
                     <StackPanel x:Name="AiResponseActions" Grid.Row="2" Orientation="Horizontal"
@@ -345,7 +346,7 @@
                     </StackPanel>
                 </Grid>
             </Border>
-        </Border>
+        </StackPanel>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- MAIN CONTENT                                                     -->
