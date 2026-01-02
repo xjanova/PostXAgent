@@ -288,12 +288,12 @@ public class ProcessOrchestrator : IDisposable
 
             result = task.Type switch
             {
-                TaskType.GenerateContent => await platformWorker.GenerateContentAsync(task, ct),
-                TaskType.GenerateImage => await platformWorker.GenerateImageAsync(task, ct),
-                TaskType.PostContent => await platformWorker.PostContentAsync(task, ct),
-                TaskType.SchedulePost => await platformWorker.SchedulePostAsync(task, ct),
-                TaskType.AnalyzeMetrics => await platformWorker.AnalyzeMetricsAsync(task, ct),
-                TaskType.DeletePost => await platformWorker.DeletePostAsync(task, ct),
+                Models.TaskType.GenerateContent => await platformWorker.GenerateContentAsync(task, ct),
+                Models.TaskType.GenerateImage => await platformWorker.GenerateImageAsync(task, ct),
+                Models.TaskType.PostContent => await platformWorker.PostContentAsync(task, ct),
+                Models.TaskType.SchedulePost => await platformWorker.SchedulePostAsync(task, ct),
+                Models.TaskType.AnalyzeMetrics => await platformWorker.AnalyzeMetricsAsync(task, ct),
+                Models.TaskType.DeletePost => await platformWorker.DeletePostAsync(task, ct),
                 _ => throw new ArgumentException($"Unknown task type: {task.Type}")
             };
 
