@@ -25,7 +25,7 @@
                                  VerticalAlignment="Center"/>
 
                         <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                            <TextBlock x:Name="TxtConnectionStatus" Text="Disconnected" FontWeight="Bold"/>
+                            <TextBlock x:Name="TxtConnectionStatus" Text="Disconnected" FontWeight="Bold" Foreground="White"/>
                             <TextBlock x:Name="TxtConnectionUrl" Text="ComfyUI: --" FontSize="11" Foreground="#AAAAAA"/>
                         </StackPanel>
 
@@ -39,7 +39,7 @@
                 <!-- Mode Selection -->
                 <materialDesign:Card Padding="15" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="Generation Mode" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Generation Mode" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
                         <RadioButton x:Name="RbImage" Content="Image Generation" IsChecked="True"
                                      GroupName="Mode" Checked="Mode_Changed"/>
                         <RadioButton x:Name="RbVideo" Content="Video Generation" Margin="0,8,0,0"
@@ -50,7 +50,7 @@
                 <!-- Provider Selection -->
                 <materialDesign:Card Padding="15" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="Provider" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Provider" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
                         <ComboBox x:Name="CboProvider" SelectionChanged="Provider_Changed"
                                   Style="{StaticResource MaterialDesignOutlinedComboBox}">
                             <ComboBoxItem Content="ComfyUI" Tag="comfyui" IsSelected="True"/>

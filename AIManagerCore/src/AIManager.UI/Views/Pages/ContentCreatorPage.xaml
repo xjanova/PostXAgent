@@ -16,7 +16,7 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
                     <materialDesign:PackIcon Kind="Creation" Width="28" Height="28" VerticalAlignment="Center" Foreground="#8B5CF6"/>
                     <StackPanel Margin="10,0,0,0">
-                        <TextBlock Text="Content Creator" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="Content Creator" FontSize="20" FontWeight="Bold" Foreground="White"/>
                         <TextBlock Text="สร้างเนื้อหาด้วย AI สำหรับ Social Media" FontSize="12" Foreground="#B8B8D0"/>
                     </StackPanel>
                 </StackPanel>
@@ -24,7 +24,7 @@
                 <!-- AI Provider Selection -->
                 <materialDesign:Card Padding="15" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="AI Provider" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="AI Provider" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
                         <ComboBox x:Name="CboProvider" Style="{StaticResource MaterialDesignOutlinedComboBox}"
                                   SelectionChanged="CboProvider_SelectionChanged">
                             <ComboBoxItem Content="Auto (ใช้ตัวที่พร้อม)" Tag="auto" IsSelected="True"/>
@@ -41,7 +41,7 @@
                 <!-- Platform Selection -->
                 <materialDesign:Card Padding="15" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="Platform" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Platform" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
                         <ComboBox x:Name="CboPlatform" Style="{StaticResource MaterialDesignOutlinedComboBox}">
                             <ComboBoxItem IsSelected="True">
                                 <StackPanel Orientation="Horizontal">
@@ -81,7 +81,7 @@
                             </ComboBoxItem>
                             <ComboBoxItem>
                                 <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="At" Width="20" Height="20" Foreground="#000000" Margin="0,0,8,0"/>
+                                    <materialDesign:PackIcon Kind="At" Width="20" Height="20" Foreground="#9CA3AF" Margin="0,0,8,0"/>
                                     <TextBlock Text="Threads" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </ComboBoxItem>
@@ -99,17 +99,17 @@
                 <materialDesign:Card Padding="15" Margin="0,0,0,15">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="Brand Info" FontWeight="Bold"/>
+                            <TextBlock Text="Brand Info" FontWeight="Bold" Foreground="White"/>
                             <TextBlock Text="(Optional)" FontSize="11" Foreground="#B8B8D0" Margin="8,2,0,0"/>
                         </StackPanel>
 
-                        <TextBlock Text="Brand Name" FontSize="12" Margin="0,0,0,5"/>
+                        <TextBlock Text="Brand Name" FontSize="12" Foreground="#E0E0E0" Margin="0,0,0,5"/>
                         <TextBox x:Name="TxtBrandName"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                  materialDesign:HintAssist.Hint="ชื่อแบรนด์/ธุรกิจ"
                                  Margin="0,0,0,10"/>
 
-                        <TextBlock Text="Industry" FontSize="12" Margin="0,0,0,5"/>
+                        <TextBlock Text="Industry" FontSize="12" Foreground="#E0E0E0" Margin="0,0,0,5"/>
                         <ComboBox x:Name="CboIndustry" Style="{StaticResource MaterialDesignOutlinedComboBox}" Margin="0,0,0,10">
                             <ComboBoxItem Content="E-Commerce" IsSelected="True"/>
                             <ComboBoxItem Content="Food &amp; Beverage"/>
@@ -124,7 +124,7 @@
                             <ComboBoxItem Content="Other"/>
                         </ComboBox>
 
-                        <TextBlock Text="Tone" FontSize="12" Margin="0,0,0,5"/>
+                        <TextBlock Text="Tone" FontSize="12" Foreground="#E0E0E0" Margin="0,0,0,5"/>
                         <ComboBox x:Name="CboTone" Style="{StaticResource MaterialDesignOutlinedComboBox}">
                             <ComboBoxItem Content="Professional" IsSelected="True"/>
                             <ComboBoxItem Content="Casual/Friendly"/>
@@ -139,7 +139,7 @@
                 <!-- Content Prompt -->
                 <materialDesign:Card Padding="15" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="Content Prompt" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Content Prompt" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
                         <TextBox x:Name="TxtPrompt" AcceptsReturn="True" TextWrapping="Wrap"
                                  Height="120" VerticalScrollBarVisibility="Auto"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}"
@@ -147,7 +147,7 @@
                                  Text="สร้างโพสต์โปรโมทสินค้าใหม่ เน้นคุณภาพและความคุ้มค่า"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <TextBlock Text="Language:" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Language:" FontSize="12" Foreground="#E0E0E0" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <RadioButton x:Name="RbThai" Content="ไทย" IsChecked="True" GroupName="Lang" Margin="0,0,15,0"/>
                             <RadioButton x:Name="RbEnglish" Content="English" GroupName="Lang"/>
                         </StackPanel>
@@ -157,7 +157,7 @@
                 <!-- Quick Templates -->
                 <materialDesign:Card Padding="15" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="Quick Templates" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Quick Templates" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
                         <WrapPanel>
                             <Button Content="Promotion" Click="Template_Click" Tag="promotion"
                                     Style="{StaticResource MaterialDesignOutlinedButton}"

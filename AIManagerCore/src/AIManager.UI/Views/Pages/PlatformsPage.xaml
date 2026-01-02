@@ -5,7 +5,7 @@
       Title="Platforms">
     <ScrollViewer Margin="20">
         <StackPanel>
-            <TextBlock Text="Social Media Platforms" FontSize="24" FontWeight="Bold" Margin="0,0,0,10"/>
+            <TextBlock Text="Social Media Platforms" FontSize="24" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
             <TextBlock Text="เชื่อมต่อและจัดการ Social Media Accounts" Foreground="#B8B8D0" Margin="0,0,0,20"/>
 
             <!-- Tab Selector -->
@@ -46,7 +46,7 @@
                                             <materialDesign:PackIcon Kind="{Binding Icon}" Width="24" Height="24" Foreground="White"/>
                                         </Border>
                                         <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold" Foreground="White"/>
                                             <TextBlock Text="{Binding AuthType}" FontSize="10" Foreground="#B8B8D0"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -76,7 +76,7 @@
                                                 </Style>
                                             </Ellipse.Style>
                                         </Ellipse>
-                                        <TextBlock Text="{Binding StatusText}" FontSize="12"/>
+                                        <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="White"/>
                                         <TextBlock Text="{Binding AccountCount}" FontSize="12" Foreground="#B8B8D0" Margin="10,0,0,0"/>
                                     </StackPanel>
 

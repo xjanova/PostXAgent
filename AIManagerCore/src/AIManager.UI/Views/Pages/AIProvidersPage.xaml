@@ -5,7 +5,7 @@
       Title="AI Providers">
     <ScrollViewer Margin="20">
         <StackPanel>
-            <TextBlock Text="AI Providers" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+            <TextBlock Text="AI Providers" FontSize="24" FontWeight="Bold" Foreground="White" Margin="0,0,0,20"/>
 
             <!-- Tab Selector -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,20">

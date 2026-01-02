@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Net.Http;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -21,6 +23,7 @@ public partial class WebLearningPage : Page
     private readonly WorkflowStorage? _workflowStorage;
     private readonly AutoLearningEngine? _autoLearningEngine;
     private readonly AIGuidedTeacher? _aiGuidedTeacher;
+    private readonly HttpClient _httpClient = new();
     private bool _isRecording;
     private bool _isAutoLearningMode;
     private bool _isGuidedTeachingMode;
@@ -30,6 +33,12 @@ public partial class WebLearningPage : Page
     private WorkflowSuggestion? _currentSuggestion;
     private TeachingGuideline? _currentGuideline;
     private int _currentTeachingStepIndex;
+    private string? _lastAiResponse;
+    private List<WorkflowStep>? _suggestedWorkflowSteps;
+
+    // Ollama configuration
+    private const string OllamaBaseUrl = "http://localhost:11434";
+    private const string OllamaModel = "llama3.2";
 
     // Initial URL and platform passed from WorkflowManagerPage
     private readonly string? _initialUrl;
@@ -232,6 +241,9 @@ public partial class WebLearningPage : Page
                 _logger?.LogInformation("Navigating to platform URL: {Url} for platform: {Platform}",
                     navigateUrl, _platformName ?? "Unknown");
             }
+
+            // Check Ollama status in background
+            _ = CheckOllamaStatusAsync();
         }
         catch (Exception ex)
         {
@@ -682,16 +694,21 @@ public partial class WebLearningPage : Page
             // Show auto learning panel, hide suggestion panel
             AutoLearningPanel.Visibility = Visibility.Visible;
             AiSuggestionPanel.Visibility = Visibility.Collapsed;
+            AiResponsePanel.Visibility = Visibility.Collapsed;
+
+            // Check Ollama status when enabling
+            _ = CheckOllamaStatusAsync();
 
             // Start page analysis
             _ = AnalyzeCurrentPageAsync();
 
-            ShowStatus("เปิดโหมด AI Auto-Learning - AI จะวิเคราะห์และเรียนรู้อัตโนมัติ", "success");
+            ShowStatus("เปิดโหมด AI Auto-Learning - พิมพ์คำสั่งให้ AI หรือเริ่มบันทึก", "success");
             _logger?.LogInformation("Auto-Learning mode enabled");
         }
         else
         {
             AutoLearningPanel.Visibility = Visibility.Collapsed;
+            AiResponsePanel.Visibility = Visibility.Collapsed;
             ShowStatus("ปิดโหมด Auto-Learning แล้ว", "info");
             _logger?.LogInformation("Auto-Learning mode disabled");
         }
@@ -1068,6 +1085,325 @@ public partial class WebLearningPage : Page
             TransferLearningButton.IsEnabled = true;
             AutoLearningProgress.IsIndeterminate = false;
             AutoLearningStatusText.Text = "พร้อมใช้งาน";
+        }
+    }
+
+    #endregion
+
+    #region AI Command Prompt (Ollama Integration)
+
+    private async void AiPromptTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && !string.IsNullOrWhiteSpace(AiPromptTextBox.Text))
+        {
+            await SendAiPromptAsync();
+        }
+    }
+
+    private async void SendAiPromptButton_Click(object sender, RoutedEventArgs e)
+    {
+        await SendAiPromptAsync();
+    }
+
+    private async Task SendAiPromptAsync()
+    {
+        var prompt = AiPromptTextBox.Text.Trim();
+        if (string.IsNullOrEmpty(prompt)) return;
+
+        try
+        {
+            // Disable button and show loading
+            SendAiPromptButton.IsEnabled = false;
+            OllamaStatusText.Text = "กำลังประมวลผล...";
+            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow
+
+            // Get current page context
+            var pageContext = await GetPageContextAsync();
+            var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Custom";
+            var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
+
+            // Build the prompt with context
+            var fullPrompt = BuildOllamaPrompt(prompt, platform, taskType, pageContext);
+
+            // Send to Ollama
+            var response = await SendToOllamaAsync(fullPrompt);
+
+            if (!string.IsNullOrEmpty(response))
+            {
+                _lastAiResponse = response;
+                ShowAiResponse(response);
+                OllamaStatusText.Text = "Ollama Ready";
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Green
+
+                // Clear prompt input
+                AiPromptTextBox.Clear();
+
+                _logger?.LogInformation("AI Prompt processed: {Prompt}", prompt);
+            }
+            else
+            {
+                ShowStatus("ไม่ได้รับคำตอบจาก AI กรุณาลองใหม่", "warning");
+                OllamaStatusText.Text = "No response";
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogError(ex, "Failed to connect to Ollama");
+            ShowStatus("ไม่สามารถเชื่อมต่อ Ollama ได้ กรุณาตรวจสอบว่า Ollama กำลังทำงานอยู่", "error");
+            OllamaStatusText.Text = "Disconnected";
+            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error processing AI prompt");
+            ShowStatus($"เกิดข้อผิดพลาด: {ex.Message}", "error");
+            OllamaStatusText.Text = "Error";
+            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+        }
+        finally
+        {
+            SendAiPromptButton.IsEnabled = true;
+        }
+    }
+
+    private async Task<string> GetPageContextAsync()
+    {
+        if (WebBrowser.CoreWebView2 == null) return "";
+
+        try
+        {
+            // Get basic page info
+            var titleScript = "document.title";
+            var title = await WebBrowser.CoreWebView2.ExecuteScriptAsync(titleScript);
+            title = title.Trim('"');
+
+            // Get interactive elements summary
+            var elementsScript = @"
+                (function() {
+                    var buttons = document.querySelectorAll('button, [role=""button""]');
+                    var inputs = document.querySelectorAll('input, textarea');
+                    var links = document.querySelectorAll('a[href]');
+                    return JSON.stringify({
+                        buttonCount: buttons.length,
+                        inputCount: inputs.length,
+                        linkCount: links.length,
+                        buttons: Array.from(buttons).slice(0, 10).map(b => b.textContent?.trim().substring(0, 50) || b.getAttribute('aria-label') || 'Unknown'),
+                        inputs: Array.from(inputs).slice(0, 10).map(i => i.placeholder || i.name || i.type || 'Unknown')
+                    });
+                })();
+            ";
+            var elementsJson = await WebBrowser.CoreWebView2.ExecuteScriptAsync(elementsScript);
+            elementsJson = System.Text.RegularExpressions.Regex.Unescape(elementsJson.Trim('"'));
+
+            var url = WebBrowser.CoreWebView2.Source ?? "";
+
+            return $"Page: {title}\nURL: {url}\nElements: {elementsJson}";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private string BuildOllamaPrompt(string userPrompt, string platform, string taskType, string pageContext)
+    {
+        var systemPrompt = @"คุณเป็น AI ที่ช่วยสอนการทำงานบนเว็บไซต์ (Web Workflow Learning Assistant) สำหรับ Social Media Automation
+
+หน้าที่ของคุณคือ:
+1. ช่วยผู้ใช้เรียนรู้วิธีทำงานบนเว็บไซต์ต่างๆ (Facebook, Instagram, TikTok, etc.)
+2. อธิบายขั้นตอนการทำงานอย่างละเอียด
+3. ระบุ element ที่ต้องคลิกหรือกรอกข้อมูล
+4. ให้คำแนะนำเกี่ยวกับ selectors ที่เหมาะสม (CSS, XPath, data-testid)
+5. เตือนเรื่องความปลอดภัยและข้อควรระวัง
+
+ตอบเป็นภาษาไทยเสมอ ตอบกระชับและตรงประเด็น";
+
+        var contextInfo = $@"
+Platform: {platform}
+Task Type: {taskType}
+{pageContext}";
+
+        return $@"{systemPrompt}
+
+Context ปัจจุบัน:
+{contextInfo}
+
+คำถาม/คำสั่งของผู้ใช้: {userPrompt}
+
+คำตอบ:";
+    }
+
+    private async Task<string> SendToOllamaAsync(string prompt)
+    {
+        var requestBody = new
+        {
+            model = OllamaModel,
+            prompt = prompt,
+            stream = false,
+            options = new
+            {
+                temperature = 0.7,
+                num_predict = 500
+            }
+        };
+
+        var json = JsonConvert.SerializeObject(requestBody);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync($"{OllamaBaseUrl}/api/generate", content);
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync();
+        var responseObj = JsonConvert.DeserializeObject<OllamaResponse>(responseJson);
+
+        return responseObj?.Response ?? "";
+    }
+
+    private void ShowAiResponse(string response)
+    {
+        AiResponseText.Text = response;
+        AiResponsePanel.Visibility = Visibility.Visible;
+
+        // Check if response contains actionable suggestions
+        if (response.Contains("คลิก") || response.Contains("กรอก") || response.Contains("ขั้นตอน"))
+        {
+            AiResponseActions.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            AiResponseActions.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void DismissAiResponseButton_Click(object sender, RoutedEventArgs e)
+    {
+        AiResponsePanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void ApplyAiSuggestionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_lastAiResponse))
+        {
+            ShowStatus("ไม่มีคำแนะนำให้นำไปใช้", "warning");
+            return;
+        }
+
+        // If auto learning is enabled, start recording based on AI suggestion
+        if (_isAutoLearningMode && !_isRecording)
+        {
+            StartRecordingButton_Click(sender, e);
+            ShowStatus("เริ่มบันทึกตาม AI แนะนำ - ทำตามขั้นตอนที่ AI บอก", "success");
+        }
+        else
+        {
+            ShowStatus("นำคำแนะนำ AI ไปใช้แล้ว - กรุณาทำตามขั้นตอน", "info");
+        }
+
+        // Parse AI response and potentially generate teaching steps
+        _ = GenerateTeachingStepsFromAiResponseAsync(_lastAiResponse);
+
+        AiResponsePanel.Visibility = Visibility.Collapsed;
+    }
+
+    private async void TeachMeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_lastAiResponse)) return;
+
+        // Ask AI for more detailed step-by-step instructions
+        var followUpPrompt = "กรุณาอธิบายขั้นตอนโดยละเอียดมากขึ้น โดยระบุ:\n1. element ที่ต้องคลิกหรือกรอก\n2. selector ที่ใช้หาได้ (CSS หรือ XPath)\n3. ข้อความหรือค่าที่ต้องกรอก\n4. เวลาที่ต้องรอหลังแต่ละขั้นตอน";
+
+        AiPromptTextBox.Text = followUpPrompt;
+        await SendAiPromptAsync();
+    }
+
+    private void VoiceInputButton_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show("Voice Input จะพร้อมใช้งานในเวอร์ชันถัดไป",
+            "Coming Soon", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private async Task GenerateTeachingStepsFromAiResponseAsync(string response)
+    {
+        // Try to parse AI response into teaching steps
+        _teachingSteps.Clear();
+
+        // Simple parsing - look for numbered steps or keywords
+        var lines = response.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var stepNumber = 1;
+
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+            if (string.IsNullOrEmpty(trimmedLine)) continue;
+
+            // Check if line looks like a step (starts with number or bullet)
+            if (trimmedLine.StartsWith($"{stepNumber}.") ||
+                trimmedLine.StartsWith($"{stepNumber})") ||
+                trimmedLine.StartsWith("•") ||
+                trimmedLine.StartsWith("-") ||
+                trimmedLine.Contains("คลิก") ||
+                trimmedLine.Contains("กรอก") ||
+                trimmedLine.Contains("เลือก") ||
+                trimmedLine.Contains("อัพโหลด"))
+            {
+                // Determine action type
+                var action = "click";
+                if (trimmedLine.Contains("กรอก") || trimmedLine.Contains("พิมพ์") || trimmedLine.Contains("ใส่"))
+                    action = "type";
+                else if (trimmedLine.Contains("อัพโหลด"))
+                    action = "upload";
+                else if (trimmedLine.Contains("เลือก"))
+                    action = "select";
+
+                _teachingSteps.Add(new TeachingStepViewModel
+                {
+                    StepNumber = stepNumber,
+                    ActionType = action.ToUpper(),
+                    ActionColor = GetActionColor(action),
+                    DescriptionThai = trimmedLine.TrimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ')', '•', '-', ' '),
+                    Description = $"Step {stepNumber}",
+                    IsCurrent = stepNumber == 1,
+                    IsCompleted = false
+                });
+
+                stepNumber++;
+
+                if (stepNumber > 10) break; // Limit to 10 steps
+            }
+        }
+
+        if (_teachingSteps.Any())
+        {
+            _isGuidedTeachingMode = true;
+            _currentTeachingStepIndex = 0;
+            TeachingGuidelinesPanel.Visibility = Visibility.Visible;
+            TeachingGuideSubtitle.Text = "ทำตามขั้นตอนที่ AI แนะนำ";
+            UpdateTeachingProgress();
+        }
+    }
+
+    private async Task CheckOllamaStatusAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{OllamaBaseUrl}/api/tags");
+            if (response.IsSuccessStatusCode)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    OllamaStatusText.Text = "Ollama Ready";
+                    OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                });
+            }
+        }
+        catch
+        {
+            Dispatcher.Invoke(() =>
+            {
+                OllamaStatusText.Text = "Ollama Offline";
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+            });
         }
     }
 
@@ -1767,6 +2103,27 @@ public class WebViewMessage
 {
     public string? Type { get; set; }
     public RecordedStep? Data { get; set; }
+}
+
+/// <summary>
+/// Response model for Ollama API
+/// </summary>
+public class OllamaResponse
+{
+    [JsonProperty("model")]
+    public string? Model { get; set; }
+
+    [JsonProperty("response")]
+    public string? Response { get; set; }
+
+    [JsonProperty("done")]
+    public bool Done { get; set; }
+
+    [JsonProperty("total_duration")]
+    public long TotalDuration { get; set; }
+
+    [JsonProperty("eval_count")]
+    public int EvalCount { get; set; }
 }
 
 #endregion
