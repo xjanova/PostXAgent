@@ -65,11 +65,49 @@ class User extends Authenticatable
         return $this->hasMany(Post::class);
     }
 
+    public function rentals()
+    {
+        return $this->hasMany(UserRental::class);
+    }
+
     // Helpers
     public function hasActiveSubscription(): bool
     {
         // License validation is handled by xmanstudio external API
         // See: https://github.com/xjanova/xmanstudio
         return $this->subscribed('default');
+    }
+
+    public function activeRental(): ?UserRental
+    {
+        return $this->rentals()
+            ->where('status', 'active')
+            ->where('starts_at', '<=', now())
+            ->where('expires_at', '>=', now())
+            ->first();
+    }
+
+    public function getUsageQuota(): array
+    {
+        $rental = $this->activeRental();
+        if (!$rental) {
+            return [
+                'posts_limit' => 0,
+                'posts_used' => 0,
+                'posts_remaining' => 0,
+                'accounts_limit' => 0,
+                'brands_limit' => 0,
+            ];
+        }
+
+        $package = $rental->rentalPackage;
+
+        return [
+            'posts_limit' => $package->posts_limit ?? 0,
+            'posts_used' => $rental->posts_used ?? 0,
+            'posts_remaining' => max(0, ($package->posts_limit ?? 0) - ($rental->posts_used ?? 0)),
+            'accounts_limit' => $package->accounts_limit ?? 0,
+            'brands_limit' => $package->brands_limit ?? 0,
+        ];
     }
 }
