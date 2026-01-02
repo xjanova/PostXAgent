@@ -652,12 +652,12 @@ public class SelfHealingWorker
     {
         return task.Type switch
         {
-            TaskType.GenerateContent => await worker.GenerateContentAsync(task, ct),
-            TaskType.GenerateImage => await worker.GenerateImageAsync(task, ct),
-            TaskType.PostContent => await worker.PostContentAsync(task, ct),
-            TaskType.AnalyzeMetrics => await worker.AnalyzeMetricsAsync(task, ct),
-            TaskType.DeletePost => await worker.DeletePostAsync(task, ct),
-            TaskType.SchedulePost => await worker.SchedulePostAsync(task, ct),
+            Models.TaskType.GenerateContent => await worker.GenerateContentAsync(task, ct),
+            Models.TaskType.GenerateImage => await worker.GenerateImageAsync(task, ct),
+            Models.TaskType.PostContent => await worker.PostContentAsync(task, ct),
+            Models.TaskType.AnalyzeMetrics => await worker.AnalyzeMetricsAsync(task, ct),
+            Models.TaskType.DeletePost => await worker.DeletePostAsync(task, ct),
+            Models.TaskType.SchedulePost => await worker.SchedulePostAsync(task, ct),
             _ => new TaskResult { Success = false, Error = $"Unknown task type: {task.Type}" }
         };
     }
