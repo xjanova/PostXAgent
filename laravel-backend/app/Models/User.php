@@ -95,17 +95,20 @@ class User extends Authenticatable
                 'posts_limit' => 0,
                 'posts_used' => 0,
                 'posts_remaining' => 0,
+                'posts_per_month' => 0,
                 'accounts_limit' => 0,
                 'brands_limit' => 0,
             ];
         }
 
         $package = $rental->rentalPackage;
+        $postsLimit = $package->posts_limit ?? 0;
 
         return [
-            'posts_limit' => $package->posts_limit ?? 0,
+            'posts_limit' => $postsLimit,
             'posts_used' => $rental->posts_used ?? 0,
-            'posts_remaining' => max(0, ($package->posts_limit ?? 0) - ($rental->posts_used ?? 0)),
+            'posts_remaining' => max(0, $postsLimit - ($rental->posts_used ?? 0)),
+            'posts_per_month' => $postsLimit, // Alias for backward compatibility
             'accounts_limit' => $package->accounts_limit ?? 0,
             'brands_limit' => $package->brands_limit ?? 0,
         ];
