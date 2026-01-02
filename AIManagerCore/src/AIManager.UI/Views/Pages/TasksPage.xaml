@@ -11,7 +11,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="Recent Tasks" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+                <TextBlock Grid.Row="0" Text="Recent Tasks" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,15"/>
 
                 <DataGrid Grid.Row="1" x:Name="TasksList" ItemsSource="{Binding Tasks}"
                           AutoGenerateColumns="False" IsReadOnly="True"

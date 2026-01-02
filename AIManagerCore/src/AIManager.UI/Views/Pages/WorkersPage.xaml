@@ -43,8 +43,8 @@
         <!-- Header with Title and Actions -->
         <DockPanel Grid.Row="0" Margin="0,0,0,20">
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                <materialDesign:PackIcon Kind="AccountGroup" Width="32" Height="32" VerticalAlignment="Center"/>
-                <TextBlock Text="Worker Manager" FontSize="24" FontWeight="Bold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                <materialDesign:PackIcon Kind="AccountGroup" Width="32" Height="32" VerticalAlignment="Center" Foreground="White"/>
+                <TextBlock Text="Worker Manager" FontSize="24" FontWeight="Bold" Foreground="White" Margin="10,0,0,0" VerticalAlignment="Center"/>
             </StackPanel>
 
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
@@ -84,7 +84,7 @@
                     <TextBlock Text="CPU Usage" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <materialDesign:PackIcon Kind="Cpu64Bit" Foreground="#2196F3" VerticalAlignment="Center" Width="24" Height="24"/>
-                        <TextBlock x:Name="TxtCpuUsage" Text="0%" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtCpuUsage" Text="0%" FontSize="24" FontWeight="Bold" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                     <ProgressBar x:Name="PbCpu" Value="0" Maximum="100" Height="4" Width="100" Margin="0,5,0,0"/>
                 </StackPanel>
@@ -94,7 +94,7 @@
                     <TextBlock Text="Memory" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <materialDesign:PackIcon Kind="Memory" Foreground="#9C27B0" VerticalAlignment="Center" Width="24" Height="24"/>
-                        <TextBlock x:Name="TxtMemory" Text="0 MB" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtMemory" Text="0 MB" FontSize="24" FontWeight="Bold" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -103,7 +103,7 @@
                     <TextBlock Text="CPU Cores" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <materialDesign:PackIcon Kind="Chip" Foreground="#FF9800" VerticalAlignment="Center" Width="24" Height="24"/>
-                        <TextBlock x:Name="TxtCores" Text="0" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtCores" Text="0" FontSize="24" FontWeight="Bold" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -112,7 +112,7 @@
                     <TextBlock Text="Tasks/sec" Foreground="#B8B8D0" FontSize="12" HorizontalAlignment="Center"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <materialDesign:PackIcon Kind="LightningBolt" Foreground="#F44336" VerticalAlignment="Center" Width="24" Height="24"/>
-                        <TextBlock x:Name="TxtTasksPerSec" Text="0" FontSize="24" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtTasksPerSec" Text="0" FontSize="24" FontWeight="Bold" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
             </Grid>
@@ -135,7 +135,7 @@
                         <Ellipse Width="10" Height="10" Fill="#9E9E9E" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Total" Foreground="#B8B8D0" FontSize="12"/>
                     </StackPanel>
-                    <TextBlock x:Name="TxtTotalWorkers" Text="0" FontSize="36" FontWeight="Bold"/>
+                    <TextBlock x:Name="TxtTotalWorkers" Text="0" FontSize="36" FontWeight="Bold" Foreground="White"/>
                 </StackPanel>
             </materialDesign:Card>
 

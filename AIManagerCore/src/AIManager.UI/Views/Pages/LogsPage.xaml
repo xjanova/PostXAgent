@@ -10,7 +10,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
-            <TextBlock Text="Application Logs" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBlock Text="Application Logs" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
             <Button Content="Clear" Click="ClearLogs_Click" Margin="20,0,0,0"
                     Style="{StaticResource MaterialDesignOutlinedButton}"/>
         </StackPanel>
