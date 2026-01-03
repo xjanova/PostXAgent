@@ -80,9 +80,19 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         };
         _statusTimer.Tick += async (s, e) => await RefreshStatusAsync();
 
+        // Subscribe to model activation events
+        ModelManagerPage.ModelActivated += OnModelActivated;
+
+        // Initialize with previously selected model
+        if (!string.IsNullOrEmpty(ModelManagerPage.ActiveModelId))
+        {
+            _currentModel = ModelManagerPage.ActiveModelId;
+        }
+
         Loaded += async (s, e) =>
         {
             await RefreshStatusAsync();
+            UpdateActiveModelDisplay();
             _statusTimer.Start();
         };
 
@@ -93,6 +103,22 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         };
     }
 
+    private void OnModelActivated(object? sender, ModelActivatedEventArgs e)
+    {
+        _currentModel = e.ModelId;
+        Dispatcher.Invoke(() => UpdateActiveModelDisplay());
+    }
+
+    private void UpdateActiveModelDisplay()
+    {
+        if (!string.IsNullOrEmpty(_currentModel))
+        {
+            var modelName = _currentModel.Split('/').LastOrDefault() ?? _currentModel;
+            TxtDiffusersStatus.Text = $"Active: {modelName}";
+            DiffusersStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        }
+    }
+
     private void Cleanup()
     {
         if (_gpuPoolService != null)
@@ -100,6 +126,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             _gpuPoolService.WorkerStatusChanged -= GpuPoolService_WorkerStatusChanged;
             _gpuPoolService.TaskCompleted -= GpuPoolService_TaskCompleted;
         }
+        ModelManagerPage.ModelActivated -= OnModelActivated;
         _generateCts?.Cancel();
     }
 

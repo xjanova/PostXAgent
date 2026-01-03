@@ -10,10 +10,10 @@
 
     <Page.Resources>
         <Style x:Key="ModelCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="#1E1E1E"/>
-            <Setter Property="BorderBrush" Value="#333"/>
+            <Setter Property="Background" Value="#1E1E2E"/>
+            <Setter Property="BorderBrush" Value="#333350"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Margin" Value="8"/>
             <Setter Property="Padding" Value="16"/>
         </Style>
@@ -30,9 +30,54 @@
             <Setter Property="Padding" Value="12,4"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
         </Style>
+
+        <Style x:Key="ActiveModelBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#10B981" Offset="0"/>
+                        <GradientStop Color="#059669" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="UseModelButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" CornerRadius="8" Padding="16,8">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                                    <GradientStop Color="#6366F1" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Play" Width="16" Height="16" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Use Model" FontSize="12" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#7C4DFF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Page.Resources>
 
-    <Grid Background="#121212">
+    <Grid Background="#0D0D14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -40,7 +85,13 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="#1a1a2e" Padding="24,20">
+        <Border Grid.Row="0" Padding="24,20">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#1a1a2e" Offset="0"/>
+                    <GradientStop Color="#16162a" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -48,52 +99,212 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="Model Manager" FontSize="28" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock Text="จัดการ Models จาก HuggingFace - ดาวน์โหลด ตั้งค่า และใช้งาน"
-                               FontSize="14" Foreground="#888" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                                    <GradientStop Color="#F472B6" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <materialDesign:PackIcon Kind="BrainOutline" Width="28" Height="28" Foreground="White"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Model Manager" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="HuggingFace Diffusers - Download, Configure &amp; Use AI Models"
+                                       FontSize="13" Foreground="#8888AA" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Storage Info -->
-                    <Border Background="#2d2d44" CornerRadius="8" Padding="12,8" Margin="0,0,16,0">
-                        <StackPanel>
-                            <TextBlock x:Name="StorageUsedText" Text="0 GB used" Foreground="White" FontWeight="SemiBold"/>
-                            <ProgressBar x:Name="StorageProgressBar" Value="0" Maximum="100" Height="4"
-                                        Margin="0,4,0,0" Width="120" Foreground="#7C4DFF"/>
+                    <!-- Active Model Display -->
+                    <Border x:Name="ActiveModelBanner" Background="#202038" CornerRadius="10" Padding="16,10" Margin="0,0,16,0"
+                            Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="10" Height="10" Fill="#10B981" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <StackPanel>
+                                <TextBlock Text="Active Model" FontSize="10" Foreground="#6B6B8A"/>
+                                <TextBlock x:Name="ActiveModelName" Text="-" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
-                    <Button x:Name="RefreshButton" Click="RefreshButton_Click"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" ToolTip="รีเฟรช">
-                        <materialDesign:PackIcon Kind="Refresh" Width="24" Height="24"/>
+                    <!-- Storage Info -->
+                    <Border Background="#202038" CornerRadius="10" Padding="16,10" Margin="0,0,12,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Harddisk" Width="16" Height="16" Foreground="#6B6B8A" Margin="0,0,8,0"/>
+                                <TextBlock x:Name="StorageUsedText" Text="0 GB used" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                            </StackPanel>
+                            <ProgressBar x:Name="StorageProgressBar" Value="0" Maximum="100" Height="4"
+                                        Margin="0,6,0,0" Width="140">
+                                <ProgressBar.Foreground>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#7C4DFF" Offset="0"/>
+                                        <GradientStop Color="#F472B6" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </ProgressBar.Foreground>
+                            </ProgressBar>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Refresh Button -->
+                    <Button x:Name="RefreshButton" Click="RefreshButton_Click" Cursor="Hand"
+                            ToolTip="Refresh" Width="44" Height="44">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="#202038" CornerRadius="10">
+                                    <materialDesign:PackIcon Kind="Refresh" Width="22" Height="22" Foreground="#9090A8"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#2D2D48"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
                     </Button>
 
-                    <Button x:Name="SettingsButton" Click="SettingsButton_Click"
-                            Style="{StaticResource MaterialDesignFlatButton}"
-                            Foreground="White" ToolTip="ตั้งค่า" Margin="8,0,0,0">
-                        <materialDesign:PackIcon Kind="Cog" Width="24" Height="24"/>
+                    <!-- Settings Button -->
+                    <Button x:Name="SettingsButton" Click="SettingsButton_Click" Cursor="Hand"
+                            ToolTip="API Settings" Width="44" Height="44" Margin="8,0,0,0">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" CornerRadius="10">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#F59E0B" Offset="0"/>
+                                            <GradientStop Color="#EF4444" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <materialDesign:PackIcon Kind="Key" Width="22" Height="22" Foreground="White"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect Color="#F59E0B" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- Tab Bar -->
-        <Border Grid.Row="1" Background="#1E1E1E" Padding="16,8">
-            <StackPanel Orientation="Horizontal">
-                <RadioButton x:Name="TabDownloaded" Content="ดาวน์โหลดแล้ว" GroupName="ModelTabs"
-                            IsChecked="True" Checked="Tab_Changed"
-                            Style="{StaticResource MaterialDesignTabRadioButton}"
-                            Foreground="White" Margin="0,0,8,0"/>
-                <RadioButton x:Name="TabBrowse" Content="ค้นหาโมเดล" GroupName="ModelTabs"
-                            Checked="Tab_Changed"
-                            Style="{StaticResource MaterialDesignTabRadioButton}"
-                            Foreground="White" Margin="0,0,8,0"/>
-                <RadioButton x:Name="TabRecommended" Content="แนะนำ" GroupName="ModelTabs"
-                            Checked="Tab_Changed"
-                            Style="{StaticResource MaterialDesignTabRadioButton}"
-                            Foreground="White"/>
-            </StackPanel>
+        <Border Grid.Row="1" Background="#15151F" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton x:Name="TabDownloaded" GroupName="ModelTabs" IsChecked="True" Checked="Tab_Changed" Cursor="Hand">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="border" Background="Transparent" CornerRadius="8" Padding="16,10" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Download" Width="18" Height="18" Foreground="#9090A8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="text" Text="Downloaded" FontSize="13" FontWeight="SemiBold" Foreground="#9090A8" VerticalAlignment="Center"/>
+                                        <Border x:Name="countBadge" Background="#7C4DFF" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" Visibility="Collapsed">
+                                            <TextBlock x:Name="countText" Text="0" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#252540"/>
+                                        <Setter TargetName="text" Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1E1E35"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+
+                    <RadioButton x:Name="TabBrowse" GroupName="ModelTabs" Checked="Tab_Changed" Cursor="Hand">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="border" Background="Transparent" CornerRadius="8" Padding="16,10" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Magnify" Width="18" Height="18" Foreground="#9090A8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="text" Text="Browse HuggingFace" FontSize="13" FontWeight="SemiBold" Foreground="#9090A8" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#252540"/>
+                                        <Setter TargetName="text" Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1E1E35"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+
+                    <RadioButton x:Name="TabRecommended" GroupName="ModelTabs" Checked="Tab_Changed" Cursor="Hand">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="border" Background="Transparent" CornerRadius="8" Padding="16,10">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Star" Width="18" Height="18" Foreground="#F59E0B" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="text" Text="Recommended" FontSize="13" FontWeight="SemiBold" Foreground="#9090A8" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#252540"/>
+                                        <Setter TargetName="text" Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1E1E35"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+                </StackPanel>
+
+                <!-- Quick Actions -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="Need a model?" FontSize="12" Foreground="#6B6B8A" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <Button Click="GotoBrowse_Click" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="#7C4DFF" CornerRadius="8" Padding="14,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Foreground="White" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Download New" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect Color="#7C4DFF" BlurRadius="12" ShadowDepth="0" Opacity="0.5"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Content Area -->
@@ -106,84 +317,163 @@
                 </Grid.RowDefinitions>
 
                 <!-- Filter Bar -->
-                <Border Grid.Row="0" Background="#1E1E1E" Padding="16,12">
-                    <StackPanel Orientation="Horizontal">
-                        <ComboBox x:Name="FilterTypeCombo" Width="150" SelectionChanged="FilterType_Changed"
-                                  materialDesign:HintAssist.Hint="ประเภท"
-                                  Style="{StaticResource MaterialDesignOutlinedComboBox}">
-                            <ComboBoxItem Content="ทั้งหมด" IsSelected="True"/>
-                            <ComboBoxItem Content="Text to Image"/>
-                            <ComboBoxItem Content="Text to Video"/>
-                            <ComboBoxItem Content="LoRA"/>
-                            <ComboBoxItem Content="ControlNet"/>
-                            <ComboBoxItem Content="VAE"/>
-                        </ComboBox>
+                <Border Grid.Row="0" Background="#12121A" Padding="20,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                        <TextBox x:Name="SearchDownloadedBox" Width="300" Margin="16,0,0,0"
-                                 materialDesign:HintAssist.Hint="ค้นหาโมเดล..."
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 TextChanged="SearchDownloaded_TextChanged"/>
-                    </StackPanel>
+                        <!-- Filter Type -->
+                        <Border Background="#1E1E2E" CornerRadius="8" Padding="4">
+                            <ComboBox x:Name="FilterTypeCombo" Width="160" SelectionChanged="FilterType_Changed"
+                                      Background="Transparent" BorderThickness="0" Foreground="White">
+                                <ComboBoxItem Content="All Types" IsSelected="True"/>
+                                <ComboBoxItem Content="Text to Image"/>
+                                <ComboBoxItem Content="Text to Video"/>
+                                <ComboBoxItem Content="LoRA"/>
+                                <ComboBoxItem Content="ControlNet"/>
+                                <ComboBoxItem Content="VAE"/>
+                            </ComboBox>
+                        </Border>
+
+                        <!-- Search Box -->
+                        <Border Grid.Column="1" Background="#1E1E2E" CornerRadius="8" Margin="16,0" Padding="12,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon Kind="Magnify" Width="20" Height="20" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                <TextBox x:Name="SearchDownloadedBox" Grid.Column="1"
+                                         Background="Transparent" BorderThickness="0" Foreground="White"
+                                         VerticalAlignment="Center" Margin="10,0,0,0" FontSize="13"
+                                         materialDesign:HintAssist.Hint="Search models..."
+                                         TextChanged="SearchDownloaded_TextChanged"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- View Options -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <TextBlock x:Name="ModelCountText" Text="0 models" FontSize="12" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
-                <!-- Downloaded Models List -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="DownloadedModelsList" Margin="8">
+                <!-- Downloaded Models Grid -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12">
+                    <ItemsControl x:Name="DownloadedModelsList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource ModelCardStyle}">
+                                <Border Margin="8" CornerRadius="12" Cursor="Hand">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#1E1E2E" Offset="0"/>
+                                            <GradientStop Color="#1A1A28" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderBrush" Value="#2D2D48"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="BorderBrush" Value="#7C4DFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="80"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Model Icon -->
-                                        <Border Grid.Column="0" Width="64" Height="64" CornerRadius="8"
-                                                Background="#2d2d44">
-                                            <materialDesign:PackIcon Kind="{Binding TypeIcon}"
-                                                                    Width="32" Height="32"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center"
-                                                                    Foreground="#7C4DFF"/>
-                                        </Border>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
 
                                         <!-- Model Info -->
-                                        <StackPanel Grid.Column="1" Margin="16,0">
-                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"
-                                                       Foreground="White"/>
-                                            <TextBlock Text="{Binding ModelId}" FontSize="12" Foreground="#888"
-                                                       Margin="0,2,0,0"/>
+                                        <Grid Margin="20,16">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
 
-                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                <Border Style="{StaticResource StatusPillStyle}"
-                                                        Background="{Binding TypeColor}">
-                                                    <TextBlock Text="{Binding TypeName}" FontSize="11"
-                                                               Foreground="White"/>
-                                                </Border>
+                                            <!-- Model Icon -->
+                                            <Border Width="56" Height="56" CornerRadius="12">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                        <GradientStop Color="#30{Binding TypeColor}" Offset="0"/>
+                                                        <GradientStop Color="#15{Binding TypeColor}" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                                <materialDesign:PackIcon Kind="{Binding TypeIcon}"
+                                                                        Width="28" Height="28"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"
+                                                                        Foreground="{Binding TypeColor}"/>
+                                            </Border>
 
-                                                <TextBlock Text="{Binding SizeFormatted}" FontSize="12"
-                                                           Foreground="#888" Margin="12,0,0,0"
-                                                           VerticalAlignment="Center"/>
+                                            <!-- Model Details -->
+                                            <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Foreground="White"
+                                                               TextTrimming="CharacterEllipsis" MaxWidth="250"/>
+                                                    <Border x:Name="ActiveBadge" Visibility="{Binding IsActive, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
+                                                            Background="#10B981" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                                        <TextBlock Text="ACTIVE" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding ModelId}" FontSize="11" Foreground="#6B6B8A"
+                                                           Margin="0,4,0,0" TextTrimming="CharacterEllipsis" MaxWidth="280"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                    <Border CornerRadius="6" Padding="8,3">
+                                                        <Border.Background>
+                                                            <SolidColorBrush Color="{Binding TypeColor}" Opacity="0.2"/>
+                                                        </Border.Background>
+                                                        <TextBlock Text="{Binding TypeName}" FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="{Binding TypeColor}"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding SizeFormatted}" FontSize="11" Foreground="#6B6B8A"
+                                                               Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
                                             </StackPanel>
-                                        </StackPanel>
+                                        </Grid>
 
-                                        <!-- Actions -->
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button Content="ใช้งาน"
-                                                    Style="{StaticResource MaterialDesignFlatButton}"
-                                                    Foreground="#7C4DFF"
-                                                    Tag="{Binding ModelId}"
-                                                    Click="UseModel_Click"/>
-                                            <Button Style="{StaticResource MaterialDesignFlatButton}"
-                                                    Foreground="#FF5252"
-                                                    Tag="{Binding ModelId}"
-                                                    Click="DeleteModel_Click"
-                                                    ToolTip="ลบโมเดล">
-                                                <materialDesign:PackIcon Kind="Delete"/>
-                                            </Button>
-                                        </StackPanel>
+                                        <!-- Action Bar -->
+                                        <Border Grid.Row="1" Background="#15151F" CornerRadius="0,0,12,12" Padding="16,12">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Use Model Button -->
+                                                <Button Style="{StaticResource UseModelButton}"
+                                                        Tag="{Binding ModelId}"
+                                                        Click="UseModel_Click"/>
+
+                                                <!-- Delete Button -->
+                                                <Button Grid.Column="1" Tag="{Binding ModelId}" Click="DeleteModel_Click"
+                                                        ToolTip="Delete Model" Cursor="Hand">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="border" Background="#251A1A" CornerRadius="8" Padding="10,8">
+                                                                <materialDesign:PackIcon Kind="Delete" Width="18" Height="18" Foreground="#EF4444"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="border" Property="Background" Value="#3D2020"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -192,17 +482,37 @@
                 </ScrollViewer>
 
                 <!-- Empty State -->
-                <StackPanel x:Name="EmptyDownloadedState" Visibility="Collapsed"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <materialDesign:PackIcon Kind="CloudDownloadOutline" Width="64" Height="64"
-                                            Foreground="#555" HorizontalAlignment="Center"/>
-                    <TextBlock Text="ยังไม่มีโมเดลที่ดาวน์โหลด" FontSize="16" Foreground="#888"
-                               Margin="0,16,0,0" HorizontalAlignment="Center"/>
-                    <Button Content="ค้นหาโมเดล" Margin="0,16,0,0"
-                            Style="{StaticResource MaterialDesignRaisedButton}"
-                            Background="#7C4DFF"
-                            Click="GotoBrowse_Click"/>
-                </StackPanel>
+                <Border x:Name="EmptyDownloadedState" Visibility="Collapsed" Grid.Row="1"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="100" Height="100" CornerRadius="50" Background="#1E1E2E" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="CloudDownloadOutline" Width="48" Height="48"
+                                                    Foreground="#4B4B6A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="No Models Downloaded" FontSize="20" FontWeight="SemiBold" Foreground="White"
+                                   Margin="0,24,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Download models from HuggingFace to start generating images" FontSize="13" Foreground="#6B6B8A"
+                                   Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                        <Button Margin="0,24,0,0" Click="GotoBrowse_Click" Cursor="Hand" HorizontalAlignment="Center">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border CornerRadius="10" Padding="24,14">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#7C4DFF" Offset="0"/>
+                                                <GradientStop Color="#6366F1" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Download" Width="20" Height="20" Foreground="White" Margin="0,0,10,0"/>
+                                            <TextBlock Text="Browse Models" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <!-- Browse Models Tab -->
@@ -213,63 +523,129 @@
                 </Grid.RowDefinitions>
 
                 <!-- Search Bar -->
-                <Border Grid.Row="0" Background="#1E1E1E" Padding="16,12">
+                <Border Grid.Row="0" Background="#12121A" Padding="20,16">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBox x:Name="SearchHuggingFaceBox" Grid.Column="0"
-                                 materialDesign:HintAssist.Hint="ค้นหาโมเดลจาก HuggingFace..."
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 KeyDown="SearchHuggingFace_KeyDown"/>
+                        <!-- Search Input -->
+                        <Border Background="#1E1E2E" CornerRadius="10" Padding="16,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon Kind="Magnify" Width="22" Height="22" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                <TextBox x:Name="SearchHuggingFaceBox" Grid.Column="1"
+                                         Background="Transparent" BorderThickness="0" Foreground="White"
+                                         VerticalAlignment="Center" Margin="12,0,0,0" FontSize="14"
+                                         materialDesign:HintAssist.Hint="Search HuggingFace models (e.g., stable-diffusion, flux, sdxl)"
+                                         KeyDown="SearchHuggingFace_KeyDown"/>
+                            </Grid>
+                        </Border>
 
-                        <Button x:Name="SearchButton" Grid.Column="1" Content="ค้นหา" Margin="16,0,0,0"
-                                Style="{StaticResource MaterialDesignRaisedButton}"
-                                Background="#7C4DFF"
-                                Click="SearchHuggingFace_Click"/>
+                        <Button Grid.Column="1" Margin="16,0,0,0" Click="SearchHuggingFace_Click" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" CornerRadius="10" Padding="24,14">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#7C4DFF" Offset="0"/>
+                                                <GradientStop Color="#6366F1" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Magnify" Width="18" Height="18" Foreground="White" Margin="0,0,8,0"/>
+                                            <TextBlock Text="Search" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect Color="#7C4DFF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
                     </Grid>
                 </Border>
 
                 <!-- Search Results -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="SearchResultsList" Margin="8">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12">
+                    <ItemsControl x:Name="SearchResultsList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource ModelCardStyle}">
+                                <Border Margin="8" CornerRadius="12" Background="#1E1E2E" BorderBrush="#2D2D48" BorderThickness="1">
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
 
                                         <!-- Model Info -->
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="{Binding ModelId}" FontSize="16" FontWeight="SemiBold"
-                                                       Foreground="White"/>
-                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#888"
-                                                       Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="600"/>
+                                        <StackPanel Margin="20,16">
+                                            <TextBlock Text="{Binding ModelId}" FontSize="15" FontWeight="SemiBold"
+                                                       Foreground="White" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#6B6B8A"
+                                                       Margin="0,8,0,0" TextWrapping="Wrap" MaxHeight="40"/>
 
-                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                <materialDesign:PackIcon Kind="Download" Foreground="#888"
-                                                                        VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding DownloadsFormatted}" FontSize="12"
-                                                           Foreground="#888" Margin="4,0,16,0"/>
-
-                                                <materialDesign:PackIcon Kind="Heart" Foreground="#888"
-                                                                        VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding LikesFormatted}" FontSize="12"
-                                                           Foreground="#888" Margin="4,0,0,0"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                <Border Background="#202038" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="Download" Width="14" Height="14" Foreground="#10B981"/>
+                                                        <TextBlock Text="{Binding DownloadsFormatted}" FontSize="11" Foreground="#10B981" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#202038" CornerRadius="6" Padding="8,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="Heart" Width="14" Height="14" Foreground="#F472B6"/>
+                                                        <TextBlock Text="{Binding LikesFormatted}" FontSize="11" Foreground="#F472B6" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
                                             </StackPanel>
                                         </StackPanel>
 
                                         <!-- Download Button -->
-                                        <Button Grid.Column="1" Content="ดาวน์โหลด"
-                                                Style="{StaticResource MaterialDesignRaisedButton}"
-                                                Background="#7C4DFF"
-                                                Tag="{Binding ModelId}"
-                                                Click="DownloadModel_Click"/>
+                                        <Border Grid.Row="1" Background="#15151F" CornerRadius="0,0,12,12" Padding="16,12">
+                                            <Button Tag="{Binding ModelId}" Click="DownloadModel_Click" Cursor="Hand" HorizontalAlignment="Stretch">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" CornerRadius="8" Padding="0,10">
+                                                            <Border.Background>
+                                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                    <GradientStop Color="#10B981" Offset="0"/>
+                                                                    <GradientStop Color="#059669" Offset="1"/>
+                                                                </LinearGradientBrush>
+                                                            </Border.Background>
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                <materialDesign:PackIcon Kind="Download" Width="18" Height="18" Foreground="White"/>
+                                                                <TextBlock Text="Download" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Effect">
+                                                                    <Setter.Value>
+                                                                        <DropShadowEffect Color="#10B981" BlurRadius="12" ShadowDepth="0" Opacity="0.5"/>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Border>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -278,75 +654,142 @@
                 </ScrollViewer>
 
                 <!-- Loading State -->
-                <StackPanel x:Name="SearchLoadingState" Visibility="Collapsed"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <ProgressBar IsIndeterminate="True" Width="100" Style="{StaticResource MaterialDesignCircularProgressBar}"/>
-                    <TextBlock Text="กำลังค้นหา..." FontSize="14" Foreground="#888"
-                               Margin="0,16,0,0" HorizontalAlignment="Center"/>
-                </StackPanel>
+                <Border x:Name="SearchLoadingState" Visibility="Collapsed" Grid.Row="1"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" Width="60" Height="60"
+                                    Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                    Foreground="#7C4DFF"/>
+                        <TextBlock Text="Searching HuggingFace..." FontSize="14" Foreground="#6B6B8A"
+                                   Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <!-- Recommended Models Tab -->
             <ScrollViewer x:Name="RecommendedPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="16">
-                    <!-- Text to Image -->
-                    <TextBlock Text="Text to Image" Style="{StaticResource CategoryHeaderStyle}"/>
-                    <TextBlock Text="โมเดลสำหรับสร้างภาพจากข้อความ" FontSize="12" Foreground="#888" Margin="0,0,0,12"/>
+                <StackPanel Margin="20">
+                    <!-- Text to Image Section -->
+                    <Border Background="#15151F" CornerRadius="12" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                <Border Width="40" Height="40" CornerRadius="10" Background="#307C4DFF">
+                                    <materialDesign:PackIcon Kind="Image" Width="22" Height="22" Foreground="#7C4DFF"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Text to Image" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="Generate images from text prompts" FontSize="12" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <WrapPanel x:Name="TextToImageList"/>
+                        </StackPanel>
+                    </Border>
 
-                    <WrapPanel x:Name="TextToImageList">
-                        <!-- Items will be added programmatically -->
-                    </WrapPanel>
+                    <!-- Text to Video Section -->
+                    <Border Background="#15151F" CornerRadius="12" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                <Border Width="40" Height="40" CornerRadius="10" Background="#3006B6D4">
+                                    <materialDesign:PackIcon Kind="Video" Width="22" Height="22" Foreground="#06B6D4"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Text to Video" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="Generate videos from text prompts" FontSize="12" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <WrapPanel x:Name="TextToVideoList"/>
+                        </StackPanel>
+                    </Border>
 
-                    <!-- Text to Video -->
-                    <TextBlock Text="Text to Video" Style="{StaticResource CategoryHeaderStyle}"/>
-                    <TextBlock Text="โมเดลสำหรับสร้างวิดีโอจากข้อความ" FontSize="12" Foreground="#888" Margin="0,0,0,12"/>
+                    <!-- LoRA Section -->
+                    <Border Background="#15151F" CornerRadius="12" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                <Border Width="40" Height="40" CornerRadius="10" Background="#30F59E0B">
+                                    <materialDesign:PackIcon Kind="LayersTriple" Width="22" Height="22" Foreground="#F59E0B"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="LoRA" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="Fine-tuned style adapters" FontSize="12" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <WrapPanel x:Name="LoraList"/>
+                        </StackPanel>
+                    </Border>
 
-                    <WrapPanel x:Name="TextToVideoList">
-                        <!-- Items will be added programmatically -->
-                    </WrapPanel>
-
-                    <!-- LoRA -->
-                    <TextBlock Text="LoRA" Style="{StaticResource CategoryHeaderStyle}"/>
-                    <TextBlock Text="โมเดลเสริมสำหรับปรับแต่ง style" FontSize="12" Foreground="#888" Margin="0,0,0,12"/>
-
-                    <WrapPanel x:Name="LoraList">
-                        <!-- Items will be added programmatically -->
-                    </WrapPanel>
-
-                    <!-- ControlNet -->
-                    <TextBlock Text="ControlNet" Style="{StaticResource CategoryHeaderStyle}"/>
-                    <TextBlock Text="โมเดลสำหรับควบคุมการสร้างภาพ" FontSize="12" Foreground="#888" Margin="0,0,0,12"/>
-
-                    <WrapPanel x:Name="ControlNetList">
-                        <!-- Items will be added programmatically -->
-                    </WrapPanel>
+                    <!-- ControlNet Section -->
+                    <Border Background="#15151F" CornerRadius="12" Padding="20">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                <Border Width="40" Height="40" CornerRadius="10" Background="#3010B981">
+                                    <materialDesign:PackIcon Kind="DrawingBox" Width="22" Height="22" Foreground="#10B981"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="ControlNet" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="Precise image control models" FontSize="12" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <WrapPanel x:Name="ControlNetList"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
 
             <!-- Download Progress Overlay -->
-            <Border x:Name="DownloadProgressOverlay" Visibility="Collapsed"
-                    Background="#CC000000">
-                <Border Background="#2d2d44" CornerRadius="12" Padding="32"
+            <Border x:Name="DownloadProgressOverlay" Visibility="Collapsed" Background="#E0000000">
+                <Border Background="#1E1E2E" CornerRadius="16" Padding="32"
                         HorizontalAlignment="Center" VerticalAlignment="Center"
-                        MinWidth="400">
+                        MinWidth="450" BorderBrush="#333350" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock x:Name="DownloadModelName" Text="Downloading model..."
-                                   FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                            <Border Width="48" Height="48" CornerRadius="12">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#7C4DFF" Offset="0"/>
+                                        <GradientStop Color="#6366F1" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <materialDesign:PackIcon Kind="Download" Width="24" Height="24" Foreground="White"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Downloading Model" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                                <TextBlock x:Name="DownloadModelName" Text="" FontSize="12" Foreground="#6B6B8A" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
 
-                        <ProgressBar x:Name="DownloadProgressBar" Value="0" Maximum="100"
-                                    Height="8" Margin="0,16,0,0"
-                                    Foreground="#7C4DFF"/>
+                        <ProgressBar x:Name="DownloadProgressBar" Value="0" Maximum="100" Height="8" Margin="0,0,0,0">
+                            <ProgressBar.Foreground>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                                    <GradientStop Color="#10B981" Offset="1"/>
+                                </LinearGradientBrush>
+                            </ProgressBar.Foreground>
+                        </ProgressBar>
 
-                        <Grid Margin="0,8,0,0">
-                            <TextBlock x:Name="DownloadProgressText" Text="0%" Foreground="#888"/>
-                            <TextBlock x:Name="DownloadSpeedText" Text="" Foreground="#888"
-                                       HorizontalAlignment="Right"/>
+                        <Grid Margin="0,12,0,0">
+                            <TextBlock x:Name="DownloadProgressText" Text="0%" FontSize="13" Foreground="White" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="DownloadSpeedText" Text="" FontSize="12" Foreground="#6B6B8A" HorizontalAlignment="Right"/>
                         </Grid>
 
-                        <Button x:Name="CancelDownloadButton" Content="ยกเลิก" Margin="0,16,0,0"
-                                Style="{StaticResource MaterialDesignOutlinedButton}"
-                                BorderBrush="#FF5252" Foreground="#FF5252"
-                                Click="CancelDownload_Click"/>
+                        <Button x:Name="CancelDownloadButton" Margin="0,24,0,0" Click="CancelDownload_Click" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#251A1A" CornerRadius="8" Padding="0,12">
+                                        <TextBlock Text="Cancel Download" FontSize="13" Foreground="#EF4444" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#3D2020"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
                     </StackPanel>
                 </Border>
             </Border>
