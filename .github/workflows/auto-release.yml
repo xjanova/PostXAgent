@@ -1,0 +1,280 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  # Check if should release
+  check-release:
+    name: Check Release
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      bump_type: ${{ steps.check.outputs.bump_type }}
+      new_version: ${{ steps.version.outputs.new_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages for release trigger
+        id: check
+        run: |
+          # Get the commit message
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit message: $COMMIT_MSG"
+
+          # Check for skip release
+          if [[ "$COMMIT_MSG" == *"[skip release]"* ]] || [[ "$COMMIT_MSG" == *"[no release]"* ]]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Skipping release (skip tag found)"
+            exit 0
+          fi
+
+          # Check for version bump commits from version-bump workflow
+          if [[ "$COMMIT_MSG" == "chore: bump version to"* ]]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Skipping release (version bump commit)"
+            exit 0
+          fi
+
+          # Determine bump type from conventional commits
+          if [[ "$COMMIT_MSG" == *"BREAKING CHANGE"* ]] || [[ "$COMMIT_MSG" == *"!:"* ]]; then
+            BUMP_TYPE="major"
+          elif [[ "$COMMIT_MSG" == "feat"* ]] || [[ "$COMMIT_MSG" == "feature"* ]]; then
+            BUMP_TYPE="minor"
+          elif [[ "$COMMIT_MSG" == "fix"* ]] || [[ "$COMMIT_MSG" == "bugfix"* ]] || [[ "$COMMIT_MSG" == "hotfix"* ]]; then
+            BUMP_TYPE="patch"
+          else
+            # Default: no auto-release for other commits
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "No release trigger found in commit message"
+            exit 0
+          fi
+
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          echo "Will release with bump type: $BUMP_TYPE"
+
+      - name: Calculate new version
+        id: version
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          # Get current version
+          if [ -f VERSION ]; then
+            CURRENT=$(cat VERSION | tr -d '\n')
+          else
+            CURRENT="0.0.0"
+          fi
+
+          IFS='.' read -ra PARTS <<< "$CURRENT"
+          MAJOR=${PARTS[0]:-0}
+          MINOR=${PARTS[1]:-0}
+          PATCH=${PARTS[2]:-0}
+
+          case "${{ steps.check.outputs.bump_type }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Current: $CURRENT -> New: $NEW_VERSION"
+
+  # Create release
+  release:
+    name: Create Release
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.check-release.outputs.new_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update VERSION and create tag
+        run: |
+          VERSION="${{ needs.check-release.outputs.new_version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "$VERSION" > VERSION
+          git add VERSION
+          git commit -m "chore: bump version to $VERSION [skip release]"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+
+          git push origin main
+          git push origin "v$VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ needs.check-release.outputs.new_version }}"
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          cat > CHANGELOG.md << EOF
+          ## What's Changed
+
+          ${COMMITS}
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${VERSION}
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-release.outputs.new_version }}
+          name: PostXAgent v${{ needs.check-release.outputs.new_version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build Windows artifacts
+  build-windows:
+    name: Build Windows
+    needs: release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Update version in projects
+        working-directory: AIManagerCore
+        shell: pwsh
+        run: |
+          $version = "${{ needs.release.outputs.version }}"
+          Get-ChildItem -Path . -Filter "*.csproj" -Recurse | ForEach-Object {
+            $content = Get-Content $_.FullName -Raw
+            $content = $content -replace '<Version>.*?</Version>', "<Version>$version</Version>"
+            Set-Content -Path $_.FullName -Value $content
+          }
+
+      - name: Build and publish
+        working-directory: AIManagerCore
+        run: |
+          dotnet restore
+          dotnet publish src/AIManager.API -c Release -r win-x64 --self-contained -o ./publish/api
+          dotnet publish src/AIManager.UI -c Release -r win-x64 --self-contained -o ./publish/ui
+
+      - name: Create archives
+        shell: pwsh
+        run: |
+          Compress-Archive -Path AIManagerCore/publish/api/* -DestinationPath AIManager-API-win-x64.zip
+          Compress-Archive -Path AIManagerCore/publish/ui/* -DestinationPath AIManager-UI-win-x64.zip
+
+      - name: Upload artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: |
+            AIManager-API-win-x64.zip
+            AIManager-UI-win-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build Laravel package
+  build-laravel:
+    name: Build Laravel
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: laravel-backend
+        run: |
+          composer install --no-dev --optimize-autoloader
+          npm install
+          npm run build
+
+      - name: Create package
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          tar -czvf laravel-backend-v${VERSION}.tar.gz \
+            --exclude='laravel-backend/node_modules' \
+            --exclude='laravel-backend/.env' \
+            --exclude='laravel-backend/storage/logs/*' \
+            --exclude='laravel-backend/storage/framework/cache/*' \
+            laravel-backend/
+
+      - name: Upload artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: laravel-backend-v${{ needs.release.outputs.version }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Summary
+  summary:
+    name: Release Summary
+    needs: [release, build-windows, build-laravel]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Summary
+        run: |
+          echo "## 🎉 Release v${{ needs.release.outputs.version }} Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ AIManager-API-win-x64.zip" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ AIManager-UI-win-x64.zip" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ laravel-backend-v${{ needs.release.outputs.version }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.release.outputs.version }})" >> $GITHUB_STEP_SUMMARY
