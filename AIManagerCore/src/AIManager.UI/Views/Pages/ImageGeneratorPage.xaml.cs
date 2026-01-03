@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -8,34 +10,147 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using AIManager.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
 namespace AIManager.UI.Views.Pages;
 
-public partial class ImageGeneratorPage : Page
+public partial class ImageGeneratorPage : Page, INotifyPropertyChanged
 {
     private readonly ComfyUIService _comfyService;
+    private readonly GpuPoolService? _gpuPoolService;
+    private readonly ILogger<ImageGeneratorPage>? _logger;
     private readonly HttpClient _httpClient;
     private CancellationTokenSource? _generateCts;
     private string? _currentOutputPath;
     private bool _isVideoMode;
-    private int _completedCount;
+    private bool _isParallelMode = true;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<GenerationHistoryItem> History { get; } = new();
-    public ObservableCollection<GpuWorkerInfo> Workers { get; } = new();
+    public ObservableCollection<GpuWorkerDisplayInfo> Workers { get; } = new();
+
+    // Pool stats binding properties
+    private int _workerCount;
+    public int WorkerCount
+    {
+        get => _workerCount;
+        set { _workerCount = value; OnPropertyChanged(); }
+    }
+
+    private double _totalVram;
+    public double TotalVram
+    {
+        get => _totalVram;
+        set { _totalVram = value; OnPropertyChanged(); }
+    }
+
+    private int _queueSize;
+    public int QueueSize
+    {
+        get => _queueSize;
+        set { _queueSize = value; OnPropertyChanged(); }
+    }
+
+    private int _completedCount;
+    public int CompletedCount
+    {
+        get => _completedCount;
+        set { _completedCount = value; OnPropertyChanged(); }
+    }
 
     public ImageGeneratorPage()
     {
         InitializeComponent();
+        DataContext = this;
 
         _comfyService = new ComfyUIService();
         _comfyService.ProgressChanged += ComfyService_OnProgress;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(300) };
 
+        // Get services from DI
+        try
+        {
+            var services = App.Services;
+            _gpuPoolService = services?.GetService<GpuPoolService>();
+            _logger = services?.GetService<ILogger<ImageGeneratorPage>>();
+
+            // Subscribe to GpuPoolService events
+            if (_gpuPoolService != null)
+            {
+                _gpuPoolService.WorkerStatusChanged += GpuPoolService_WorkerStatusChanged;
+                _gpuPoolService.TaskCompleted += GpuPoolService_TaskCompleted;
+            }
+        }
+        catch
+        {
+            // DI not available, will use direct HTTP
+        }
+
         HistoryList.ItemsSource = History;
         WorkersList.ItemsSource = Workers;
 
         Loaded += async (s, e) => await InitializeAsync();
+        Unloaded += (s, e) => Cleanup();
+    }
+
+    private void Cleanup()
+    {
+        if (_gpuPoolService != null)
+        {
+            _gpuPoolService.WorkerStatusChanged -= GpuPoolService_WorkerStatusChanged;
+            _gpuPoolService.TaskCompleted -= GpuPoolService_TaskCompleted;
+        }
+    }
+
+    private void GpuPoolService_WorkerStatusChanged(object? sender, GpuWorkerEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            SyncWorkersFromService();
+            UpdatePoolStats();
+        });
+    }
+
+    private void GpuPoolService_TaskCompleted(object? sender, GpuTaskEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            CompletedCount = _gpuPoolService?.CompletedTaskCount ?? 0;
+            UpdatePoolStats();
+        });
+    }
+
+    private void SyncWorkersFromService()
+    {
+        if (_gpuPoolService == null) return;
+
+        Workers.Clear();
+        foreach (var worker in _gpuPoolService.Workers)
+        {
+            Workers.Add(new GpuWorkerDisplayInfo
+            {
+                Id = worker.Id,
+                Name = worker.Name,
+                Url = worker.Url,
+                GpuInfo = worker.GpuName ?? "Unknown GPU",
+                IsOnline = worker.IsOnline,
+                TotalVramGb = worker.TotalVramGb,
+                FreeVramGb = worker.FreeVramGb,
+                CurrentModel = worker.CurrentModel,
+                IsBusy = worker.IsBusy,
+                StatusColor = worker.IsOnline
+                    ? new SolidColorBrush(Color.FromRgb(16, 185, 129))
+                    : new SolidColorBrush(Color.FromRgb(239, 68, 68))
+            });
+        }
+    }
+
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
     private async Task InitializeAsync()
@@ -73,25 +188,102 @@ public partial class ImageGeneratorPage : Page
 
     private void UpdatePoolStats()
     {
-        TxtWorkerCount.Text = Workers.Count.ToString();
-        TxtTotalVram.Text = $"{Workers.Sum(w => w.TotalVramGb):F0} GB";
-        TxtQueueSize.Text = "0";
-        TxtCompleted.Text = _completedCount.ToString();
-        NoWorkersPanel.Visibility = Workers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (_gpuPoolService != null)
+        {
+            WorkerCount = _gpuPoolService.Workers.Count;
+            TotalVram = _gpuPoolService.Workers.Sum(w => w.TotalVramGb);
+            QueueSize = _gpuPoolService.QueuedTaskCount;
+            CompletedCount = _gpuPoolService.CompletedTaskCount;
+        }
+        else
+        {
+            WorkerCount = Workers.Count;
+            TotalVram = Workers.Sum(w => w.TotalVramGb);
+        }
+
+        TxtWorkerCount.Text = WorkerCount.ToString();
+        TxtTotalVram.Text = $"{TotalVram:F0} GB";
+        TxtQueueSize.Text = QueueSize.ToString();
+        TxtCompleted.Text = CompletedCount.ToString();
+        NoWorkersPanel.Visibility = WorkerCount == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async Task CheckConnectionAsync()
     {
         // Check GPU Workers first
         await RefreshWorkersAsync();
+
+        // Load saved workers from storage
+        await LoadSavedWorkersAsync();
     }
 
     private async Task RefreshWorkersAsync()
     {
-        // This would connect to actual workers in production
-        // For now, just update stats
+        if (_gpuPoolService != null)
+        {
+            await _gpuPoolService.RefreshAllWorkersAsync();
+            SyncWorkersFromService();
+        }
         UpdatePoolStats();
-        await Task.CompletedTask;
+    }
+
+    private async Task LoadSavedWorkersAsync()
+    {
+        // Load workers from local storage (JSON file)
+        try
+        {
+            var workersFile = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "PostXAgent", "gpu_workers.json");
+
+            if (File.Exists(workersFile))
+            {
+                var json = await File.ReadAllTextAsync(workersFile);
+                var savedWorkers = JsonSerializer.Deserialize<List<SavedWorkerInfo>>(json);
+
+                if (savedWorkers != null && _gpuPoolService != null)
+                {
+                    foreach (var saved in savedWorkers)
+                    {
+                        await _gpuPoolService.AddWorkerAsync(saved.Name, saved.Url);
+                    }
+                    SyncWorkersFromService();
+                    UpdatePoolStats();
+                    _logger?.LogInformation("Loaded {Count} saved GPU workers", savedWorkers.Count);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load saved workers");
+        }
+    }
+
+    private async Task SaveWorkersAsync()
+    {
+        try
+        {
+            var workersDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "PostXAgent");
+            Directory.CreateDirectory(workersDir);
+
+            var workersFile = Path.Combine(workersDir, "gpu_workers.json");
+            var workersToSave = (_gpuPoolService?.Workers ?? Workers.Select(w => new Core.Services.GpuWorkerInfo
+            {
+                Name = w.Name,
+                Url = w.Url
+            })).Select(w => new SavedWorkerInfo { Name = w.Name, Url = w.Url }).ToList();
+
+            var json = JsonSerializer.Serialize(workersToSave, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(workersFile, json);
+
+            _logger?.LogInformation("Saved {Count} GPU workers", workersToSave.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to save workers");
+        }
     }
 
     private void ComfyService_OnProgress(object? sender, GenerationProgressEventArgs e)
@@ -136,8 +328,9 @@ public partial class ImageGeneratorPage : Page
             return;
         }
 
-        // Check if we have workers
-        if (Workers.Count == 0)
+        // Check if we have workers (from GpuPoolService or local list)
+        var hasOnlineWorkers = _gpuPoolService?.OnlineWorkers.Count > 0 || Workers.Any(w => w.IsOnline);
+        if (!hasOnlineWorkers)
         {
             // Try GPU Pool first, fall back to ComfyUI
             if (!await _comfyService.IsAvailableAsync())
@@ -167,9 +360,9 @@ public partial class ImageGeneratorPage : Page
             var cfg = SliderCfg.Value;
             var seed = int.TryParse(TxtSeed.Text, out var s) ? s : -1;
 
-            if (Workers.Count > 0)
+            if (hasOnlineWorkers)
             {
-                // Use GPU Pool
+                // Use GPU Pool Service
                 await GenerateWithPoolAsync(prompt, negativePrompt, selectedModel, width, height, steps, cfg, seed);
             }
             else
@@ -206,52 +399,116 @@ public partial class ImageGeneratorPage : Page
     private async Task GenerateWithPoolAsync(string prompt, string negativePrompt, string modelId,
         int width, int height, int steps, double cfg, int seed)
     {
-        // Get first available worker
-        var worker = Workers.FirstOrDefault(w => w.IsOnline);
-        if (worker == null)
-            throw new Exception("No online workers available");
-
-        TxtProgressStatus.Text = $"Sending to {worker.Name}...";
-
-        var request = new
+        // Use GpuPoolService if available
+        if (_gpuPoolService != null && _gpuPoolService.OnlineWorkers.Count > 0)
         {
-            prompt,
-            negative_prompt = negativePrompt,
-            width,
-            height,
-            steps,
-            guidance_scale = cfg,
-            seed,
-            model_id = modelId,
-            batch_size = 1
-        };
+            var workerInfo = _gpuPoolService.OnlineWorkers.First();
+            TxtProgressStatus.Text = $"Sending to {workerInfo.Name}...";
+            TxtProgressDetail.Text = $"Model: {modelId.Split('/').Last()}";
 
-        var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            var request = new GpuImageRequest
+            {
+                Prompt = prompt,
+                NegativePrompt = negativePrompt,
+                ModelId = modelId,
+                Width = width,
+                Height = height,
+                Steps = steps,
+                GuidanceScale = cfg,
+                Seed = seed,
+                BatchSize = 1,
+                RequiredVramGb = modelId.Contains("xl") ? 8.0 : 4.0
+            };
 
-        if (_isVideoMode)
-        {
-            var response = await _httpClient.PostAsync($"{worker.Url}/generate/video", content, _generateCts!.Token);
-            response.EnsureSuccessStatusCode();
-            // Handle video response...
-        }
-        else
-        {
-            var response = await _httpClient.PostAsync($"{worker.Url}/generate/image", content, _generateCts!.Token);
-            response.EnsureSuccessStatusCode();
+            GenerationProgress.IsIndeterminate = true;
+            TxtProgressStatus.Text = "Generating on GPU Pool...";
 
-            var result = await JsonSerializer.DeserializeAsync<GenerateImageResponse>(
-                await response.Content.ReadAsStreamAsync());
+            var result = await _gpuPoolService.GenerateImageAsync(request, _generateCts!.Token);
 
-            if (result?.result?.images?.Count > 0)
+            if (result.Success && result.Images.Count > 0)
             {
                 // Decode base64 image
-                var imageBytes = Convert.FromBase64String(result.result.images[0]);
+                var imageBytes = Convert.FromBase64String(result.Images[0]);
                 var tempPath = Path.Combine(Path.GetTempPath(), $"postx_{Guid.NewGuid()}.png");
                 await File.WriteAllBytesAsync(tempPath, imageBytes);
 
                 _currentOutputPath = tempPath;
                 ShowImage(tempPath);
                 AddToHistory(tempPath, prompt);
+
+                TxtProgressStatus.Text = $"Done! Seed: {result.Seed}";
+                TxtProgressDetail.Text = $"Time: {result.GenerationTime:F1}s";
+                _logger?.LogInformation("Image generated via GPU Pool in {Time:F1}s", result.GenerationTime);
+            }
+            else
+            {
+                throw new Exception(result.Error ?? "Generation failed");
+            }
+        }
+        else
+        {
+            // Fallback to direct HTTP call
+            var worker = Workers.FirstOrDefault(w => w.IsOnline);
+            if (worker == null)
+                throw new Exception("No online workers available");
+
+            TxtProgressStatus.Text = $"Sending to {worker.Name}...";
+
+            var request = new
+            {
+                prompt,
+                negative_prompt = negativePrompt,
+                width,
+                height,
+                steps,
+                guidance_scale = cfg,
+                seed,
+                model_id = modelId,
+                batch_size = 1
+            };
+
+            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+
+            if (_isVideoMode)
+            {
+                var response = await _httpClient.PostAsync($"{worker.Url}/generate/video", content, _generateCts!.Token);
+                response.EnsureSuccessStatusCode();
+
+                var result = await JsonSerializer.DeserializeAsync<GenerateVideoResponse>(
+                    await response.Content.ReadAsStreamAsync());
+
+                if (result?.result?.video_base64 != null)
+                {
+                    var videoBytes = Convert.FromBase64String(result.result.video_base64);
+                    var tempPath = Path.Combine(Path.GetTempPath(), $"postx_{Guid.NewGuid()}.mp4");
+                    await File.WriteAllBytesAsync(tempPath, videoBytes);
+
+                    _currentOutputPath = tempPath;
+                    PreviewVideo.Source = new Uri(tempPath);
+                    PreviewVideo.Play();
+                    PreviewVideo.Visibility = Visibility.Visible;
+                    PreviewImage.Visibility = Visibility.Collapsed;
+                }
+            }
+            else
+            {
+                var response = await _httpClient.PostAsync($"{worker.Url}/generate/image", content, _generateCts!.Token);
+                response.EnsureSuccessStatusCode();
+
+                var result = await JsonSerializer.DeserializeAsync<GenerateImageResponse>(
+                    await response.Content.ReadAsStreamAsync());
+
+                if (result?.result?.images?.Count > 0)
+                {
+                    // Decode base64 image
+                    var imageBytes = Convert.FromBase64String(result.result.images[0]);
+                    var tempPath = Path.Combine(Path.GetTempPath(), $"postx_{Guid.NewGuid()}.png");
+                    await File.WriteAllBytesAsync(tempPath, imageBytes);
+
+                    _currentOutputPath = tempPath;
+                    ShowImage(tempPath);
+                    AddToHistory(tempPath, prompt);
+                }
             }
         }
     }
@@ -462,30 +719,68 @@ public partial class ImageGeneratorPage : Page
         }
     }
 
-    private void AddWorker_Click(object sender, RoutedEventArgs e)
+    private async void AddWorker_Click(object sender, RoutedEventArgs e)
     {
         // Show dialog to add worker
         var dialog = new AddWorkerDialog();
         if (dialog.ShowDialog() == true)
         {
-            var worker = new GpuWorkerInfo
+            if (_gpuPoolService != null)
             {
-                Id = Guid.NewGuid().ToString(),
-                Name = dialog.WorkerName,
-                Url = dialog.WorkerUrl,
-                GpuInfo = "Connecting...",
-                IsOnline = false,
-            };
+                // Use GpuPoolService
+                var worker = await _gpuPoolService.AddWorkerAsync(dialog.WorkerName, dialog.WorkerUrl);
+                if (worker != null)
+                {
+                    SyncWorkersFromService();
+                    await SaveWorkersAsync();
+                    _logger?.LogInformation("Worker added: {Name} at {Url}", dialog.WorkerName, dialog.WorkerUrl);
+                }
+            }
+            else
+            {
+                // Fallback to local management
+                var worker = new GpuWorkerDisplayInfo
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = dialog.WorkerName,
+                    Url = dialog.WorkerUrl,
+                    GpuInfo = "Connecting...",
+                    IsOnline = false,
+                };
 
-            Workers.Add(worker);
+                Workers.Add(worker);
+                await ConnectToWorkerAsync(worker);
+                await SaveWorkersAsync();
+            }
+
             UpdatePoolStats();
-
-            // Try to connect
-            _ = ConnectToWorkerAsync(worker);
         }
     }
 
-    private async Task ConnectToWorkerAsync(GpuWorkerInfo worker)
+    private async void RemoveWorker_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string workerId)
+        {
+            if (_gpuPoolService != null)
+            {
+                _gpuPoolService.RemoveWorker(workerId);
+                SyncWorkersFromService();
+            }
+            else
+            {
+                var worker = Workers.FirstOrDefault(w => w.Id == workerId);
+                if (worker != null)
+                {
+                    Workers.Remove(worker);
+                }
+            }
+
+            await SaveWorkersAsync();
+            UpdatePoolStats();
+        }
+    }
+
+    private async Task ConnectToWorkerAsync(GpuWorkerDisplayInfo worker)
     {
         try
         {
@@ -552,6 +847,21 @@ public class GenerateImageResponse
     public GenerateResult? result { get; set; }
 }
 
+public class GenerateVideoResponse
+{
+    public string? task_id { get; set; }
+    public string? status { get; set; }
+    public GenerateVideoResult? result { get; set; }
+}
+
+public class GenerateVideoResult
+{
+    public string? video_base64 { get; set; }
+    public int frames { get; set; }
+    public int fps { get; set; }
+    public double generation_time { get; set; }
+}
+
 public class GenerateResult
 {
     public List<string>? images { get; set; }
@@ -585,16 +895,71 @@ public class GenerationHistoryItem
     public DateTime CreatedAt { get; set; }
 }
 
-public class GpuWorkerInfo
+/// <summary>
+/// Worker info for persistence (saving/loading)
+/// </summary>
+public class SavedWorkerInfo
 {
+    public string Name { get; set; } = "";
+    public string Url { get; set; } = "";
+}
+
+/// <summary>
+/// Display model for GPU Worker in UI
+/// </summary>
+public class GpuWorkerDisplayInfo : INotifyPropertyChanged
+{
+    private bool _isOnline;
+    private bool _isBusy;
+    private double _freeVramGb;
+    private string _gpuInfo = "";
+    private SolidColorBrush _statusColor = new(Color.FromRgb(107, 107, 138));
+
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string Url { get; set; } = "";
-    public string GpuInfo { get; set; } = "";
-    public bool IsOnline { get; set; }
+
+    public string GpuInfo
+    {
+        get => _gpuInfo;
+        set { _gpuInfo = value; OnPropertyChanged(); }
+    }
+
+    public bool IsOnline
+    {
+        get => _isOnline;
+        set { _isOnline = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
+    }
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        set { _isBusy = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
+    }
+
     public double TotalVramGb { get; set; }
-    public double FreeVramGb { get; set; }
-    public SolidColorBrush StatusColor { get; set; } = new(Color.FromRgb(107, 107, 138));
+
+    public double FreeVramGb
+    {
+        get => _freeVramGb;
+        set { _freeVramGb = value; OnPropertyChanged(); OnPropertyChanged(nameof(VramText)); OnPropertyChanged(nameof(VramPercent)); }
+    }
+
+    public string? CurrentModel { get; set; }
+
+    public SolidColorBrush StatusColor
+    {
+        get => _statusColor;
+        set { _statusColor = value; OnPropertyChanged(); }
+    }
+
     public string VramText => $"{FreeVramGb:F0}/{TotalVramGb:F0} GB";
     public double VramPercent => TotalVramGb > 0 ? ((TotalVramGb - FreeVramGb) / TotalVramGb) * 100 : 0;
+    public string StatusText => IsBusy ? "Working" : (IsOnline ? "Online" : "Offline");
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
 }

@@ -224,6 +224,9 @@ builder.Services.AddSingleton<DynamicCodeExecutor?>(sp =>
 // Self-Healing Worker Factory
 builder.Services.AddSingleton<SelfHealingWorker>();
 
+// GPU Pool Service (Distributed GPU Worker Management)
+builder.Services.AddSingleton<GpuPoolService>();
+
 var app = builder.Build();
 
 // Generate master key if no keys exist (for initial setup)
@@ -274,8 +277,9 @@ app.UseApiKeyAuth();
 app.UseAuthorization();
 app.MapControllers();
 
-// SignalR Hub
+// SignalR Hubs
 app.MapHub<AIManagerHub>("/hub/aimanager");
+app.MapHub<GpuPoolHub>("/hub/gpupool");
 
 // Start orchestrator on startup
 var orchestrator = app.Services.GetRequiredService<ProcessOrchestrator>();
