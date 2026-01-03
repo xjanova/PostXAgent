@@ -426,6 +426,16 @@ public class HuggingFaceModelService : IDisposable
                 Revision = revision ?? "main"
             };
 
+            // Try to fetch thumbnail URL
+            try
+            {
+                modelInfo.ThumbnailUrl = await GetModelThumbnailUrlAsync(modelId, ct);
+            }
+            catch
+            {
+                // Ignore thumbnail fetch errors during download
+            }
+
             // Save model metadata
             await SaveModelMetadataAsync(modelInfo);
 
@@ -639,6 +649,44 @@ public class HuggingFaceModelService : IDisposable
     {
         var models = await GetDownloadedModelsAsync();
         return models.Any(m => m.Id == modelId);
+    }
+
+    /// <summary>
+    /// Update thumbnail URL for an existing downloaded model
+    /// </summary>
+    public async Task<bool> UpdateModelThumbnailAsync(string modelId, string? thumbnailUrl = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var metadataPath = GetMetadataPath(modelId);
+            if (!File.Exists(metadataPath))
+                return false;
+
+            var json = await File.ReadAllTextAsync(metadataPath, ct);
+            var model = JsonSerializer.Deserialize<ModelInfo>(json);
+            if (model == null)
+                return false;
+
+            // If no URL provided, try to fetch from HuggingFace
+            if (string.IsNullOrEmpty(thumbnailUrl))
+            {
+                thumbnailUrl = await GetModelThumbnailUrlAsync(modelId, ct);
+            }
+
+            if (!string.IsNullOrEmpty(thumbnailUrl))
+            {
+                model.ThumbnailUrl = thumbnailUrl;
+                await SaveModelMetadataAsync(model);
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to update thumbnail for model: {ModelId}", modelId);
+            return false;
+        }
     }
 
     /// <summary>

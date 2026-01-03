@@ -98,23 +98,45 @@ public partial class ModelManagerPage : Page
 
     private async Task LoadThumbnailsAsync()
     {
-        foreach (var model in _downloadedModels.Where(m => !m.HasThumbnail))
+        var modelsWithoutThumbnails = _downloadedModels.Where(m => !m.HasThumbnail).ToList();
+
+        // Process in parallel with limit
+        var semaphore = new SemaphoreSlim(3); // Max 3 concurrent fetches
+        var tasks = modelsWithoutThumbnails.Select(async model =>
         {
+            await semaphore.WaitAsync();
             try
             {
                 var thumbnailUrl = await _modelService.GetModelThumbnailUrlAsync(model.ModelId);
                 if (!string.IsNullOrEmpty(thumbnailUrl))
                 {
                     model.ThumbnailUrl = thumbnailUrl;
+
+                    // Save to metadata for persistence
+                    await _modelService.UpdateModelThumbnailAsync(model.ModelId, thumbnailUrl);
+
                     // Refresh UI on dispatcher thread
-                    await Dispatcher.InvokeAsync(() => DownloadedModelsList.Items.Refresh());
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        var index = _downloadedModels.IndexOf(model);
+                        if (index >= 0)
+                        {
+                            DownloadedModelsList.Items.Refresh();
+                        }
+                    });
                 }
             }
             catch
             {
                 // Ignore thumbnail fetch errors - not critical
             }
-        }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
     }
 
     private async Task LoadSearchThumbnailsAsync(CancellationToken ct)
@@ -219,7 +241,7 @@ public partial class ModelManagerPage : Page
 
         var mainStack = new StackPanel();
 
-        // Thumbnail area (if available)
+        // Thumbnail area (if available) with async loading
         if (!string.IsNullOrEmpty(model.ThumbnailUrl))
         {
             var thumbnailBorder = new Border
@@ -229,6 +251,28 @@ public partial class ModelManagerPage : Page
                 ClipToBounds = true
             };
 
+            var thumbnailGrid = new Grid();
+
+            // Loading indicator background
+            var loadingBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x20, 0x80, 0x80, 0x80)),
+                CornerRadius = new CornerRadius(12, 12, 0, 0)
+            };
+            var loadingProgress = new ProgressBar
+            {
+                IsIndeterminate = true,
+                Width = 28,
+                Height = 28,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x7C, 0x4D, 0xFF)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Style = (Style)FindResource("MaterialDesignCircularProgressBar")
+            };
+            loadingBorder.Child = loadingProgress;
+            thumbnailGrid.Children.Add(loadingBorder);
+
+            // Async loaded image
             var thumbnailImage = new Image
             {
                 Stretch = Stretch.UniformToFill,
@@ -237,27 +281,12 @@ public partial class ModelManagerPage : Page
             };
             thumbnailImage.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.HighQuality);
 
-            // Load image from URL
-            try
-            {
-                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(model.ThumbnailUrl, UriKind.Absolute);
-                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
-                thumbnailImage.Source = bitmap;
-            }
-            catch
-            {
-                // If image fails to load, skip thumbnail
-                thumbnailImage = null;
-            }
+            // Use async loader
+            Helpers.AsyncImageLoader.SetSourceUrl(thumbnailImage, model.ThumbnailUrl);
 
-            if (thumbnailImage != null)
-            {
-                thumbnailBorder.Child = thumbnailImage;
-                mainStack.Children.Add(thumbnailBorder);
-            }
+            thumbnailGrid.Children.Add(thumbnailImage);
+            thumbnailBorder.Child = thumbnailGrid;
+            mainStack.Children.Add(thumbnailBorder);
         }
 
         // Content area
