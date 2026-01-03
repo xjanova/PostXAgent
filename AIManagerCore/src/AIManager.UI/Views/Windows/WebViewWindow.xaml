@@ -1,0 +1,210 @@
+<Window x:Class="AIManager.UI.Views.Windows.WebViewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        mc:Ignorable="d"
+        Title="Web Learning - Browser"
+        Height="800" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="#1a1a2e"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
+        TextElement.Foreground="White"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        FontFamily="{DynamicResource MaterialDesignFont}"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Closing="Window_Closing">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Border CornerRadius="12" Background="#1a1a2e" BorderBrush="#30FFFFFF" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title Bar -->
+            <Border Grid.Row="0" Background="#25000000" Padding="15,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Title -->
+                    <StackPanel Orientation="Horizontal">
+                        <Border Background="#30EC4899" CornerRadius="8" Width="36" Height="36">
+                            <materialDesign:PackIcon Kind="Web" Width="20" Height="20"
+                                                      Foreground="#EC4899" VerticalAlignment="Center"
+                                                      HorizontalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Web Learning Browser" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                            <TextBlock x:Name="TxtPageTitle" Text="Loading..." Foreground="#80FFFFFF" FontSize="11"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Recording Status (center) -->
+                    <Border Grid.Column="1" x:Name="RecordingStatusBorder" Visibility="Collapsed"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Background="#30EF4444" CornerRadius="15" Padding="15,6">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="RecordingDot" Width="8" Height="8" Fill="#EF4444">
+                                <Ellipse.Triggers>
+                                    <EventTrigger RoutedEvent="Loaded">
+                                        <BeginStoryboard>
+                                            <Storyboard RepeatBehavior="Forever">
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                 From="1" To="0.3" Duration="0:0:0.5"
+                                                                 AutoReverse="True"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Ellipse.Triggers>
+                            </Ellipse>
+                            <TextBlock Text="REC" Foreground="#EF4444" FontWeight="Bold"
+                                       FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtRecordingTime" Text="00:00" Foreground="#EF4444"
+                                       FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Window Controls -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <!-- Always on top toggle -->
+                        <ToggleButton x:Name="ToggleTopmost" Click="ToggleTopmost_Click"
+                                      Style="{StaticResource MaterialDesignIconButton}"
+                                      ToolTip="Always on Top" Width="32" Height="32" Margin="0,0,5,0">
+                            <materialDesign:PackIcon Kind="Pin" Width="16" Height="16" Foreground="#80FFFFFF"/>
+                        </ToggleButton>
+
+                        <Button Click="MinimizeButton_Click"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                Width="32" Height="32" Margin="0,0,5,0">
+                            <materialDesign:PackIcon Kind="WindowMinimize" Width="16" Height="16"/>
+                        </Button>
+                        <Button Click="MaximizeButton_Click"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                Width="32" Height="32" Margin="0,0,5,0">
+                            <materialDesign:PackIcon x:Name="MaximizeIcon" Kind="WindowMaximize" Width="16" Height="16"/>
+                        </Button>
+                        <Button Click="CloseButton_Click" Width="32" Height="32">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#E53935"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <materialDesign:PackIcon Kind="Close" Width="16" Height="16"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- URL Bar -->
+            <Border Grid.Row="1" Background="#15000000" Padding="10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Style="{StaticResource MaterialDesignIconButton}"
+                            Click="BackButton_Click" ToolTip="Back" Width="32" Height="32">
+                        <materialDesign:PackIcon Kind="ArrowLeft" Width="18" Height="18" Foreground="#B0B0C0"/>
+                    </Button>
+                    <Button Grid.Column="1" Style="{StaticResource MaterialDesignIconButton}"
+                            Click="ForwardButton_Click" ToolTip="Forward" Width="32" Height="32">
+                        <materialDesign:PackIcon Kind="ArrowRight" Width="18" Height="18" Foreground="#B0B0C0"/>
+                    </Button>
+                    <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
+                            Click="RefreshButton_Click" ToolTip="Refresh" Width="32" Height="32">
+                        <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" Foreground="#B0B0C0"/>
+                    </Button>
+
+                    <Border Grid.Column="3" Background="#15FFFFFF" CornerRadius="8" Margin="8,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="Web" Width="16" Height="16"
+                                                      Foreground="#707080" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            <TextBox x:Name="UrlTextBox" Grid.Column="1"
+                                     Text="https://www.facebook.com"
+                                     VerticalContentAlignment="Center"
+                                     Background="Transparent" BorderThickness="0"
+                                     Foreground="White" CaretBrush="White"
+                                     FontSize="12" Padding="8,8"
+                                     KeyDown="UrlTextBox_KeyDown"/>
+                        </Grid>
+                    </Border>
+
+                    <Button Grid.Column="4" Click="GoButton_Click" Padding="12,6" Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#06B6D4" Offset="0"/>
+                                            <GradientStop Color="#0891B2" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ArrowRight" Width="16" Height="16"/>
+                            <TextBlock Text="Go" Margin="4,0,0,0" FontWeight="SemiBold" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- WebView2 Browser -->
+            <Grid Grid.Row="2">
+                <wv2:WebView2 x:Name="WebBrowser"
+                              NavigationCompleted="WebBrowser_NavigationCompleted"
+                              NavigationStarting="WebBrowser_NavigationStarting"
+                              CoreWebView2InitializationCompleted="WebBrowser_CoreWebView2InitializationCompleted"/>
+
+                <!-- Recording Border Glow -->
+                <Border x:Name="RecordingBorder" Visibility="Collapsed"
+                        BorderThickness="3" IsHitTestVisible="False">
+                    <Border.BorderBrush>
+                        <SolidColorBrush Color="#EF4444"/>
+                    </Border.BorderBrush>
+                    <Border.Effect>
+                        <DropShadowEffect Color="#EF4444" BlurRadius="20" ShadowDepth="0" Opacity="0.6"/>
+                    </Border.Effect>
+                </Border>
+
+                <!-- Loading Overlay -->
+                <Border x:Name="LoadingIndicator" Background="#90000000" Visibility="Collapsed">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" Width="200" Height="4"
+                                     Style="{StaticResource MaterialDesignLinearProgressBar}"/>
+                        <TextBlock Text="Loading..." Foreground="White"
+                                   Margin="0,15,0,0" HorizontalAlignment="Center" FontSize="13"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

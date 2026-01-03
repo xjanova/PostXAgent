@@ -4,10 +4,9 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-      xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
       mc:Ignorable="d"
-      d:DesignHeight="900" d:DesignWidth="1600"
-      Title="Web Learning - Workflow Teaching"
+      d:DesignHeight="900" d:DesignWidth="1400"
+      Title="Web Learning - Settings &amp; Control"
       Loaded="Page_Loaded"
       Unloaded="Page_Unloaded">
 
@@ -33,21 +32,12 @@
                              From="1" To="0.4" Duration="0:0:0.6"
                              AutoReverse="True"/>
         </Storyboard>
-
-        <!-- Glow Animation -->
-        <Storyboard x:Key="GlowAnimation" RepeatBehavior="Forever">
-            <DoubleAnimation Storyboard.TargetProperty="(Effect).BlurRadius"
-                             From="15" To="25" Duration="0:0:1"
-                             AutoReverse="True"/>
-        </Storyboard>
     </Page.Resources>
 
     <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -80,558 +70,415 @@
                                    Foreground="White" Margin="10,0,0,0"/>
                         <Border Background="#20FFFFFF" CornerRadius="4" Padding="8,4" Margin="15,0,0,0"
                                 VerticalAlignment="Center">
-                            <TextBlock Text="TEACH MODE" Foreground="#4ECDC4" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Text="CONTROL PANEL" Foreground="#4ECDC4" FontSize="10" FontWeight="Bold"/>
                         </Border>
                     </StackPanel>
-                    <TextBlock Text="สอน AI ทำงานบนเว็บไซต์โดยบันทึกการกระทำของคุณ"
+                    <TextBlock Text="ตั้งค่าและควบคุมการสอน AI ทำงานบนเว็บไซต์"
                                Foreground="#AAFFFFFF" Margin="38,5,0,0" FontSize="13"/>
                 </StackPanel>
 
-                <!-- Control Buttons -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Learning Mode Toggle -->
-                    <Border Background="#20000000" CornerRadius="8" Padding="8,6" Margin="0,0,15,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Auto Learning" Foreground="#80FFFFFF" FontSize="12"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ToggleButton x:Name="AutoLearningToggle"
-                                          Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                                          Checked="AutoLearningToggle_Changed"
-                                          Unchecked="AutoLearningToggle_Changed"
-                                          ToolTip="Enable AI Auto-Learning Mode"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Platform Selection -->
-                    <Border Background="#20000000" CornerRadius="8" Padding="3" Margin="0,0,10,0">
-                        <ComboBox x:Name="PlatformComboBox" Width="160"
-                                  materialDesign:HintAssist.Hint="Platform"
-                                  materialDesign:HintAssist.FloatingOffset="0,-18"
-                                  Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                                  Foreground="White" BorderThickness="0">
-                            <ComboBoxItem Content="Facebook" Tag="facebook"/>
-                            <ComboBoxItem Content="Instagram" Tag="instagram"/>
-                            <ComboBoxItem Content="TikTok" Tag="tiktok"/>
-                            <ComboBoxItem Content="Twitter/X" Tag="twitter"/>
-                            <ComboBoxItem Content="LINE" Tag="line"/>
-                            <ComboBoxItem Content="YouTube" Tag="youtube"/>
-                            <ComboBoxItem Content="Threads" Tag="threads"/>
-                            <ComboBoxItem Content="LinkedIn" Tag="linkedin"/>
-                            <ComboBoxItem Content="Pinterest" Tag="pinterest"/>
-                            <ComboBoxItem Content="Custom" Tag="custom" IsSelected="True"/>
-                        </ComboBox>
-                    </Border>
-
-                    <!-- Task Type -->
-                    <Border Background="#20000000" CornerRadius="8" Padding="3" Margin="0,0,15,0">
-                        <ComboBox x:Name="TaskTypeComboBox" Width="160"
-                                  materialDesign:HintAssist.Hint="Task Type"
-                                  Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                                  Foreground="White" BorderThickness="0">
-                            <ComboBoxItem Content="Post Content" Tag="post" IsSelected="True"/>
-                            <ComboBoxItem Content="Login" Tag="login"/>
-                            <ComboBoxItem Content="Upload Media" Tag="upload"/>
-                            <ComboBoxItem Content="Comment" Tag="comment"/>
-                            <ComboBoxItem Content="Search" Tag="search"/>
-                            <ComboBoxItem Content="Send Message" Tag="message"/>
-                            <ComboBoxItem Content="Custom" Tag="custom"/>
-                        </ComboBox>
-                    </Border>
-
-                    <!-- Recording Buttons -->
-                    <Button x:Name="StartRecordingButton" Click="StartRecordingButton_Click"
-                            Padding="18,10" Margin="0,0,8,0" Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
-                                <Setter Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#10B981" Offset="0"/>
-                                            <GradientStop Color="#059669" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Style>
-                        </Button.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Record" VerticalAlignment="Center" Width="18" Height="18"/>
-                            <TextBlock Text="เริ่มบันทึก" Margin="8,0,0,0" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="StopRecordingButton" Click="StopRecordingButton_Click"
-                            IsEnabled="False" Padding="18,10" Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
-                                <Setter Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#EF4444" Offset="0"/>
-                                            <GradientStop Color="#DC2626" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Style>
-                        </Button.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Stop" VerticalAlignment="Center" Width="18" Height="18"/>
-                            <TextBlock Text="หยุดบันทึก" Margin="8,0,0,0" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+                <!-- Open Browser Button -->
+                <Button Grid.Column="1" x:Name="OpenBrowserButton" Click="OpenBrowserButton_Click"
+                        Padding="20,12" Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                            <Setter Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#EC4899" Offset="0"/>
+                                        <GradientStop Color="#8B5CF6" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                    </Button.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="OpenInNew" VerticalAlignment="Center" Width="20" Height="20"/>
+                        <TextBlock Text="เปิด Browser" Margin="10,0,0,0" FontWeight="SemiBold" FontSize="14"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- AI COMMAND PROMPT - สั่งงาน AI ด้วยข้อความ                       -->
-        <!-- ═══════════════════════════════════════════════════════════════ -->
-        <StackPanel Grid.Row="1" Margin="15,0,15,10"
-                    Visibility="{Binding ElementName=AutoLearningToggle, Path=IsChecked, Converter={StaticResource BoolToVis}}">
-
-            <!-- AI Prompt Input -->
-            <Border x:Name="AiPromptPanel" Background="#25000000" CornerRadius="12" Padding="15" Margin="0,0,0,10">
-                <Border.Effect>
-                    <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="0" Opacity="0.2"/>
-                </Border.Effect>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- AI Brain Icon -->
-                    <Border Grid.Column="0" Background="#308B5CF6" CornerRadius="10" Width="44" Height="44"
-                            VerticalAlignment="Center" Margin="0,0,12,0">
-                        <materialDesign:PackIcon Kind="Brain" Width="26" Height="26"
-                                                  Foreground="#8B5CF6" VerticalAlignment="Center"
-                                                  HorizontalAlignment="Center"/>
-                    </Border>
-
-                    <!-- Prompt Input Area -->
-                    <Grid Grid.Column="1">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                            <TextBlock Text="AI Command" Foreground="#8B5CF6" FontWeight="Bold" FontSize="13"/>
-                            <Border Background="#20FFFFFF" CornerRadius="4" Padding="6,2" Margin="10,0,0,0"
-                                    Cursor="Hand" MouseLeftButtonDown="OllamaStatus_Click"
-                                    ToolTip="คลิกเพื่อดูคำแนะนำการแก้ไข">
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse x:Name="OllamaStatusDot" Width="6" Height="6" Fill="#10B981"
-                                             VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <TextBlock x:Name="OllamaStatusText" Text="Checking..." Foreground="#80FFFFFF" FontSize="10"/>
-                                </StackPanel>
-                            </Border>
-                            <Button Style="{StaticResource MaterialDesignIconButton}"
-                                    Click="RefreshOllamaStatus_Click" ToolTip="ตรวจสอบสถานะ Ollama"
-                                    Width="24" Height="24" Margin="4,0,0,0">
-                                <materialDesign:PackIcon Kind="Refresh" Width="14" Height="14" Foreground="#8B5CF6"/>
-                            </Button>
-                        </StackPanel>
-
-                        <Border Grid.Row="1" Background="#15FFFFFF" CornerRadius="8" Padding="2">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <TextBox x:Name="AiPromptTextBox" Grid.Column="0"
-                                         VerticalContentAlignment="Center"
-                                         Background="Transparent" BorderThickness="0"
-                                         Foreground="White" CaretBrush="White"
-                                         FontSize="13" Padding="12,10"
-                                         materialDesign:HintAssist.Hint="พิมพ์คำสั่งให้ AI เช่น 'สอนวิธีโพสต์รูปภาพบน Facebook' หรือ 'ช่วยหาปุ่ม Submit'"
-                                         materialDesign:HintAssist.Foreground="#50FFFFFF"
-                                         KeyDown="AiPromptTextBox_KeyDown"
-                                         AcceptsReturn="False"/>
-
-                                <!-- Voice Input (Future Feature) -->
-                                <Button Grid.Column="1" Style="{StaticResource MaterialDesignIconButton}"
-                                        Click="VoiceInputButton_Click" ToolTip="Voice Input (Coming Soon)"
-                                        Width="36" Height="36" Margin="0,0,4,0" IsEnabled="False">
-                                    <materialDesign:PackIcon Kind="Microphone" Width="18" Height="18" Foreground="#50FFFFFF"/>
-                                </Button>
-                            </Grid>
-                        </Border>
-                    </Grid>
-
-                    <!-- Send Button -->
-                    <Button Grid.Column="2" x:Name="SendAiPromptButton" Click="SendAiPromptButton_Click"
-                            Padding="16,10" Margin="10,0,0,0" Cursor="Hand" VerticalAlignment="Center">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
-                                <Setter Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                            <GradientStop Color="#8B5CF6" Offset="0"/>
-                                            <GradientStop Color="#7C3AED" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Style>
-                        </Button.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Send" Width="18" Height="18"/>
-                            <TextBlock Text="ส่ง" Margin="6,0,0,0" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Button>
-                </Grid>
-            </Border>
-
-            <!-- AI Response Panel (shows after sending prompt) -->
-            <Border x:Name="AiResponsePanel" Background="#208B5CF6" CornerRadius="12" Padding="15"
-                    BorderBrush="#408B5CF6" BorderThickness="1" Visibility="Collapsed">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Header -->
-                    <Grid Grid.Row="0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <materialDesign:PackIcon Kind="RobotOutline" Width="20" Height="20"
-                                                  Foreground="#8B5CF6" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="AI Response" Foreground="#8B5CF6"
-                                   FontWeight="Bold" FontSize="13" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
-                                Click="DismissAiResponseButton_Click" Width="24" Height="24">
-                            <materialDesign:PackIcon Kind="Close" Width="14" Height="14" Foreground="#60FFFFFF"/>
-                        </Button>
-                    </Grid>
-
-                    <!-- Response Content -->
-                    <TextBlock x:Name="AiResponseText" Grid.Row="1"
-                               Text="" Foreground="#EEFFFFFF"
-                               FontSize="13" TextWrapping="Wrap" Margin="0,10,0,0"
-                               MaxHeight="150"/>
-
-                    <!-- Action Buttons -->
-                    <StackPanel x:Name="AiResponseActions" Grid.Row="2" Orientation="Horizontal"
-                                Margin="0,12,0,0" Visibility="Collapsed">
-                        <Button x:Name="ApplyAiSuggestionButton" Click="ApplyAiSuggestionButton_Click"
-                                Padding="12,6" Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
-                                    <Setter Property="BorderBrush" Value="#10B981"/>
-                                    <Setter Property="Foreground" Value="#10B981"/>
-                                </Style>
-                            </Button.Style>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="Check" Width="16" Height="16"/>
-                                <TextBlock Text="นำไปใช้" Margin="6,0,0,0" FontSize="12"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button x:Name="TeachMeButton" Click="TeachMeButton_Click"
-                                Padding="12,6" Margin="8,0,0,0" Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
-                                    <Setter Property="BorderBrush" Value="#06B6D4"/>
-                                    <Setter Property="Foreground" Value="#06B6D4"/>
-                                </Style>
-                            </Button.Style>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="School" Width="16" Height="16"/>
-                                <TextBlock Text="สอนฉัน" Margin="6,0,0,0" FontSize="12"/>
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
-        </StackPanel>
-
-        <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- MAIN CONTENT                                                     -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="2" Margin="15,0">
+        <Grid Grid.Row="1" Margin="15,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="600"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="400"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <!-- ═══════════════════════════════════════════════════════════════ -->
-            <!-- LEFT PANEL: Browser                                              -->
+            <!-- LEFT PANEL: Settings & Configuration                            -->
             <!-- ═══════════════════════════════════════════════════════════════ -->
-            <Grid Grid.Column="0" Margin="0,0,15,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,15,0">
+                <StackPanel>
+                    <!-- Browser Status Card -->
+                    <Border x:Name="BrowserStatusCard" Background="#25000000" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                <Border Background="#30EC4899" CornerRadius="10" Width="44" Height="44">
+                                    <materialDesign:PackIcon Kind="Web" Width="24" Height="24"
+                                                              Foreground="#EC4899" VerticalAlignment="Center"
+                                                              HorizontalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Browser Window" FontWeight="Bold" FontSize="16" Foreground="White"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="BrowserStatusDot" Width="8" Height="8" Fill="#EF4444"
+                                                 VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="BrowserStatusText" Text="Not Open"
+                                                   Foreground="#80FFFFFF" FontSize="12"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
 
-                <!-- URL Bar with Navigation -->
-                <Border Grid.Row="0" Background="#25000000" CornerRadius="12" Padding="12" Margin="0,0,0,10">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="0" Opacity="0.2"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                            <!-- Current Page Info -->
+                            <Border x:Name="CurrentPageInfo" Background="#15FFFFFF" CornerRadius="8" Padding="12"
+                                    Visibility="Collapsed">
+                                <StackPanel>
+                                    <TextBlock Text="Current Page" Foreground="#80FFFFFF" FontSize="11"/>
+                                    <TextBlock x:Name="TxtCurrentPageTitle" Text="-" Foreground="White"
+                                               FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="TxtCurrentPageUrl" Text="-" Foreground="#60FFFFFF"
+                                               FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
 
-                        <Button Grid.Column="0" Style="{StaticResource MaterialDesignIconButton}"
-                                Click="BackButton_Click" ToolTip="Back (Alt+Left)" Width="36" Height="36">
-                            <materialDesign:PackIcon Kind="ArrowLeft" Width="20" Height="20" Foreground="#B0B0C0"/>
-                        </Button>
-                        <Button Grid.Column="1" Style="{StaticResource MaterialDesignIconButton}"
-                                Click="ForwardButton_Click" ToolTip="Forward (Alt+Right)" Width="36" Height="36">
-                            <materialDesign:PackIcon Kind="ArrowRight" Width="20" Height="20" Foreground="#B0B0C0"/>
-                        </Button>
-                        <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
-                                Click="RefreshButton_Click" ToolTip="Refresh (F5)" Width="36" Height="36">
-                            <materialDesign:PackIcon Kind="Refresh" Width="20" Height="20" Foreground="#B0B0C0"/>
-                        </Button>
+                    <!-- Platform & Task Settings -->
+                    <Border Background="#25000000" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                <materialDesign:PackIcon Kind="Cog" Width="22" Height="22"
+                                                          Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                <TextBlock Text="Settings" FontWeight="Bold" FontSize="16"
+                                           Foreground="White" Margin="10,0,0,0"/>
+                            </StackPanel>
 
-                        <Border Grid.Column="3" Background="#15FFFFFF" CornerRadius="8" Margin="8,0">
-                            <Grid>
+                            <!-- Platform Selection -->
+                            <TextBlock Text="Platform" Foreground="#80FFFFFF" FontSize="12" Margin="0,0,0,8"/>
+                            <ComboBox x:Name="PlatformComboBox" Width="Auto"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                      Foreground="White" Margin="0,0,0,15">
+                                <ComboBoxItem Content="Facebook" Tag="facebook"/>
+                                <ComboBoxItem Content="Instagram" Tag="instagram"/>
+                                <ComboBoxItem Content="TikTok" Tag="tiktok"/>
+                                <ComboBoxItem Content="Twitter/X" Tag="twitter"/>
+                                <ComboBoxItem Content="LINE" Tag="line"/>
+                                <ComboBoxItem Content="YouTube" Tag="youtube"/>
+                                <ComboBoxItem Content="Threads" Tag="threads"/>
+                                <ComboBoxItem Content="LinkedIn" Tag="linkedin"/>
+                                <ComboBoxItem Content="Pinterest" Tag="pinterest"/>
+                                <ComboBoxItem Content="Custom" Tag="custom" IsSelected="True"/>
+                            </ComboBox>
+
+                            <!-- Task Type -->
+                            <TextBlock Text="Task Type" Foreground="#80FFFFFF" FontSize="12" Margin="0,0,0,8"/>
+                            <ComboBox x:Name="TaskTypeComboBox" Width="Auto"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                      Foreground="White" Margin="0,0,0,15">
+                                <ComboBoxItem Content="Post Content" Tag="post" IsSelected="True"/>
+                                <ComboBoxItem Content="Login" Tag="login"/>
+                                <ComboBoxItem Content="Upload Media" Tag="upload"/>
+                                <ComboBoxItem Content="Comment" Tag="comment"/>
+                                <ComboBoxItem Content="Search" Tag="search"/>
+                                <ComboBoxItem Content="Send Message" Tag="message"/>
+                                <ComboBoxItem Content="Custom" Tag="custom"/>
+                            </ComboBox>
+
+                            <!-- URL Input -->
+                            <TextBlock Text="Start URL" Foreground="#80FFFFFF" FontSize="12" Margin="0,0,0,8"/>
+                            <TextBox x:Name="UrlTextBox"
+                                     Text="https://www.facebook.com"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Foreground="White" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- AI Command (Ollama) -->
+                    <Border Background="#25000000" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,15">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <materialDesign:PackIcon Kind="Web" Width="18" Height="18"
-                                                          Foreground="#707080" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                <TextBox x:Name="UrlTextBox" Grid.Column="1"
-                                         Text="https://www.facebook.com"
-                                         VerticalContentAlignment="Center"
-                                         Background="Transparent" BorderThickness="0"
-                                         Foreground="White" CaretBrush="White"
-                                         FontSize="13" Padding="8,10"
-                                         KeyDown="UrlTextBox_KeyDown"/>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Brain" Width="22" Height="22"
+                                                              Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                    <TextBlock Text="AI Command" FontWeight="Bold" FontSize="16"
+                                               Foreground="White" Margin="10,0,0,0"/>
+                                </StackPanel>
+
+                                <!-- Ollama Status -->
+                                <Border Grid.Column="2" Background="#20FFFFFF" CornerRadius="4" Padding="8,4"
+                                        Cursor="Hand" MouseLeftButtonDown="OllamaStatus_Click"
+                                        ToolTip="Click for troubleshooting">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="OllamaStatusDot" Width="6" Height="6" Fill="#10B981"
+                                                 VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="OllamaStatusText" Text="Checking..." Foreground="#80FFFFFF" FontSize="10"/>
+                                    </StackPanel>
+                                </Border>
                             </Grid>
-                        </Border>
 
-                        <Button Grid.Column="4" Click="GoButton_Click" Padding="16,8" Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
-                                    <Setter Property="Background">
-                                        <Setter.Value>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                <GradientStop Color="#06B6D4" Offset="0"/>
-                                                <GradientStop Color="#0891B2" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </Button.Style>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="ArrowRight" Width="18" Height="18"/>
-                                <TextBlock Text="Go" Margin="5,0,0,0" FontWeight="SemiBold"/>
+                            <!-- Prompt Input -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox x:Name="AiPromptTextBox"
+                                         materialDesign:HintAssist.Hint="Ask AI for help..."
+                                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                         Foreground="White" FontSize="12"
+                                         AcceptsReturn="False"
+                                         KeyDown="AiPromptTextBox_KeyDown"/>
+
+                                <Button Grid.Column="1" x:Name="SendAiPromptButton" Click="SendAiPromptButton_Click"
+                                        Margin="10,0,0,0" Padding="12,8" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="#8B5CF6" Offset="0"/>
+                                                        <GradientStop Color="#7C3AED" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                    <materialDesign:PackIcon Kind="Send" Width="18" Height="18"/>
+                                </Button>
+                            </Grid>
+
+                            <!-- AI Response -->
+                            <Border x:Name="AiResponsePanel" Background="#208B5CF6" CornerRadius="8" Padding="12"
+                                    Margin="0,12,0,0" Visibility="Collapsed">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <materialDesign:PackIcon Kind="RobotOutline" Width="16" Height="16"
+                                                                  Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="AI Response" Foreground="#8B5CF6"
+                                                   FontWeight="SemiBold" FontSize="11" Margin="6,0,0,0"/>
+                                        <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
+                                                Click="DismissAiResponseButton_Click" Width="20" Height="20">
+                                            <materialDesign:PackIcon Kind="Close" Width="12" Height="12" Foreground="#60FFFFFF"/>
+                                        </Button>
+                                    </Grid>
+                                    <TextBlock x:Name="AiResponseText" Text="" Foreground="#EEFFFFFF"
+                                               FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
+                                               MaxHeight="150"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Recording Controls -->
+                    <Border Background="#25000000" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                <materialDesign:PackIcon Kind="Record" Width="22" Height="22"
+                                                          Foreground="#EF4444" VerticalAlignment="Center"/>
+                                <TextBlock Text="Recording" FontWeight="Bold" FontSize="16"
+                                           Foreground="White" Margin="10,0,0,0"/>
                             </StackPanel>
-                        </Button>
-                    </Grid>
-                </Border>
 
-                <!-- WebView2 Browser Container -->
-                <Border Grid.Row="1" Background="#15000000" CornerRadius="12" ClipToBounds="True">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
-                    </Border.Effect>
-                    <Grid>
-                        <wv2:WebView2 x:Name="WebBrowser"
-                                      NavigationCompleted="WebBrowser_NavigationCompleted"
-                                      CoreWebView2InitializationCompleted="WebBrowser_CoreWebView2InitializationCompleted"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                        <!-- Recording Overlay Indicator -->
-                        <Border x:Name="RecordingIndicator" Visibility="Collapsed"
-                                HorizontalAlignment="Right" VerticalAlignment="Top"
-                                CornerRadius="0,12,0,12" Margin="0">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#E0EF4444" Offset="0"/>
-                                    <GradientStop Color="#E0DC2626" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <Border.Effect>
-                                <DropShadowEffect Color="#EF4444" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
-                            </Border.Effect>
-                            <StackPanel Orientation="Horizontal" Margin="15,10">
-                                <Ellipse x:Name="RecordingDot" Width="10" Height="10" Fill="White">
-                                    <Ellipse.Triggers>
-                                        <EventTrigger RoutedEvent="Loaded">
-                                            <BeginStoryboard>
-                                                <Storyboard RepeatBehavior="Forever">
-                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                     From="1" To="0.3" Duration="0:0:0.5"
-                                                                     AutoReverse="True"/>
-                                                </Storyboard>
-                                            </BeginStoryboard>
-                                        </EventTrigger>
-                                    </Ellipse.Triggers>
-                                </Ellipse>
-                                <TextBlock Text="REC" Foreground="White" FontWeight="Bold"
-                                           FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <Button x:Name="StartRecordingButton" Click="StartRecordingButton_Click"
+                                        Padding="0,12" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                        <GradientStop Color="#10B981" Offset="0"/>
+                                                        <GradientStop Color="#059669" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Record" Width="16" Height="16"/>
+                                        <TextBlock Text="Start" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Grid.Column="2" x:Name="StopRecordingButton" Click="StopRecordingButton_Click"
+                                        IsEnabled="False" Padding="0,12" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                        <GradientStop Color="#EF4444" Offset="0"/>
+                                                        <GradientStop Color="#DC2626" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Stop" Width="16" Height="16"/>
+                                        <TextBlock Text="Stop" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Save Workflow -->
+                    <Border Background="#25000000" CornerRadius="12" Padding="20">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                <materialDesign:PackIcon Kind="ContentSave" Width="22" Height="22"
+                                                          Foreground="#06B6D4" VerticalAlignment="Center"/>
+                                <TextBlock Text="Save Workflow" FontWeight="Bold" FontSize="16"
+                                           Foreground="White" Margin="10,0,0,0"/>
                             </StackPanel>
-                        </Border>
 
-                        <!-- Recording Border Glow -->
-                        <Border x:Name="RecordingBorder" Visibility="Collapsed"
-                                BorderThickness="3" CornerRadius="12" IsHitTestVisible="False">
-                            <Border.BorderBrush>
-                                <SolidColorBrush Color="#EF4444"/>
-                            </Border.BorderBrush>
-                            <Border.Effect>
-                                <DropShadowEffect x:Name="RecordingGlow" Color="#EF4444"
-                                                  BlurRadius="20" ShadowDepth="0" Opacity="0.6"/>
-                            </Border.Effect>
-                        </Border>
+                            <TextBlock Text="Workflow Name" Foreground="#80FFFFFF" FontSize="12" Margin="0,0,0,8"/>
+                            <TextBox x:Name="WorkflowNameTextBox"
+                                     materialDesign:HintAssist.Hint="e.g., Facebook Post Upload"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Foreground="White" FontSize="12" Margin="0,0,0,12"/>
 
-                        <!-- Loading Overlay -->
-                        <Border x:Name="LoadingIndicator" Background="#90000000" Visibility="Collapsed">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <ProgressBar IsIndeterminate="True" Width="250" Height="4"
-                                             Style="{StaticResource MaterialDesignLinearProgressBar}"/>
-                                <TextBlock Text="กำลังโหลดหน้าเว็บ..." Foreground="White"
-                                           Margin="0,15,0,0" HorizontalAlignment="Center" FontSize="14"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </Border>
-            </Grid>
+                            <TextBlock Text="Description (optional)" Foreground="#80FFFFFF" FontSize="12" Margin="0,0,0,8"/>
+                            <TextBox x:Name="WorkflowDescriptionTextBox"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Foreground="White" FontSize="12"
+                                     TextWrapping="Wrap" AcceptsReturn="True" Height="60"
+                                     Margin="0,0,0,15"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0" Click="TestWorkflowButton_Click" Padding="0,12" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+                                            <Setter Property="BorderBrush" Value="#06B6D4"/>
+                                            <Setter Property="Foreground" Value="#06B6D4"/>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="PlayCircleOutline" Width="16" Height="16"/>
+                                        <TextBlock Text="Test" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Grid.Column="2" Click="SaveWorkflowButton_Click" Padding="0,12" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="#8B5CF6" Offset="0"/>
+                                                        <GradientStop Color="#7C3AED" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16"/>
+                                        <TextBlock Text="Save" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
 
             <!-- ═══════════════════════════════════════════════════════════════ -->
-            <!-- RIGHT PANEL: Recorded Steps & Controls                           -->
+            <!-- RIGHT PANEL: Recorded Steps Display                             -->
             <!-- ═══════════════════════════════════════════════════════════════ -->
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/> <!-- AI Panels (stacked) -->
-                    <RowDefinition Height="Auto"/> <!-- Action Buttons -->
                 </Grid.RowDefinitions>
 
-                <!-- Steps Header with Stats -->
+                <!-- Steps Header -->
                 <Border Grid.Row="0" Background="#25000000" CornerRadius="12" Padding="15" Margin="0,0,0,10">
                     <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                        <Grid Grid.Row="0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="ListStatus" Width="22" Height="22"
-                                                              Foreground="#8B5CF6" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Recorded Steps" FontWeight="Bold" FontSize="16"
-                                               Foreground="White" Margin="8,0,0,0"/>
-                                </StackPanel>
-                                <TextBlock x:Name="StepCountText" Text="0 steps recorded"
-                                           Foreground="#80FFFFFF" FontSize="12" Margin="30,4,0,0"/>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ListStatus" Width="22" Height="22"
+                                                          Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                <TextBlock Text="Recorded Steps" FontWeight="Bold" FontSize="16"
+                                           Foreground="White" Margin="8,0,0,0"/>
                             </StackPanel>
+                            <TextBlock x:Name="StepCountText" Text="0 steps recorded"
+                                       Foreground="#80FFFFFF" FontSize="12" Margin="30,4,0,0"/>
+                        </StackPanel>
 
-                            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                <Button Style="{StaticResource MaterialDesignIconButton}"
-                                        x:Name="UndoButton" Click="UndoButton_Click"
-                                        ToolTip="Undo (Ctrl+Z)" IsEnabled="False"
-                                        Width="32" Height="32">
-                                    <materialDesign:PackIcon Kind="Undo" Width="18" Height="18" Foreground="#B0B0C0"/>
-                                </Button>
-                                <Button Style="{StaticResource MaterialDesignIconButton}"
-                                        x:Name="RedoButton" Click="RedoButton_Click"
-                                        ToolTip="Redo (Ctrl+Y)" IsEnabled="False"
-                                        Width="32" Height="32">
-                                    <materialDesign:PackIcon Kind="Redo" Width="18" Height="18" Foreground="#B0B0C0"/>
-                                </Button>
-                                <Button Style="{StaticResource MaterialDesignIconButton}"
-                                        Click="ClearStepsButton_Click" ToolTip="Clear All"
-                                        Width="32" Height="32">
-                                    <materialDesign:PackIcon Kind="DeleteSweep" Width="18" Height="18" Foreground="#EF4444"/>
-                                </Button>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Confidence Meter -->
-                        <Grid Grid.Row="1" Margin="0,12,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Workflow Confidence" Foreground="#80FFFFFF" FontSize="11"/>
-                                <ProgressBar x:Name="ConfidenceBar" Value="0" Maximum="100" Height="6"
-                                             Margin="0,5,10,0" Background="#30FFFFFF">
-                                    <ProgressBar.Foreground>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                            <GradientStop Color="#10B981" Offset="0"/>
-                                            <GradientStop Color="#06B6D4" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </ProgressBar.Foreground>
-                                </ProgressBar>
-                            </StackPanel>
-                            <TextBlock x:Name="ConfidenceText" Grid.Column="1" Text="0%"
-                                       Foreground="#10B981" FontWeight="Bold" FontSize="14"
-                                       VerticalAlignment="Bottom"/>
-                        </Grid>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    x:Name="UndoButton" Click="UndoButton_Click"
+                                    ToolTip="Undo" IsEnabled="False" Width="32" Height="32">
+                                <materialDesign:PackIcon Kind="Undo" Width="18" Height="18" Foreground="#B0B0C0"/>
+                            </Button>
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    x:Name="RedoButton" Click="RedoButton_Click"
+                                    ToolTip="Redo" IsEnabled="False" Width="32" Height="32">
+                                <materialDesign:PackIcon Kind="Redo" Width="18" Height="18" Foreground="#B0B0C0"/>
+                            </Button>
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Click="ClearStepsButton_Click" ToolTip="Clear All" Width="32" Height="32">
+                                <materialDesign:PackIcon Kind="DeleteSweep" Width="18" Height="18" Foreground="#EF4444"/>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
                 <!-- Steps List -->
-                <Border Grid.Row="1" Background="#15000000" CornerRadius="12" Padding="8">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
+                <Border Grid.Row="1" Background="#15000000" CornerRadius="12" Padding="10">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="StepsItemsControl">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#20000000" CornerRadius="10"
-                                            Padding="12" Margin="0,0,0,8"
-                                            BorderThickness="1" BorderBrush="#15FFFFFF"
-                                            Cursor="Hand">
-                                        <Border.Triggers>
-                                            <EventTrigger RoutedEvent="MouseEnter">
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                                        To="#30FFFFFF" Duration="0:0:0.15"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                            <EventTrigger RoutedEvent="MouseLeave">
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                                        To="#20000000" Duration="0:0:0.15"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Border.Triggers>
+                                    <Border Background="#20000000" CornerRadius="10" Padding="12" Margin="0,0,0,8"
+                                            BorderThickness="1" BorderBrush="#15FFFFFF" Cursor="Hand">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
 
                                             <!-- Step Number Badge -->
                                             <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
                                                     Background="{Binding ActionColor}" Margin="0,0,12,0">
-                                                <Border.Effect>
-                                                    <DropShadowEffect Color="{Binding ActionColor.(SolidColorBrush.Color)}"
-                                                                      BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
-                                                </Border.Effect>
                                                 <TextBlock Text="{Binding StepNumber}"
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                                            Foreground="White" FontWeight="Bold" FontSize="12"/>
@@ -642,7 +489,6 @@
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="{Binding ActionText}"
                                                                FontWeight="SemiBold" Foreground="White" FontSize="13"/>
-                                                    <!-- Confidence Indicator -->
                                                     <Border CornerRadius="3" Padding="5,2" Margin="8,0,0,0"
                                                             Background="{Binding ConfidenceColor}">
                                                         <TextBlock Text="{Binding ConfidenceDisplay}"
@@ -651,40 +497,17 @@
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding ElementDescription}"
                                                            Foreground="#90FFFFFF" FontSize="11"
-                                                           TextTrimming="CharacterEllipsis" MaxWidth="200"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="400"
                                                            Margin="0,3,0,0"/>
                                                 <TextBlock Text="{Binding ValueText}"
                                                            Foreground="#60FFFFFF" FontSize="10"
                                                            Visibility="{Binding HasValue, Converter={StaticResource BoolToVis}}"
-                                                           TextTrimming="CharacterEllipsis" MaxWidth="200"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="400"
                                                            Margin="0,2,0,0"/>
                                             </StackPanel>
 
-                                            <!-- Step Actions -->
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal"
-                                                        VerticalAlignment="Center" Margin="8,0">
-                                                <Button Style="{StaticResource MaterialDesignIconButton}"
-                                                        Click="MoveUpButton_Click" Tag="{Binding Index}"
-                                                        Width="24" Height="24" ToolTip="Move Up">
-                                                    <materialDesign:PackIcon Kind="ArrowUp" Width="14" Height="14"
-                                                                             Foreground="#60FFFFFF"/>
-                                                </Button>
-                                                <Button Style="{StaticResource MaterialDesignIconButton}"
-                                                        Click="MoveDownButton_Click" Tag="{Binding Index}"
-                                                        Width="24" Height="24" ToolTip="Move Down">
-                                                    <materialDesign:PackIcon Kind="ArrowDown" Width="14" Height="14"
-                                                                             Foreground="#60FFFFFF"/>
-                                                </Button>
-                                                <Button Style="{StaticResource MaterialDesignIconButton}"
-                                                        Click="DuplicateStepButton_Click" Tag="{Binding Index}"
-                                                        Width="24" Height="24" ToolTip="Duplicate">
-                                                    <materialDesign:PackIcon Kind="ContentCopy" Width="14" Height="14"
-                                                                             Foreground="#60FFFFFF"/>
-                                                </Button>
-                                            </StackPanel>
-
                                             <!-- Delete Button -->
-                                            <Button Grid.Column="3" Style="{StaticResource MaterialDesignIconButton}"
+                                            <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
                                                     Click="DeleteStepButton_Click" Tag="{Binding Index}"
                                                     Width="28" Height="28" ToolTip="Delete Step">
                                                 <materialDesign:PackIcon Kind="Close" Width="16" Height="16"
@@ -697,448 +520,7 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Border>
-
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <!-- AI Panels Container (only one visible at a time)               -->
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <StackPanel Grid.Row="2">
-
-                <!-- AI Teaching Guidelines Panel (shown during recording) -->
-                <Border x:Name="TeachingGuidelinesPanel" Visibility="Collapsed"
-                        Background="#200EA5E9" CornerRadius="12" Padding="0" Margin="0,10,0,0"
-                        BorderBrush="#400EA5E9" BorderThickness="1">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*" MaxHeight="280"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Header -->
-                        <Border Grid.Row="0" Background="#300EA5E9" Padding="15,12">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <Border Background="#400EA5E9" CornerRadius="20" Width="36" Height="36">
-                                    <materialDesign:PackIcon Kind="SchoolOutline" Width="20" Height="20"
-                                                              Foreground="#0EA5E9" VerticalAlignment="Center"
-                                                              HorizontalAlignment="Center"/>
-                                </Border>
-
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="AI Teaching Guide" Foreground="#0EA5E9"
-                                               FontWeight="Bold" FontSize="14"/>
-                                    <TextBlock x:Name="TeachingGuideSubtitle"
-                                               Text="Follow these steps to teach AI"
-                                               Foreground="#80FFFFFF" FontSize="11"/>
-                                </StackPanel>
-
-                                <Border Grid.Column="2" Background="#30000000" CornerRadius="4" Padding="8,4">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="TeachingProgressText" Text="Step 1/5"
-                                                   Foreground="#0EA5E9" FontWeight="SemiBold" FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-                        </Border>
-
-                        <!-- Progress Bar -->
-                        <ProgressBar x:Name="TeachingProgressBar" Grid.Row="1"
-                                     Value="0" Maximum="100" Height="4"
-                                     Background="#20FFFFFF">
-                            <ProgressBar.Foreground>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#0EA5E9" Offset="0"/>
-                                    <GradientStop Color="#06B6D4" Offset="1"/>
-                                </LinearGradientBrush>
-                            </ProgressBar.Foreground>
-                        </ProgressBar>
-
-                        <!-- Steps List -->
-                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="10">
-                            <ItemsControl x:Name="TeachingStepsControl">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border x:Name="StepBorder" CornerRadius="8" Padding="12" Margin="0,0,0,8"
-                                                BorderThickness="1">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#15000000"/>
-                                                    <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                            <Setter Property="Background" Value="#250EA5E9"/>
-                                                            <Setter Property="BorderBrush" Value="#600EA5E9"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                            <Setter Property="Background" Value="#2010B981"/>
-                                                            <Setter Property="BorderBrush" Value="#4010B981"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <!-- Step Number/Status Icon -->
-                                                <Border Grid.Column="0" Width="28" Height="28" CornerRadius="14"
-                                                        VerticalAlignment="Top" Margin="0,0,10,0">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="#40FFFFFF"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                                    <Setter Property="Background" Value="#0EA5E9"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                                    <Setter Property="Background" Value="#10B981"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Grid>
-                                                        <!-- Step Number (shown when not completed) -->
-                                                        <TextBlock Text="{Binding StepNumber}"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                   Foreground="White" FontWeight="Bold" FontSize="11"
-                                                                   Visibility="{Binding IsNotCompleted, Converter={StaticResource BoolToVis}}"/>
-                                                        <!-- Check Icon (shown when completed) -->
-                                                        <materialDesign:PackIcon Kind="Check" Width="16" Height="16"
-                                                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                                  Foreground="White"
-                                                                                  Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVis}}"/>
-                                                    </Grid>
-                                                </Border>
-
-                                                <!-- Step Content -->
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <!-- Action Type Badge -->
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Border CornerRadius="3" Padding="6,2" Background="{Binding ActionColor}">
-                                                            <TextBlock Text="{Binding ActionType}" Foreground="White"
-                                                                       FontSize="9" FontWeight="Bold"/>
-                                                        </Border>
-                                                        <TextBlock Text="{Binding IsOptionalText}" Foreground="#F59E0B"
-                                                                   FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"
-                                                                   Visibility="{Binding IsOptional, Converter={StaticResource BoolToVis}}"/>
-                                                    </StackPanel>
-
-                                                    <!-- Thai Description -->
-                                                    <TextBlock Text="{Binding DescriptionThai}" Foreground="White"
-                                                               FontWeight="SemiBold" FontSize="12" Margin="0,4,0,0"
-                                                               TextWrapping="Wrap"/>
-
-                                                    <!-- English Description (smaller) -->
-                                                    <TextBlock Text="{Binding Description}" Foreground="#70FFFFFF"
-                                                               FontSize="10" Margin="0,2,0,0" TextWrapping="Wrap"/>
-
-                                                    <!-- Element Hint -->
-                                                    <Border Background="#20000000" CornerRadius="4" Padding="6,4" Margin="0,6,0,0"
-                                                            Visibility="{Binding HasElementHint, Converter={StaticResource BoolToVis}}">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <materialDesign:PackIcon Kind="CursorDefaultOutline" Width="12" Height="12"
-                                                                                      Foreground="#06B6D4" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding ElementHint}" Foreground="#06B6D4"
-                                                                       FontSize="10" Margin="4,0,0,0"/>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <!-- Input Hint (for type actions) -->
-                                                    <Border Background="#20000000" CornerRadius="4" Padding="6,4" Margin="0,4,0,0"
-                                                            Visibility="{Binding HasInputHint, Converter={StaticResource BoolToVis}}">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <materialDesign:PackIcon Kind="KeyboardOutline" Width="12" Height="12"
-                                                                                      Foreground="#8B5CF6" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding InputHint}" Foreground="#8B5CF6"
-                                                                       FontSize="10" Margin="4,0,0,0"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-
-                                                <!-- Current Step Indicator -->
-                                                <materialDesign:PackIcon Grid.Column="2" Kind="ChevronRight"
-                                                                          Width="20" Height="20" Foreground="#0EA5E9"
-                                                                          VerticalAlignment="Center"
-                                                                          Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVis}}"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-
-                        <!-- Validation Feedback -->
-                        <Border x:Name="ValidationFeedbackPanel" Grid.Row="3" Visibility="Collapsed"
-                                Padding="12,10">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-
-                                <materialDesign:PackIcon x:Name="ValidationIcon" Kind="CheckCircle"
-                                                          Width="20" Height="20" Foreground="#10B981"
-                                                          VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ValidationText" Grid.Column="1"
-                                           Text="Step completed correctly!"
-                                           Foreground="#10B981" FontSize="12" Margin="8,0,0,0"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-
-                <!-- AI Suggestions Panel -->
-                <Border x:Name="AiSuggestionPanel" Visibility="Collapsed"
-                        Background="#20F59E0B" CornerRadius="10" Padding="12" Margin="0,10,0,0"
-                        BorderBrush="#40F59E0B" BorderThickness="1">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <materialDesign:PackIcon Kind="LightbulbOnOutline" Width="20" Height="20"
-                                                  Foreground="#F59E0B" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                        <StackPanel Grid.Column="1" Margin="10,0">
-                            <TextBlock Text="AI Suggestions" Foreground="#F59E0B" FontWeight="SemiBold" FontSize="12"/>
-                            <TextBlock x:Name="AiSuggestionText" Text="" Foreground="#CCFFFFFF"
-                                       FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                        </StackPanel>
-                        <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
-                                Click="DismissSuggestionButton_Click" Width="24" Height="24"
-                                VerticalAlignment="Top">
-                            <materialDesign:PackIcon Kind="Close" Width="14" Height="14" Foreground="#80FFFFFF"/>
-                        </Button>
-                    </Grid>
-                </Border>
-
-                <!-- Auto Learning Panel (shown when Auto Learning is enabled) -->
-                <Border x:Name="AutoLearningPanel" Visibility="Collapsed"
-                        Background="#2010B981" CornerRadius="10" Padding="15" Margin="0,10,0,0"
-                        BorderBrush="#4010B981" BorderThickness="1">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Border Background="#3010B981" CornerRadius="20" Width="40" Height="40"
-                                    VerticalAlignment="Top">
-                                <materialDesign:PackIcon Kind="Brain" Width="24" Height="24"
-                                                          Foreground="#10B981" VerticalAlignment="Center"
-                                                          HorizontalAlignment="Center"/>
-                            </Border>
-
-                            <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                <TextBlock Text="AI Auto-Learning Active" Foreground="#10B981"
-                                           FontWeight="Bold" FontSize="14"/>
-                                <TextBlock Text="AI กำลังวิเคราะห์หน้าเว็บและเรียนรู้อัตโนมัติ"
-                                           Foreground="#80FFFFFF" FontSize="11" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Auto Learning Status -->
-                        <Border Background="#20000000" CornerRadius="8" Padding="12" Margin="0,12,0,0">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Status Row -->
-                                <Grid Grid.Row="0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse x:Name="AutoLearningStatusDot" Width="8" Height="8"
-                                                 Fill="#10B981" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="AutoLearningStatusText" Text="Analyzing page..."
-                                                   Foreground="#AAFFFFFF" FontSize="12" Margin="8,0,0,0"/>
-                                    </StackPanel>
-                                    <TextBlock x:Name="AutoLearningPlatformText" Grid.Column="1"
-                                               Text="Facebook" Foreground="#06B6D4" FontSize="11"
-                                               FontWeight="SemiBold"/>
-                                </Grid>
-
-                                <!-- Progress Bar -->
-                                <ProgressBar x:Name="AutoLearningProgress" Grid.Row="1"
-                                             Value="0" Maximum="100" Height="4"
-                                             Margin="0,10,0,0" Background="#20FFFFFF"
-                                             IsIndeterminate="True">
-                                    <ProgressBar.Foreground>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                            <GradientStop Color="#10B981" Offset="0"/>
-                                            <GradientStop Color="#06B6D4" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </ProgressBar.Foreground>
-                                </ProgressBar>
-
-                                <!-- Detected Elements -->
-                                <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                                    <TextBlock Text="Detected Elements:" Foreground="#60FFFFFF" FontSize="10"/>
-                                    <WrapPanel x:Name="DetectedElementsPanel" Margin="0,6,0,0">
-                                        <!-- Dynamic content -->
-                                    </WrapPanel>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Auto Learning Actions -->
-                        <Grid Margin="0,12,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="8"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Button Grid.Column="0" x:Name="GenerateWorkflowButton"
-                                    Click="GenerateWorkflowButton_Click"
-                                    Padding="0,10" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
-                                        <Setter Property="BorderBrush" Value="#10B981"/>
-                                        <Setter Property="Foreground" Value="#10B981"/>
-                                    </Style>
-                                </Button.Style>
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="AutoFix" Width="16" Height="16"/>
-                                    <TextBlock Text="Generate" Margin="6,0,0,0" FontSize="12"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button Grid.Column="2" x:Name="TransferLearningButton"
-                                    Click="TransferLearningButton_Click"
-                                    Padding="0,10" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
-                                        <Setter Property="BorderBrush" Value="#8B5CF6"/>
-                                        <Setter Property="Foreground" Value="#8B5CF6"/>
-                                    </Style>
-                                </Button.Style>
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="SwapHorizontal" Width="16" Height="16"/>
-                                    <TextBlock Text="Transfer" Margin="6,0,0,0" FontSize="12"/>
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                </StackPanel> <!-- End of AI Panels Container -->
-
-                <!-- Save Workflow Panel -->
-                <Border Grid.Row="3" Background="#25000000" CornerRadius="12" Padding="15" Margin="0,10,0,0">
-                    <StackPanel>
-                        <!-- Workflow Name -->
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <materialDesign:PackIcon Kind="TagOutline" Width="20" Height="20"
-                                                      Foreground="#8B5CF6" VerticalAlignment="Center"/>
-                            <TextBox x:Name="WorkflowNameTextBox" Grid.Column="1" Margin="10,0,0,0"
-                                     materialDesign:HintAssist.Hint="Workflow Name"
-                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                     Foreground="White" BorderBrush="#40FFFFFF"
-                                     FontSize="13"/>
-                        </Grid>
-
-                        <!-- Description -->
-                        <TextBox x:Name="WorkflowDescriptionTextBox"
-                                 materialDesign:HintAssist.Hint="Description (optional)"
-                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Foreground="White" BorderBrush="#40FFFFFF"
-                                 TextWrapping="Wrap" AcceptsReturn="True"
-                                 Height="55" Margin="0,0,0,12" FontSize="12"/>
-
-                        <!-- Action Buttons -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Button Grid.Column="0" Click="TestWorkflowButton_Click"
-                                    Padding="0,12" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
-                                        <Setter Property="BorderBrush" Value="#06B6D4"/>
-                                        <Setter Property="Foreground" Value="#06B6D4"/>
-                                    </Style>
-                                </Button.Style>
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="PlayCircleOutline" Width="18" Height="18"/>
-                                    <TextBlock Text="Test" Margin="6,0,0,0" FontWeight="SemiBold"/>
-                                </StackPanel>
-                            </Button>
-
-                            <Button Grid.Column="2" Click="SaveWorkflowButton_Click"
-                                    Padding="0,12" Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
-                                        <Setter Property="Background">
-                                            <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                    <GradientStop Color="#8B5CF6" Offset="0"/>
-                                                    <GradientStop Color="#7C3AED" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Setter Property="Foreground" Value="White"/>
-                                    </Style>
-                                </Button.Style>
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18"/>
-                                    <TextBlock Text="Save Workflow" Margin="6,0,0,0" FontWeight="SemiBold"/>
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-                    </StackPanel>
-                </Border>
             </Grid>
         </Grid>
-
-        <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- STATUS BAR                                                       -->
-        <!-- ═══════════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="3" Margin="15,10,15,10">
-            <Border x:Name="StatusBar" Background="#20000000" CornerRadius="8" Padding="15,10"
-                    Visibility="Collapsed">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <materialDesign:PackIcon x:Name="StatusIcon" Kind="Information" Width="20" Height="20"
-                                              Foreground="#3B82F6" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="StatusText" Grid.Column="1" Text=""
-                               Foreground="White" Margin="10,0,0,0"
-                               VerticalAlignment="Center" FontSize="13"/>
-                    <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
-                            Click="DismissStatusButton_Click" Width="24" Height="24">
-                        <materialDesign:PackIcon Kind="Close" Width="14" Height="14" Foreground="#60FFFFFF"/>
-                    </Button>
-                </Grid>
-            </Border>
-        </Border>
     </Grid>
 </Page>
