@@ -111,7 +111,7 @@ jobs:
 
       - name: Test
         working-directory: AIManagerCore
-        run: dotnet test --configuration Release --no-build --verbosity normal || true
+        run: dotnet test --configuration Release --no-build --verbosity normal
 
   # Code Quality
   lint:
@@ -134,11 +134,11 @@ jobs:
 
       - name: Run PHP CS Fixer (dry-run)
         working-directory: laravel-backend
-        run: php-cs-fixer fix --dry-run --diff || true
+        run: php-cs-fixer fix --dry-run --diff
 
       - name: Run PHPStan
         working-directory: laravel-backend
-        run: phpstan analyse app --level=5 || true
+        run: phpstan analyse app --level=5
 
   # Security Scan
   security:
@@ -160,4 +160,4 @@ jobs:
 
       - name: Security check
         working-directory: laravel-backend
-        run: composer audit || true
+        run: composer audit

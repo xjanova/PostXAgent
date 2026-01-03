@@ -271,6 +271,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowLaravel");
 
+// Rate Limiting Middleware (before auth to prevent DOS)
+app.UseRateLimiting();
+
 // API Key Authentication Middleware
 app.UseApiKeyAuth();
 
