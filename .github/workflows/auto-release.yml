@@ -27,8 +27,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check commit messages for release trigger
+      - name: Check for release trigger
         id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get the commit message
           COMMIT_MSG=$(git log -1 --pretty=%B)
@@ -41,24 +43,60 @@ jobs:
             exit 0
           fi
 
-          # Check for version bump commits from version-bump workflow
+          # Check for version bump commits
           if [[ "$COMMIT_MSG" == "chore: bump version to"* ]]; then
             echo "should_release=false" >> $GITHUB_OUTPUT
             echo "Skipping release (version bump commit)"
             exit 0
           fi
 
-          # Determine bump type from conventional commits
-          if [[ "$COMMIT_MSG" == *"BREAKING CHANGE"* ]] || [[ "$COMMIT_MSG" == *"!:"* ]]; then
-            BUMP_TYPE="major"
-          elif [[ "$COMMIT_MSG" == "feat"* ]] || [[ "$COMMIT_MSG" == "feature"* ]]; then
-            BUMP_TYPE="minor"
-          elif [[ "$COMMIT_MSG" == "fix"* ]] || [[ "$COMMIT_MSG" == "bugfix"* ]] || [[ "$COMMIT_MSG" == "hotfix"* ]]; then
-            BUMP_TYPE="patch"
+          BUMP_TYPE=""
+
+          # Check if this is a merge commit from a PR
+          if [[ "$COMMIT_MSG" == "Merge pull request #"* ]]; then
+            echo "Detected PR merge commit"
+
+            # Extract PR number
+            PR_NUM=$(echo "$COMMIT_MSG" | grep -oP 'Merge pull request #\K[0-9]+')
+            echo "PR Number: $PR_NUM"
+
+            # Get PR title using GitHub CLI
+            PR_TITLE=$(gh pr view $PR_NUM --json title -q '.title' 2>/dev/null || echo "")
+            echo "PR Title: $PR_TITLE"
+
+            # Also check all commits in the merge
+            MERGE_BASE=$(git merge-base HEAD~1 HEAD 2>/dev/null || echo "")
+            if [ -n "$MERGE_BASE" ]; then
+              ALL_COMMITS=$(git log --pretty=format:"%s" ${MERGE_BASE}..HEAD~1 2>/dev/null || echo "")
+              echo "Commits in merge:"
+              echo "$ALL_COMMITS"
+            fi
+
+            # Check PR title first, then commits
+            CHECK_MSG="$PR_TITLE $ALL_COMMITS"
           else
-            # Default: no auto-release for other commits
+            # Direct push - use commit message
+            CHECK_MSG="$COMMIT_MSG"
+          fi
+
+          echo "Checking message: $CHECK_MSG"
+
+          # Determine bump type from conventional commits
+          if [[ "$CHECK_MSG" == *"BREAKING CHANGE"* ]] || [[ "$CHECK_MSG" == *"!:"* ]]; then
+            BUMP_TYPE="major"
+          elif [[ "$CHECK_MSG" == *"feat:"* ]] || [[ "$CHECK_MSG" == *"feat("* ]] || [[ "$CHECK_MSG" == "feat "* ]]; then
+            BUMP_TYPE="minor"
+          elif [[ "$CHECK_MSG" == *"feature:"* ]] || [[ "$CHECK_MSG" == *"feature("* ]]; then
+            BUMP_TYPE="minor"
+          elif [[ "$CHECK_MSG" == *"fix:"* ]] || [[ "$CHECK_MSG" == *"fix("* ]] || [[ "$CHECK_MSG" == "fix "* ]]; then
+            BUMP_TYPE="patch"
+          elif [[ "$CHECK_MSG" == *"bugfix:"* ]] || [[ "$CHECK_MSG" == *"hotfix:"* ]]; then
+            BUMP_TYPE="patch"
+          fi
+
+          if [ -z "$BUMP_TYPE" ]; then
             echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "No release trigger found in commit message"
+            echo "No release trigger found"
             exit 0
           fi
 
@@ -72,10 +110,11 @@ jobs:
         run: |
           # Get current version
           if [ -f VERSION ]; then
-            CURRENT=$(cat VERSION | tr -d '\n')
+            CURRENT=$(cat VERSION | tr -d '\n' | tr -d '\r')
           else
             CURRENT="0.0.0"
           fi
+          echo "Current version: $CURRENT"
 
           IFS='.' read -ra PARTS <<< "$CURRENT"
           MAJOR=${PARTS[0]:-0}
@@ -99,7 +138,7 @@ jobs:
 
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Current: $CURRENT -> New: $NEW_VERSION"
+          echo "New version: $NEW_VERSION"
 
   # Create release
   release:
@@ -133,24 +172,24 @@ jobs:
           git push origin "v$VERSION"
 
       - name: Generate changelog
-        id: changelog
         run: |
           VERSION="${{ needs.check-release.outputs.new_version }}"
           LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
 
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
           if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+            git log --pretty=format:"- %s (%h)" --no-merges -20 >> CHANGELOG.md
           else
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges >> CHANGELOG.md
           fi
 
-          cat > CHANGELOG.md << EOF
-          ## What's Changed
-
-          ${COMMITS}
-
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${VERSION}
-          EOF
+          echo "" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          if [ -n "$LAST_TAG" ]; then
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${VERSION}" >> CHANGELOG.md
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
