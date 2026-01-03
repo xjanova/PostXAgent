@@ -66,17 +66,20 @@
                     </ControlTemplate>
                 </Button.Template>
             </Button>
-            <Button Content="Add Worker" Click="Add_Click" Cursor="Hand">
+            <Button Content="Save" Click="Add_Click" Cursor="Hand">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
-                        <Border CornerRadius="8" Padding="20,10">
+                        <Border CornerRadius="8" Padding="24,10">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                     <GradientStop Color="#10B981" Offset="0"/>
                                     <GradientStop Color="#059669" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
-                            <TextBlock Text="Add Worker" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Save" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </Border>
                     </ControlTemplate>
                 </Button.Template>

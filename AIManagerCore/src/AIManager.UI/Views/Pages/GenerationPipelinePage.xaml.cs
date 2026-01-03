@@ -205,6 +205,9 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
     private void GenType_Changed(object sender, RoutedEventArgs e)
     {
+        // Prevent NullReferenceException during initialization
+        if (RbVideo == null) return;
+
         _isVideoMode = RbVideo.IsChecked == true;
 
         // Update output node appearance
