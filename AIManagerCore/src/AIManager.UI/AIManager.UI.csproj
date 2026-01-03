@@ -22,7 +22,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
     <!-- Use CommunityToolkit.Mvvm as DLL only (no source generators) to fix WPF wpftmp issue -->
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" ExcludeAssets="analyzers" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" ExcludeAssets="analyzers" />
     <!-- For System.Drawing (taskbar icon) -->
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <!-- WebView2 for embedded browser -->
