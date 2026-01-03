@@ -6,6 +6,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int $brand_id
+ * @property int|null $account_pool_id
+ * @property string $platform
+ * @property string $status
+ * @property string $current_step
+ * @property int $attempts
+ * @property int $max_attempts
+ * @property Brand $brand
+ * @property User $user
+ * @property AccountPool|null $accountPool
+ */
 class AccountCreationTask extends Model
 {
     use HasFactory;
