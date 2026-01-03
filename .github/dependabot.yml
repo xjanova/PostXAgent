@@ -1,0 +1,88 @@
+version: 2
+updates:
+  # Composer (PHP) dependencies
+  - package-ecosystem: "composer"
+    directory: "/laravel-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "php"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      laravel:
+        patterns:
+          - "laravel/*"
+          - "illuminate/*"
+      testing:
+        patterns:
+          - "phpunit/*"
+          - "mockery/*"
+          - "fakerphp/*"
+
+  # NPM dependencies
+  - package-ecosystem: "npm"
+    directory: "/laravel-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      vue:
+        patterns:
+          - "vue*"
+          - "@vue/*"
+      vite:
+        patterns:
+          - "vite*"
+          - "@vitejs/*"
+
+  # NuGet (.NET) dependencies
+  - package-ecosystem: "nuget"
+    directory: "/AIManagerCore"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "dotnet"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      aspnet:
+        patterns:
+          - "Microsoft.AspNetCore*"
+          - "Microsoft.Extensions*"
+      wpf:
+        patterns:
+          - "MaterialDesign*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps)"
