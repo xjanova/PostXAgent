@@ -205,7 +205,9 @@ public partial class ModelManagerPage : Page
 
     private void Tab_Changed(object sender, RoutedEventArgs e)
     {
-        if (TabDownloaded == null) return;
+        // Prevent NullReferenceException during initialization
+        if (TabDownloaded == null || DownloadedPanel == null || BrowsePanel == null || RecommendedPanel == null)
+            return;
 
         DownloadedPanel.Visibility = TabDownloaded.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         BrowsePanel.Visibility = TabBrowse.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
