@@ -22,11 +22,13 @@ namespace AIManager.UI.Views.Pages;
 public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 {
     private readonly GpuPoolService? _gpuPoolService;
+    private readonly LocalGpuService _localGpuService;
     private readonly DiffusersGenerationEngine _diffusersEngine;
     private readonly ComfyUIService _comfyService;
     private readonly HuggingFaceModelService _modelService;
     private readonly ILogger<GenerationPipelinePage>? _logger;
     private readonly DispatcherTimer _statusTimer;
+    private readonly DispatcherTimer _vramTimer;
     private readonly ObservableCollection<WorkerDisplayItem> _activeWorkers = new();
 
     private bool _isVideoMode;
@@ -36,6 +38,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     private int _completedCount;
     private double _totalGenerationTime;
     private string? _currentModel;
+    private GpuInfo? _localGpuInfo;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -46,11 +49,14 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
         // Initialize services
         _modelService = new HuggingFaceModelService();
-        _diffusersEngine = new DiffusersGenerationEngine(_modelService);
+        _localGpuService = new LocalGpuService();
+        _diffusersEngine = new DiffusersGenerationEngine(_modelService, _localGpuService);
         _comfyService = new ComfyUIService();
 
         // Subscribe to events
         _diffusersEngine.ProgressChanged += DiffusersEngine_ProgressChanged;
+        _diffusersEngine.GpuStatusChanged += DiffusersEngine_GpuStatusChanged;
+        _diffusersEngine.StatusChanged += DiffusersEngine_StatusChanged;
         _comfyService.ProgressChanged += ComfyService_ProgressChanged;
 
         // Get services from DI
@@ -80,6 +86,13 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         };
         _statusTimer.Tick += async (s, e) => await RefreshStatusAsync();
 
+        // VRAM monitoring timer (more frequent)
+        _vramTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        _vramTimer.Tick += async (s, e) => await UpdateVramStatusAsync();
+
         // Subscribe to model activation events
         ModelManagerPage.ModelActivated += OnModelActivated;
 
@@ -91,16 +104,104 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
         Loaded += async (s, e) =>
         {
+            await InitializeGpuAsync();
             await RefreshStatusAsync();
             UpdateActiveModelDisplay();
             _statusTimer.Start();
+            _vramTimer.Start();
         };
 
         Unloaded += (s, e) =>
         {
             _statusTimer.Stop();
+            _vramTimer.Stop();
             Cleanup();
         };
+    }
+
+    private async Task InitializeGpuAsync()
+    {
+        try
+        {
+            _localGpuInfo = await _localGpuService.DetectGpuAsync();
+            UpdateLocalGpuDisplay();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to detect local GPU");
+        }
+    }
+
+    private void DiffusersEngine_GpuStatusChanged(object? sender, LocalGpuStatusEventArgs e)
+    {
+        _localGpuInfo = e.GpuInfo;
+        Dispatcher.Invoke(UpdateLocalGpuDisplay);
+    }
+
+    private void DiffusersEngine_StatusChanged(object? sender, EngineStatusEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            TxtDiffusersStatus.Text = e.Message;
+
+            var color = e.Status switch
+            {
+                EngineStatus.Running => Color.FromRgb(16, 185, 129),   // Green
+                EngineStatus.Loading => Color.FromRgb(245, 158, 11),   // Yellow
+                EngineStatus.Generating => Color.FromRgb(139, 92, 246), // Purple
+                EngineStatus.Error => Color.FromRgb(239, 68, 68),      // Red
+                _ => Color.FromRgb(107, 114, 128)                      // Gray
+            };
+            DiffusersStatusDot.Fill = new SolidColorBrush(color);
+        });
+    }
+
+    private void UpdateLocalGpuDisplay()
+    {
+        if (_localGpuInfo == null || !_localGpuInfo.IsAvailable)
+        {
+            TxtLocalGpuName.Text = "No GPU - CPU Only";
+            TxtLocalGpuVram.Text = "N/A";
+            TxtLocalGpuTemp.Text = "N/A";
+            LocalGpuVramBar.Value = 0;
+            return;
+        }
+
+        TxtLocalGpuName.Text = _localGpuInfo.Name;
+        TxtLocalGpuVram.Text = $"{_localGpuInfo.FreeVramGb:F1} / {_localGpuInfo.TotalVramGb:F1} GB";
+        TxtLocalGpuTemp.Text = _localGpuInfo.Temperature > 0 ? $"{_localGpuInfo.Temperature}°C" : "N/A";
+        LocalGpuVramBar.Value = _localGpuInfo.UsagePercent;
+        LocalGpuVramBar.Foreground = new SolidColorBrush(
+            _localGpuInfo.UsagePercent > 90 ? Color.FromRgb(239, 68, 68) :
+            _localGpuInfo.UsagePercent > 70 ? Color.FromRgb(245, 158, 11) :
+            Color.FromRgb(16, 185, 129));
+
+        // Update compatible models indicator
+        var compatibleModels = _diffusersEngine.GetCompatibleModelTypes().ToList();
+        TxtCompatibleModels.Text = string.Join(", ", compatibleModels);
+    }
+
+    private async Task UpdateVramStatusAsync()
+    {
+        if (_localGpuInfo == null || !_localGpuInfo.IsAvailable) return;
+
+        try
+        {
+            var vram = await _localGpuService.GetVramUsageAsync();
+            Dispatcher.Invoke(() =>
+            {
+                TxtLocalGpuVram.Text = $"{vram.FreeMb / 1024.0:F1} / {vram.TotalMb / 1024.0:F1} GB";
+                LocalGpuVramBar.Value = vram.UsagePercent;
+                LocalGpuVramBar.Foreground = new SolidColorBrush(
+                    vram.UsagePercent > 90 ? Color.FromRgb(239, 68, 68) :
+                    vram.UsagePercent > 70 ? Color.FromRgb(245, 158, 11) :
+                    Color.FromRgb(16, 185, 129));
+            });
+        }
+        catch
+        {
+            // Ignore VRAM update errors
+        }
     }
 
     private void OnModelActivated(object? sender, ModelActivatedEventArgs e)
@@ -663,10 +764,26 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     /// </summary>
     private async Task GenerateWithDiffusersAsync(string prompt, string negativePrompt, bool isVideo)
     {
-        // Ensure engine is running
+        // Ensure engine is running with pre-flight checks
         if (!_diffusersEngine.IsRunning)
         {
-            await _diffusersEngine.StartAsync(ct: _generateCts!.Token);
+            var startResult = await _diffusersEngine.StartAsync(ct: _generateCts!.Token);
+            if (!startResult.Success)
+            {
+                var errorMessage = startResult.Message;
+                if (startResult.PreflightResult != null)
+                {
+                    if (startResult.PreflightResult.Errors.Count > 0)
+                    {
+                        errorMessage = string.Join("\n", startResult.PreflightResult.Errors);
+                    }
+                    if (!string.IsNullOrEmpty(startResult.PreflightResult.InstallCommand))
+                    {
+                        errorMessage += $"\n\nTo fix, run:\n{startResult.PreflightResult.InstallCommand}";
+                    }
+                }
+                throw new InvalidOperationException(errorMessage);
+            }
         }
 
         // Get first available model or use default
@@ -688,9 +805,19 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             modelId = model.Id;
         }
 
-        // Load model if needed
+        // Check VRAM requirements before loading
         var loadModelType = isVideo ? ModelType.TextToVideo : ModelType.TextToImage;
-        await _diffusersEngine.LoadModelAsync(modelId, loadModelType, _generateCts!.Token);
+        var loadResult = await _diffusersEngine.LoadModelAsync(modelId, loadModelType, forceLoad: false, ct: _generateCts!.Token);
+
+        if (!loadResult.Success)
+        {
+            var errorMessage = loadResult.Error ?? "Failed to load model";
+            if (loadResult.VramCheck != null && loadResult.VramCheck.Recommendations.Count > 0)
+            {
+                errorMessage += "\n\nRecommendations:\n- " + string.Join("\n- ", loadResult.VramCheck.Recommendations);
+            }
+            throw new InvalidOperationException(errorMessage);
+        }
 
         if (isVideo)
         {

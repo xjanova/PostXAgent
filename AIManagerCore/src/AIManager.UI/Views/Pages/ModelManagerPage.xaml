@@ -112,7 +112,7 @@
                                     <GradientStop Color="#F472B6" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
-                            <materialDesign:PackIcon Kind="BrainOutline" Width="28" Height="28" Foreground="White"
+                            <materialDesign:PackIcon Kind="Brain" Width="28" Height="28" Foreground="White"
                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <StackPanel VerticalAlignment="Center">

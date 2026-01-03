@@ -8,21 +8,38 @@ using Microsoft.Extensions.Logging;
 namespace AIManager.Core.Services;
 
 /// <summary>
-/// Generation Engine using HuggingFace Diffusers directly (replaces ComfyUI)
+/// Production-quality Generation Engine using HuggingFace Diffusers directly (replaces ComfyUI)
 /// This service manages a Python process running diffusers for image/video generation
+/// with comprehensive GPU detection, VRAM monitoring, and model compatibility checks
 /// </summary>
 public class DiffusersGenerationEngine : IDisposable
 {
     private readonly ILogger<DiffusersGenerationEngine>? _logger;
     private readonly HuggingFaceModelService _modelService;
-    private readonly string _pythonPath;
+    private readonly LocalGpuService _gpuService;
     private readonly string _scriptsDir;
     private Process? _serverProcess;
     private HttpClient? _httpClient;
     private bool _isRunning;
     private bool _disposed;
+    private GpuInfo? _cachedGpuInfo;
+    private PythonEnvironmentInfo? _cachedPythonEnv;
+    private readonly SemaphoreSlim _operationLock = new(1, 1);
 
     public const int DEFAULT_PORT = 5050;
+
+    // VRAM requirements for different model types (in GB)
+    public static readonly IReadOnlyDictionary<string, double> ModelVramRequirements = new Dictionary<string, double>
+    {
+        { "SD1.5", 4.0 },
+        { "SD2.1", 5.0 },
+        { "SDXL", 8.0 },
+        { "SDXL-Turbo", 6.0 },
+        { "Flux-Schnell", 12.0 },
+        { "Flux-Dev", 16.0 },
+        { "SVD", 10.0 },
+        { "SVD-XT", 12.0 },
+    };
 
     /// <summary>
     /// Event raised when engine status changes
@@ -33,6 +50,11 @@ public class DiffusersGenerationEngine : IDisposable
     /// Event raised when generation progress updates
     /// </summary>
     public event EventHandler<DiffusersProgressEventArgs>? ProgressChanged;
+
+    /// <summary>
+    /// Event raised when GPU status changes
+    /// </summary>
+    public event EventHandler<LocalGpuStatusEventArgs>? GpuStatusChanged;
 
     /// <summary>
     /// Gets whether the engine is running
@@ -49,15 +71,24 @@ public class DiffusersGenerationEngine : IDisposable
     /// </summary>
     public int Port { get; private set; } = DEFAULT_PORT;
 
+    /// <summary>
+    /// Gets the cached GPU info
+    /// </summary>
+    public GpuInfo? GpuInfo => _cachedGpuInfo;
+
+    /// <summary>
+    /// Gets the cached Python environment info
+    /// </summary>
+    public PythonEnvironmentInfo? PythonEnvironment => _cachedPythonEnv;
+
     public DiffusersGenerationEngine(
         HuggingFaceModelService modelService,
+        LocalGpuService? gpuService = null,
         ILogger<DiffusersGenerationEngine>? logger = null)
     {
         _modelService = modelService;
+        _gpuService = gpuService ?? new LocalGpuService();
         _logger = logger;
-
-        // Find Python path
-        _pythonPath = FindPythonPath();
 
         // Setup scripts directory
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -68,29 +99,122 @@ public class DiffusersGenerationEngine : IDisposable
     #region Engine Lifecycle
 
     /// <summary>
-    /// Start the diffusers generation engine
+    /// Perform pre-flight checks before starting the engine
     /// </summary>
-    public async Task<bool> StartAsync(int port = DEFAULT_PORT, CancellationToken ct = default)
+    public async Task<PreflightCheckResult> PerformPreflightChecksAsync(CancellationToken ct = default)
+    {
+        var result = new PreflightCheckResult();
+
+        try
+        {
+            // Check GPU
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Detecting GPU..."));
+            _cachedGpuInfo = await _gpuService.DetectGpuAsync(forceRefresh: true, ct: ct);
+            result.GpuInfo = _cachedGpuInfo;
+            result.HasGpu = _cachedGpuInfo.IsAvailable;
+
+            GpuStatusChanged?.Invoke(this, new LocalGpuStatusEventArgs(_cachedGpuInfo));
+
+            // Check Python environment
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Checking Python environment..."));
+            _cachedPythonEnv = await _gpuService.CheckPythonEnvironmentAsync(ct);
+            result.PythonEnv = _cachedPythonEnv;
+            result.HasPython = _cachedPythonEnv.IsAvailable;
+            result.PythonReady = _cachedPythonEnv.IsReady;
+
+            // Set overall readiness
+            result.IsReady = result.HasPython && result.PythonReady;
+
+            // Generate recommendations
+            if (!result.HasGpu)
+            {
+                result.Warnings.Add("No GPU detected. Generation will use CPU (very slow).");
+            }
+            else if (_cachedGpuInfo.TotalVramGb < 4)
+            {
+                result.Warnings.Add($"Low VRAM ({_cachedGpuInfo.TotalVramGb:F1}GB). Only small models supported.");
+            }
+
+            if (!result.HasPython)
+            {
+                result.Errors.Add("Python 3.10+ not found. Please install Python.");
+            }
+            else if (!result.PythonReady)
+            {
+                var installCmd = _gpuService.GetInstallCommand(_cachedPythonEnv, _cachedGpuInfo);
+                result.Errors.Add($"Missing packages: {string.Join(", ", _cachedPythonEnv.MissingPackages)}");
+                result.InstallCommand = installCmd;
+            }
+
+            if (!_cachedPythonEnv.HasCudaSupport && result.HasGpu && _cachedGpuInfo.Vendor == GpuVendor.Nvidia)
+            {
+                result.Warnings.Add("PyTorch doesn't have CUDA support. GPU acceleration unavailable.");
+                result.InstallCommand = _gpuService.GetInstallCommand(
+                    new PythonEnvironmentInfo { MissingPackages = new List<string> { "PyTorch" } },
+                    _cachedGpuInfo);
+            }
+
+            _logger?.LogInformation("Preflight check complete. Ready: {Ready}, GPU: {Gpu}, Python: {Python}",
+                result.IsReady, result.HasGpu, result.PythonReady);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Preflight check failed");
+            result.Errors.Add($"Preflight check failed: {ex.Message}");
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Start the diffusers generation engine with pre-flight checks
+    /// </summary>
+    public async Task<EngineStartResult> StartAsync(int port = DEFAULT_PORT, bool skipPreflightChecks = false, CancellationToken ct = default)
     {
         if (_isRunning)
         {
             _logger?.LogWarning("Engine already running");
-            return true;
+            return new EngineStartResult { Success = true, Message = "Engine already running" };
         }
 
+        await _operationLock.WaitAsync(ct);
         try
         {
+            // Double-check after acquiring lock
+            if (_isRunning)
+            {
+                return new EngineStartResult { Success = true, Message = "Engine already running" };
+            }
+
             Port = port;
+
+            // Perform pre-flight checks
+            if (!skipPreflightChecks)
+            {
+                var preflightResult = await PerformPreflightChecksAsync(ct);
+                if (!preflightResult.IsReady)
+                {
+                    StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Error, "Pre-flight checks failed"));
+                    return new EngineStartResult
+                    {
+                        Success = false,
+                        Message = "Pre-flight checks failed",
+                        PreflightResult = preflightResult
+                    };
+                }
+            }
 
             // Ensure Python script exists
             await EnsureScriptExistsAsync();
 
             // Start Python process
             var scriptPath = Path.Combine(_scriptsDir, "generation_server.py");
+            var pythonPath = _cachedPythonEnv?.PythonPath ?? "python";
 
             var psi = new ProcessStartInfo
             {
-                FileName = _pythonPath,
+                FileName = pythonPath,
                 Arguments = $"\"{scriptPath}\" --port {port} --models-dir \"{_modelService.ModelsDirectory}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -99,11 +223,29 @@ public class DiffusersGenerationEngine : IDisposable
                 WorkingDirectory = _scriptsDir
             };
 
+            // Set environment variables for CUDA
+            if (_cachedGpuInfo?.Vendor == GpuVendor.Nvidia)
+            {
+                psi.EnvironmentVariables["CUDA_VISIBLE_DEVICES"] = "0";
+            }
+            else if (_cachedGpuInfo?.Vendor == GpuVendor.Amd)
+            {
+                psi.EnvironmentVariables["HSA_OVERRIDE_GFX_VERSION"] = "10.3.0"; // For ROCm compatibility
+            }
+
+            // Memory optimization settings
+            psi.EnvironmentVariables["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512";
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Starting Python server..."));
+
             _serverProcess = new Process { StartInfo = psi };
             _serverProcess.OutputDataReceived += (s, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
+                {
                     _logger?.LogDebug("[Engine] {Output}", e.Data);
+                    ParseEngineOutput(e.Data);
+                }
             };
             _serverProcess.ErrorDataReceived += (s, e) =>
             {
@@ -124,18 +266,52 @@ public class DiffusersGenerationEngine : IDisposable
                 _isRunning = true;
                 StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Engine started"));
                 _logger?.LogInformation("Diffusers engine started on port {Port}", port);
-                return true;
+
+                return new EngineStartResult
+                {
+                    Success = true,
+                    Message = $"Engine started on port {port}",
+                    GpuInfo = _cachedGpuInfo
+                };
             }
 
             // Failed to start
             await StopAsync();
-            return false;
+            return new EngineStartResult
+            {
+                Success = false,
+                Message = "Server failed to start within timeout"
+            };
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to start diffusers engine");
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Error, ex.Message));
-            return false;
+            return new EngineStartResult
+            {
+                Success = false,
+                Message = ex.Message
+            };
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    private void ParseEngineOutput(string output)
+    {
+        // Parse progress updates from Python server
+        if (output.Contains("Step") && output.Contains("/"))
+        {
+            // Example: "Step 15/30"
+            var match = System.Text.RegularExpressions.Regex.Match(output, @"Step (\d+)/(\d+)");
+            if (match.Success)
+            {
+                var step = int.Parse(match.Groups[1].Value);
+                var total = int.Parse(match.Groups[2].Value);
+                ProgressChanged?.Invoke(this, new DiffusersProgressEventArgs { Step = step, TotalSteps = total });
+            }
         }
     }
 
@@ -210,19 +386,106 @@ public class DiffusersGenerationEngine : IDisposable
     #region Model Management
 
     /// <summary>
-    /// Load a model into VRAM
+    /// Get estimated VRAM requirement for a model
     /// </summary>
-    public async Task<bool> LoadModelAsync(string modelId, ModelType type, CancellationToken ct = default)
+    public double EstimateVramRequirement(string modelId)
+    {
+        var modelIdLower = modelId.ToLowerInvariant();
+
+        // Check known model types
+        if (modelIdLower.Contains("flux-dev") || modelIdLower.Contains("flux.1-dev"))
+            return ModelVramRequirements["Flux-Dev"];
+        if (modelIdLower.Contains("flux") || modelIdLower.Contains("schnell"))
+            return ModelVramRequirements["Flux-Schnell"];
+        if (modelIdLower.Contains("sdxl-turbo"))
+            return ModelVramRequirements["SDXL-Turbo"];
+        if (modelIdLower.Contains("sdxl") || modelIdLower.Contains("xl"))
+            return ModelVramRequirements["SDXL"];
+        if (modelIdLower.Contains("svd-xt"))
+            return ModelVramRequirements["SVD-XT"];
+        if (modelIdLower.Contains("svd") || modelIdLower.Contains("stable-video"))
+            return ModelVramRequirements["SVD"];
+        if (modelIdLower.Contains("sd-2") || modelIdLower.Contains("sd2"))
+            return ModelVramRequirements["SD2.1"];
+
+        // Default to SD1.5 requirements
+        return ModelVramRequirements["SD1.5"];
+    }
+
+    /// <summary>
+    /// Check if a model can be loaded with current VRAM
+    /// </summary>
+    public async Task<ModelLoadCheckResult> CheckModelLoadableAsync(string modelId, CancellationToken ct = default)
+    {
+        var result = new ModelLoadCheckResult { ModelId = modelId };
+
+        try
+        {
+            var requiredVram = EstimateVramRequirement(modelId);
+            result.RequiredVramGb = requiredVram;
+
+            var (canLoad, reason) = await _gpuService.CanLoadModelAsync(requiredVram, ct);
+            result.CanLoad = canLoad;
+            result.Message = reason;
+
+            // Get current VRAM usage
+            var vram = await _gpuService.GetVramUsageAsync(ct);
+            result.CurrentFreeVramGb = vram.FreeMb / 1024.0;
+            result.VramUsagePercent = vram.UsagePercent;
+
+            // Provide recommendations
+            if (!canLoad && CurrentModel != null)
+            {
+                result.Recommendations.Add($"Unload current model '{CurrentModel}' to free VRAM");
+            }
+
+            if (requiredVram > (_cachedGpuInfo?.TotalVramGb ?? 0))
+            {
+                result.Recommendations.Add("Enable model offloading for low-VRAM mode");
+                result.SuggestOffloading = true;
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            result.Message = ex.Message;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Load a model into VRAM with pre-checks
+    /// </summary>
+    public async Task<ModelLoadResult> LoadModelAsync(string modelId, ModelType type, bool forceLoad = false, CancellationToken ct = default)
     {
         if (!_isRunning)
         {
             _logger?.LogWarning("Engine not running");
-            return false;
+            return new ModelLoadResult { Success = false, Error = "Engine not running" };
         }
 
+        await _operationLock.WaitAsync(ct);
         try
         {
-            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Loading, $"Loading {modelId}"));
+            // Check VRAM availability before loading
+            if (!forceLoad)
+            {
+                var checkResult = await CheckModelLoadableAsync(modelId, ct);
+                if (!checkResult.CanLoad)
+                {
+                    _logger?.LogWarning("Cannot load model {ModelId}: {Reason}", modelId, checkResult.Message);
+
+                    return new ModelLoadResult
+                    {
+                        Success = false,
+                        Error = checkResult.Message,
+                        VramCheck = checkResult
+                    };
+                }
+            }
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Loading, $"Loading {modelId}..."));
 
             var request = new LoadModelRequest
             {
@@ -234,20 +497,54 @@ public class DiffusersGenerationEngine : IDisposable
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient!.PostAsync($"http://localhost:{Port}/load-model", content, ct);
-            response.EnsureSuccessStatusCode();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(ct);
+                throw new Exception($"Server returned {response.StatusCode}: {errorContent}");
+            }
+
+            var serverResult = await response.Content.ReadFromJsonAsync<LoadModelServerResult>(ct);
+
+            if (serverResult?.Success != true)
+            {
+                return new ModelLoadResult
+                {
+                    Success = false,
+                    Error = serverResult?.Error ?? "Unknown error"
+                };
+            }
 
             CurrentModel = modelId;
             _modelService.MarkModelLoaded(modelId, new ModelInfo { Id = modelId, Type = type });
 
+            // Update VRAM status after loading
+            var vramUsage = await _gpuService.GetVramUsageAsync(ct);
+
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, $"Loaded: {modelId}"));
-            _logger?.LogInformation("Model loaded: {ModelId}", modelId);
-            return true;
+            _logger?.LogInformation("Model loaded: {ModelId}, VRAM used: {VramMb}MB", modelId, vramUsage.UsedMb);
+
+            return new ModelLoadResult
+            {
+                Success = true,
+                ModelId = modelId,
+                VramUsedMb = vramUsage.UsedMb
+            };
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to load model: {ModelId}", modelId);
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Error, ex.Message));
-            return false;
+
+            return new ModelLoadResult
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
+        finally
+        {
+            _operationLock.Release();
         }
     }
 
@@ -389,52 +686,49 @@ public class DiffusersGenerationEngine : IDisposable
 
     #endregion
 
-    #region Private Methods
+    #region VRAM Monitoring
 
-    private string FindPythonPath()
+    /// <summary>
+    /// Get real-time VRAM usage
+    /// </summary>
+    public async Task<VramUsage> GetVramUsageAsync(CancellationToken ct = default)
     {
-        // Check common Python paths
-        var paths = new[]
-        {
-            "python",
-            "python3",
-            @"C:\Python312\python.exe",
-            @"C:\Python311\python.exe",
-            @"C:\Python310\python.exe",
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Programs", "Python", "Python312", "python.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Programs", "Python", "Python311", "python.exe"),
-        };
+        return await _gpuService.GetVramUsageAsync(ct);
+    }
 
-        foreach (var path in paths)
-        {
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = path,
-                    Arguments = "--version",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                };
+    /// <summary>
+    /// Refresh GPU information
+    /// </summary>
+    public async Task<GpuInfo> RefreshGpuInfoAsync(CancellationToken ct = default)
+    {
+        _cachedGpuInfo = await _gpuService.DetectGpuAsync(forceRefresh: true, ct: ct);
+        GpuStatusChanged?.Invoke(this, new LocalGpuStatusEventArgs(_cachedGpuInfo));
+        return _cachedGpuInfo;
+    }
 
-                using var process = Process.Start(psi);
-                if (process != null)
-                {
-                    process.WaitForExit(5000);
-                    if (process.ExitCode == 0)
-                    {
-                        return path;
-                    }
-                }
-            }
-            catch { }
+    /// <summary>
+    /// Get compatible models for current GPU
+    /// </summary>
+    public IEnumerable<string> GetCompatibleModelTypes()
+    {
+        if (_cachedGpuInfo == null || !_cachedGpuInfo.IsAvailable)
+        {
+            yield return "SD1.5"; // CPU can handle SD1.5 (slowly)
+            yield break;
         }
 
-        return "python"; // Default
+        foreach (var (modelType, requiredVram) in ModelVramRequirements)
+        {
+            if (_cachedGpuInfo.TotalVramGb >= requiredVram)
+            {
+                yield return modelType;
+            }
+        }
     }
+
+    #endregion
+
+    #region Private Methods
 
     private async Task EnsureScriptExistsAsync()
     {
@@ -902,6 +1196,87 @@ public class DiffusersResult
 
     [JsonPropertyName("fps")]
     public int Fps { get; set; }
+}
+
+/// <summary>
+/// Pre-flight check result
+/// </summary>
+public class PreflightCheckResult
+{
+    public bool IsReady { get; set; }
+    public bool HasGpu { get; set; }
+    public bool HasPython { get; set; }
+    public bool PythonReady { get; set; }
+    public GpuInfo? GpuInfo { get; set; }
+    public PythonEnvironmentInfo? PythonEnv { get; set; }
+    public List<string> Errors { get; set; } = new();
+    public List<string> Warnings { get; set; } = new();
+    public string? InstallCommand { get; set; }
+}
+
+/// <summary>
+/// Engine start result
+/// </summary>
+public class EngineStartResult
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = "";
+    public GpuInfo? GpuInfo { get; set; }
+    public PreflightCheckResult? PreflightResult { get; set; }
+}
+
+/// <summary>
+/// Local GPU status event args for DiffusersGenerationEngine
+/// </summary>
+public class LocalGpuStatusEventArgs : EventArgs
+{
+    public GpuInfo GpuInfo { get; }
+    public LocalGpuStatusEventArgs(GpuInfo gpuInfo)
+    {
+        GpuInfo = gpuInfo;
+    }
+}
+
+/// <summary>
+/// Model load check result
+/// </summary>
+public class ModelLoadCheckResult
+{
+    public string ModelId { get; set; } = "";
+    public bool CanLoad { get; set; }
+    public string Message { get; set; } = "";
+    public double RequiredVramGb { get; set; }
+    public double CurrentFreeVramGb { get; set; }
+    public double VramUsagePercent { get; set; }
+    public bool SuggestOffloading { get; set; }
+    public List<string> Recommendations { get; set; } = new();
+}
+
+/// <summary>
+/// Model load result
+/// </summary>
+public class ModelLoadResult
+{
+    public bool Success { get; set; }
+    public string? ModelId { get; set; }
+    public string? Error { get; set; }
+    public int VramUsedMb { get; set; }
+    public ModelLoadCheckResult? VramCheck { get; set; }
+}
+
+/// <summary>
+/// Server response for load model
+/// </summary>
+public class LoadModelServerResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("model")]
+    public string? Model { get; set; }
 }
 
 #endregion
