@@ -1,0 +1,768 @@
+<Page x:Class="AIManager.UI.Views.Pages.GenerationPipelinePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      Title="AI Generation Pipeline"
+      Background="#0D0D15">
+
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Node Card Style -->
+        <Style x:Key="NodeCard" TargetType="Border">
+            <Setter Property="Background" Value="#1A1A2E"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Connector Line Style -->
+        <Style x:Key="ConnectorLine" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#8B5CF6" Offset="0"/>
+                        <GradientStop Color="#EC4899" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Height" Value="3"/>
+            <Setter Property="CornerRadius" Value="2"/>
+        </Style>
+
+        <!-- Status Indicator -->
+        <Style x:Key="StatusDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Height" Value="10"/>
+        </Style>
+
+        <!-- Processor Option Button -->
+        <Style x:Key="ProcessorOption" TargetType="RadioButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="border" Background="#25000000" CornerRadius="12" Padding="16" Margin="0,0,0,8"
+                                BorderThickness="2" BorderBrush="Transparent" Cursor="Hand">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#8B5CF6"/>
+                                <Setter TargetName="border" Property="Background" Value="#308B5CF6"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#20FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- HEADER                                                          -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="0" Padding="20,15" Margin="0,0,0,20">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#308B5CF6" Offset="0"/>
+                    <GradientStop Color="#30EC4899" Offset="0.5"/>
+                    <GradientStop Color="#3010B981" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" BlurRadius="15" ShadowDepth="0" Opacity="0.3"/>
+            </Border.Effect>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Pipe" Width="28" Height="28" Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                        <TextBlock Text="Generation Pipeline" FontSize="24" FontWeight="Bold" Foreground="White" Margin="12,0,0,0"/>
+                        <Border Background="#20FFFFFF" CornerRadius="4" Padding="10,4" Margin="15,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtPipelineMode" Text="AUTO MODE" Foreground="#10B981" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="Visual workflow for Image &amp; Video generation with distributed GPU processing"
+                               Foreground="#AAFFFFFF" Margin="40,5,0,0" FontSize="13"/>
+                </StackPanel>
+
+                <!-- Quick Stats -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Border Background="#2010B981" CornerRadius="8" Padding="12,8" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Gpu" Foreground="#10B981" Width="18" Height="18" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtOnlineGpus" Text="0 GPUs" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#208B5CF6" CornerRadius="8" Padding="12,8">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Memory" Foreground="#8B5CF6" Width="18" Height="18" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtTotalVram" Text="0 GB" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- PIPELINE VISUALIZATION                                          -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <Grid Margin="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="280"/>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="400"/>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="280"/>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- NODE 1: INPUT                                                   -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <Border Grid.Column="0" Style="{StaticResource NodeCard}">
+                    <StackPanel>
+                        <!-- Node Header -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="44" Height="44" CornerRadius="12" Background="#308B5CF6">
+                                <materialDesign:PackIcon Kind="TextBox" Width="24" Height="24" Foreground="#8B5CF6"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="INPUT" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                <TextBlock Text="Prompt &amp; Settings" FontSize="11" Foreground="#80FFFFFF"/>
+                            </StackPanel>
+                            <Ellipse Grid.Column="2" Style="{StaticResource StatusDot}" Fill="#10B981"/>
+                        </Grid>
+
+                        <!-- Generation Type -->
+                        <TextBlock Text="Generation Type" FontSize="11" Foreground="#80FFFFFF" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="RbImage" GroupName="GenType" IsChecked="True" Checked="GenType_Changed">
+                                <RadioButton.Template>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="border" Background="#2D2D4A" CornerRadius="8" Padding="12,10" Cursor="Hand">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <materialDesign:PackIcon Kind="Image" Width="16" Height="16" Foreground="#9090A8" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Image" Margin="6,0,0,0" FontSize="12" Foreground="#9090A8" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </RadioButton.Template>
+                            </RadioButton>
+                            <RadioButton x:Name="RbVideo" Grid.Column="1" GroupName="GenType" Checked="GenType_Changed" Margin="8,0,0,0">
+                                <RadioButton.Template>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="border" Background="#2D2D4A" CornerRadius="8" Padding="12,10" Cursor="Hand">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <materialDesign:PackIcon Kind="Video" Width="16" Height="16" Foreground="#9090A8" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Video" Margin="6,0,0,0" FontSize="12" Foreground="#9090A8" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#EC4899"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </RadioButton.Template>
+                            </RadioButton>
+                        </Grid>
+
+                        <!-- Prompt -->
+                        <TextBlock Text="Prompt" FontSize="11" Foreground="#80FFFFFF" Margin="0,0,0,8"/>
+                        <TextBox x:Name="TxtPrompt" Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                                 Padding="12" FontSize="12" AcceptsReturn="True" TextWrapping="Wrap" Height="80"
+                                 Text="A beautiful sunset over mountains, cinematic lighting">
+                            <TextBox.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                            </TextBox.Resources>
+                        </TextBox>
+
+                        <!-- Negative Prompt -->
+                        <TextBlock Text="Negative Prompt" FontSize="11" Foreground="#80FFFFFF" Margin="0,12,0,8"/>
+                        <TextBox x:Name="TxtNegative" Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                                 Padding="12" FontSize="12" Height="50" TextWrapping="Wrap"
+                                 Text="blurry, bad quality, watermark">
+                            <TextBox.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                            </TextBox.Resources>
+                        </TextBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- Connector 1→2 -->
+                <Grid Grid.Column="1" VerticalAlignment="Center">
+                    <Border Style="{StaticResource ConnectorLine}"/>
+                    <materialDesign:PackIcon Kind="ChevronRight" Width="24" Height="24" Foreground="White"
+                                              HorizontalAlignment="Right" Margin="0,0,-12,0"/>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- NODE 2: PROCESSOR (Main Node)                                   -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <Border Grid.Column="2" Style="{StaticResource NodeCard}" BorderBrush="#8B5CF6" BorderThickness="2">
+                    <StackPanel>
+                        <!-- Node Header -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="44" Height="44" CornerRadius="12">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#308B5CF6" Offset="0"/>
+                                        <GradientStop Color="#30EC4899" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <materialDesign:PackIcon Kind="Cpu64Bit" Width="24" Height="24" Foreground="#EC4899"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="PROCESSOR" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                <TextBlock Text="Select generation backend" FontSize="11" Foreground="#80FFFFFF"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}" Click="RefreshProcessors_Click"
+                                    ToolTip="Refresh Status" Width="32" Height="32">
+                                <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" Foreground="#80FFFFFF"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- Processor Selection Mode -->
+                        <Border Background="#15FFFFFF" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Selection Mode" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                                    <TextBlock x:Name="TxtSelectionMode" Text="Auto - Best Available" FontSize="11" Foreground="#10B981"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="ToggleAutoMode" Grid.Column="1" IsChecked="True"
+                                              Click="ToggleAutoMode_Click" Cursor="Hand">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border x:Name="border" Width="50" Height="26" CornerRadius="13" Background="#2D2D4A">
+                                                <Ellipse x:Name="dot" Width="20" Height="20" Fill="#10B981"
+                                                         HorizontalAlignment="Right" Margin="3"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="False">
+                                                    <Setter TargetName="border" Property="Background" Value="#4D4D6A"/>
+                                                    <Setter TargetName="dot" Property="Fill" Value="#9090A8"/>
+                                                    <Setter TargetName="dot" Property="HorizontalAlignment" Value="Left"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                </ToggleButton>
+                            </Grid>
+                        </Border>
+
+                        <!-- Processor Options -->
+                        <TextBlock Text="Available Processors" FontSize="11" Foreground="#80FFFFFF" Margin="0,0,0,8"/>
+
+                        <!-- Diffusers Local (Primary - HuggingFace) -->
+                        <RadioButton x:Name="RbDiffusers" GroupName="Processor" Style="{StaticResource ProcessorOption}"
+                                     Checked="Processor_Changed" IsChecked="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="36" Height="36" CornerRadius="8" Background="#30F59E0B">
+                                    <materialDesign:PackIcon Kind="Fire" Width="20" Height="20" Foreground="#F59E0B"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Diffusers" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                        <Border Background="#30F59E0B" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="RECOMMENDED" FontSize="8" FontWeight="Bold" Foreground="#F59E0B"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="TxtDiffusersStatus" Text="HuggingFace Models" FontSize="11" Foreground="#80FFFFFF"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                    <Ellipse x:Name="DiffusersStatusDot" Style="{StaticResource StatusDot}" Fill="#10B981"/>
+                                    <Button Style="{StaticResource MaterialDesignIconButton}" Click="ConfigureDiffusers_Click"
+                                            ToolTip="Model Manager" Width="24" Height="24" Margin="0,4,0,0">
+                                        <materialDesign:PackIcon Kind="Cog" Width="14" Height="14" Foreground="#6B6B8A"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </RadioButton>
+
+                        <!-- ComfyUI Local (Legacy) -->
+                        <RadioButton x:Name="RbComfyUI" GroupName="Processor" Style="{StaticResource ProcessorOption}"
+                                     Checked="Processor_Changed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="36" Height="36" CornerRadius="8" Background="#3006B6D4">
+                                    <materialDesign:PackIcon Kind="DesktopClassic" Width="20" Height="20" Foreground="#06B6D4"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="ComfyUI" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                        <Border Background="#3006B6D4" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="LEGACY" FontSize="8" FontWeight="Bold" Foreground="#06B6D4"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="TxtComfyStatus" Text="127.0.0.1:8188" FontSize="11" Foreground="#80FFFFFF"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                    <Ellipse x:Name="ComfyStatusDot" Style="{StaticResource StatusDot}" Fill="#EF4444"/>
+                                    <Button Style="{StaticResource MaterialDesignIconButton}" Click="ConfigureComfyUI_Click"
+                                            ToolTip="Settings" Width="24" Height="24" Margin="0,4,0,0">
+                                        <materialDesign:PackIcon Kind="Cog" Width="14" Height="14" Foreground="#6B6B8A"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </RadioButton>
+
+                        <!-- GPU Pool -->
+                        <RadioButton x:Name="RbGpuPool" GroupName="Processor" Style="{StaticResource ProcessorOption}"
+                                     Checked="Processor_Changed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="36" Height="36" CornerRadius="8" Background="#3010B981">
+                                    <materialDesign:PackIcon Kind="ServerNetwork" Width="20" Height="20" Foreground="#10B981"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="GPU Pool (Remote)" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                    <TextBlock x:Name="TxtPoolStatus" Text="0 workers online" FontSize="11" Foreground="#80FFFFFF"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                    <Ellipse x:Name="PoolStatusDot" Style="{StaticResource StatusDot}" Fill="#EF4444"/>
+                                    <Button Style="{StaticResource MaterialDesignIconButton}" Click="ConfigureGpuPool_Click"
+                                            ToolTip="Manage Workers" Width="24" Height="24" Margin="0,4,0,0">
+                                        <materialDesign:PackIcon Kind="Cog" Width="14" Height="14" Foreground="#6B6B8A"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </RadioButton>
+
+                        <!-- Combined Mode -->
+                        <RadioButton x:Name="RbCombined" GroupName="Processor" Style="{StaticResource ProcessorOption}"
+                                     Checked="Processor_Changed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="36" Height="36" CornerRadius="8">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#3006B6D4" Offset="0"/>
+                                            <GradientStop Color="#3010B981" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <materialDesign:PackIcon Kind="Merge" Width="20" Height="20" Foreground="#F59E0B"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Combined Power" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                    <TextBlock x:Name="TxtCombinedStatus" Text="Use all available GPUs" FontSize="11" Foreground="#80FFFFFF"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                    <Ellipse x:Name="CombinedStatusDot" Style="{StaticResource StatusDot}" Fill="#F59E0B"/>
+                                </StackPanel>
+                            </Grid>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+
+                <!-- Connector 2→3 -->
+                <Grid Grid.Column="3" VerticalAlignment="Center">
+                    <Border Style="{StaticResource ConnectorLine}"/>
+                    <materialDesign:PackIcon Kind="ChevronRight" Width="24" Height="24" Foreground="White"
+                                              HorizontalAlignment="Right" Margin="0,0,-12,0"/>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- NODE 3: LOAD BALANCER                                           -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <Border Grid.Column="4" Style="{StaticResource NodeCard}">
+                    <StackPanel>
+                        <!-- Node Header -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="44" Height="44" CornerRadius="12" Background="#30F59E0B">
+                                <materialDesign:PackIcon Kind="ScaleBalance" Width="24" Height="24" Foreground="#F59E0B"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="DISTRIBUTOR" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                <TextBlock Text="Task allocation" FontSize="11" Foreground="#80FFFFFF"/>
+                            </StackPanel>
+                            <Ellipse Grid.Column="2" x:Name="DistributorStatusDot" Style="{StaticResource StatusDot}" Fill="#10B981"/>
+                        </Grid>
+
+                        <!-- Distribution Mode -->
+                        <TextBlock Text="Distribution Strategy" FontSize="11" Foreground="#80FFFFFF" Margin="0,0,0,8"/>
+
+                        <RadioButton x:Name="RbRoundRobin" GroupName="DistMode" IsChecked="True" Margin="0,0,0,8">
+                            <RadioButton.Template>
+                                <ControlTemplate TargetType="RadioButton">
+                                    <Border x:Name="border" Background="#2D2D4A" CornerRadius="8" Padding="12" Cursor="Hand">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse x:Name="check" Width="14" Height="14" Stroke="#4D4D6A" StrokeThickness="2"/>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                <TextBlock Text="Round Robin" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
+                                                <TextBlock Text="Distribute evenly to all GPUs" FontSize="10" Foreground="#6B6B8A"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="check" Property="Fill" Value="#F59E0B"/>
+                                            <Setter TargetName="check" Property="Stroke" Value="#F59E0B"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+
+                        <RadioButton x:Name="RbLeastLoad" GroupName="DistMode" Margin="0,0,0,8">
+                            <RadioButton.Template>
+                                <ControlTemplate TargetType="RadioButton">
+                                    <Border x:Name="border" Background="#2D2D4A" CornerRadius="8" Padding="12" Cursor="Hand">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse x:Name="check" Width="14" Height="14" Stroke="#4D4D6A" StrokeThickness="2"/>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                <TextBlock Text="Least Loaded" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
+                                                <TextBlock Text="Prefer GPU with most free VRAM" FontSize="10" Foreground="#6B6B8A"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="check" Property="Fill" Value="#F59E0B"/>
+                                            <Setter TargetName="check" Property="Stroke" Value="#F59E0B"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+
+                        <RadioButton x:Name="RbPriority" GroupName="DistMode">
+                            <RadioButton.Template>
+                                <ControlTemplate TargetType="RadioButton">
+                                    <Border x:Name="border" Background="#2D2D4A" CornerRadius="8" Padding="12" Cursor="Hand">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse x:Name="check" Width="14" Height="14" Stroke="#4D4D6A" StrokeThickness="2"/>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                <TextBlock Text="Priority Based" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
+                                                <TextBlock Text="Use fastest GPU first" FontSize="10" Foreground="#6B6B8A"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="check" Property="Fill" Value="#F59E0B"/>
+                                            <Setter TargetName="check" Property="Stroke" Value="#F59E0B"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+
+                        <!-- Queue Status -->
+                        <Border Background="#15FFFFFF" CornerRadius="8" Padding="12" Margin="0,16,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="TxtQueueCount" Text="0" FontSize="20" FontWeight="Bold" Foreground="#F59E0B"/>
+                                    <TextBlock Text="In Queue" FontSize="10" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="TxtActiveCount" Text="0" FontSize="20" FontWeight="Bold" Foreground="#10B981"/>
+                                    <TextBlock Text="Active" FontSize="10" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Connector 3→4 -->
+                <Grid Grid.Column="5" VerticalAlignment="Center">
+                    <Border Style="{StaticResource ConnectorLine}"/>
+                    <materialDesign:PackIcon Kind="ChevronRight" Width="24" Height="24" Foreground="White"
+                                              HorizontalAlignment="Right" Margin="0,0,-12,0"/>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- NODE 4: OUTPUT                                                  -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <Border Grid.Column="6" Style="{StaticResource NodeCard}">
+                    <StackPanel>
+                        <!-- Node Header -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="44" Height="44" CornerRadius="12" Background="#30EC4899">
+                                <materialDesign:PackIcon x:Name="OutputIcon" Kind="Image" Width="24" Height="24" Foreground="#EC4899"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="OUTPUT" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                                <TextBlock x:Name="TxtOutputType" Text="Image Result" FontSize="11" Foreground="#80FFFFFF"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}" Click="OpenOutputFolder_Click"
+                                    ToolTip="Open Output Folder" Width="32" Height="32">
+                                <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Foreground="#80FFFFFF"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- Preview Area -->
+                        <Border Background="#12121A" CornerRadius="12" Height="150" ClipToBounds="True">
+                            <Grid>
+                                <!-- Placeholder -->
+                                <StackPanel x:Name="OutputPlaceholder" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <materialDesign:PackIcon x:Name="PlaceholderIcon" Kind="ImageArea" Width="40" Height="40"
+                                                              Foreground="#4D4D6A" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Output will appear here" FontSize="11" Foreground="#6B6B8A"
+                                               HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                </StackPanel>
+
+                                <!-- Generated Content -->
+                                <Image x:Name="OutputImage" Stretch="Uniform" Visibility="Collapsed"/>
+                                <MediaElement x:Name="OutputVideo" LoadedBehavior="Manual" Stretch="Uniform" Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Output Stats -->
+                        <Border Background="#15FFFFFF" CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="TxtCompletedCount" Text="0" FontSize="20" FontWeight="Bold" Foreground="#EC4899"/>
+                                    <TextBlock Text="Completed" FontSize="10" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="TxtAvgTime" Text="0s" FontSize="20" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                    <TextBlock Text="Avg Time" FontSize="10" Foreground="#6B6B8A"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Save Button -->
+                        <Button x:Name="BtnSaveOutput" Click="SaveOutput_Click" Margin="0,12,0,0" Cursor="Hand" Visibility="Collapsed">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="#EC4899" CornerRadius="8" Padding="12,10">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <materialDesign:PackIcon Kind="Download" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Save Output" Margin="8,0,0,0" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- BOTTOM: Local GPU Status, Active Workers & Generate Button      -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="2" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Local GPU Status Panel -->
+            <Border Background="#1A1A2E" CornerRadius="12" Padding="16" Margin="0,0,16,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- GPU Header -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="32" Height="32" CornerRadius="8" Background="#3010B981">
+                            <materialDesign:PackIcon Kind="Gpu" Width="18" Height="18" Foreground="#10B981"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Local GPU" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                            <TextBlock x:Name="TxtLocalGpuName" Text="Detecting..." FontSize="10" Foreground="#80FFFFFF"/>
+                        </StackPanel>
+                        <TextBlock x:Name="TxtLocalGpuTemp" Grid.Column="2" Text="--°C" FontSize="11" Foreground="#F59E0B" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- VRAM Progress Bar -->
+                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ProgressBar x:Name="LocalGpuVramBar" Value="0" Maximum="100" Height="8"
+                                     Background="#2D2D4A" Foreground="#10B981">
+                            <ProgressBar.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                            </ProgressBar.Resources>
+                        </ProgressBar>
+                        <TextBlock x:Name="TxtLocalGpuVram" Grid.Column="1" Text="-- / -- GB" FontSize="10"
+                                   Foreground="#80FFFFFF" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Compatible Models -->
+                    <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                        <TextBlock Text="Compatible:" FontSize="9" Foreground="#6B6B8A"/>
+                        <TextBlock x:Name="TxtCompatibleModels" Text="SD1.5, SDXL" FontSize="10" Foreground="#10B981"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Active Workers Bar -->
+            <Border Grid.Column="1" Background="#1A1A2E" CornerRadius="12" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Active Workers:" FontWeight="SemiBold" Foreground="White" FontSize="13" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Workers List -->
+                    <ItemsControl x:Name="ActiveWorkersList" Grid.Column="1" Margin="16,0,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#2D2D4A" CornerRadius="8" Padding="10,6" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{Binding StatusColor}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name}" Margin="8,0,0,0" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding GpuInfo}" Margin="8,0,0,0" FontSize="10" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Border>
+
+            <!-- Generate Button -->
+            <Button Grid.Column="2" x:Name="BtnGenerate" Click="Generate_Click" Height="56" Margin="16,0,0,0" Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" CornerRadius="12" Padding="32,16" MinWidth="200">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#8B5CF6" Offset="0"/>
+                                    <GradientStop Color="#EC4899" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect Color="#8B5CF6" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
+                            </Border.Effect>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon x:Name="GenIcon" Kind="Creation" Width="24" Height="24" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="GenText" Text="Generate" FontSize="16" FontWeight="Bold" Foreground="White" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </Grid>
+    </Grid>
+</Page>

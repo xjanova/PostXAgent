@@ -324,6 +324,7 @@ public partial class MainWindow : Window
             "ContentCreator" => new ContentCreatorPage(),
             "Chat" => new ChatPage(),
             "ImageGenerator" => new ImageGeneratorPage(),
+            "GenerationPipeline" => new GenerationPipelinePage(),
             "SunoOptions" => new SunoOptionsPage(),
             "ModelManager" => new ModelManagerPage(),
             "ColabGpu" => new ColabGpuPage(),

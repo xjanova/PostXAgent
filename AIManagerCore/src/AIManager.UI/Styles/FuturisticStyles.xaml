@@ -472,4 +472,178 @@
         <Setter Property="Width" Value="8"/>
     </Style>
 
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- MENU BADGE STYLES - Premium badges for navigation menu          -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Base Badge Style -->
+    <Style x:Key="MenuBadgeBase" TargetType="Border">
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="Margin" Value="10,0,0,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- NEW Badge - Fresh green glow -->
+    <Style x:Key="BadgeNew" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#10B981" Offset="0"/>
+                    <GradientStop Color="#059669" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#10B981" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- HOT Badge - Fire gradient -->
+    <Style x:Key="BadgeHot" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#F59E0B" Offset="0"/>
+                    <GradientStop Color="#EF4444" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#F59E0B" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- LIVE Badge - Pulse cyan glow -->
+    <Style x:Key="BadgeLive" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#06B6D4" Offset="0"/>
+                    <GradientStop Color="#0891B2" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#06B6D4" BlurRadius="15" ShadowDepth="0" Opacity="0.8"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- PRO Badge - Premium purple/pink -->
+    <Style x:Key="BadgePro" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#8B5CF6" Offset="0"/>
+                    <GradientStop Color="#EC4899" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#8B5CF6" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- BETA Badge - Blue experimental -->
+    <Style x:Key="BadgeBeta" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#3B82F6" Offset="0"/>
+                    <GradientStop Color="#6366F1" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#3B82F6" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- AI Badge - Smart gradient -->
+    <Style x:Key="BadgeAI" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#A855F7" Offset="0"/>
+                    <GradientStop Color="#F472B6" Offset="0.5"/>
+                    <GradientStop Color="#38BDF8" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#A855F7" BlurRadius="15" ShadowDepth="0" Opacity="0.7"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- TEACH Badge - Learning gradient -->
+    <Style x:Key="BadgeTeach" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#FF6B6B" Offset="0"/>
+                    <GradientStop Color="#4ECDC4" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#FF6B6B" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- MUSIC Badge - Creative purple -->
+    <Style x:Key="BadgeMusic" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#9C27B0" Offset="0"/>
+                    <GradientStop Color="#E91E63" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#9C27B0" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- POOL Badge - Cloud gradient -->
+    <Style x:Key="BadgePool" TargetType="Border" BasedOn="{StaticResource MenuBadgeBase}">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#4285F4" Offset="0"/>
+                    <GradientStop Color="#34A853" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#4285F4" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Badge Text Style -->
+    <Style x:Key="BadgeText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="9"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
 </ResourceDictionary>

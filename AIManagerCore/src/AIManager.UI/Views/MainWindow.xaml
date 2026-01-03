@@ -228,8 +228,8 @@
                                                                      Foreground="#8B5CF6"/>
                                         </Border>
                                         <TextBlock Text="Content Creator" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#8B5CF6" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
-                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgeNew}">
+                                            <TextBlock Text="NEW" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -253,7 +253,26 @@
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Image/Video Generator -->
+                                <!-- Generation Pipeline (Main) -->
+                                <Button x:Name="BtnPipeline" Click="NavButton_Click" Tag="GenerationPipeline"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#308B5CF6" Offset="0"/>
+                                                    <GradientStop Color="#30EC4899" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="Pipe" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#EC4899"/>
+                                        </Border>
+                                        <TextBlock Text="AI Pipeline" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Image/Video Generator (Legacy) -->
                                 <Button x:Name="BtnImageGen" Click="NavButton_Click" Tag="ImageGenerator"
                                         Style="{StaticResource FuturisticNavButton}" Margin="5,3">
                                     <StackPanel Orientation="Horizontal">
@@ -288,8 +307,8 @@
                                                                      Foreground="#9C27B0"/>
                                         </Border>
                                         <TextBlock Text="Suno AI" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#9C27B0" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="MUSIC" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgeMusic}">
+                                            <TextBlock Text="♪ MUSIC" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -323,8 +342,8 @@
                                                                      Foreground="#4285F4"/>
                                         </Border>
                                         <TextBlock Text="Colab GPU" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#4285F4" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
-                                            <TextBlock Text="POOL" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgePool}">
+                                            <TextBlock Text="☁ POOL" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -345,8 +364,8 @@
                                                                      Foreground="#10B981"/>
                                         </Border>
                                         <TextBlock Text="Workflow Manager" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#10B981" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
-                                            <TextBlock Text="HOT" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgeHot}">
+                                            <TextBlock Text="🔥 HOT" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -386,8 +405,8 @@
                                                                      Foreground="#34D399"/>
                                         </Border>
                                         <TextBlock Text="Strategies" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#10B981" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgeNew}">
+                                            <TextBlock Text="✨ NEW" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -408,8 +427,8 @@
                                                                      Foreground="#22D3EE"/>
                                         </Border>
                                         <TextBlock Text="Workflow Monitor" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#06B6D4" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="LIVE" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgeLive}">
+                                            <TextBlock Text="● LIVE" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -430,8 +449,8 @@
                                                                      Foreground="#FF6B6B"/>
                                         </Border>
                                         <TextBlock Text="Web Learning" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#FF6B6B" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="TEACH" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgeTeach}">
+                                            <TextBlock Text="🎓 TEACH" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -452,8 +471,8 @@
                                                                      Foreground="#A78BFA"/>
                                         </Border>
                                         <TextBlock Text="Worker View" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#EF4444" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="LIVE" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgeLive}">
+                                            <TextBlock Text="● LIVE" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -488,8 +507,8 @@
                                                                      Foreground="#EF4444"/>
                                         </Border>
                                         <TextBlock Text="API Keys" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                        <Border Background="#EF4444" CornerRadius="8" Padding="6,2" Margin="10,0,0,0">
-                                            <TextBlock Text="NEW" FontSize="9" FontWeight="Bold"/>
+                                        <Border Style="{StaticResource BadgePro}">
+                                            <TextBlock Text="🔑 PRO" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
