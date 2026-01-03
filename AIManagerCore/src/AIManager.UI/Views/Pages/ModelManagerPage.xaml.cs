@@ -1,263 +1,416 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using AIManager.Core.Services;
+using MaterialDesignThemes.Wpf;
 
 namespace AIManager.UI.Views.Pages;
 
 public partial class ModelManagerPage : Page
 {
-    private readonly HuggingFaceModelManager _modelManager;
-    private readonly SystemResourceDetector _resourceDetector;
+    private readonly HuggingFaceModelService _modelService;
     private CancellationTokenSource? _downloadCts;
-    private ModelCategory _currentCategory = ModelCategory.LLM;
+    private CancellationTokenSource? _searchCts;
 
-    public ObservableCollection<ModelViewModel> Models { get; } = new();
+    private ObservableCollection<DownloadedModelViewModel> _downloadedModels = new();
+    private ObservableCollection<SearchResultViewModel> _searchResults = new();
 
     public ModelManagerPage()
     {
         InitializeComponent();
-        _modelManager = new HuggingFaceModelManager();
-        _resourceDetector = new SystemResourceDetector();
 
-        // Subscribe to download events
-        _modelManager.OnProgress += OnDownloadProgress;
-        _modelManager.OnComplete += OnDownloadComplete;
-        _modelManager.DownloadProgress += OnLegacyDownloadProgress;
+        _modelService = new HuggingFaceModelService(null);
+        _modelService.DownloadProgressChanged += OnDownloadProgressChanged;
 
-        ModelsList.ItemsSource = Models;
-        DownloadBar.Visibility = Visibility.Collapsed;
-
-        Loaded += async (s, e) =>
-        {
-            await RefreshResourcesAsync();
-            await LoadModelsAsync();
-        };
+        Loaded += ModelManagerPage_Loaded;
     }
 
-    private async Task RefreshResourcesAsync()
+    private async void ModelManagerPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        await LoadDownloadedModelsAsync();
+        await UpdateStorageUsageAsync();
+        LoadRecommendedModels();
+    }
+
+    private async Task LoadDownloadedModelsAsync()
     {
         try
         {
-            var resources = await Task.Run(() => _resourceDetector.DetectResources());
+            var models = await _modelService.GetDownloadedModelsAsync();
+            _downloadedModels.Clear();
 
-            var totalRamGB = resources.TotalRamMB / 1024.0;
-            var availableRamGB = resources.AvailableRamMB / 1024.0;
-            var usedRamGB = totalRamGB - availableRamGB;
-            var vramGB = resources.TotalVramMB / 1024.0;
-
-            Dispatcher.Invoke(() =>
+            foreach (var model in models)
             {
-                TxtRam.Text = $"{totalRamGB:F1} GB";
-                TxtVram.Text = vramGB > 0 ? $"{vramGB:F1} GB" : "N/A";
-                TxtGpu.Text = !string.IsNullOrEmpty(resources.GpuName) && resources.GpuName != "Unknown"
-                    ? resources.GpuName : "No dedicated GPU";
-                TxtCuda.Text = resources.HasNvidiaGpu ? "CUDA Available" : "";
-
-                RamProgress.Value = totalRamGB > 0 ? (usedRamGB / totalRamGB) * 100 : 0;
-                VramProgress.Value = vramGB > 0 ? 50 : 0; // Default to 50% as we don't have used VRAM info
-            });
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                TxtRam.Text = "Error";
-                TxtVram.Text = "Error";
-                TxtGpu.Text = ex.Message;
-            });
-        }
-    }
-
-    private async Task LoadModelsAsync()
-    {
-        LoadingOverlay.Visibility = Visibility.Visible;
-        TxtLoadingMessage.Text = "Loading models...";
-
-        try
-        {
-            var compatibleModels = await _modelManager.GetCompatibleModelsAsync();
-
-            Dispatcher.Invoke(() =>
-            {
-                Models.Clear();
-
-                var filteredModels = _currentCategory switch
+                _downloadedModels.Add(new DownloadedModelViewModel
                 {
-                    ModelCategory.LLM => compatibleModels.Where(m => m.Model.Category == ModelCategory.LLM),
-                    ModelCategory.ImageGeneration => compatibleModels.Where(m => m.Model.Category == ModelCategory.ImageGeneration),
-                    ModelCategory.VideoGeneration => compatibleModels.Where(m => m.Model.Category == ModelCategory.VideoGeneration),
-                    ModelCategory.VAE => compatibleModels.Where(m => m.Model.Category == ModelCategory.VAE),
-                    _ => compatibleModels
-                };
-
-                foreach (var info in filteredModels.OrderBy(m => m.Model.Priority))
-                {
-                    var vm = new ModelViewModel(info, DownloadModel, DeleteModel);
-                    Models.Add(vm);
-                }
-
-                LoadingOverlay.Visibility = Visibility.Collapsed;
-            });
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                LoadingOverlay.Visibility = Visibility.Collapsed;
-                MessageBox.Show($"Failed to load models: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            });
-        }
-    }
-
-    private async void DownloadModel(ModelViewModel vm)
-    {
-        if (_downloadCts != null)
-        {
-            MessageBox.Show("A download is already in progress.", "Info",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        _downloadCts = new CancellationTokenSource();
-        vm.IsDownloading = true;
-        vm.Progress = 0;
-        vm.ProgressText = "Starting...";
-
-        DownloadBar.Visibility = Visibility.Visible;
-        TxtDownloadModel.Text = $"Downloading: {vm.DisplayName}";
-        DownloadProgress.Value = 0;
-
-        try
-        {
-            var progress = new Progress<DownloadProgressEventArgs>(p =>
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    vm.Progress = p.ProgressPercent;
-                    vm.ProgressText = $"{p.DownloadedMB:F1} / {p.TotalMB:F1} MB ({p.ProgressPercent:F1}%)";
-
-                    DownloadProgress.Value = p.ProgressPercent;
-                    TxtDownloadProgress.Text = $"{p.ProgressPercent:F1}%";
-
-                    // Calculate speed
-                    var speedMB = p.DownloadedBytes / (DateTime.UtcNow - DateTime.UtcNow.AddSeconds(-1)).TotalSeconds / 1_000_000;
-                    TxtDownloadSpeed.Text = $"{speedMB:F1} MB/s";
+                    ModelId = model.Id,
+                    Name = model.Name,
+                    TypeName = model.Type.ToString(),
+                    TypeIcon = GetTypeIcon(model.Type),
+                    TypeColor = GetTypeColor(model.Type),
+                    SizeFormatted = FormatSize(model.SizeBytes),
+                    SizeBytes = model.SizeBytes
                 });
-            });
-
-            var result = await _modelManager.DownloadModelAsync(vm.Model, _downloadCts.Token, progress);
-
-            if (result.Success)
-            {
-                vm.IsInstalled = true;
-                vm.StatusText = "Installed";
-                vm.ActionText = "Delete";
-                MessageBox.Show($"{vm.DisplayName} downloaded successfully!", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
-            else
+
+            DownloadedModelsList.ItemsSource = _downloadedModels;
+            EmptyDownloadedState.Visibility = _downloadedModels.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"ไม่สามารถโหลดรายการโมเดลได้: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task UpdateStorageUsageAsync()
+    {
+        try
+        {
+            var usage = await _modelService.GetStorageUsageAsync();
+            StorageUsedText.Text = $"{usage.UsedBytes / 1024.0 / 1024.0 / 1024.0:F1} GB used";
+            StorageProgressBar.Value = usage.UsagePercent;
+        }
+        catch
+        {
+            StorageUsedText.Text = "-- GB used";
+        }
+    }
+
+    private void LoadRecommendedModels()
+    {
+        var recommended = _modelService.GetRecommendedModels();
+
+        // Text to Image
+        if (recommended.TryGetValue(ModelType.TextToImage, out var t2iModels))
+        {
+            TextToImageList.Children.Clear();
+            foreach (var model in t2iModels)
             {
-                MessageBox.Show($"Download failed: {result.Error}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                TextToImageList.Children.Add(CreateRecommendedCard(model));
             }
+        }
+
+        // Text to Video
+        if (recommended.TryGetValue(ModelType.TextToVideo, out var t2vModels))
+        {
+            TextToVideoList.Children.Clear();
+            foreach (var model in t2vModels)
+            {
+                TextToVideoList.Children.Add(CreateRecommendedCard(model));
+            }
+        }
+
+        // LoRA
+        if (recommended.TryGetValue(ModelType.LoRA, out var loraModels))
+        {
+            LoraList.Children.Clear();
+            foreach (var model in loraModels)
+            {
+                LoraList.Children.Add(CreateRecommendedCard(model));
+            }
+        }
+
+        // ControlNet
+        if (recommended.TryGetValue(ModelType.ControlNet, out var cnModels))
+        {
+            ControlNetList.Children.Clear();
+            foreach (var model in cnModels)
+            {
+                ControlNetList.Children.Add(CreateRecommendedCard(model));
+            }
+        }
+    }
+
+    private Border CreateRecommendedCard(RecommendedModel model)
+    {
+        var card = new Border
+        {
+            Width = 280,
+            Margin = new Thickness(0, 0, 16, 16),
+            Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(16)
+        };
+
+        var stack = new StackPanel();
+
+        // Name
+        var nameText = new TextBlock
+        {
+            Text = model.Name,
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White
+        };
+        stack.Children.Add(nameText);
+
+        // Model ID
+        var idText = new TextBlock
+        {
+            Text = model.Id,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+        stack.Children.Add(idText);
+
+        // Description
+        var descText = new TextBlock
+        {
+            Text = model.Description,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA)),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        stack.Children.Add(descText);
+
+        // VRAM requirement
+        var vramText = new TextBlock
+        {
+            Text = $"VRAM: {model.RequiredVramGb} GB",
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x7C, 0x4D, 0xFF)),
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        stack.Children.Add(vramText);
+
+        // Download button
+        var downloadBtn = new Button
+        {
+            Content = "ดาวน์โหลด",
+            Margin = new Thickness(0, 12, 0, 0),
+            Background = new SolidColorBrush(Color.FromRgb(0x7C, 0x4D, 0xFF)),
+            Foreground = Brushes.White,
+            Tag = model.Id
+        };
+        downloadBtn.Click += DownloadRecommended_Click;
+        stack.Children.Add(downloadBtn);
+
+        card.Child = stack;
+        return card;
+    }
+
+    #region Tab Navigation
+
+    private void Tab_Changed(object sender, RoutedEventArgs e)
+    {
+        if (TabDownloaded == null) return;
+
+        DownloadedPanel.Visibility = TabDownloaded.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        BrowsePanel.Visibility = TabBrowse.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        RecommendedPanel.Visibility = TabRecommended.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void GotoBrowse_Click(object sender, RoutedEventArgs e)
+    {
+        TabBrowse.IsChecked = true;
+    }
+
+    #endregion
+
+    #region Downloaded Models
+
+    private void FilterType_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        ApplyDownloadedFilter();
+    }
+
+    private void SearchDownloaded_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplyDownloadedFilter();
+    }
+
+    private void ApplyDownloadedFilter()
+    {
+        var typeFilter = (FilterTypeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "ทั้งหมด";
+        var searchText = SearchDownloadedBox.Text?.ToLower() ?? "";
+
+        var filtered = _downloadedModels.Where(m =>
+        {
+            bool matchesType = typeFilter == "ทั้งหมด" || m.TypeName == typeFilter;
+            bool matchesSearch = string.IsNullOrEmpty(searchText) ||
+                m.Name.ToLower().Contains(searchText) ||
+                m.ModelId.ToLower().Contains(searchText);
+            return matchesType && matchesSearch;
+        }).ToList();
+
+        DownloadedModelsList.ItemsSource = filtered;
+    }
+
+    private void UseModel_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string modelId)
+        {
+            MessageBox.Show($"เลือกใช้โมเดล: {modelId}\n\n" +
+                "โมเดลนี้จะถูกใช้ในการสร้างภาพ/วิดีโอครั้งถัดไป",
+                "ใช้งานโมเดล", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private async void DeleteModel_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string modelId)
+        {
+            var result = MessageBox.Show($"ต้องการลบโมเดล {modelId}?\n\n" +
+                "การลบจะไม่สามารถกู้คืนได้",
+                "ยืนยันการลบ", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await _modelService.DeleteModelAsync(modelId);
+                    await LoadDownloadedModelsAsync();
+                    await UpdateStorageUsageAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"ไม่สามารถลบโมเดลได้: {ex.Message}", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
+    #endregion
+
+    #region Search HuggingFace
+
+    private void SearchHuggingFace_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            SearchHuggingFace_Click(sender, e);
+        }
+    }
+
+    private async void SearchHuggingFace_Click(object sender, RoutedEventArgs e)
+    {
+        var query = SearchHuggingFaceBox.Text?.Trim();
+        if (string.IsNullOrEmpty(query)) return;
+
+        // Cancel previous search
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+
+        try
+        {
+            SearchLoadingState.Visibility = Visibility.Visible;
+            SearchResultsList.Visibility = Visibility.Collapsed;
+
+            var results = await _modelService.SearchModelsAsync(query, ct: _searchCts.Token);
+            _searchResults.Clear();
+
+            foreach (var model in results)
+            {
+                _searchResults.Add(new SearchResultViewModel
+                {
+                    ModelId = model.ModelId,
+                    Description = model.PipelineTag ?? "",
+                    DownloadsFormatted = FormatNumber((int)model.Downloads),
+                    LikesFormatted = FormatNumber(model.Likes)
+                });
+            }
+
+            SearchResultsList.ItemsSource = _searchResults;
         }
         catch (OperationCanceledException)
         {
-            vm.ProgressText = "Cancelled";
+            // Ignore cancellation
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Download failed: {ex.Message}", "Error",
+            MessageBox.Show($"ค้นหาล้มเหลว: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
-            vm.IsDownloading = false;
-            _downloadCts?.Dispose();
-            _downloadCts = null;
-            DownloadBar.Visibility = Visibility.Collapsed;
-
-            await LoadModelsAsync();
+            SearchLoadingState.Visibility = Visibility.Collapsed;
+            SearchResultsList.Visibility = Visibility.Visible;
         }
     }
 
-    private async void DeleteModel(ModelViewModel vm)
-    {
-        var result = MessageBox.Show(
-            $"Are you sure you want to delete {vm.DisplayName}?",
-            "Confirm Delete",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+    #endregion
 
-        if (result == MessageBoxResult.Yes)
+    #region Download
+
+    private async void DownloadModel_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string modelId)
         {
-            var success = _modelManager.DeleteModel(vm.Model);
-            if (success)
-            {
-                await LoadModelsAsync();
-            }
-            else
-            {
-                MessageBox.Show("Failed to delete model.", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            await StartDownloadAsync(modelId, ModelType.TextToImage);
         }
     }
 
-    private void OnDownloadProgress(object? sender, ModelDownloadProgress e)
+    private async void DownloadRecommended_Click(object sender, RoutedEventArgs e)
     {
-        Dispatcher.Invoke(() =>
+        if (sender is Button btn && btn.Tag is string modelId)
         {
-            DownloadProgress.Value = e.Progress;
-            TxtDownloadProgress.Text = $"{e.Progress:F1}%";
-            TxtDownloadSpeed.Text = e.SpeedDisplay;
-        });
-    }
+            // Determine type from recommended models
+            var recommended = _modelService.GetRecommendedModels();
+            var modelType = ModelType.TextToImage;
 
-    private void OnDownloadComplete(object? sender, ModelDownloadComplete e)
-    {
-        Dispatcher.Invoke(async () =>
-        {
-            DownloadBar.Visibility = Visibility.Collapsed;
-            await LoadModelsAsync();
-        });
-    }
-
-    private void OnLegacyDownloadProgress(object? sender, DownloadProgressEventArgs e)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            DownloadProgress.Value = e.ProgressPercent;
-            TxtDownloadProgress.Text = $"{e.ProgressPercent:F1}%";
-        });
-    }
-
-    private async void RefreshResources_Click(object sender, RoutedEventArgs e)
-    {
-        await RefreshResourcesAsync();
-        await LoadModelsAsync();
-    }
-
-    private async void CategoryTab_Checked(object sender, RoutedEventArgs e)
-    {
-        if (sender is RadioButton rb && rb.Tag is string tag)
-        {
-            _currentCategory = tag switch
+            foreach (var kvp in recommended)
             {
-                "LLM" => ModelCategory.LLM,
-                "Image" => ModelCategory.ImageGeneration,
-                "Video" => ModelCategory.VideoGeneration,
-                "VAE" => ModelCategory.VAE,
-                _ => ModelCategory.LLM
-            };
+                if (kvp.Value.Any(m => m.Id == modelId))
+                {
+                    modelType = kvp.Key;
+                    break;
+                }
+            }
 
-            await LoadModelsAsync();
+            await StartDownloadAsync(modelId, modelType);
+        }
+    }
+
+    private async Task StartDownloadAsync(string modelId, ModelType type)
+    {
+        _downloadCts?.Cancel();
+        _downloadCts = new CancellationTokenSource();
+
+        try
+        {
+            DownloadModelName.Text = $"กำลังดาวน์โหลด: {modelId}";
+            DownloadProgressBar.Value = 0;
+            DownloadProgressText.Text = "0%";
+            DownloadSpeedText.Text = "";
+            DownloadProgressOverlay.Visibility = Visibility.Visible;
+
+            var result = await _modelService.DownloadModelAsync(modelId, type, ct: _downloadCts.Token);
+
+            if (result != null)
+            {
+                MessageBox.Show($"ดาวน์โหลดสำเร็จ: {result.Name}", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+
+                await LoadDownloadedModelsAsync();
+                await UpdateStorageUsageAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show("การดาวน์โหลดถูกยกเลิก", "Cancelled",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"ดาวน์โหลดล้มเหลว: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            DownloadProgressOverlay.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -265,158 +418,109 @@ public partial class ModelManagerPage : Page
     {
         _downloadCts?.Cancel();
     }
+
+    private void OnDownloadProgressChanged(object? sender, ModelDownloadProgressEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            var progress = e.Progress;
+            DownloadProgressBar.Value = progress.Percentage;
+            DownloadProgressText.Text = $"{progress.Percentage:F0}%";
+            DownloadSpeedText.Text = $"{progress.Speed:F1} MB/s";
+        });
+    }
+
+    #endregion
+
+    #region Header Actions
+
+    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        await LoadDownloadedModelsAsync();
+        await UpdateStorageUsageAsync();
+    }
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        // TODO: Open settings dialog for:
+        // - API token
+        // - Models directory
+        // - Cache settings
+        MessageBox.Show("ตั้งค่า Model Manager\n\n" +
+            "- API Token: สำหรับดาวน์โหลดโมเดล private\n" +
+            "- โฟลเดอร์: เปลี่ยนที่เก็บโมเดล\n" +
+            "- Cache: จัดการ cache",
+            "Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    #endregion
+
+    #region Helpers
+
+    private static string GetTypeIcon(ModelType type) => type switch
+    {
+        ModelType.TextToImage => "Image",
+        ModelType.TextToVideo => "Video",
+        ModelType.LoRA => "LayersTriple",
+        ModelType.ControlNet => "DrawingBox",
+        ModelType.VAE => "Cube",
+        _ => "Help"
+    };
+
+    private static string GetTypeColor(ModelType type) => type switch
+    {
+        ModelType.TextToImage => "#7C4DFF",
+        ModelType.TextToVideo => "#00BCD4",
+        ModelType.LoRA => "#FF9800",
+        ModelType.ControlNet => "#4CAF50",
+        ModelType.VAE => "#E91E63",
+        _ => "#888888"
+    };
+
+    private static string FormatSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:F1} {sizes[order]}";
+    }
+
+    private static string FormatNumber(int number)
+    {
+        if (number >= 1_000_000)
+            return $"{number / 1_000_000.0:F1}M";
+        if (number >= 1_000)
+            return $"{number / 1_000.0:F1}K";
+        return number.ToString();
+    }
+
+    #endregion
 }
 
-/// <summary>
-/// ViewModel for Model display in list
-/// </summary>
-public class ModelViewModel : INotifyPropertyChanged
+#region ViewModels
+
+public class DownloadedModelViewModel
 {
-    private bool _isDownloading;
-    private double _progress;
-    private string _progressText = "";
-    private bool _isInstalled;
-    private string _statusText = "";
-    private string _actionText = "Install";
-
-    public HuggingFaceModel Model { get; }
-    public ModelCompatibilityInfo Info { get; }
-
-    private readonly Action<ModelViewModel> _downloadAction;
-    private readonly Action<ModelViewModel> _deleteAction;
-
-    public ModelViewModel(ModelCompatibilityInfo info, Action<ModelViewModel> downloadAction, Action<ModelViewModel> deleteAction)
-    {
-        Info = info;
-        Model = info.Model;
-        _downloadAction = downloadAction;
-        _deleteAction = deleteAction;
-
-        _isInstalled = info.IsInstalled;
-        UpdateStatus();
-    }
-
-    public string DisplayName => Model.DisplayName;
-    public string Description => Model.Description;
-    public string[] Tags => Model.Tags;
-    public string SizeDisplay => $"{Model.SizeGB:F1} GB";
-    public string RequirementsDisplay => $"RAM: {Model.RequiredRamGB}GB, VRAM: {Model.RequiredVramGB}GB";
-
-    public bool IsDownloading
-    {
-        get => _isDownloading;
-        set { _isDownloading = value; OnPropertyChanged(); OnPropertyChanged(nameof(ProgressVisibility)); }
-    }
-
-    public double Progress
-    {
-        get => _progress;
-        set { _progress = value; OnPropertyChanged(); }
-    }
-
-    public string ProgressText
-    {
-        get => _progressText;
-        set { _progressText = value; OnPropertyChanged(); }
-    }
-
-    public bool IsInstalled
-    {
-        get => _isInstalled;
-        set { _isInstalled = value; OnPropertyChanged(); UpdateStatus(); }
-    }
-
-    public string StatusText
-    {
-        get => _statusText;
-        set { _statusText = value; OnPropertyChanged(); }
-    }
-
-    public string ActionText
-    {
-        get => _actionText;
-        set { _actionText = value; OnPropertyChanged(); }
-    }
-
-    public bool ActionEnabled => Info.IsCompatible || IsInstalled;
-
-    public Visibility ProgressVisibility => IsDownloading ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility DescriptionVisibility => !string.IsNullOrEmpty(Description) ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility IsRecommendedVisibility => Model.Priority == 1 && Info.IsCompatible ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility IncompatibleVisibility => !Info.IsCompatible ? Visibility.Visible : Visibility.Collapsed;
-
-    public string StatusIcon => IsInstalled ? "Check" : (Info.IsCompatible ? "Download" : "AlertCircle");
-    public Brush StatusBackground => IsInstalled
-        ? new SolidColorBrush(Color.FromRgb(232, 245, 233))
-        : (Info.IsCompatible
-            ? new SolidColorBrush(Color.FromRgb(227, 242, 253))
-            : new SolidColorBrush(Color.FromRgb(255, 235, 238)));
-    public Brush StatusIconColor => IsInstalled
-        ? new SolidColorBrush(Color.FromRgb(76, 175, 80))
-        : (Info.IsCompatible
-            ? new SolidColorBrush(Color.FromRgb(33, 150, 243))
-            : new SolidColorBrush(Color.FromRgb(244, 67, 54)));
-    public Brush StatusColor => IsInstalled
-        ? new SolidColorBrush(Color.FromRgb(76, 175, 80))
-        : new SolidColorBrush(Color.FromRgb(158, 158, 158));
-
-    public ICommand ActionCommand => new RelayCommand(() =>
-    {
-        if (IsInstalled)
-            _deleteAction(this);
-        else
-            _downloadAction(this);
-    });
-
-    private void UpdateStatus()
-    {
-        if (_isInstalled)
-        {
-            StatusText = "Installed";
-            ActionText = "Delete";
-        }
-        else if (!Info.IsCompatible)
-        {
-            StatusText = Info.CompatibilityReason ?? "Not compatible";
-            ActionText = "N/A";
-        }
-        else
-        {
-            StatusText = "Available";
-            ActionText = "Install";
-        }
-
-        OnPropertyChanged(nameof(StatusIcon));
-        OnPropertyChanged(nameof(StatusBackground));
-        OnPropertyChanged(nameof(StatusIconColor));
-        OnPropertyChanged(nameof(StatusColor));
-        OnPropertyChanged(nameof(ActionEnabled));
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    public string ModelId { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string TypeName { get; set; } = "";
+    public string TypeIcon { get; set; } = "Help";
+    public string TypeColor { get; set; } = "#888888";
+    public string SizeFormatted { get; set; } = "";
+    public long SizeBytes { get; set; }
 }
 
-/// <summary>
-/// Simple relay command implementation
-/// </summary>
-public class RelayCommand : ICommand
+public class SearchResultViewModel
 {
-    private readonly Action _execute;
-    private readonly Func<bool>? _canExecute;
-
-    public RelayCommand(Action execute, Func<bool>? canExecute = null)
-    {
-        _execute = execute;
-        _canExecute = canExecute;
-    }
-
-    public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
-    public void Execute(object? parameter) => _execute();
-    public event EventHandler? CanExecuteChanged
-    {
-        add => CommandManager.RequerySuggested += value;
-        remove => CommandManager.RequerySuggested -= value;
-    }
+    public string ModelId { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string DownloadsFormatted { get; set; } = "0";
+    public string LikesFormatted { get; set; } = "0";
 }
+
+#endregion
