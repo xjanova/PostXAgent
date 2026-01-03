@@ -305,7 +305,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <Button x:Name="StartRecordingButton" Click="StartRecordingButton_Click"
-                                        Padding="0,12" Cursor="Hand">
+                                        Padding="12,12" Cursor="Hand">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
                                             <Setter Property="Background">
@@ -316,16 +316,17 @@
                                                     </LinearGradientBrush>
                                                 </Setter.Value>
                                             </Setter>
+                                            <Setter Property="Foreground" Value="White"/>
                                         </Style>
                                     </Button.Style>
                                     <StackPanel Orientation="Horizontal">
-                                        <materialDesign:PackIcon Kind="Record" Width="16" Height="16"/>
-                                        <TextBlock Text="Start" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                        <materialDesign:PackIcon Kind="Record" Width="16" Height="16" Foreground="White"/>
+                                        <TextBlock Text="Start" Margin="6,0,0,0" FontWeight="SemiBold" Foreground="White"/>
                                     </StackPanel>
                                 </Button>
 
                                 <Button Grid.Column="2" x:Name="StopRecordingButton" Click="StopRecordingButton_Click"
-                                        IsEnabled="False" Padding="0,12" Cursor="Hand">
+                                        IsEnabled="False" Padding="12,12" Cursor="Hand">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
                                             <Setter Property="Background">
@@ -336,11 +337,12 @@
                                                     </LinearGradientBrush>
                                                 </Setter.Value>
                                             </Setter>
+                                            <Setter Property="Foreground" Value="White"/>
                                         </Style>
                                     </Button.Style>
                                     <StackPanel Orientation="Horizontal">
-                                        <materialDesign:PackIcon Kind="Stop" Width="16" Height="16"/>
-                                        <TextBlock Text="Stop" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                        <materialDesign:PackIcon Kind="Stop" Width="16" Height="16" Foreground="White"/>
+                                        <TextBlock Text="Stop" Margin="6,0,0,0" FontWeight="SemiBold" Foreground="White"/>
                                     </StackPanel>
                                 </Button>
                             </Grid>
@@ -377,7 +379,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <Button Grid.Column="0" Click="TestWorkflowButton_Click" Padding="0,12" Cursor="Hand">
+                                <Button Grid.Column="0" Click="TestWorkflowButton_Click" Padding="12,12" Cursor="Hand">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
                                             <Setter Property="BorderBrush" Value="#06B6D4"/>
@@ -385,12 +387,12 @@
                                         </Style>
                                     </Button.Style>
                                     <StackPanel Orientation="Horizontal">
-                                        <materialDesign:PackIcon Kind="PlayCircleOutline" Width="16" Height="16"/>
-                                        <TextBlock Text="Test" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                        <materialDesign:PackIcon Kind="PlayCircleOutline" Width="16" Height="16" Foreground="#06B6D4"/>
+                                        <TextBlock Text="Test" Margin="6,0,0,0" FontWeight="SemiBold" Foreground="#06B6D4"/>
                                     </StackPanel>
                                 </Button>
 
-                                <Button Grid.Column="2" Click="SaveWorkflowButton_Click" Padding="0,12" Cursor="Hand">
+                                <Button Grid.Column="2" Click="SaveWorkflowButton_Click" Padding="12,12" Cursor="Hand">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignRaisedButton}">
                                             <Setter Property="Background">
@@ -401,11 +403,12 @@
                                                     </LinearGradientBrush>
                                                 </Setter.Value>
                                             </Setter>
+                                            <Setter Property="Foreground" Value="White"/>
                                         </Style>
                                     </Button.Style>
                                     <StackPanel Orientation="Horizontal">
-                                        <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16"/>
-                                        <TextBlock Text="Save" Margin="6,0,0,0" FontWeight="SemiBold"/>
+                                        <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" Foreground="White"/>
+                                        <TextBlock Text="Save" Margin="6,0,0,0" FontWeight="SemiBold" Foreground="White"/>
                                     </StackPanel>
                                 </Button>
                             </Grid>
