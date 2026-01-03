@@ -213,6 +213,7 @@ public enum SelectorType
     Text,           // By text content
     Visual,         // By visual matching (AI)
     Smart,          // AI-powered smart selector
+    URL,            // URL for Navigate action
 }
 
 /// <summary>
