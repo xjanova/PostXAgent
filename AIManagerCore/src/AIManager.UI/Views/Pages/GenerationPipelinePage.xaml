@@ -299,7 +299,39 @@
                         <!-- Processor Options -->
                         <TextBlock Text="Available Processors" FontSize="11" Foreground="#80FFFFFF" Margin="0,0,0,8"/>
 
-                        <!-- ComfyUI Local -->
+                        <!-- Diffusers Local (Primary - HuggingFace) -->
+                        <RadioButton x:Name="RbDiffusers" GroupName="Processor" Style="{StaticResource ProcessorOption}"
+                                     Checked="Processor_Changed" IsChecked="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="36" Height="36" CornerRadius="8" Background="#30F59E0B">
+                                    <materialDesign:PackIcon Kind="Fire" Width="20" Height="20" Foreground="#F59E0B"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Diffusers" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                        <Border Background="#30F59E0B" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="RECOMMENDED" FontSize="8" FontWeight="Bold" Foreground="#F59E0B"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="TxtDiffusersStatus" Text="HuggingFace Models" FontSize="11" Foreground="#80FFFFFF"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                    <Ellipse x:Name="DiffusersStatusDot" Style="{StaticResource StatusDot}" Fill="#10B981"/>
+                                    <Button Style="{StaticResource MaterialDesignIconButton}" Click="ConfigureDiffusers_Click"
+                                            ToolTip="Model Manager" Width="24" Height="24" Margin="0,4,0,0">
+                                        <materialDesign:PackIcon Kind="Cog" Width="14" Height="14" Foreground="#6B6B8A"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </RadioButton>
+
+                        <!-- ComfyUI Local (Legacy) -->
                         <RadioButton x:Name="RbComfyUI" GroupName="Processor" Style="{StaticResource ProcessorOption}"
                                      Checked="Processor_Changed">
                             <Grid>
@@ -313,7 +345,12 @@
                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="ComfyUI Local" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="ComfyUI" FontWeight="SemiBold" FontSize="13" Foreground="White"/>
+                                        <Border Background="#3006B6D4" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                            <TextBlock Text="LEGACY" FontSize="8" FontWeight="Bold" Foreground="#06B6D4"/>
+                                        </Border>
+                                    </StackPanel>
                                     <TextBlock x:Name="TxtComfyStatus" Text="127.0.0.1:8188" FontSize="11" Foreground="#80FFFFFF"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" HorizontalAlignment="Right">
@@ -328,7 +365,7 @@
 
                         <!-- GPU Pool -->
                         <RadioButton x:Name="RbGpuPool" GroupName="Processor" Style="{StaticResource ProcessorOption}"
-                                     Checked="Processor_Changed" IsChecked="True">
+                                     Checked="Processor_Changed">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>

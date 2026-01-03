@@ -17,11 +17,14 @@ namespace AIManager.UI.Views.Pages;
 /// <summary>
 /// Visual Pipeline Page for Image & Video Generation
 /// Shows the complete workflow: Input → Processor → Distributor → Output
+/// Supports: Diffusers (HuggingFace), ComfyUI, GPU Pool
 /// </summary>
 public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 {
     private readonly GpuPoolService? _gpuPoolService;
+    private readonly DiffusersGenerationEngine _diffusersEngine;
     private readonly ComfyUIService _comfyService;
+    private readonly HuggingFaceModelService _modelService;
     private readonly ILogger<GenerationPipelinePage>? _logger;
     private readonly DispatcherTimer _statusTimer;
     private readonly ObservableCollection<WorkerDisplayItem> _activeWorkers = new();
@@ -32,6 +35,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     private string? _currentOutputPath;
     private int _completedCount;
     private double _totalGenerationTime;
+    private string? _currentModel;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -40,7 +44,13 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         InitializeComponent();
         DataContext = this;
 
+        // Initialize services
+        _modelService = new HuggingFaceModelService();
+        _diffusersEngine = new DiffusersGenerationEngine(_modelService);
         _comfyService = new ComfyUIService();
+
+        // Subscribe to events
+        _diffusersEngine.ProgressChanged += DiffusersEngine_ProgressChanged;
         _comfyService.ProgressChanged += ComfyService_ProgressChanged;
 
         // Get services from DI
@@ -102,6 +112,18 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
     private async Task RefreshStatusAsync()
     {
+        // Check Diffusers Engine
+        var diffusersRunning = _diffusersEngine.IsRunning;
+        var downloadedModels = await _modelService.GetDownloadedModelsAsync();
+        Dispatcher.Invoke(() =>
+        {
+            DiffusersStatusDot.Fill = new SolidColorBrush(
+                downloadedModels.Count > 0 ? Color.FromRgb(16, 185, 129) : Color.FromRgb(239, 68, 68));
+            TxtDiffusersStatus.Text = downloadedModels.Count > 0
+                ? $"{downloadedModels.Count} models available"
+                : "No models - Click to download";
+        });
+
         // Check ComfyUI
         var comfyAvailable = await _comfyService.IsAvailableAsync();
         Dispatcher.Invoke(() =>
@@ -199,6 +221,15 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         // Could show progress in UI if needed
     }
 
+    private void DiffusersEngine_ProgressChanged(object? sender, DiffusersProgressEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            // Update status text with progress
+            TxtDiffusersStatus.Text = $"Step {e.Step}/{e.TotalSteps} ({e.Progress:F0}%)";
+        });
+    }
+
     #endregion
 
     #region UI Event Handlers
@@ -233,18 +264,26 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
     private void Processor_Changed(object sender, RoutedEventArgs e)
     {
+        // Prevent null during initialization
+        if (TxtPipelineMode == null) return;
+
         // Update UI based on selected processor
-        if (RbCombined.IsChecked == true)
+        if (RbDiffusers?.IsChecked == true)
         {
-            TxtPipelineMode.Text = "COMBINED MODE";
+            TxtPipelineMode.Text = "DIFFUSERS MODE";
             TxtPipelineMode.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
         }
-        else if (RbGpuPool.IsChecked == true)
+        else if (RbCombined?.IsChecked == true)
+        {
+            TxtPipelineMode.Text = "COMBINED MODE";
+            TxtPipelineMode.Foreground = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+        }
+        else if (RbGpuPool?.IsChecked == true)
         {
             TxtPipelineMode.Text = "GPU POOL MODE";
             TxtPipelineMode.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
         }
-        else
+        else if (RbComfyUI?.IsChecked == true)
         {
             TxtPipelineMode.Text = "COMFYUI MODE";
             TxtPipelineMode.Foreground = new SolidColorBrush(Color.FromRgb(6, 182, 212));
@@ -259,6 +298,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             isAuto ? Color.FromRgb(16, 185, 129) : Color.FromRgb(139, 92, 246));
 
         // Disable manual selection when auto mode is on
+        RbDiffusers.IsEnabled = !isAuto;
         RbComfyUI.IsEnabled = !isAuto;
         RbGpuPool.IsEnabled = !isAuto;
         RbCombined.IsEnabled = !isAuto;
@@ -273,15 +313,15 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
     private void AutoSelectBestProcessor()
     {
-        // Logic to auto-select best processor
+        // Check availability of each processor
+        var diffusersAvailable = DiffusersStatusDot.Fill is SolidColorBrush d && d.Color == Color.FromRgb(16, 185, 129);
         var comfyOnline = ComfyStatusDot.Fill is SolidColorBrush b && b.Color == Color.FromRgb(16, 185, 129);
         var poolOnline = _gpuPoolService?.OnlineWorkers.Count > 0;
 
-        if (poolOnline && comfyOnline)
+        // Priority: Diffusers > GPU Pool > ComfyUI > Combined
+        if (diffusersAvailable)
         {
-            // Both available - use combined for video, pool for image
-            RbCombined.IsChecked = _isVideoMode;
-            RbGpuPool.IsChecked = !_isVideoMode;
+            RbDiffusers.IsChecked = true;
         }
         else if (poolOnline)
         {
@@ -291,11 +331,24 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         {
             RbComfyUI.IsChecked = true;
         }
+        else if (poolOnline && comfyOnline)
+        {
+            RbCombined.IsChecked = true;
+        }
     }
 
     private async void RefreshProcessors_Click(object sender, RoutedEventArgs e)
     {
         await RefreshStatusAsync();
+    }
+
+    private void ConfigureDiffusers_Click(object sender, RoutedEventArgs e)
+    {
+        // Navigate to Model Manager page
+        if (Window.GetWindow(this) is MainWindow mainWindow)
+        {
+            mainWindow.NavigateToPage("ModelManager");
+        }
     }
 
     private void ConfigureComfyUI_Click(object sender, RoutedEventArgs e)
@@ -384,7 +437,9 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
             // Determine which processor to use
             ProcessorType processor;
-            if (RbCombined.IsChecked == true)
+            if (RbDiffusers.IsChecked == true)
+                processor = ProcessorType.Diffusers;
+            else if (RbCombined.IsChecked == true)
                 processor = ProcessorType.Combined;
             else if (RbGpuPool.IsChecked == true)
                 processor = ProcessorType.GpuPool;
@@ -452,7 +507,12 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         // Show progress
         OutputPlaceholder.Visibility = Visibility.Visible;
 
-        if (processor == ProcessorType.GpuPool || processor == ProcessorType.Combined)
+        if (processor == ProcessorType.Diffusers)
+        {
+            // Use Diffusers (HuggingFace models - Recommended)
+            await GenerateWithDiffusersAsync(prompt, negativePrompt, isVideo: false);
+        }
+        else if (processor == ProcessorType.GpuPool || processor == ProcessorType.Combined)
         {
             // Use GPU Pool
             if (_gpuPoolService != null && _gpuPoolService.OnlineWorkers.Count > 0)
@@ -527,9 +587,14 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     {
         OutputPlaceholder.Visibility = Visibility.Visible;
 
-        // For video, prefer ComfyUI with AnimateDiff or use GPU Pool
-        if (processor == ProcessorType.ComfyUI || processor == ProcessorType.Combined)
+        if (processor == ProcessorType.Diffusers)
         {
+            // Use Diffusers for video (SVD, AnimateDiff)
+            await GenerateWithDiffusersAsync(prompt, negativePrompt, isVideo: true);
+        }
+        else if (processor == ProcessorType.ComfyUI || processor == ProcessorType.Combined)
+        {
+            // Use ComfyUI with AnimateDiff
             var request = new VideoGenerationRequest
             {
                 Prompt = prompt,
@@ -562,7 +627,106 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         else
         {
             // GPU Pool video generation (if supported by workers)
-            throw new NotSupportedException("Video generation via GPU Pool requires ComfyUI workers with AnimateDiff support");
+            throw new NotSupportedException("Video generation via GPU Pool requires Diffusers or ComfyUI");
+        }
+    }
+
+    /// <summary>
+    /// Generate image or video using Diffusers engine (HuggingFace models)
+    /// </summary>
+    private async Task GenerateWithDiffusersAsync(string prompt, string negativePrompt, bool isVideo)
+    {
+        // Ensure engine is running
+        if (!_diffusersEngine.IsRunning)
+        {
+            await _diffusersEngine.StartAsync(ct: _generateCts!.Token);
+        }
+
+        // Get first available model or use default
+        var models = await _modelService.GetDownloadedModelsAsync();
+        var modelId = _currentModel;
+
+        if (string.IsNullOrEmpty(modelId))
+        {
+            // Select appropriate model type
+            var modelType = isVideo ? ModelType.TextToVideo : ModelType.TextToImage;
+            var model = models.FirstOrDefault(m => m.Type == modelType)
+                     ?? models.FirstOrDefault();
+
+            if (model == null)
+            {
+                throw new InvalidOperationException("No models available. Please download a model from Model Manager.");
+            }
+
+            modelId = model.Id;
+        }
+
+        // Load model if needed
+        var loadModelType = isVideo ? ModelType.TextToVideo : ModelType.TextToImage;
+        await _diffusersEngine.LoadModelAsync(modelId, loadModelType, _generateCts!.Token);
+
+        if (isVideo)
+        {
+            var request = new DiffusersVideoRequest
+            {
+                Prompt = prompt,
+                NumFrames = 16
+            };
+
+            var result = await _diffusersEngine.GenerateVideoAsync(request, _generateCts!.Token);
+
+            if (result.Success && result.Frames?.Count > 0)
+            {
+                // Save frames as video/gif
+                var tempPath = Path.Combine(Path.GetTempPath(), $"postx_{Guid.NewGuid()}.gif");
+                // For now, save first frame as image
+                var firstFrame = Convert.FromBase64String(result.Frames[0]);
+                await File.WriteAllBytesAsync(tempPath, firstFrame);
+
+                _currentOutputPath = tempPath;
+                ShowOutput(tempPath, true);
+
+                _completedCount++;
+                _totalGenerationTime += result.GenerationTime;
+                UpdatePipelineStats();
+            }
+            else
+            {
+                throw new Exception(result.Error ?? "Video generation failed");
+            }
+        }
+        else
+        {
+            var request = new DiffusersImageRequest
+            {
+                Prompt = prompt,
+                NegativePrompt = negativePrompt,
+                Width = 1024,
+                Height = 1024,
+                Steps = 30,
+                GuidanceScale = 7.5
+            };
+
+            var result = await _diffusersEngine.GenerateImageAsync(request, _generateCts!.Token);
+
+            if (result.Success && result.Images?.Count > 0)
+            {
+                // Decode base64 image and save to temp file
+                var imageBytes = Convert.FromBase64String(result.Images[0]);
+                var tempPath = Path.Combine(Path.GetTempPath(), $"postx_{Guid.NewGuid()}.png");
+                await File.WriteAllBytesAsync(tempPath, imageBytes);
+
+                _currentOutputPath = tempPath;
+                ShowOutput(tempPath, false);
+
+                _completedCount++;
+                _totalGenerationTime += result.GenerationTime;
+                UpdatePipelineStats();
+            }
+            else
+            {
+                throw new Exception(result.Error ?? "Image generation failed");
+            }
         }
     }
 
@@ -603,6 +767,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
 public enum ProcessorType
 {
+    Diffusers,
     ComfyUI,
     GpuPool,
     Combined
