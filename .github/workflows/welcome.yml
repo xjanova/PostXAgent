@@ -16,9 +16,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Welcome first-time issue authors
-        if: github.event_name == 'issues'
-        uses: actions/first-interaction@v3
+      - name: Welcome first-time contributors
+        uses: actions/first-interaction@v1
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           issue-message: |
@@ -32,12 +31,6 @@ jobs:
             - Feel free to ask questions if anything is unclear
 
             While you wait, check out our [documentation](https://github.com/xjanova/PostXAgent/tree/main/docs).
-
-      - name: Welcome first-time PR authors
-        if: github.event_name == 'pull_request_target'
-        uses: actions/first-interaction@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
           pr-message: |
             👋 สวัสดี @${{ github.actor }}! ขอบคุณสำหรับ pull request แรกของคุณใน PostXAgent!
 
