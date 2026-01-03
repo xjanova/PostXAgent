@@ -235,6 +235,10 @@ public partial class ModelManagerPage : Page
 
     private void ApplyDownloadedFilter()
     {
+        // Prevent NullReferenceException during initialization
+        if (FilterTypeCombo == null || SearchDownloadedBox == null || DownloadedModelsList == null)
+            return;
+
         var typeFilter = (FilterTypeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "ทั้งหมด";
         var searchText = SearchDownloadedBox.Text?.ToLower() ?? "";
 
