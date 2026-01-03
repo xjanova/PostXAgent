@@ -77,18 +77,66 @@ public partial class ModelManagerPage : Page
                     TypeColor = GetTypeColor(model.Type),
                     SizeFormatted = FormatSize(model.SizeBytes),
                     SizeBytes = model.SizeBytes,
-                    IsActive = model.Id == ActiveModelId
+                    IsActive = model.Id == ActiveModelId,
+                    ThumbnailUrl = model.ThumbnailUrl
                 });
             }
 
             DownloadedModelsList.ItemsSource = _downloadedModels;
             ModelCountText.Text = $"{_downloadedModels.Count} models";
             EmptyDownloadedState.Visibility = _downloadedModels.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            // Load thumbnails in background for models without saved thumbnails
+            _ = LoadThumbnailsAsync();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to load models: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task LoadThumbnailsAsync()
+    {
+        foreach (var model in _downloadedModels.Where(m => !m.HasThumbnail))
+        {
+            try
+            {
+                var thumbnailUrl = await _modelService.GetModelThumbnailUrlAsync(model.ModelId);
+                if (!string.IsNullOrEmpty(thumbnailUrl))
+                {
+                    model.ThumbnailUrl = thumbnailUrl;
+                    // Refresh UI on dispatcher thread
+                    await Dispatcher.InvokeAsync(() => DownloadedModelsList.Items.Refresh());
+                }
+            }
+            catch
+            {
+                // Ignore thumbnail fetch errors - not critical
+            }
+        }
+    }
+
+    private async Task LoadSearchThumbnailsAsync(CancellationToken ct)
+    {
+        foreach (var model in _searchResults.Where(m => !m.HasThumbnail))
+        {
+            if (ct.IsCancellationRequested) break;
+
+            try
+            {
+                var thumbnailUrl = await _modelService.GetModelThumbnailUrlAsync(model.ModelId, ct);
+                if (!string.IsNullOrEmpty(thumbnailUrl))
+                {
+                    model.ThumbnailUrl = thumbnailUrl;
+                    // Refresh UI on dispatcher thread
+                    await Dispatcher.InvokeAsync(() => SearchResultsList.Items.Refresh());
+                }
+            }
+            catch
+            {
+                // Ignore thumbnail fetch errors - not critical
+            }
         }
     }
 
@@ -170,6 +218,47 @@ public partial class ModelManagerPage : Page
         card.BorderThickness = new Thickness(1);
 
         var mainStack = new StackPanel();
+
+        // Thumbnail area (if available)
+        if (!string.IsNullOrEmpty(model.ThumbnailUrl))
+        {
+            var thumbnailBorder = new Border
+            {
+                Height = 140,
+                CornerRadius = new CornerRadius(12, 12, 0, 0),
+                ClipToBounds = true
+            };
+
+            var thumbnailImage = new Image
+            {
+                Stretch = Stretch.UniformToFill,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            thumbnailImage.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.HighQuality);
+
+            // Load image from URL
+            try
+            {
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(model.ThumbnailUrl, UriKind.Absolute);
+                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                thumbnailImage.Source = bitmap;
+            }
+            catch
+            {
+                // If image fails to load, skip thumbnail
+                thumbnailImage = null;
+            }
+
+            if (thumbnailImage != null)
+            {
+                thumbnailBorder.Child = thumbnailImage;
+                mainStack.Children.Add(thumbnailBorder);
+            }
+        }
 
         // Content area
         var contentStack = new StackPanel { Margin = new Thickness(20, 16, 20, 16) };
@@ -445,6 +534,9 @@ public partial class ModelManagerPage : Page
             }
 
             SearchResultsList.ItemsSource = _searchResults;
+
+            // Load thumbnails in background
+            _ = LoadSearchThumbnailsAsync(_searchCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -629,6 +721,8 @@ public class DownloadedModelViewModel
     public string SizeFormatted { get; set; } = "";
     public long SizeBytes { get; set; }
     public bool IsActive { get; set; }
+    public string? ThumbnailUrl { get; set; }
+    public bool HasThumbnail => !string.IsNullOrEmpty(ThumbnailUrl);
 }
 
 public class SearchResultViewModel
@@ -637,6 +731,8 @@ public class SearchResultViewModel
     public string Description { get; set; } = "";
     public string DownloadsFormatted { get; set; } = "0";
     public string LikesFormatted { get; set; } = "0";
+    public string? ThumbnailUrl { get; set; }
+    public bool HasThumbnail => !string.IsNullOrEmpty(ThumbnailUrl);
 }
 
 public class ModelActivatedEventArgs : EventArgs
@@ -1030,15 +1126,16 @@ public class ModelManagerSettingsDialog : Window
 
     private void BrowseModelsPath_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new System.Windows.Forms.FolderBrowserDialog
+        // Use Microsoft.Win32.OpenFolderDialog for WPF
+        var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Description = "Select Models Directory",
-            SelectedPath = _modelsPathBox.Text
+            Title = "Select Models Directory",
+            InitialDirectory = _modelsPathBox.Text
         };
 
-        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        if (dialog.ShowDialog() == true)
         {
-            _modelsPathBox.Text = dialog.SelectedPath;
+            _modelsPathBox.Text = dialog.FolderName;
         }
     }
 

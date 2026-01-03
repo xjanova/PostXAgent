@@ -208,7 +208,8 @@ public class HuggingFaceModelService : IDisposable
                     Name = "SDXL 1.0",
                     Description = "Stable Diffusion XL - High quality 1024x1024 images",
                     RequiredVramGb = 8,
-                    SizeGb = 6.5
+                    SizeGb = 6.5,
+                    ThumbnailUrl = "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0_sample.png"
                 },
                 new RecommendedModel
                 {
@@ -216,7 +217,8 @@ public class HuggingFaceModelService : IDisposable
                     Name = "SD 1.5",
                     Description = "Classic Stable Diffusion - Good for most uses",
                     RequiredVramGb = 4,
-                    SizeGb = 4.0
+                    SizeGb = 4.0,
+                    ThumbnailUrl = "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/images/v1-5.png"
                 },
                 new RecommendedModel
                 {
@@ -224,7 +226,8 @@ public class HuggingFaceModelService : IDisposable
                     Name = "FLUX Schnell",
                     Description = "Fast high-quality generation",
                     RequiredVramGb = 12,
-                    SizeGb = 23.0
+                    SizeGb = 23.0,
+                    ThumbnailUrl = "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/images/example.png"
                 },
                 new RecommendedModel
                 {
@@ -232,7 +235,8 @@ public class HuggingFaceModelService : IDisposable
                     Name = "FLUX Dev",
                     Description = "Best quality FLUX model",
                     RequiredVramGb = 16,
-                    SizeGb = 23.0
+                    SizeGb = 23.0,
+                    ThumbnailUrl = "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/images/example.png"
                 },
                 new RecommendedModel
                 {
@@ -240,7 +244,8 @@ public class HuggingFaceModelService : IDisposable
                     Name = "Realistic Vision V5.1",
                     Description = "Photorealistic image generation",
                     RequiredVramGb = 4,
-                    SizeGb = 2.0
+                    SizeGb = 2.0,
+                    ThumbnailUrl = "https://huggingface.co/SG161222/Realistic_Vision_V5.1_noVAE/resolve/main/images/sample.png"
                 },
                 new RecommendedModel
                 {
@@ -248,7 +253,8 @@ public class HuggingFaceModelService : IDisposable
                     Name = "DreamShaper 8",
                     Description = "Artistic and creative generations",
                     RequiredVramGb = 4,
-                    SizeGb = 2.0
+                    SizeGb = 2.0,
+                    ThumbnailUrl = "https://huggingface.co/Lykon/dreamshaper-8/resolve/main/sample.png"
                 }
             },
             [ModelType.TextToVideo] = new()
@@ -636,6 +642,105 @@ public class HuggingFaceModelService : IDisposable
     }
 
     /// <summary>
+    /// Get thumbnail URL for a model from HuggingFace
+    /// Tries common image file patterns used in model repositories
+    /// </summary>
+    public async Task<string?> GetModelThumbnailUrlAsync(string modelId, CancellationToken ct = default)
+    {
+        // Common thumbnail file names used by model authors
+        var possibleThumbnails = new[]
+        {
+            "thumbnail.png",
+            "thumbnail.jpg",
+            "thumbnail.jpeg",
+            "preview.png",
+            "preview.jpg",
+            "sample.png",
+            "sample.jpg",
+            "example.png",
+            "example.jpg",
+            "cover.png",
+            "cover.jpg",
+            "images/thumbnail.png",
+            "images/preview.png",
+            "images/sample.png"
+        };
+
+        try
+        {
+            // First try to get files list from HuggingFace API
+            var filesUrl = $"{HF_API_BASE}/models/{modelId}/tree/main";
+            var response = await _httpClient.GetAsync(filesUrl, ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var files = await response.Content.ReadFromJsonAsync<List<HuggingFaceFile>>(ct);
+                if (files != null)
+                {
+                    // Look for image files in the root and images folder
+                    var imageFile = files
+                        .Where(f => f.Type == "file")
+                        .Where(f => IsImageFile(f.Path))
+                        .OrderByDescending(f => GetThumbnailPriority(f.Path))
+                        .FirstOrDefault();
+
+                    if (imageFile != null)
+                    {
+                        return $"{HF_DOWNLOAD_BASE}/{modelId}/resolve/main/{imageFile.Path}";
+                    }
+                }
+            }
+
+            // Try common thumbnail URLs directly with HEAD requests
+            foreach (var thumbnail in possibleThumbnails)
+            {
+                var url = $"{HF_DOWNLOAD_BASE}/{modelId}/resolve/main/{thumbnail}";
+                try
+                {
+                    var headResponse = await _httpClient.SendAsync(
+                        new HttpRequestMessage(HttpMethod.Head, url), ct);
+                    if (headResponse.IsSuccessStatusCode)
+                    {
+                        return url;
+                    }
+                }
+                catch
+                {
+                    // Continue to next thumbnail option
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to get thumbnail for model: {ModelId}", modelId);
+            return null;
+        }
+    }
+
+    private static bool IsImageFile(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif";
+    }
+
+    private static int GetThumbnailPriority(string path)
+    {
+        var name = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+        return name switch
+        {
+            "thumbnail" => 100,
+            "preview" => 90,
+            "cover" => 80,
+            "sample" => 70,
+            "example" => 60,
+            _ when path.Contains("images/") => 50,
+            _ => 0
+        };
+    }
+
+    /// <summary>
     /// Get model storage usage
     /// </summary>
     public async Task<StorageUsage> GetStorageUsageAsync()
@@ -775,6 +880,7 @@ public class ModelInfo
     public string Revision { get; set; } = "main";
     public string? Description { get; set; }
     public double RequiredVramGb { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public ModelSettings Settings { get; set; } = new();
 
     public string SizeDisplay => SizeBytes switch
@@ -869,6 +975,12 @@ public class RecommendedModel
     public string Description { get; set; } = "";
     public double RequiredVramGb { get; set; }
     public double SizeGb { get; set; }
+    public string? ThumbnailUrl { get; set; }
+
+    /// <summary>
+    /// Gets the thumbnail URL, falling back to HuggingFace default if not set
+    /// </summary>
+    public string GetThumbnailUrl() => ThumbnailUrl ?? $"https://huggingface.co/{Id}/resolve/main/thumbnail.png";
 }
 
 /// <summary>

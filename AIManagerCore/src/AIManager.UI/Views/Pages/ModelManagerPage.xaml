@@ -4,11 +4,15 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      xmlns:converters="clr-namespace:AIManager.UI.Converters"
       mc:Ignorable="d"
       d:DesignHeight="800" d:DesignWidth="1200"
       Title="Model Manager">
 
     <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+
         <Style x:Key="ModelCardStyle" TargetType="Border">
             <Setter Property="Background" Value="#1E1E2E"/>
             <Setter Property="BorderBrush" Value="#333350"/>
@@ -402,20 +406,42 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Model Icon -->
-                                            <Border Width="56" Height="56" CornerRadius="12">
-                                                <Border.Background>
-                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                        <GradientStop Color="#30{Binding TypeColor}" Offset="0"/>
-                                                        <GradientStop Color="#15{Binding TypeColor}" Offset="1"/>
-                                                    </LinearGradientBrush>
-                                                </Border.Background>
-                                                <materialDesign:PackIcon Kind="{Binding TypeIcon}"
-                                                                        Width="28" Height="28"
-                                                                        HorizontalAlignment="Center"
-                                                                        VerticalAlignment="Center"
-                                                                        Foreground="{Binding TypeColor}"/>
-                                            </Border>
+                                            <!-- Model Thumbnail / Icon -->
+                                            <Grid Width="80" Height="80">
+                                                <!-- Thumbnail Image (shown when available) -->
+                                                <Border CornerRadius="12" ClipToBounds="True"
+                                                        Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                                                    <Image Source="{Binding ThumbnailUrl, TargetNullValue={x:Null}}"
+                                                           Stretch="UniformToFill"
+                                                           RenderOptions.BitmapScalingMode="HighQuality">
+                                                        <Image.Style>
+                                                            <Style TargetType="Image">
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="Source" Value="{x:Null}">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Image.Style>
+                                                    </Image>
+                                                </Border>
+
+                                                <!-- Fallback Icon (shown when no thumbnail) -->
+                                                <Border CornerRadius="12"
+                                                        Visibility="{Binding HasThumbnail, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Visible}">
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#30808080" Offset="0"/>
+                                                            <GradientStop Color="#15808080" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
+                                                    <materialDesign:PackIcon Kind="{Binding TypeIcon}"
+                                                                            Width="36" Height="36"
+                                                                            HorizontalAlignment="Center"
+                                                                            VerticalAlignment="Center"
+                                                                            Foreground="{Binding TypeColor}"/>
+                                                </Border>
+                                            </Grid>
 
                                             <!-- Model Details -->
                                             <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
@@ -589,12 +615,21 @@
                                 <Border Margin="8" CornerRadius="12" Background="#1E1E2E" BorderBrush="#2D2D48" BorderThickness="1">
                                     <Grid>
                                         <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
+                                        <!-- Thumbnail (when available) -->
+                                        <Border Grid.Row="0" Height="120" CornerRadius="12,12,0,0" ClipToBounds="True"
+                                                Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                                            <Image Source="{Binding ThumbnailUrl, TargetNullValue={x:Null}}"
+                                                   Stretch="UniformToFill"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        </Border>
+
                                         <!-- Model Info -->
-                                        <StackPanel Margin="20,16">
+                                        <StackPanel Grid.Row="1" Margin="20,16">
                                             <TextBlock Text="{Binding ModelId}" FontSize="15" FontWeight="SemiBold"
                                                        Foreground="White" TextWrapping="Wrap"/>
                                             <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#6B6B8A"
@@ -617,7 +652,7 @@
                                         </StackPanel>
 
                                         <!-- Download Button -->
-                                        <Border Grid.Row="1" Background="#15151F" CornerRadius="0,0,12,12" Padding="16,12">
+                                        <Border Grid.Row="2" Background="#15151F" CornerRadius="0,0,12,12" Padding="16,12">
                                             <Button Tag="{Binding ModelId}" Click="DownloadModel_Click" Cursor="Hand" HorizontalAlignment="Stretch">
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
