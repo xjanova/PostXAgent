@@ -1,349 +1,563 @@
-using System.Net.Http;
-using System.Net.Http.Json;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
+using AIManager.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AIManager.UI.Views.Pages;
 
 public partial class WorkersPage : Page
 {
-    private readonly HttpClient _httpClient;
+    private readonly GpuPoolService? _gpuPoolService;
+    private readonly ILogger<WorkersPage>? _logger;
     private readonly DispatcherTimer _updateTimer;
-    private readonly string _apiBaseUrl;
-    private bool _isInitialized = false;
+    private readonly DispatcherTimer _animationTimer;
+    private bool _isInitialized;
+
+    public ObservableCollection<WorkerCardViewModel> Workers { get; } = new();
+    public ObservableCollection<ActivityLogItem> ActivityItems { get; } = new();
 
     public WorkersPage()
     {
         InitializeComponent();
 
-        _apiBaseUrl = "http://localhost:5000";
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        // Get services from DI
+        try
+        {
+            var services = App.Services;
+            _gpuPoolService = services?.GetService<GpuPoolService>();
+            _logger = services?.GetService<ILogger<WorkersPage>>();
 
-        _updateTimer = new DispatcherTimer
+            if (_gpuPoolService != null)
+            {
+                _gpuPoolService.WorkerStatusChanged += GpuPoolService_WorkerStatusChanged;
+                _gpuPoolService.TaskCompleted += GpuPoolService_TaskCompleted;
+            }
+        }
+        catch
         {
-            Interval = TimeSpan.FromSeconds(2)
-        };
-        _updateTimer.Tick += async (s, e) =>
-        {
-            if (_isInitialized)
-                await RefreshDashboardAsync();
-        };
+            // DI not available
+        }
+
+        WorkersGrid.ItemsSource = Workers;
+        ActivityLog.ItemsSource = ActivityItems;
+
+        // Update timer (every 2 seconds)
+        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _updateTimer.Tick += (s, e) => RefreshStats();
+
+        // Animation timer (every 500ms for blinking effects)
+        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _animationTimer.Tick += (s, e) => UpdateAnimations();
 
         Loaded += async (s, e) =>
         {
             _isInitialized = true;
-            await RefreshDashboardAsync();
+            await RefreshWorkersAsync();
             _updateTimer.Start();
+            _animationTimer.Start();
         };
 
         Unloaded += (s, e) =>
         {
             _updateTimer.Stop();
+            _animationTimer.Stop();
             _isInitialized = false;
+
+            if (_gpuPoolService != null)
+            {
+                _gpuPoolService.WorkerStatusChanged -= GpuPoolService_WorkerStatusChanged;
+                _gpuPoolService.TaskCompleted -= GpuPoolService_TaskCompleted;
+            }
         };
     }
 
-    #region Data Refresh
-
-    private async Task RefreshDashboardAsync()
+    private void GpuPoolService_WorkerStatusChanged(object? sender, GpuWorkerEventArgs e)
     {
-        if (_httpClient == null || !_isInitialized)
-            return;
-
-        try
+        Dispatcher.Invoke(() =>
         {
-            var response = await _httpClient.GetAsync($"{_apiBaseUrl}/api/workers/dashboard");
+            SyncWorkersFromService();
+            RefreshStats();
 
-            if (response.IsSuccessStatusCode)
+            // Add to activity log
+            var icon = e.EventType switch
             {
-                var result = await response.Content.ReadFromJsonAsync<DashboardResponse>();
-                if (result?.Success == true && result.Dashboard != null)
-                {
-                    UpdateUI(result.Dashboard);
-                }
-                else
-                {
-                    ShowDemoData();
-                }
+                "added" => "ServerPlus",
+                "removed" => "ServerMinus",
+                "online" => "CheckCircle",
+                "offline" => "AlertCircle",
+                _ => "Information"
+            };
+            var color = e.EventType switch
+            {
+                "added" => "#10B981",
+                "removed" => "#EF4444",
+                "online" => "#10B981",
+                "offline" => "#F59E0B",
+                _ => "#6B6B8A"
+            };
+
+            AddActivityLog(icon, color, e.Worker.Name, $"Worker {e.EventType}");
+        });
+    }
+
+    private void GpuPoolService_TaskCompleted(object? sender, GpuTaskEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            RefreshStats();
+
+            // Find worker and trigger transfer animation
+            var worker = Workers.FirstOrDefault(w => w.Id == e.Task.WorkerId);
+            if (worker != null)
+            {
+                worker.TriggerTransferAnimation(e.Result.Success);
+                worker.TasksCompleted++;
+            }
+
+            var icon = e.Result.Success ? "CheckCircle" : "AlertCircle";
+            var color = e.Result.Success ? "#10B981" : "#EF4444";
+            var message = e.Result.Success
+                ? $"Task completed in {e.Result.GenerationTime:F1}s"
+                : $"Task failed: {e.Result.Error}";
+
+            AddActivityLog(icon, color, $"Worker {e.Task.WorkerId[..8]}", message);
+        });
+    }
+
+    private void AddActivityLog(string icon, string color, string workerName, string message)
+    {
+        ActivityItems.Insert(0, new ActivityLogItem
+        {
+            Timestamp = DateTime.Now,
+            Icon = icon,
+            IconColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
+            WorkerName = workerName,
+            Message = message
+        });
+
+        // Keep only last 50 items
+        while (ActivityItems.Count > 50)
+        {
+            ActivityItems.RemoveAt(ActivityItems.Count - 1);
+        }
+    }
+
+    private void SyncWorkersFromService()
+    {
+        if (_gpuPoolService == null) return;
+
+        // Update existing or add new workers
+        var serviceWorkers = _gpuPoolService.Workers.ToList();
+        var existingIds = Workers.Select(w => w.Id).ToHashSet();
+        var serviceIds = serviceWorkers.Select(w => w.Id).ToHashSet();
+
+        // Remove workers that no longer exist
+        var toRemove = Workers.Where(w => !serviceIds.Contains(w.Id)).ToList();
+        foreach (var worker in toRemove)
+        {
+            Workers.Remove(worker);
+        }
+
+        // Add or update workers
+        foreach (var serviceWorker in serviceWorkers)
+        {
+            var existingWorker = Workers.FirstOrDefault(w => w.Id == serviceWorker.Id);
+            if (existingWorker != null)
+            {
+                // Update existing
+                existingWorker.UpdateFromService(serviceWorker);
             }
             else
             {
-                ShowDemoData();
+                // Add new
+                Workers.Add(new WorkerCardViewModel(serviceWorker));
             }
         }
-        catch (Exception)
+
+        UpdateNoWorkersPanel();
+    }
+
+    private void UpdateNoWorkersPanel()
+    {
+        NoWorkersPanel.Visibility = Workers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        TxtWorkerCount.Text = $" ({Workers.Count})";
+    }
+
+    private void RefreshStats()
+    {
+        if (_gpuPoolService == null)
         {
-            // API not available - show demo data
-            ShowDemoData();
+            ShowEmptyStats();
+            return;
         }
+
+        var workers = _gpuPoolService.Workers;
+        var onlineWorkers = _gpuPoolService.OnlineWorkers;
+        var busyWorkers = workers.Where(w => w.IsBusy).ToList();
+
+        TxtTotalWorkers.Text = workers.Count.ToString();
+        TxtOnlineWorkers.Text = onlineWorkers.Count.ToString();
+        TxtBusyWorkers.Text = busyWorkers.Count.ToString();
+        TxtTotalVram.Text = $"{workers.Sum(w => w.TotalVramGb):F0} GB";
+        TxtQueueSize.Text = _gpuPoolService.QueuedTaskCount.ToString();
+        TxtCompletedTasks.Text = _gpuPoolService.CompletedTaskCount.ToString();
+
+        // Update connection status
+        if (onlineWorkers.Count > 0)
+        {
+            ConnectionIndicator.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+            TxtConnectionStatus.Text = "Connected";
+            TxtConnectionStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+        }
+        else if (workers.Count > 0)
+        {
+            ConnectionIndicator.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+            TxtConnectionStatus.Text = "Workers Offline";
+            TxtConnectionStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+        }
+        else
+        {
+            ConnectionIndicator.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B6B8A"));
+            TxtConnectionStatus.Text = "No Workers";
+            TxtConnectionStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B6B8A"));
+        }
+
+        // Update distribution mode display
+        TxtDistributionMode.Text = _gpuPoolService.DistributionMode.ToString();
+        BtnDistributionMode.IsChecked = _gpuPoolService.DistributionMode == GpuDistributionMode.Parallel;
     }
 
-    private void UpdateUI(DashboardData data)
+    private void ShowEmptyStats()
     {
-        // System Stats
-        TxtCpuUsage.Text = $"{data.SystemStats.CpuUsagePercent:F1}%";
-        PbCpu.Value = data.SystemStats.CpuUsagePercent;
-        TxtMemory.Text = $"{data.SystemStats.MemoryUsageMB} MB";
-        TxtCores.Text = data.SystemStats.TotalCores.ToString();
-
-        // Worker Stats
-        TxtTotalWorkers.Text = data.WorkerStats.Total.ToString();
-        TxtRunningWorkers.Text = data.WorkerStats.Running.ToString();
-        TxtPausedWorkers.Text = data.WorkerStats.Paused.ToString();
-        TxtStoppedWorkers.Text = data.WorkerStats.Stopped.ToString();
-        TxtErrorWorkers.Text = data.WorkerStats.Error.ToString();
-
-        // Calculate tasks per second (from success rate display)
-        TxtTasksPerSec.Text = $"{data.WorkerStats.SuccessRate:F1}%";
-
-        // Workers List
-        var filteredWorkers = FilterWorkers(data.Workers);
-        WorkersList.ItemsSource = filteredWorkers;
-
-        // Recent Reports
-        ReportsList.ItemsSource = data.RecentReports;
-    }
-
-    private void ShowDemoData()
-    {
-        TxtCpuUsage.Text = "0%";
-        TxtMemory.Text = "0 MB";
-        TxtCores.Text = Environment.ProcessorCount.ToString();
-        TxtTasksPerSec.Text = "0";
         TxtTotalWorkers.Text = "0";
-        TxtRunningWorkers.Text = "0";
-        TxtPausedWorkers.Text = "0";
-        TxtStoppedWorkers.Text = "0";
-        TxtErrorWorkers.Text = "0";
+        TxtOnlineWorkers.Text = "0";
+        TxtBusyWorkers.Text = "0";
+        TxtTotalVram.Text = "0 GB";
+        TxtQueueSize.Text = "0";
+        TxtCompletedTasks.Text = "0";
     }
 
-    private List<WorkerDto> FilterWorkers(List<WorkerDto> workers)
+    private void UpdateAnimations()
     {
-        var filtered = workers.AsEnumerable();
-
-        // Platform filter
-        if (CbPlatformFilter.SelectedItem is ComboBoxItem platformItem &&
-            platformItem.Content?.ToString() != "All Platforms")
+        foreach (var worker in Workers)
         {
-            var platform = platformItem.Content?.ToString();
-            filtered = filtered.Where(w => w.Platform == platform);
+            worker.UpdateAnimation();
         }
-
-        // State filter
-        if (CbStateFilter.SelectedItem is ComboBoxItem stateItem &&
-            stateItem.Content?.ToString() != "All States")
-        {
-            var state = stateItem.Content?.ToString();
-            filtered = filtered.Where(w => w.State == state);
-        }
-
-        return filtered.ToList();
     }
 
-    #endregion
+    private async Task RefreshWorkersAsync()
+    {
+        if (_gpuPoolService != null)
+        {
+            await _gpuPoolService.RefreshAllWorkersAsync();
+            SyncWorkersFromService();
+        }
+        RefreshStats();
+    }
 
     #region Button Handlers
 
     private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
     {
-        await RefreshDashboardAsync();
+        await RefreshWorkersAsync();
     }
 
-    private async void BtnPauseAll_Click(object sender, RoutedEventArgs e)
+    private void BtnAddWorker_Click(object sender, RoutedEventArgs e)
     {
-        try
+        var dialog = new AddWorkerDialog();
+        if (dialog.ShowDialog() == true)
         {
-            await _httpClient.PostAsync($"{_apiBaseUrl}/api/workers/pause-all", null);
-            await RefreshDashboardAsync();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to pause workers: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            _ = AddWorkerAsync(dialog.WorkerName, dialog.WorkerUrl);
         }
     }
 
-    private async void BtnResumeAll_Click(object sender, RoutedEventArgs e)
+    private async Task AddWorkerAsync(string name, string url)
     {
-        try
+        if (_gpuPoolService != null)
         {
-            await _httpClient.PostAsync($"{_apiBaseUrl}/api/workers/resume-all", null);
-            await RefreshDashboardAsync();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to resume workers: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async void BtnPauseWorker_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is string workerId)
-        {
-            try
+            var worker = await _gpuPoolService.AddWorkerAsync(name, url);
+            if (worker != null)
             {
-                await _httpClient.PostAsync($"{_apiBaseUrl}/api/workers/{workerId}/pause", null);
-                await RefreshDashboardAsync();
+                SyncWorkersFromService();
+                RefreshStats();
+                _logger?.LogInformation("Worker added: {Name} at {Url}", name, url);
             }
-            catch { }
         }
     }
 
-    private async void BtnResumeWorker_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is string workerId)
-        {
-            try
-            {
-                await _httpClient.PostAsync($"{_apiBaseUrl}/api/workers/{workerId}/resume", null);
-                await RefreshDashboardAsync();
-            }
-            catch { }
-        }
-    }
-
-    private async void BtnStopWorker_Click(object sender, RoutedEventArgs e)
+    private void BtnRemoveWorker_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string workerId)
         {
             var result = MessageBox.Show(
-                "Are you sure you want to stop this worker?",
-                "Confirm Stop",
+                "Are you sure you want to remove this worker?",
+                "Confirm Remove",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
-                try
-                {
-                    await _httpClient.PostAsync($"{_apiBaseUrl}/api/workers/{workerId}/stop", null);
-                    await RefreshDashboardAsync();
-                }
-                catch { }
+                _gpuPoolService?.RemoveWorker(workerId);
+                SyncWorkersFromService();
+                RefreshStats();
             }
         }
     }
 
-    private void BtnViewDetails_Click(object sender, RoutedEventArgs e)
+    private void BtnOpenColab_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string workerId)
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
-            // Show worker details dialog
-            var worker = (WorkersList.ItemsSource as IEnumerable<WorkerDto>)?
-                .FirstOrDefault(w => w.Id == workerId);
+            FileName = "https://colab.research.google.com",
+            UseShellExecute = true
+        });
+    }
 
-            if (worker != null)
-            {
-                var details = $"Worker: {worker.Name}\n" +
-                              $"Platform: {worker.Platform}\n" +
-                              $"State: {worker.State}\n" +
-                              $"Tasks Processed: {worker.TasksProcessed}\n" +
-                              $"Success Rate: {worker.SuccessRate:F1}%\n" +
-                              $"CPU Core: {worker.PreferredCore}\n" +
-                              $"Current Task: {worker.CurrentTask ?? "None"}\n" +
-                              $"Last Error: {worker.LastError ?? "None"}";
+    private void DistributionMode_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_gpuPoolService != null && _isInitialized)
+        {
+            _gpuPoolService.DistributionMode = BtnDistributionMode.IsChecked == true
+                ? GpuDistributionMode.Parallel
+                : GpuDistributionMode.Combined;
 
-                MessageBox.Show(details, $"Worker Details - {worker.Name}", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            TxtDistributionMode.Text = _gpuPoolService.DistributionMode.ToString();
         }
-    }
-
-    private void CbPlatformFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        // Trigger refresh with new filter
-        _ = RefreshDashboardAsync();
-    }
-
-    private void CbStateFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        // Trigger refresh with new filter
-        _ = RefreshDashboardAsync();
-    }
-
-    private void WorkersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        // Handle worker selection
     }
 
     #endregion
 }
 
-#region DTOs
+#region View Models
 
-public class DashboardResponse
+public class WorkerCardViewModel : INotifyPropertyChanged
 {
-    public bool Success { get; set; }
-    public DashboardData? Dashboard { get; set; }
-}
+    private bool _isOnline;
+    private bool _isBusy;
+    private bool _isTransferring;
+    private bool _transferSuccess;
+    private double _transferOpacity;
+    private double _activityOpacity;
+    private int _animationFrame;
+    private DateTime _addedAt;
+    private int _tasksCompleted;
 
-public class DashboardData
-{
-    public SystemStatsDto SystemStats { get; set; } = new();
-    public WorkerStatsDto WorkerStats { get; set; } = new();
-    public List<PlatformStatsDto> PlatformStats { get; set; } = new();
-    public List<WorkerDto> Workers { get; set; } = new();
-    public List<ReportDto> RecentReports { get; set; } = new();
-}
-
-public class SystemStatsDto
-{
-    public int TotalCores { get; set; }
-    public double CpuUsagePercent { get; set; }
-    public long MemoryUsageMB { get; set; }
-    public long UptimeSeconds { get; set; }
-}
-
-public class WorkerStatsDto
-{
-    public int Total { get; set; }
-    public int Running { get; set; }
-    public int Paused { get; set; }
-    public int Stopped { get; set; }
-    public int Error { get; set; }
-    public long TasksProcessed { get; set; }
-    public double SuccessRate { get; set; }
-}
-
-public class PlatformStatsDto
-{
-    public string Platform { get; set; } = "";
-    public int WorkerCount { get; set; }
-    public int ActiveCount { get; set; }
-    public long TasksProcessed { get; set; }
-}
-
-public class WorkerDto
-{
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
-    public string Platform { get; set; } = "";
-    public string State { get; set; } = "";
-    public string StateEmoji { get; set; } = "";
+    public string Url { get; set; } = "";
+    public string GpuInfo { get; set; } = "";
+    public double TotalVramGb { get; set; }
+    public double FreeVramGb { get; set; }
+    public string? CurrentModel { get; set; }
     public string? CurrentTask { get; set; }
-    public double ProgressPercent { get; set; }
-    public string? ProgressDetails { get; set; }
-    public int TasksProcessed { get; set; }
-    public int SuccessCount { get; set; }
-    public int FailureCount { get; set; }
-    public double SuccessRate { get; set; }
-    public int PreferredCore { get; set; }
-    public long UptimeSeconds { get; set; }
-    public DateTime LastActivityAt { get; set; }
-    public string? LastError { get; set; }
+
+    public bool IsOnline
+    {
+        get => _isOnline;
+        set { _isOnline = value; OnPropertyChanged(); UpdateVisualProperties(); }
+    }
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        set { _isBusy = value; OnPropertyChanged(); UpdateVisualProperties(); }
+    }
+
+    public int TasksCompleted
+    {
+        get => _tasksCompleted;
+        set { _tasksCompleted = value; OnPropertyChanged(); }
+    }
+
+    // Visual Properties
+    public SolidColorBrush StatusColor => IsOnline
+        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString(IsBusy ? "#F59E0B" : "#10B981"))
+        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+
+    public SolidColorBrush BorderColor => IsOnline
+        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString(IsBusy ? "#3D3D00" : "#1E3A2F"))
+        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3D1E1E"));
+
+    public string StatusText => IsBusy ? "Working" : (IsOnline ? "Online" : "Offline");
+
+    public SolidColorBrush StatusBadgeBackground => IsOnline
+        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString(IsBusy ? "#3D3D1E" : "#1E3A2F"))
+        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3D1E1E"));
+
+    public SolidColorBrush StatusBadgeForeground => IsOnline
+        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString(IsBusy ? "#F59E0B" : "#10B981"))
+        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+
+    public string GlowColor => IsOnline ? (IsBusy ? "#F59E0B" : "#10B981") : "#EF4444";
+    public double GlowRadius => IsOnline ? (IsBusy ? 12 : 8) : 6;
+
+    // Activity ring
+    public SolidColorBrush ActivityColor => IsBusy
+        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"))
+        : new SolidColorBrush(Colors.Transparent);
+
+    public double ActivityOpacity
+    {
+        get => _activityOpacity;
+        set { _activityOpacity = value; OnPropertyChanged(); }
+    }
+
+    // Transfer animation
+    public string TransferIcon => _transferSuccess ? "ArrowDown" : "ArrowUp";
+    public SolidColorBrush TransferColor => _transferSuccess
+        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"))
+        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3B82F6"));
+
+    public Visibility TransferVisibility => _isTransferring ? Visibility.Visible : Visibility.Collapsed;
+
+    public double TransferOpacity
+    {
+        get => _transferOpacity;
+        set { _transferOpacity = value; OnPropertyChanged(); }
+    }
+
+    // VRAM bar
+    public string VramText => $"{FreeVramGb:F1}/{TotalVramGb:F1} GB";
+    public double VramPercent => TotalVramGb > 0 ? ((TotalVramGb - FreeVramGb) / TotalVramGb) * 100 : 0;
+    public double VramBarWidth => Math.Min(VramPercent * 2.5, 250); // Scale to max width
+    public SolidColorBrush VramBarColor
+    {
+        get
+        {
+            var percent = VramPercent;
+            if (percent > 80) return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+            if (percent > 60) return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+            return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+        }
+    }
+
+    // Current task display
+    public string CurrentTaskShort => CurrentTask?.Length > 25 ? CurrentTask[..25] + "..." : CurrentTask ?? "";
+    public Visibility CurrentTaskVisibility => string.IsNullOrEmpty(CurrentTask) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility CurrentModelVisibility => string.IsNullOrEmpty(CurrentModel) ? Visibility.Collapsed : Visibility.Visible;
+
+    // Uptime
+    public string UptimeText
+    {
+        get
+        {
+            var uptime = DateTime.UtcNow - _addedAt;
+            if (uptime.TotalHours >= 1) return $"{uptime.TotalHours:F0}h";
+            if (uptime.TotalMinutes >= 1) return $"{uptime.TotalMinutes:F0}m";
+            return $"{uptime.TotalSeconds:F0}s";
+        }
+    }
+
+    // Ping (simulated for now)
+    public string PingText => IsOnline ? "< 100ms" : "-";
+    public SolidColorBrush PingColor => IsOnline
+        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"))
+        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B6B8A"));
+
+    public WorkerCardViewModel() { }
+
+    public WorkerCardViewModel(GpuWorkerInfo worker)
+    {
+        UpdateFromService(worker);
+        _addedAt = worker.AddedAt;
+    }
+
+    public void UpdateFromService(GpuWorkerInfo worker)
+    {
+        Id = worker.Id;
+        Name = worker.Name;
+        Url = worker.Url;
+        GpuInfo = worker.GpuName ?? "Unknown GPU";
+        TotalVramGb = worker.TotalVramGb;
+        FreeVramGb = worker.FreeVramGb;
+        CurrentModel = worker.CurrentModel;
+        CurrentTask = worker.CurrentTask;
+        IsOnline = worker.IsOnline;
+        IsBusy = worker.IsBusy;
+
+        OnPropertyChanged(nameof(VramText));
+        OnPropertyChanged(nameof(VramPercent));
+        OnPropertyChanged(nameof(VramBarWidth));
+        OnPropertyChanged(nameof(VramBarColor));
+        OnPropertyChanged(nameof(UptimeText));
+        OnPropertyChanged(nameof(CurrentTaskShort));
+        OnPropertyChanged(nameof(CurrentTaskVisibility));
+        OnPropertyChanged(nameof(CurrentModelVisibility));
+    }
+
+    public void TriggerTransferAnimation(bool success)
+    {
+        _isTransferring = true;
+        _transferSuccess = success;
+        _transferOpacity = 1.0;
+        OnPropertyChanged(nameof(TransferVisibility));
+        OnPropertyChanged(nameof(TransferIcon));
+        OnPropertyChanged(nameof(TransferColor));
+        OnPropertyChanged(nameof(TransferOpacity));
+    }
+
+    public void UpdateAnimation()
+    {
+        _animationFrame++;
+
+        // Activity ring animation for busy workers
+        if (IsBusy)
+        {
+            ActivityOpacity = 0.3 + 0.7 * Math.Abs(Math.Sin(_animationFrame * 0.2));
+        }
+        else
+        {
+            ActivityOpacity = 0;
+        }
+
+        // Transfer animation fade out
+        if (_isTransferring)
+        {
+            _transferOpacity -= 0.2;
+            if (_transferOpacity <= 0)
+            {
+                _isTransferring = false;
+                _transferOpacity = 0;
+                OnPropertyChanged(nameof(TransferVisibility));
+            }
+            OnPropertyChanged(nameof(TransferOpacity));
+        }
+    }
+
+    private void UpdateVisualProperties()
+    {
+        OnPropertyChanged(nameof(StatusColor));
+        OnPropertyChanged(nameof(BorderColor));
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(StatusBadgeBackground));
+        OnPropertyChanged(nameof(StatusBadgeForeground));
+        OnPropertyChanged(nameof(GlowColor));
+        OnPropertyChanged(nameof(GlowRadius));
+        OnPropertyChanged(nameof(ActivityColor));
+        OnPropertyChanged(nameof(PingText));
+        OnPropertyChanged(nameof(PingColor));
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
 }
 
-public class ReportDto
+public class ActivityLogItem
 {
-    public string Id { get; set; } = "";
-    public string WorkerId { get; set; } = "";
+    public DateTime Timestamp { get; set; }
+    public string Icon { get; set; } = "";
+    public SolidColorBrush IconColor { get; set; } = new(Colors.Gray);
     public string WorkerName { get; set; } = "";
-    public string Platform { get; set; } = "";
-    public string TaskType { get; set; } = "";
-    public bool Success { get; set; }
-    public string? Message { get; set; }
-    public string? ErrorDetails { get; set; }
-    public long ProcessingTimeMs { get; set; }
-    public DateTime ReportedAt { get; set; }
+    public string Message { get; set; } = "";
 }
 
 #endregion
