@@ -21,6 +21,10 @@ public partial class SunoOptionsPage : Page
 
     private void Tab_Changed(object sender, RoutedEventArgs e)
     {
+        // Guard against null during initialization
+        if (CreatePanel == null || DownloadPanel == null || WorkflowPanel == null || AccountPanel == null)
+            return;
+
         if (sender is RadioButton rb)
         {
             // Hide all panels
