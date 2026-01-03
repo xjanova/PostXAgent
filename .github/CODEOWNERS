@@ -1,0 +1,15 @@
+# Default owners for everything in the repo
+* @xjanova
+
+# Laravel Backend
+/laravel-backend/ @xjanova
+
+# AI Manager Core (C#)
+/AIManagerCore/ @xjanova
+
+# GitHub Actions / CI/CD
+/.github/ @xjanova
+
+# Documentation
+/docs/ @xjanova
+*.md @xjanova

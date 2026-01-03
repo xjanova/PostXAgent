@@ -1,0 +1,56 @@
+name: Welcome New Contributors
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    name: Welcome
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Welcome first-time issue authors
+        if: github.event_name == 'issues'
+        uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            👋 สวัสดี @${{ github.actor }}! ขอบคุณที่เปิด issue แรกของคุณใน PostXAgent!
+
+            **Welcome!** Thank you for opening your first issue in PostXAgent!
+
+            Here's what happens next:
+            - A maintainer will review your issue soon
+            - Please make sure you've provided all the requested information
+            - Feel free to ask questions if anything is unclear
+
+            While you wait, check out our [documentation](https://github.com/xjanova/PostXAgent/tree/main/docs).
+
+      - name: Welcome first-time PR authors
+        if: github.event_name == 'pull_request_target'
+        uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-message: |
+            👋 สวัสดี @${{ github.actor }}! ขอบคุณสำหรับ pull request แรกของคุณใน PostXAgent!
+
+            **Welcome!** Thank you for your first pull request to PostXAgent!
+
+            Here's what happens next:
+            - Our CI will run tests automatically
+            - A maintainer will review your changes
+            - Please address any feedback or questions
+
+            **Checklist:**
+            - [ ] Tests pass
+            - [ ] Code follows project style guidelines
+            - [ ] Documentation updated if needed
+
+            Thank you for contributing! 🎉
