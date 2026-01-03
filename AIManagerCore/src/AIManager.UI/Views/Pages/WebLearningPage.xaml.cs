@@ -8,34 +8,27 @@ using System.Windows.Media;
 using AIManager.Core.AI;
 using AIManager.Core.WebAutomation;
 using AIManager.Core.WebAutomation.Models;
+using AIManager.UI.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Web.WebView2.Core;
 using Newtonsoft.Json;
 
 namespace AIManager.UI.Views.Pages;
 
 /// <summary>
-/// Web Learning Page - สอนระบบทำงานบนเว็บไซต์
+/// Web Learning Page - Control Panel for teaching AI web automation
+/// Manages WebViewWindow as a separate floating browser window
 /// </summary>
 public partial class WebLearningPage : Page
 {
     private readonly ILogger<WebLearningPage>? _logger;
     private readonly WorkflowStorage? _workflowStorage;
-    private readonly AutoLearningEngine? _autoLearningEngine;
-    private readonly AIGuidedTeacher? _aiGuidedTeacher;
     private readonly HttpClient _httpClient = new();
-    private bool _isRecording;
-    private bool _isAutoLearningMode;
-    private bool _isGuidedTeachingMode;
     private readonly ObservableCollection<RecordedStepViewModel> _recordedSteps = new();
-    private readonly ObservableCollection<TeachingStepViewModel> _teachingSteps = new();
-    private string? _currentSessionId;
-    private WorkflowSuggestion? _currentSuggestion;
-    private TeachingGuideline? _currentGuideline;
-    private int _currentTeachingStepIndex;
-    private string? _lastAiResponse;
-    private List<WorkflowStep>? _suggestedWorkflowSteps;
+
+    // WebView Window reference
+    private WebViewWindow? _webViewWindow;
+    private bool _isRecording;
 
     // Ollama configuration
     private const string OllamaBaseUrl = "http://localhost:11434";
@@ -45,122 +38,9 @@ public partial class WebLearningPage : Page
     private readonly string? _initialUrl;
     private readonly string? _platformName;
 
-    // Injected Recording Script
-    private const string RecordingScript = @"
-        (function() {
-            if (window.__postXAgentRecorder) return;
-
-            window.__postXAgentRecordedSteps = [];
-            window.__postXAgentRecorder = true;
-
-            function getElementInfo(element) {
-                const rect = element.getBoundingClientRect();
-                return {
-                    tagName: element.tagName.toLowerCase(),
-                    id: element.id || null,
-                    className: element.className || null,
-                    name: element.name || null,
-                    type: element.type || null,
-                    placeholder: element.placeholder || null,
-                    textContent: element.textContent?.trim().substring(0, 100) || null,
-                    xpath: getXPath(element),
-                    cssSelector: getCssSelector(element),
-                    attributes: Object.fromEntries([...element.attributes].map(a => [a.name, a.value])),
-                    position: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }
-                };
-            }
-
-            function getXPath(element) {
-                if (element.id) return '//*[@id=""' + element.id + '""]';
-                if (element === document.body) return '/html/body';
-
-                let ix = 0;
-                const siblings = element.parentNode?.childNodes || [];
-                for (let i = 0; i < siblings.length; i++) {
-                    const sibling = siblings[i];
-                    if (sibling === element) {
-                        return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';
-                    }
-                    if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
-                        ix++;
-                    }
-                }
-                return '';
-            }
-
-            function getCssSelector(element) {
-                if (element.id) return '#' + element.id;
-                let path = [];
-                while (element && element.nodeType === Node.ELEMENT_NODE) {
-                    let selector = element.tagName.toLowerCase();
-                    if (element.id) {
-                        path.unshift('#' + element.id);
-                        break;
-                    }
-                    if (element.className) {
-                        const classes = element.className.trim().split(/\s+/).filter(c => c && !c.includes(':')).slice(0, 2);
-                        if (classes.length > 0) {
-                            selector += '.' + classes.join('.');
-                        }
-                    }
-                    path.unshift(selector);
-                    element = element.parentElement;
-                }
-                return path.join(' > ');
-            }
-
-            function recordStep(action, element, value) {
-                const step = {
-                    timestamp: new Date().toISOString(),
-                    action: action,
-                    element: element ? getElementInfo(element) : null,
-                    value: value || null,
-                    pageUrl: window.location.href,
-                    pageTitle: document.title
-                };
-
-                window.__postXAgentRecordedSteps.push(step);
-
-                // Send to C# via postMessage
-                window.chrome.webview.postMessage(JSON.stringify({
-                    type: 'recordedStep',
-                    data: step
-                }));
-            }
-
-            // Listen for clicks
-            document.addEventListener('click', function(e) {
-                recordStep('click', e.target);
-            }, true);
-
-            // Listen for input with debounce
-            let inputTimeout;
-            document.addEventListener('input', function(e) {
-                clearTimeout(inputTimeout);
-                inputTimeout = setTimeout(() => {
-                    recordStep('type', e.target, e.target.value);
-                }, 500);
-            }, true);
-
-            // Listen for change (select, checkbox, etc)
-            document.addEventListener('change', function(e) {
-                if (e.target.type === 'file') {
-                    recordStep('upload', e.target, [...e.target.files].map(f => f.name).join(', '));
-                } else if (e.target.type === 'checkbox' || e.target.type === 'radio') {
-                    recordStep('check', e.target, e.target.checked);
-                } else if (e.target.tagName === 'SELECT') {
-                    recordStep('select', e.target, e.target.value);
-                }
-            }, true);
-
-            // Listen for form submission
-            document.addEventListener('submit', function(e) {
-                recordStep('submit', e.target);
-            }, true);
-
-            console.log('PostXAgent recorder initialized');
-        })();
-    ";
+    // Undo/Redo stacks
+    private readonly Stack<List<RecordedStepViewModel>> _undoStack = new();
+    private readonly Stack<List<RecordedStepViewModel>> _redoStack = new();
 
     public WebLearningPage(string? initialUrl = null, string? platformName = null)
     {
@@ -175,8 +55,6 @@ public partial class WebLearningPage : Page
             var services = App.Services;
             _logger = services?.GetService<ILogger<WebLearningPage>>();
             _workflowStorage = services?.GetService<WorkflowStorage>();
-            _autoLearningEngine = services?.GetService<AutoLearningEngine>();
-            _aiGuidedTeacher = services?.GetService<AIGuidedTeacher>();
         }
         catch
         {
@@ -184,7 +62,6 @@ public partial class WebLearningPage : Page
         }
 
         StepsItemsControl.ItemsSource = _recordedSteps;
-        TeachingStepsControl.ItemsSource = _teachingSteps;
 
         // Set initial URL if provided
         if (!string.IsNullOrEmpty(_initialUrl))
@@ -199,9 +76,6 @@ public partial class WebLearningPage : Page
         }
     }
 
-    /// <summary>
-    /// Pre-select platform in combo box based on platform name
-    /// </summary>
     private void SelectPlatformInComboBox(string platformName)
     {
         foreach (ComboBoxItem item in PlatformComboBox.Items)
@@ -215,883 +89,213 @@ public partial class WebLearningPage : Page
         }
     }
 
-    private async void Page_Loaded(object sender, RoutedEventArgs e)
+    private void Page_Loaded(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            // Initialize WebView2
-            var env = await CoreWebView2Environment.CreateAsync();
-            await WebBrowser.EnsureCoreWebView2Async(env);
-
-            // Set up message handler for recording
-            WebBrowser.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
-
-            // Navigate to initial URL (from platform or URL textbox)
-            var navigateUrl = !string.IsNullOrEmpty(_initialUrl) ? _initialUrl : UrlTextBox.Text;
-            if (!string.IsNullOrEmpty(navigateUrl))
-            {
-                // Ensure URL has protocol
-                if (!navigateUrl.StartsWith("http://") && !navigateUrl.StartsWith("https://"))
-                {
-                    navigateUrl = "https://" + navigateUrl;
-                }
-                UrlTextBox.Text = navigateUrl;
-                LoadingIndicator.Visibility = Visibility.Visible;
-                WebBrowser.CoreWebView2.Navigate(navigateUrl);
-
-                _logger?.LogInformation("Navigating to platform URL: {Url} for platform: {Platform}",
-                    navigateUrl, _platformName ?? "Unknown");
-            }
-
-            // Check Ollama status in background
-            _ = CheckOllamaStatusAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to initialize WebView2");
-            MessageBox.Show($"ไม่สามารถเปิด Browser ได้: {ex.Message}\n\nกรุณาติดตั้ง WebView2 Runtime",
-                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+        // Check Ollama status
+        _ = CheckOllamaStatusAsync();
     }
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
-        // Stop recording if active
-        if (_isRecording)
+        // Close WebView window if open
+        if (_webViewWindow != null)
         {
-            StopRecording();
+            _webViewWindow.Close();
+            _webViewWindow = null;
         }
-
-        WebBrowser?.Dispose();
     }
 
-    private void WebBrowser_CoreWebView2InitializationCompleted(object? sender, CoreWebView2InitializationCompletedEventArgs e)
+    #region WebView Window Management
+
+    private void OpenBrowserButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!e.IsSuccess)
-        {
-            _logger?.LogError(e.InitializationException, "WebView2 initialization failed");
-            return;
-        }
-
-        // Inject recording script on every page load
-        WebBrowser.CoreWebView2.NavigationCompleted += async (s, args) =>
-        {
-            if (_isRecording && args.IsSuccess)
-            {
-                await InjectRecordingScriptAsync();
-            }
-        };
+        OpenOrFocusWebViewWindow();
     }
 
-    private void WebBrowser_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+    private void OpenOrFocusWebViewWindow()
+    {
+        if (_webViewWindow == null || !_webViewWindow.IsLoaded)
+        {
+            // Create new WebView window
+            var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Custom";
+            _webViewWindow = new WebViewWindow(UrlTextBox.Text, platform);
+
+            // Wire up events
+            _webViewWindow.NavigationCompleted += WebViewWindow_NavigationCompleted;
+            _webViewWindow.StepRecorded += WebViewWindow_StepRecorded;
+            _webViewWindow.RecordingStarted += WebViewWindow_RecordingStarted;
+            _webViewWindow.RecordingStopped += WebViewWindow_RecordingStopped;
+            _webViewWindow.WindowClosing += WebViewWindow_Closing;
+
+            _webViewWindow.Show();
+            UpdateBrowserStatus(true);
+
+            _logger?.LogInformation("WebView window opened for platform: {Platform}", platform);
+        }
+        else
+        {
+            // Focus existing window
+            _webViewWindow.Activate();
+            if (_webViewWindow.WindowState == WindowState.Minimized)
+            {
+                _webViewWindow.WindowState = WindowState.Normal;
+            }
+        }
+    }
+
+    private void WebViewWindow_NavigationCompleted(object? sender, string url)
     {
         Dispatcher.Invoke(() =>
         {
-            UrlTextBox.Text = WebBrowser.CoreWebView2?.Source ?? "";
-            LoadingIndicator.Visibility = Visibility.Collapsed;
+            TxtCurrentPageUrl.Text = url;
+            TxtCurrentPageTitle.Text = _webViewWindow?.CurrentTitle ?? "Unknown";
+            CurrentPageInfo.Visibility = Visibility.Visible;
+
+            // Auto-detect platform from URL
+            var detectedPlatform = DetectPlatformFromUrl(url);
+            SelectPlatformInComboBox(detectedPlatform);
         });
     }
 
-    private void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    private void WebViewWindow_StepRecorded(object? sender, WebViewStepEventArgs e)
     {
-        if (!_isRecording) return;
-
-        try
+        Dispatcher.Invoke(() =>
         {
-            var message = JsonConvert.DeserializeObject<WebViewMessage>(e.WebMessageAsJson);
-            if (message?.Type == "recordedStep" && message.Data != null)
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    AddRecordedStep(message.Data);
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to parse web message");
-        }
+            AddRecordedStep(e);
+        });
     }
 
-    private void AddRecordedStep(RecordedStep step)
+    private void WebViewWindow_RecordingStarted(object? sender, EventArgs e)
     {
-        var confidence = CalculateStepConfidence(step);
-        var viewModel = new RecordedStepViewModel
+        Dispatcher.Invoke(() =>
         {
-            Index = _recordedSteps.Count,
-            StepNumber = (_recordedSteps.Count + 1).ToString(),
-            Action = step.Action ?? "unknown",
-            ActionText = GetActionText(step.Action ?? "unknown"),
-            ActionColor = GetActionColor(step.Action ?? "unknown"),
-            ElementDescription = GetElementDescription(step.Element),
-            Value = step.Value,
-            ValueText = !string.IsNullOrEmpty(step.Value) ? $"Value: {step.Value}" : null,
-            HasValue = !string.IsNullOrEmpty(step.Value),
-            OriginalStep = step,
-            Confidence = confidence
-        };
-
-        _recordedSteps.Add(viewModel);
-        UpdateStepCount();
-        UpdateConfidence();
-
-        // Clear redo stack when new step added
-        _redoStack.Clear();
-        UpdateUndoRedoButtons();
-
-        // Validate against teaching guideline if in guided mode
-        if (_isGuidedTeachingMode && _currentGuideline != null)
-        {
-            ValidateTeachingStep(step);
-        }
+            _isRecording = true;
+            StartRecordingButton.IsEnabled = false;
+            StopRecordingButton.IsEnabled = true;
+        });
     }
 
-    private string GetActionText(string action)
+    private void WebViewWindow_RecordingStopped(object? sender, EventArgs e)
     {
-        return action.ToLower() switch
+        Dispatcher.Invoke(() =>
         {
-            "click" => "Click",
-            "type" => "Type Text",
-            "upload" => "Upload File",
-            "select" => "Select Option",
-            "check" => "Check/Uncheck",
-            "submit" => "Submit Form",
-            "navigate" => "Navigate",
-            _ => action
-        };
+            _isRecording = false;
+            StartRecordingButton.IsEnabled = true;
+            StopRecordingButton.IsEnabled = false;
+        });
     }
 
-    private Brush GetActionColor(string action)
+    private void WebViewWindow_Closing(object? sender, EventArgs e)
     {
-        return action.ToLower() switch
+        Dispatcher.Invoke(() =>
         {
-            "click" => new SolidColorBrush(Color.FromRgb(76, 175, 80)),     // Green
-            "type" => new SolidColorBrush(Color.FromRgb(33, 150, 243)),     // Blue
-            "upload" => new SolidColorBrush(Color.FromRgb(255, 152, 0)),    // Orange
-            "select" => new SolidColorBrush(Color.FromRgb(156, 39, 176)),   // Purple
-            "check" => new SolidColorBrush(Color.FromRgb(233, 30, 99)),     // Pink
-            "submit" => new SolidColorBrush(Color.FromRgb(0, 188, 212)),    // Cyan
-            "navigate" => new SolidColorBrush(Color.FromRgb(0, 188, 212)),  // Cyan
-            _ => new SolidColorBrush(Color.FromRgb(158, 158, 158))          // Gray
-        };
+            _webViewWindow = null;
+            UpdateBrowserStatus(false);
+            _isRecording = false;
+            StartRecordingButton.IsEnabled = true;
+            StopRecordingButton.IsEnabled = false;
+        });
     }
 
-    private string GetElementDescription(RecordedElement? element)
+    private void UpdateBrowserStatus(bool isOpen)
     {
-        if (element == null) return "Unknown element";
-
-        var parts = new List<string>();
-
-        if (!string.IsNullOrEmpty(element.Id))
+        if (isOpen)
         {
-            parts.Add($"#{element.Id}");
-        }
-        else if (!string.IsNullOrEmpty(element.Name))
-        {
-            parts.Add($"[name={element.Name}]");
-        }
-        else if (!string.IsNullOrEmpty(element.Placeholder))
-        {
-            parts.Add($"\"{element.Placeholder}\"");
-        }
-
-        if (!string.IsNullOrEmpty(element.TagName))
-        {
-            parts.Insert(0, $"<{element.TagName}>");
-        }
-
-        if (parts.Count == 0 && !string.IsNullOrEmpty(element.TextContent))
-        {
-            var text = element.TextContent.Length > 30
-                ? element.TextContent.Substring(0, 30) + "..."
-                : element.TextContent;
-            parts.Add($"\"{text}\"");
-        }
-
-        return parts.Count > 0 ? string.Join(" ", parts) : element.CssSelector ?? "Unknown";
-    }
-
-    private void UpdateStepCount()
-    {
-        StepCountText.Text = $"{_recordedSteps.Count} steps recorded";
-    }
-
-    private async Task InjectRecordingScriptAsync()
-    {
-        if (WebBrowser.CoreWebView2 == null) return;
-
-        try
-        {
-            await WebBrowser.CoreWebView2.ExecuteScriptAsync(RecordingScript);
-            _logger?.LogDebug("Recording script injected");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to inject recording script");
-        }
-    }
-
-    #region Button Handlers
-
-    private async void StartRecordingButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_isRecording) return;
-
-        _isRecording = true;
-        _currentSessionId = Guid.NewGuid().ToString();
-        SaveStateForUndo();
-        _recordedSteps.Clear();
-        _currentTeachingStepIndex = 0;
-
-        // Update UI
-        StartRecordingButton.IsEnabled = false;
-        StopRecordingButton.IsEnabled = true;
-        RecordingIndicator.Visibility = Visibility.Visible;
-        RecordingBorder.Visibility = Visibility.Visible;
-        PlatformComboBox.IsEnabled = false;
-        TaskTypeComboBox.IsEnabled = false;
-        AiSuggestionPanel.Visibility = Visibility.Collapsed;
-
-        // Reset confidence
-        ConfidenceBar.Value = 0;
-        ConfidenceText.Text = "0%";
-
-        // Load AI Teaching Guidelines
-        await LoadTeachingGuidelinesAsync();
-
-        // Inject recording script
-        await InjectRecordingScriptAsync();
-
-        ShowStatus("เริ่มบันทึกการกระทำ กรุณาทำตาม AI Guide...", "info");
-        _logger?.LogInformation("Recording started - Session: {SessionId}", _currentSessionId);
-    }
-
-    private void StopRecordingButton_Click(object sender, RoutedEventArgs e)
-    {
-        StopRecording();
-    }
-
-    private void StopRecording()
-    {
-        if (!_isRecording) return;
-
-        _isRecording = false;
-        _isGuidedTeachingMode = false;
-
-        // Update UI
-        StartRecordingButton.IsEnabled = true;
-        StopRecordingButton.IsEnabled = false;
-        RecordingIndicator.Visibility = Visibility.Collapsed;
-        RecordingBorder.Visibility = Visibility.Collapsed;
-        TeachingGuidelinesPanel.Visibility = Visibility.Collapsed;
-        PlatformComboBox.IsEnabled = true;
-        TaskTypeComboBox.IsEnabled = true;
-
-        _logger?.LogInformation("Recording stopped - {Count} steps recorded", _recordedSteps.Count);
-
-        // Show status and AI suggestions
-        if (_recordedSteps.Count > 0)
-        {
-            var confidence = _recordedSteps.Average(s => s.Confidence);
-            ShowStatus($"บันทึกเสร็จสิ้น! ได้ {_recordedSteps.Count} ขั้นตอน (Confidence: {confidence:P0})", "success");
-            GenerateAiSuggestions();
+            BrowserStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Green
+            BrowserStatusText.Text = "Open";
+            CurrentPageInfo.Visibility = Visibility.Visible;
         }
         else
         {
-            ShowStatus("ยังไม่มีการกระทำที่บันทึกได้", "warning");
+            BrowserStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+            BrowserStatusText.Text = "Not Open";
+            CurrentPageInfo.Visibility = Visibility.Collapsed;
         }
-    }
-
-    private void BackButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (WebBrowser.CoreWebView2?.CanGoBack == true)
-        {
-            WebBrowser.CoreWebView2.GoBack();
-        }
-    }
-
-    private void ForwardButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (WebBrowser.CoreWebView2?.CanGoForward == true)
-        {
-            WebBrowser.CoreWebView2.GoForward();
-        }
-    }
-
-    private void RefreshButton_Click(object sender, RoutedEventArgs e)
-    {
-        WebBrowser.CoreWebView2?.Reload();
-    }
-
-    private void GoButton_Click(object sender, RoutedEventArgs e)
-    {
-        NavigateToUrl();
-    }
-
-    private void UrlTextBox_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            NavigateToUrl();
-        }
-    }
-
-    private void NavigateToUrl()
-    {
-        var url = UrlTextBox.Text.Trim();
-        if (string.IsNullOrEmpty(url)) return;
-
-        // Add http if missing
-        if (!url.StartsWith("http://") && !url.StartsWith("https://"))
-        {
-            url = "https://" + url;
-            UrlTextBox.Text = url;
-        }
-
-        LoadingIndicator.Visibility = Visibility.Visible;
-        WebBrowser.CoreWebView2?.Navigate(url);
-
-        // Add navigation step if recording
-        if (_isRecording)
-        {
-            AddRecordedStep(new RecordedStep
-            {
-                Timestamp = DateTime.UtcNow,
-                Action = "navigate",
-                Value = url,
-                PageUrl = url
-            });
-        }
-    }
-
-    private void ClearStepsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (MessageBox.Show("ต้องการล้าง Steps ทั้งหมดหรือไม่?", "ยืนยัน",
-            MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-        {
-            _recordedSteps.Clear();
-            UpdateStepCount();
-        }
-    }
-
-    private void DeleteStepButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is int index && index >= 0 && index < _recordedSteps.Count)
-        {
-            SaveStateForUndo();
-            _recordedSteps.RemoveAt(index);
-            ReindexSteps();
-            UpdateConfidence();
-            ShowStatus("ลบ Step แล้ว", "info");
-        }
-    }
-
-    private void MoveUpButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is int index && index > 0 && index < _recordedSteps.Count)
-        {
-            SaveStateForUndo();
-            var item = _recordedSteps[index];
-            _recordedSteps.RemoveAt(index);
-            _recordedSteps.Insert(index - 1, item);
-            ReindexSteps();
-        }
-    }
-
-    private void MoveDownButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is int index && index >= 0 && index < _recordedSteps.Count - 1)
-        {
-            SaveStateForUndo();
-            var item = _recordedSteps[index];
-            _recordedSteps.RemoveAt(index);
-            _recordedSteps.Insert(index + 1, item);
-            ReindexSteps();
-        }
-    }
-
-    private void DuplicateStepButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is int index && index >= 0 && index < _recordedSteps.Count)
-        {
-            SaveStateForUndo();
-            var original = _recordedSteps[index];
-            var clone = new RecordedStepViewModel
-            {
-                Index = index + 1,
-                StepNumber = (index + 2).ToString(),
-                Action = original.Action,
-                ActionText = original.ActionText,
-                ActionColor = original.ActionColor,
-                ElementDescription = original.ElementDescription,
-                Value = original.Value,
-                ValueText = original.ValueText,
-                HasValue = original.HasValue,
-                OriginalStep = original.OriginalStep,
-                Confidence = original.Confidence
-            };
-            _recordedSteps.Insert(index + 1, clone);
-            ReindexSteps();
-            ShowStatus($"คัดลอก Step #{original.StepNumber} แล้ว", "success");
-        }
-    }
-
-    private void UndoButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_undoStack.Count == 0) return;
-
-        var currentState = _recordedSteps.ToList();
-        _redoStack.Push(currentState);
-
-        var previousState = _undoStack.Pop();
-        _recordedSteps.Clear();
-        foreach (var step in previousState)
-        {
-            _recordedSteps.Add(step);
-        }
-
-        UpdateUndoRedoButtons();
-        UpdateStepCount();
-        UpdateConfidence();
-    }
-
-    private void RedoButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_redoStack.Count == 0) return;
-
-        var currentState = _recordedSteps.ToList();
-        _undoStack.Push(currentState);
-
-        var nextState = _redoStack.Pop();
-        _recordedSteps.Clear();
-        foreach (var step in nextState)
-        {
-            _recordedSteps.Add(step);
-        }
-
-        UpdateUndoRedoButtons();
-        UpdateStepCount();
-        UpdateConfidence();
-    }
-
-    private void DismissSuggestionButton_Click(object sender, RoutedEventArgs e)
-    {
-        AiSuggestionPanel.Visibility = Visibility.Collapsed;
-    }
-
-    private void DismissStatusButton_Click(object sender, RoutedEventArgs e)
-    {
-        StatusBar.Visibility = Visibility.Collapsed;
-    }
-
-    #region Auto Learning Mode
-
-    private void AutoLearningToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        _isAutoLearningMode = AutoLearningToggle.IsChecked == true;
-
-        if (_isAutoLearningMode)
-        {
-            // Show auto learning panel, hide suggestion panel
-            AutoLearningPanel.Visibility = Visibility.Visible;
-            AiSuggestionPanel.Visibility = Visibility.Collapsed;
-            AiResponsePanel.Visibility = Visibility.Collapsed;
-
-            // Check Ollama status when enabling
-            _ = CheckOllamaStatusAsync();
-
-            // Start page analysis
-            _ = AnalyzeCurrentPageAsync();
-
-            ShowStatus("เปิดโหมด AI Auto-Learning - พิมพ์คำสั่งให้ AI หรือเริ่มบันทึก", "success");
-            _logger?.LogInformation("Auto-Learning mode enabled");
-        }
-        else
-        {
-            AutoLearningPanel.Visibility = Visibility.Collapsed;
-            AiResponsePanel.Visibility = Visibility.Collapsed;
-            ShowStatus("ปิดโหมด Auto-Learning แล้ว", "info");
-            _logger?.LogInformation("Auto-Learning mode disabled");
-        }
-    }
-
-    private async Task AnalyzeCurrentPageAsync()
-    {
-        if (WebBrowser.CoreWebView2 == null) return;
-
-        try
-        {
-            AutoLearningStatusText.Text = "กำลังวิเคราะห์หน้าเว็บ...";
-            AutoLearningProgress.IsIndeterminate = true;
-            DetectedElementsPanel.Children.Clear();
-
-            var url = WebBrowser.CoreWebView2.Source ?? "";
-            var pageHtml = await WebBrowser.CoreWebView2.ExecuteScriptAsync(
-                "document.documentElement.outerHTML");
-
-            // Unescape JSON string
-            pageHtml = System.Text.RegularExpressions.Regex.Unescape(
-                pageHtml.Trim('"'));
-
-            // Detect platform
-            var detectedPlatform = DetectPlatformFromUrl(url);
-            AutoLearningPlatformText.Text = detectedPlatform;
-
-            // Update platform combobox if auto-detected
-            foreach (ComboBoxItem item in PlatformComboBox.Items)
-            {
-                if (item.Tag?.ToString()?.Equals(detectedPlatform, StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    PlatformComboBox.SelectedItem = item;
-                    break;
-                }
-            }
-
-            if (_autoLearningEngine != null)
-            {
-                // Use AutoLearningEngine to analyze
-                _currentSuggestion = await _autoLearningEngine.AnalyzeAndSuggestAsync(
-                    url, pageHtml, null, CancellationToken.None);
-
-                UpdateAutoLearningUI(_currentSuggestion);
-            }
-            else
-            {
-                // Fallback: basic page analysis
-                await PerformBasicPageAnalysisAsync(pageHtml);
-            }
-
-            AutoLearningProgress.IsIndeterminate = false;
-            AutoLearningProgress.Value = 100;
-            AutoLearningStatusText.Text = "วิเคราะห์เสร็จสิ้น";
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to analyze page");
-            AutoLearningStatusText.Text = "เกิดข้อผิดพลาดในการวิเคราะห์";
-            AutoLearningProgress.IsIndeterminate = false;
-        }
-    }
-
-    private void UpdateAutoLearningUI(WorkflowSuggestion suggestion)
-    {
-        if (suggestion == null) return;
-
-        // Update status
-        if (suggestion.Success)
-        {
-            AutoLearningStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-            AutoLearningStatusText.Text = $"พบ {suggestion.ExistingWorkflows.Count} workflow ที่มีอยู่แล้ว";
-
-            if (suggestion.NeedsHumanTeaching)
-            {
-                AutoLearningStatusText.Text += " (แนะนำให้สอน AI)";
-                AutoLearningStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11));
-            }
-        }
-        else
-        {
-            AutoLearningStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-            AutoLearningStatusText.Text = suggestion.Error ?? "ไม่สามารถวิเคราะห์ได้";
-        }
-
-        // Show detected elements
-        DetectedElementsPanel.Children.Clear();
-
-        if (!string.IsNullOrEmpty(suggestion.PageType))
-        {
-            AddDetectedElementTag($"Page: {suggestion.PageType}", "#06B6D4");
-        }
-
-        if (suggestion.ExistingWorkflows.Any())
-        {
-            AddDetectedElementTag($"{suggestion.ExistingWorkflows.Count} Workflows", "#10B981");
-        }
-
-        if (suggestion.SuggestedSteps.Any())
-        {
-            AddDetectedElementTag($"{suggestion.SuggestedSteps.Count} Steps", "#8B5CF6");
-        }
-
-        if (suggestion.Confidence >= 0.8)
-        {
-            AddDetectedElementTag($"High Confidence", "#10B981");
-        }
-        else if (suggestion.Confidence >= 0.5)
-        {
-            AddDetectedElementTag($"Medium Confidence", "#F59E0B");
-        }
-        else
-        {
-            AddDetectedElementTag($"Low Confidence", "#EF4444");
-        }
-    }
-
-    private async Task PerformBasicPageAnalysisAsync(string pageHtml)
-    {
-        // Basic analysis without AutoLearningEngine
-        DetectedElementsPanel.Children.Clear();
-
-        // Count elements
-        var buttonCount = System.Text.RegularExpressions.Regex.Matches(
-            pageHtml, "<button", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
-        var inputCount = System.Text.RegularExpressions.Regex.Matches(
-            pageHtml, "<input", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
-        var formCount = System.Text.RegularExpressions.Regex.Matches(
-            pageHtml, "<form", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
-
-        if (buttonCount > 0) AddDetectedElementTag($"{buttonCount} Buttons", "#4CAF50");
-        if (inputCount > 0) AddDetectedElementTag($"{inputCount} Inputs", "#2196F3");
-        if (formCount > 0) AddDetectedElementTag($"{formCount} Forms", "#FF9800");
-
-        // Detect page type
-        var pageType = "Unknown";
-        if (pageHtml.Contains("login", StringComparison.OrdinalIgnoreCase) ||
-            pageHtml.Contains("password", StringComparison.OrdinalIgnoreCase))
-        {
-            pageType = "Login";
-        }
-        else if (pageHtml.Contains("compose", StringComparison.OrdinalIgnoreCase) ||
-                 pageHtml.Contains("create post", StringComparison.OrdinalIgnoreCase))
-        {
-            pageType = "Compose";
-        }
-        else if (pageHtml.Contains("feed", StringComparison.OrdinalIgnoreCase) ||
-                 pageHtml.Contains("timeline", StringComparison.OrdinalIgnoreCase))
-        {
-            pageType = "Feed";
-        }
-
-        AddDetectedElementTag($"Page: {pageType}", "#06B6D4");
-        AutoLearningStatusText.Text = $"พบ {buttonCount} buttons, {inputCount} inputs";
-
-        await Task.CompletedTask;
-    }
-
-    private void AddDetectedElementTag(string text, string colorHex)
-    {
-        var color = (Color)ColorConverter.ConvertFromString(colorHex);
-        var border = new Border
-        {
-            Background = new SolidColorBrush(Color.FromArgb(40, color.R, color.G, color.B)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(80, color.R, color.G, color.B)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(8, 4, 8, 4),
-            Margin = new Thickness(0, 0, 6, 6)
-        };
-
-        var textBlock = new TextBlock
-        {
-            Text = text,
-            Foreground = new SolidColorBrush(color),
-            FontSize = 10,
-            FontWeight = FontWeights.SemiBold
-        };
-
-        border.Child = textBlock;
-        DetectedElementsPanel.Children.Add(border);
     }
 
     private string DetectPlatformFromUrl(string url)
     {
         url = url.ToLowerInvariant();
-
         if (url.Contains("facebook.com") || url.Contains("fb.com")) return "Facebook";
         if (url.Contains("instagram.com")) return "Instagram";
         if (url.Contains("tiktok.com")) return "TikTok";
         if (url.Contains("twitter.com") || url.Contains("x.com")) return "Twitter";
         if (url.Contains("youtube.com") || url.Contains("youtu.be")) return "YouTube";
-        if (url.Contains("line.me") || url.Contains("lineblog")) return "LINE";
+        if (url.Contains("line.me")) return "LINE";
         if (url.Contains("threads.net")) return "Threads";
         if (url.Contains("linkedin.com")) return "LinkedIn";
         if (url.Contains("pinterest.com")) return "Pinterest";
-
         return "Custom";
-    }
-
-    private async void GenerateWorkflowButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_autoLearningEngine == null)
-        {
-            MessageBox.Show("AutoLearningEngine ไม่พร้อมใช้งาน", "แจ้งเตือน",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        try
-        {
-            GenerateWorkflowButton.IsEnabled = false;
-            AutoLearningStatusText.Text = "กำลังสร้าง Workflow อัตโนมัติ...";
-            AutoLearningProgress.IsIndeterminate = true;
-
-            var url = WebBrowser.CoreWebView2?.Source ?? "";
-            var pageHtml = await WebBrowser.CoreWebView2!.ExecuteScriptAsync(
-                "document.documentElement.outerHTML");
-            pageHtml = System.Text.RegularExpressions.Regex.Unescape(pageHtml.Trim('"'));
-
-            var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Custom";
-            var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "post";
-
-            var workflow = await _autoLearningEngine.GenerateWorkflowForNewPlatformAsync(
-                platform, taskType, pageHtml, null, CancellationToken.None);
-
-            if (workflow != null)
-            {
-                // Populate recorded steps from generated workflow
-                _recordedSteps.Clear();
-                foreach (var step in workflow.Steps)
-                {
-                    var viewModel = new RecordedStepViewModel
-                    {
-                        Index = step.Order,
-                        StepNumber = (step.Order + 1).ToString(),
-                        Action = step.Action.ToString().ToLower(),
-                        ActionText = GetActionText(step.Action.ToString().ToLower()),
-                        ActionColor = GetActionColor(step.Action.ToString().ToLower()),
-                        ElementDescription = step.Description ?? step.Selector.AIDescription ?? "Unknown",
-                        Value = step.InputValue,
-                        ValueText = !string.IsNullOrEmpty(step.InputValue) ? $"Value: {step.InputValue}" : null,
-                        HasValue = !string.IsNullOrEmpty(step.InputValue),
-                        Confidence = step.ConfidenceScore
-                    };
-                    _recordedSteps.Add(viewModel);
-                }
-
-                UpdateStepCount();
-                UpdateConfidence();
-
-                // Set workflow name
-                WorkflowNameTextBox.Text = $"{platform} {taskType} (Auto-generated)";
-                WorkflowDescriptionTextBox.Text = $"AI-generated workflow for {platform}. " +
-                    $"Confidence: {workflow.ConfidenceScore:P0}. Please review and test before saving.";
-
-                ShowStatus($"สร้าง Workflow อัตโนมัติสำเร็จ! มี {workflow.Steps.Count} steps", "success");
-                AutoLearningStatusText.Text = "สร้าง Workflow สำเร็จ - กรุณาตรวจสอบก่อนบันทึก";
-            }
-            else
-            {
-                ShowStatus("ไม่สามารถสร้าง Workflow ได้ ลองสอน AI ด้วยการบันทึกแทน", "warning");
-                AutoLearningStatusText.Text = "ไม่พบ patterns ที่เพียงพอ";
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to generate workflow");
-            ShowStatus($"เกิดข้อผิดพลาด: {ex.Message}", "error");
-            AutoLearningStatusText.Text = "เกิดข้อผิดพลาด";
-        }
-        finally
-        {
-            GenerateWorkflowButton.IsEnabled = true;
-            AutoLearningProgress.IsIndeterminate = false;
-        }
-    }
-
-    private async void TransferLearningButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_autoLearningEngine == null || _workflowStorage == null)
-        {
-            MessageBox.Show("Services ไม่พร้อมใช้งาน", "แจ้งเตือน",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        try
-        {
-            // Get existing workflows to transfer from
-            var workflows = await _workflowStorage.GetAllWorkflowsAsync(CancellationToken.None);
-            var humanTrainedWorkflows = workflows
-                .Where(w => w.IsHumanTrained && w.IsActive)
-                .OrderByDescending(w => w.GetSuccessRate())
-                .Take(5)
-                .ToList();
-
-            if (!humanTrainedWorkflows.Any())
-            {
-                MessageBox.Show("ยังไม่มี Workflow ที่มนุษย์สอนไว้\n\n" +
-                    "กรุณาบันทึก workflow อย่างน้อย 1 รายการก่อนใช้ Transfer Learning",
-                    "แจ้งเตือน", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var workflowNames = string.Join("\n", humanTrainedWorkflows.Select(w =>
-                $"• {w.Platform}: {w.Name} ({w.GetSuccessRate():P0} success)"));
-
-            var result = MessageBox.Show(
-                $"พบ {humanTrainedWorkflows.Count} workflows ที่สามารถ transfer ได้:\n\n" +
-                $"{workflowNames}\n\n" +
-                "ต้องการ transfer learning จาก workflow ที่ดีที่สุดหรือไม่?",
-                "Transfer Learning",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                TransferLearningButton.IsEnabled = false;
-                AutoLearningStatusText.Text = "กำลัง Transfer Learning...";
-                AutoLearningProgress.IsIndeterminate = true;
-
-                var sourceWorkflow = humanTrainedWorkflows.First();
-                var targetPlatform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Custom";
-
-                var pageHtml = await WebBrowser.CoreWebView2!.ExecuteScriptAsync(
-                    "document.documentElement.outerHTML");
-                pageHtml = System.Text.RegularExpressions.Regex.Unescape(pageHtml.Trim('"'));
-
-                var transferredWorkflow = await _autoLearningEngine.TransferWorkflowAsync(
-                    sourceWorkflow.Id, targetPlatform, pageHtml, CancellationToken.None);
-
-                if (transferredWorkflow != null)
-                {
-                    // Show transferred workflow
-                    _recordedSteps.Clear();
-                    foreach (var step in transferredWorkflow.Steps)
-                    {
-                        var viewModel = new RecordedStepViewModel
-                        {
-                            Index = step.Order,
-                            StepNumber = (step.Order + 1).ToString(),
-                            Action = step.Action.ToString().ToLower(),
-                            ActionText = GetActionText(step.Action.ToString().ToLower()),
-                            ActionColor = GetActionColor(step.Action.ToString().ToLower()),
-                            ElementDescription = step.Description ?? "Unknown",
-                            Confidence = step.ConfidenceScore
-                        };
-                        _recordedSteps.Add(viewModel);
-                    }
-
-                    UpdateStepCount();
-                    UpdateConfidence();
-
-                    WorkflowNameTextBox.Text = $"{targetPlatform} {sourceWorkflow.Name} (Transferred)";
-                    WorkflowDescriptionTextBox.Text = $"Transferred from {sourceWorkflow.Platform}. " +
-                        $"Original confidence: {sourceWorkflow.ConfidenceScore:P0}";
-
-                    ShowStatus($"Transfer Learning สำเร็จ! {transferredWorkflow.Steps.Count} steps", "success");
-                }
-                else
-                {
-                    ShowStatus("ไม่สามารถ transfer ได้ - platforms อาจแตกต่างกันเกินไป", "warning");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to transfer learning");
-            ShowStatus($"เกิดข้อผิดพลาด: {ex.Message}", "error");
-        }
-        finally
-        {
-            TransferLearningButton.IsEnabled = true;
-            AutoLearningProgress.IsIndeterminate = false;
-            AutoLearningStatusText.Text = "พร้อมใช้งาน";
-        }
     }
 
     #endregion
 
-    #region AI Command Prompt (Ollama Integration)
+    #region Recording Controls
+
+    private async void StartRecordingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_webViewWindow == null || !_webViewWindow.IsLoaded)
+        {
+            OpenOrFocusWebViewWindow();
+            await Task.Delay(1000); // Wait for window to load
+        }
+
+        if (_webViewWindow != null)
+        {
+            SaveStateForUndo();
+            _recordedSteps.Clear();
+            await _webViewWindow.StartRecordingAsync();
+            _isRecording = true;
+            StartRecordingButton.IsEnabled = false;
+            StopRecordingButton.IsEnabled = true;
+            _logger?.LogInformation("Recording started");
+        }
+    }
+
+    private void StopRecordingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_webViewWindow != null && _webViewWindow.IsRecording)
+        {
+            _webViewWindow.StopRecording();
+        }
+
+        _isRecording = false;
+        StartRecordingButton.IsEnabled = true;
+        StopRecordingButton.IsEnabled = false;
+        _logger?.LogInformation("Recording stopped - {Count} steps recorded", _recordedSteps.Count);
+    }
+
+    private void AddRecordedStep(WebViewStepEventArgs e)
+    {
+        var confidence = CalculateStepConfidence(e.Selector);
+        var viewModel = new RecordedStepViewModel
+        {
+            Index = _recordedSteps.Count,
+            StepNumber = (_recordedSteps.Count + 1).ToString(),
+            Action = e.Action,
+            ActionText = GetActionText(e.Action),
+            ActionColor = GetActionColor(e.Action),
+            ElementDescription = GetElementDescription(e),
+            Value = e.Value,
+            ValueText = !string.IsNullOrEmpty(e.Value) ? $"Value: {e.Value}" : null,
+            HasValue = !string.IsNullOrEmpty(e.Value),
+            Confidence = confidence,
+            Selector = e.Selector,
+            TagName = e.TagName,
+            Text = e.Text
+        };
+
+        _recordedSteps.Add(viewModel);
+        UpdateStepCount();
+        _redoStack.Clear();
+        UpdateUndoRedoButtons();
+
+        _logger?.LogDebug("Step recorded: {Action} on {Element}", e.Action, e.Selector);
+    }
+
+    #endregion
+
+    #region AI Command (Ollama)
 
     private async void AiPromptTextBox_KeyDown(object sender, KeyEventArgs e)
     {
@@ -1113,61 +317,46 @@ public partial class WebLearningPage : Page
 
         try
         {
-            // Disable button and show loading
             SendAiPromptButton.IsEnabled = false;
-            OllamaStatusText.Text = "กำลังประมวลผล...";
+            OllamaStatusText.Text = "Processing...";
             OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow
 
-            // Get current page context
-            var pageContext = await GetPageContextAsync();
+            var pageContext = _webViewWindow != null ? await _webViewWindow.GetPageContextAsync() : "";
             var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Custom";
             var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
 
-            // Build the prompt with context
             var fullPrompt = BuildOllamaPrompt(prompt, platform, taskType, pageContext);
-
-            // Send to Ollama
             var response = await SendToOllamaAsync(fullPrompt);
 
             if (!string.IsNullOrEmpty(response))
             {
-                _lastAiResponse = response;
                 ShowAiResponse(response);
                 OllamaStatusText.Text = "Ollama Ready";
-                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Green
-
-                // Clear prompt input
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
                 AiPromptTextBox.Clear();
-
-                _logger?.LogInformation("AI Prompt processed: {Prompt}", prompt);
             }
             else
             {
-                ShowStatus("ไม่ได้รับคำตอบจาก AI กรุณาลองใหม่", "warning");
                 OllamaStatusText.Text = "No response";
-                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
             }
         }
         catch (TimeoutException ex)
         {
-            _logger?.LogWarning(ex, "Ollama request timed out");
-            ShowStatus(ex.Message, "warning");
+            _logger?.LogWarning(ex, "Ollama timeout");
             OllamaStatusText.Text = "Timeout";
-            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow - recoverable
+            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11));
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
-            _logger?.LogError(ex, "Failed to connect to Ollama");
-            ShowStatus("ไม่สามารถเชื่อมต่อ Ollama ได้ - รัน 'ollama serve' ใน Terminal", "error");
             OllamaStatusText.Text = "Offline";
-            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error processing AI prompt");
-            ShowStatus($"เกิดข้อผิดพลาด: {ex.Message}", "error");
+            _logger?.LogError(ex, "AI prompt error");
             OllamaStatusText.Text = "Error";
-            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+            OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
         }
         finally
         {
@@ -1175,55 +364,14 @@ public partial class WebLearningPage : Page
         }
     }
 
-    private async Task<string> GetPageContextAsync()
-    {
-        if (WebBrowser.CoreWebView2 == null) return "";
-
-        try
-        {
-            // Get basic page info
-            var titleScript = "document.title";
-            var title = await WebBrowser.CoreWebView2.ExecuteScriptAsync(titleScript);
-            title = title.Trim('"');
-
-            // Get interactive elements summary
-            var elementsScript = @"
-                (function() {
-                    var buttons = document.querySelectorAll('button, [role=""button""]');
-                    var inputs = document.querySelectorAll('input, textarea');
-                    var links = document.querySelectorAll('a[href]');
-                    return JSON.stringify({
-                        buttonCount: buttons.length,
-                        inputCount: inputs.length,
-                        linkCount: links.length,
-                        buttons: Array.from(buttons).slice(0, 10).map(b => b.textContent?.trim().substring(0, 50) || b.getAttribute('aria-label') || 'Unknown'),
-                        inputs: Array.from(inputs).slice(0, 10).map(i => i.placeholder || i.name || i.type || 'Unknown')
-                    });
-                })();
-            ";
-            var elementsJson = await WebBrowser.CoreWebView2.ExecuteScriptAsync(elementsScript);
-            elementsJson = System.Text.RegularExpressions.Regex.Unescape(elementsJson.Trim('"'));
-
-            var url = WebBrowser.CoreWebView2.Source ?? "";
-
-            return $"Page: {title}\nURL: {url}\nElements: {elementsJson}";
-        }
-        catch
-        {
-            return "";
-        }
-    }
-
     private string BuildOllamaPrompt(string userPrompt, string platform, string taskType, string pageContext)
     {
-        // Use compact SystemKnowledge for Ollama (faster, less tokens)
         var systemPrompt = SystemKnowledge.GetCompactAISystemPrompt(platform, taskType, pageContext);
-
         return $@"{systemPrompt}
 
-คำถาม: {userPrompt}
+Question: {userPrompt}
 
-คำตอบ:";
+Answer:";
     }
 
     private async Task<string> SendToOllamaAsync(string prompt)
@@ -1233,32 +381,25 @@ public partial class WebLearningPage : Page
             model = OllamaModel,
             prompt = prompt,
             stream = false,
-            options = new
-            {
-                temperature = 0.7,
-                num_predict = 500
-            }
+            options = new { temperature = 0.7, num_predict = 500 }
         };
 
         var json = JsonConvert.SerializeObject(requestBody);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        // Set timeout for generation (60 seconds - Ollama can be slow)
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 
         try
         {
             var response = await _httpClient.PostAsync($"{OllamaBaseUrl}/api/generate", content, cts.Token);
             response.EnsureSuccessStatusCode();
-
             var responseJson = await response.Content.ReadAsStringAsync();
             var responseObj = JsonConvert.DeserializeObject<OllamaResponse>(responseJson);
-
             return responseObj?.Response ?? "";
         }
         catch (TaskCanceledException)
         {
-            throw new TimeoutException("Ollama ใช้เวลานานเกินไป (60 วินาที) - ลองใช้คำถามสั้นลง");
+            throw new TimeoutException("Ollama timeout (60s)");
         }
     }
 
@@ -1266,16 +407,6 @@ public partial class WebLearningPage : Page
     {
         AiResponseText.Text = response;
         AiResponsePanel.Visibility = Visibility.Visible;
-
-        // Check if response contains actionable suggestions
-        if (response.Contains("คลิก") || response.Contains("กรอก") || response.Contains("ขั้นตอน"))
-        {
-            AiResponseActions.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            AiResponseActions.Visibility = Visibility.Collapsed;
-        }
     }
 
     private void DismissAiResponseButton_Click(object sender, RoutedEventArgs e)
@@ -1283,133 +414,18 @@ public partial class WebLearningPage : Page
         AiResponsePanel.Visibility = Visibility.Collapsed;
     }
 
-    private void ApplyAiSuggestionButton_Click(object sender, RoutedEventArgs e)
+    private void OllamaStatus_Click(object sender, MouseButtonEventArgs e)
     {
-        if (string.IsNullOrEmpty(_lastAiResponse))
-        {
-            ShowStatus("ไม่มีคำแนะนำให้นำไปใช้", "warning");
-            return;
-        }
-
-        // If auto learning is enabled, start recording based on AI suggestion
-        if (_isAutoLearningMode && !_isRecording)
-        {
-            StartRecordingButton_Click(sender, e);
-            ShowStatus("เริ่มบันทึกตาม AI แนะนำ - ทำตามขั้นตอนที่ AI บอก", "success");
-        }
-        else
-        {
-            ShowStatus("นำคำแนะนำ AI ไปใช้แล้ว - กรุณาทำตามขั้นตอน", "info");
-        }
-
-        // Parse AI response and potentially generate teaching steps
-        _ = GenerateTeachingStepsFromAiResponseAsync(_lastAiResponse);
-
-        AiResponsePanel.Visibility = Visibility.Collapsed;
-    }
-
-    private async void TeachMeButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (string.IsNullOrEmpty(_lastAiResponse)) return;
-
-        // Ask AI for more detailed step-by-step instructions
-        var followUpPrompt = "กรุณาอธิบายขั้นตอนโดยละเอียดมากขึ้น โดยระบุ:\n1. element ที่ต้องคลิกหรือกรอก\n2. selector ที่ใช้หาได้ (CSS หรือ XPath)\n3. ข้อความหรือค่าที่ต้องกรอก\n4. เวลาที่ต้องรอหลังแต่ละขั้นตอน";
-
-        AiPromptTextBox.Text = followUpPrompt;
-        await SendAiPromptAsync();
-    }
-
-    private void VoiceInputButton_Click(object sender, RoutedEventArgs e)
-    {
-        MessageBox.Show("Voice Input จะพร้อมใช้งานในเวอร์ชันถัดไป",
-            "Coming Soon", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private void OllamaStatus_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        // Show troubleshooting guide when status is clicked
         var statusText = OllamaStatusText.Text;
         if (statusText.Contains("Offline") || statusText.Contains("Error") || statusText.Contains("Timeout"))
         {
             var guide = SystemKnowledge.GetOllamaTroubleshootingGuide();
-            MessageBox.Show(guide, "วิธีแก้ไข Ollama", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        else if (statusText.Contains("No models"))
-        {
-            MessageBox.Show($"กรุณาติดตั้ง model โดยเปิด Terminal แล้วรัน:\n\nollama pull {OllamaModel}\n\nรอจนเสร็จแล้วกดปุ่ม Refresh",
-                "ติดตั้ง Model", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(guide, "Ollama Troubleshooting", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         else
         {
-            MessageBox.Show($"Ollama พร้อมใช้งานแล้ว!\n\nModel: {OllamaModel}\nEndpoint: {OllamaBaseUrl}\n\nลองพิมพ์คำสั่งในช่อง AI Command เช่น:\n- 'สอนวิธีโพสต์รูปบน Facebook'\n- 'ช่วยหาปุ่ม Login'\n- 'อธิบายระบบ PostXAgent'",
+            MessageBox.Show($"Ollama is ready!\n\nModel: {OllamaModel}\nEndpoint: {OllamaBaseUrl}",
                 "Ollama Status", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-    }
-
-    private async void RefreshOllamaStatus_Click(object sender, RoutedEventArgs e)
-    {
-        OllamaStatusText.Text = "Checking...";
-        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow
-        await CheckOllamaStatusAsync();
-    }
-
-    private async Task GenerateTeachingStepsFromAiResponseAsync(string response)
-    {
-        // Try to parse AI response into teaching steps
-        _teachingSteps.Clear();
-
-        // Simple parsing - look for numbered steps or keywords
-        var lines = response.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var stepNumber = 1;
-
-        foreach (var line in lines)
-        {
-            var trimmedLine = line.Trim();
-            if (string.IsNullOrEmpty(trimmedLine)) continue;
-
-            // Check if line looks like a step (starts with number or bullet)
-            if (trimmedLine.StartsWith($"{stepNumber}.") ||
-                trimmedLine.StartsWith($"{stepNumber})") ||
-                trimmedLine.StartsWith("•") ||
-                trimmedLine.StartsWith("-") ||
-                trimmedLine.Contains("คลิก") ||
-                trimmedLine.Contains("กรอก") ||
-                trimmedLine.Contains("เลือก") ||
-                trimmedLine.Contains("อัพโหลด"))
-            {
-                // Determine action type
-                var action = "click";
-                if (trimmedLine.Contains("กรอก") || trimmedLine.Contains("พิมพ์") || trimmedLine.Contains("ใส่"))
-                    action = "type";
-                else if (trimmedLine.Contains("อัพโหลด"))
-                    action = "upload";
-                else if (trimmedLine.Contains("เลือก"))
-                    action = "select";
-
-                _teachingSteps.Add(new TeachingStepViewModel
-                {
-                    StepNumber = stepNumber,
-                    ActionType = action.ToUpper(),
-                    ActionColor = GetActionColor(action),
-                    DescriptionThai = trimmedLine.TrimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ')', '•', '-', ' '),
-                    Description = $"Step {stepNumber}",
-                    IsCurrent = stepNumber == 1,
-                    IsCompleted = false
-                });
-
-                stepNumber++;
-
-                if (stepNumber > 10) break; // Limit to 10 steps
-            }
-        }
-
-        if (_teachingSteps.Any())
-        {
-            _isGuidedTeachingMode = true;
-            _currentTeachingStepIndex = 0;
-            TeachingGuidelinesPanel.Visibility = Visibility.Visible;
-            TeachingGuideSubtitle.Text = "ทำตามขั้นตอนที่ AI แนะนำ";
-            UpdateTeachingProgress();
         }
     }
 
@@ -1417,7 +433,6 @@ public partial class WebLearningPage : Page
     {
         try
         {
-            // Set timeout for quick check
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var response = await _httpClient.GetAsync($"{OllamaBaseUrl}/api/tags", cts.Token);
 
@@ -1430,316 +445,92 @@ public partial class WebLearningPage : Page
                 {
                     if (hasModels)
                     {
-                        OllamaStatusText.Text = $"Ollama Ready ({OllamaModel})";
-                        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Green
+                        OllamaStatusText.Text = $"Ollama Ready";
+                        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
                     }
                     else
                     {
-                        OllamaStatusText.Text = "Ollama: No models";
-                        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Yellow
-                        ShowStatus($"กรุณาติดตั้ง model: ollama pull {OllamaModel}", "warning");
+                        OllamaStatusText.Text = "No models";
+                        OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(245, 158, 11));
                     }
                 });
             }
-            else
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    OllamaStatusText.Text = "Ollama Error";
-                    OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
-                });
-            }
         }
-        catch (TaskCanceledException)
+        catch
         {
             Dispatcher.Invoke(() =>
             {
-                OllamaStatusText.Text = "Ollama Timeout";
-                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
-                ShowStatus("Ollama ไม่ตอบสนอง - กรุณาตรวจสอบว่า Ollama กำลังทำงานอยู่", "error");
-            });
-        }
-        catch (HttpRequestException)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                OllamaStatusText.Text = "Ollama Offline";
-                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
-                ShowStatus("ไม่สามารถเชื่อมต่อ Ollama ได้ - รัน 'ollama serve' ใน Terminal", "error");
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error checking Ollama status");
-            Dispatcher.Invoke(() =>
-            {
-                OllamaStatusText.Text = "Ollama Error";
-                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+                OllamaStatusText.Text = "Offline";
+                OllamaStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
             });
         }
     }
 
     #endregion
 
-    #region AI Guided Teaching
+    #region Steps Management
 
-    private async Task LoadTeachingGuidelinesAsync()
+    private void UpdateStepCount()
     {
-        var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
-        var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "post";
+        StepCountText.Text = $"{_recordedSteps.Count} steps recorded";
+    }
 
-        _teachingSteps.Clear();
-        _currentTeachingStepIndex = 0;
+    private void ClearStepsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_recordedSteps.Count == 0) return;
 
-        if (_aiGuidedTeacher != null)
+        if (MessageBox.Show("Clear all recorded steps?", "Confirm",
+            MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
         {
-            try
-            {
-                var url = WebBrowser.CoreWebView2?.Source ?? "";
-                var pageHtml = await WebBrowser.CoreWebView2!.ExecuteScriptAsync(
-                    "document.documentElement.outerHTML");
-                pageHtml = System.Text.RegularExpressions.Regex.Unescape(pageHtml.Trim('"'));
-
-                _currentGuideline = await _aiGuidedTeacher.GenerateTeachingGuidelineAsync(
-                    platform, taskType, pageHtml, url, null, CancellationToken.None);
-
-                if (_currentGuideline != null && _currentGuideline.Steps.Any())
-                {
-                    _isGuidedTeachingMode = true;
-
-                    // Populate teaching steps
-                    foreach (var step in _currentGuideline.Steps)
-                    {
-                        _teachingSteps.Add(new TeachingStepViewModel
-                        {
-                            StepNumber = step.StepNumber,
-                            ActionType = step.Action.ToUpper(),
-                            ActionColor = GetActionColor(step.Action),
-                            Description = step.Description,
-                            DescriptionThai = step.DescriptionThai,
-                            ElementHint = step.ElementHint,
-                            InputHint = step.InputHint,
-                            IsOptional = step.IsOptional,
-                            IsOptionalText = "(ข้ามได้)",
-                            IsCurrent = step.StepNumber == 1,
-                            IsCompleted = false,
-                            HasElementHint = !string.IsNullOrEmpty(step.ElementHint),
-                            HasInputHint = !string.IsNullOrEmpty(step.InputHint)
-                        });
-                    }
-
-                    // Update UI
-                    TeachingGuidelinesPanel.Visibility = Visibility.Visible;
-                    TeachingGuideSubtitle.Text = $"ทำตามขั้นตอนเพื่อสอน AI สร้าง {taskType} workflow";
-                    UpdateTeachingProgress();
-
-                    _logger?.LogInformation("Teaching guideline loaded: {Platform} {TaskType} with {Steps} steps",
-                        platform, taskType, _currentGuideline.Steps.Count);
-                }
-                else
-                {
-                    // No guideline available - show basic mode message
-                    _isGuidedTeachingMode = false;
-                    TeachingGuidelinesPanel.Visibility = Visibility.Collapsed;
-                    ShowStatus("ไม่พบ template สำหรับ platform นี้ - บันทึกอิสระ", "info");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to load teaching guideline");
-                _isGuidedTeachingMode = false;
-                TeachingGuidelinesPanel.Visibility = Visibility.Collapsed;
-            }
-        }
-        else
-        {
-            // AI Teacher not available - use fallback templates
-            LoadFallbackTeachingGuideline(platform, taskType);
+            SaveStateForUndo();
+            _recordedSteps.Clear();
+            UpdateStepCount();
         }
     }
 
-    private void LoadFallbackTeachingGuideline(string platform, string taskType)
+    private void DeleteStepButton_Click(object sender, RoutedEventArgs e)
     {
-        // Basic fallback template for common task types
-        var steps = new List<TeachingStepViewModel>();
-
-        switch (taskType.ToLower())
+        if (sender is Button btn && btn.Tag is int index && index >= 0 && index < _recordedSteps.Count)
         {
-            case "post":
-                steps.Add(CreateTeachingStep(1, "click", "คลิกปุ่มสร้างโพสต์", "Click create post button", "Look for 'Create Post', 'What's on your mind?' or '+' button"));
-                steps.Add(CreateTeachingStep(2, "type", "พิมพ์เนื้อหาโพสต์", "Type post content", "Text input area", "[POST_CONTENT]"));
-                steps.Add(CreateTeachingStep(3, "upload", "อัพโหลดรูปภาพ (ถ้ามี)", "Upload image (optional)", "Photo/Media button", isOptional: true));
-                steps.Add(CreateTeachingStep(4, "click", "คลิกปุ่มโพสต์", "Click post/submit button", "Post, Share, or Submit button"));
-                break;
-
-            case "login":
-                steps.Add(CreateTeachingStep(1, "type", "กรอกอีเมลหรือชื่อผู้ใช้", "Enter email or username", "Email/Username input", "[EMAIL]"));
-                steps.Add(CreateTeachingStep(2, "type", "กรอกรหัสผ่าน", "Enter password", "Password input", "[PASSWORD]"));
-                steps.Add(CreateTeachingStep(3, "click", "คลิกปุ่มเข้าสู่ระบบ", "Click login button", "Login, Sign in, or Submit button"));
-                break;
-
-            case "upload":
-                steps.Add(CreateTeachingStep(1, "click", "คลิกปุ่มอัพโหลด", "Click upload button", "Upload, +, or Add media button"));
-                steps.Add(CreateTeachingStep(2, "upload", "เลือกไฟล์ที่ต้องการอัพโหลด", "Select file to upload", "File input"));
-                steps.Add(CreateTeachingStep(3, "type", "เพิ่มคำอธิบาย (ถ้ามี)", "Add description (optional)", "Caption or description input", isOptional: true));
-                steps.Add(CreateTeachingStep(4, "click", "คลิกปุ่มยืนยัน", "Click confirm button", "Post, Share, or Upload button"));
-                break;
-
-            default:
-                // Generic steps
-                steps.Add(CreateTeachingStep(1, "click", "คลิก element แรก", "Click first element", "Target element"));
-                steps.Add(CreateTeachingStep(2, "type", "กรอกข้อมูล (ถ้ามี)", "Enter data (if any)", "Input field", isOptional: true));
-                steps.Add(CreateTeachingStep(3, "click", "คลิกปุ่มยืนยัน", "Click confirm", "Submit button"));
-                break;
-        }
-
-        _teachingSteps.Clear();
-        foreach (var step in steps)
-        {
-            _teachingSteps.Add(step);
-        }
-
-        if (steps.Any())
-        {
-            _isGuidedTeachingMode = true;
-            _teachingSteps[0].IsCurrent = true;
-            TeachingGuidelinesPanel.Visibility = Visibility.Visible;
-            TeachingGuideSubtitle.Text = $"ทำตามขั้นตอนเพื่อสอน AI สร้าง {taskType} workflow";
-            UpdateTeachingProgress();
+            SaveStateForUndo();
+            _recordedSteps.RemoveAt(index);
+            ReindexSteps();
         }
     }
 
-    private TeachingStepViewModel CreateTeachingStep(int number, string action, string thaiDesc, string engDesc,
-        string elementHint, string? inputHint = null, bool isOptional = false)
+    private void UndoButton_Click(object sender, RoutedEventArgs e)
     {
-        return new TeachingStepViewModel
+        if (_undoStack.Count == 0) return;
+
+        _redoStack.Push(_recordedSteps.ToList());
+        var previousState = _undoStack.Pop();
+
+        _recordedSteps.Clear();
+        foreach (var step in previousState)
         {
-            StepNumber = number,
-            ActionType = action.ToUpper(),
-            ActionColor = GetActionColor(action),
-            Description = engDesc,
-            DescriptionThai = thaiDesc,
-            ElementHint = elementHint,
-            InputHint = inputHint,
-            IsOptional = isOptional,
-            IsOptionalText = "(ข้ามได้)",
-            IsCurrent = false,
-            IsCompleted = false,
-            HasElementHint = !string.IsNullOrEmpty(elementHint),
-            HasInputHint = !string.IsNullOrEmpty(inputHint)
-        };
+            _recordedSteps.Add(step);
+        }
+
+        UpdateUndoRedoButtons();
+        UpdateStepCount();
     }
 
-    private void ValidateTeachingStep(RecordedStep recordedStep)
+    private void RedoButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_currentTeachingStepIndex >= _teachingSteps.Count) return;
+        if (_redoStack.Count == 0) return;
 
-        var currentStep = _teachingSteps[_currentTeachingStepIndex];
-        var expectedAction = currentStep.ActionType.ToLower();
-        var actualAction = recordedStep.Action?.ToLower() ?? "";
+        _undoStack.Push(_recordedSteps.ToList());
+        var nextState = _redoStack.Pop();
 
-        // Check if action matches (with some flexibility)
-        var isMatch = actualAction == expectedAction ||
-                      (expectedAction == "click" && (actualAction == "click" || actualAction == "submit")) ||
-                      (expectedAction == "type" && actualAction == "type") ||
-                      (expectedAction == "upload" && (actualAction == "upload" || actualAction == "change"));
-
-        if (isMatch)
+        _recordedSteps.Clear();
+        foreach (var step in nextState)
         {
-            // Mark current step as completed
-            currentStep.IsCompleted = true;
-            currentStep.IsCurrent = false;
-
-            // Show success feedback
-            ShowValidationFeedback(true, $"ขั้นตอนที่ {currentStep.StepNumber} ถูกต้อง!");
-
-            // Move to next step
-            _currentTeachingStepIndex++;
-            if (_currentTeachingStepIndex < _teachingSteps.Count)
-            {
-                _teachingSteps[_currentTeachingStepIndex].IsCurrent = true;
-            }
-
-            UpdateTeachingProgress();
-
-            // Check if all steps completed
-            if (_currentTeachingStepIndex >= _teachingSteps.Count)
-            {
-                ShowStatus("สอน AI เสร็จสมบูรณ์! กรุณาตั้งชื่อและบันทึก Workflow", "success");
-            }
-        }
-        else if (!currentStep.IsOptional)
-        {
-            // Wrong action for non-optional step
-            ShowValidationFeedback(false, $"คาดหวัง: {currentStep.ActionType} - แต่ได้: {actualAction.ToUpper()}");
-        }
-        // If optional step doesn't match, skip it silently
-        else
-        {
-            // Skip optional step if action doesn't match
-            currentStep.IsCurrent = false;
-            _currentTeachingStepIndex++;
-            if (_currentTeachingStepIndex < _teachingSteps.Count)
-            {
-                _teachingSteps[_currentTeachingStepIndex].IsCurrent = true;
-            }
-            UpdateTeachingProgress();
-
-            // Re-validate against new current step
-            ValidateTeachingStep(recordedStep);
+            _recordedSteps.Add(step);
         }
 
-        // Refresh the items control
-        TeachingStepsControl.Items.Refresh();
+        UpdateUndoRedoButtons();
+        UpdateStepCount();
     }
-
-    private void ShowValidationFeedback(bool success, string message)
-    {
-        ValidationFeedbackPanel.Visibility = Visibility.Visible;
-        ValidationText.Text = message;
-
-        if (success)
-        {
-            ValidationIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
-            ValidationIcon.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-            ValidationText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-        }
-        else
-        {
-            ValidationIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.AlertCircle;
-            ValidationIcon.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
-            ValidationText.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
-        }
-
-        // Auto-hide after 3 seconds
-        Task.Delay(3000).ContinueWith(_ =>
-        {
-            Dispatcher.Invoke(() =>
-            {
-                ValidationFeedbackPanel.Visibility = Visibility.Collapsed;
-            });
-        });
-    }
-
-    private void UpdateTeachingProgress()
-    {
-        var completedCount = _teachingSteps.Count(s => s.IsCompleted);
-        var totalCount = _teachingSteps.Count;
-
-        if (totalCount > 0)
-        {
-            var progress = (double)completedCount / totalCount * 100;
-            TeachingProgressBar.Value = progress;
-            TeachingProgressText.Text = $"Step {Math.Min(completedCount + 1, totalCount)}/{totalCount}";
-        }
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    private readonly Stack<List<RecordedStepViewModel>> _undoStack = new();
-    private readonly Stack<List<RecordedStepViewModel>> _redoStack = new();
 
     private void SaveStateForUndo()
     {
@@ -1764,165 +555,20 @@ public partial class WebLearningPage : Page
         UpdateStepCount();
     }
 
-    private void UpdateConfidence()
-    {
-        if (_recordedSteps.Count == 0)
-        {
-            ConfidenceBar.Value = 0;
-            ConfidenceText.Text = "0%";
-            return;
-        }
-
-        var avgConfidence = _recordedSteps.Average(s => s.Confidence);
-        ConfidenceBar.Value = avgConfidence * 100;
-        ConfidenceText.Text = $"{avgConfidence:P0}";
-
-        // Update color based on confidence
-        if (avgConfidence >= 0.8)
-            ConfidenceText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-        else if (avgConfidence >= 0.6)
-            ConfidenceText.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
-        else
-            ConfidenceText.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-    }
-
-    private double CalculateStepConfidence(RecordedStep step)
-    {
-        if (step.Element == null) return 0.5;
-
-        double confidence = 0.5;
-
-        // ID that's not dynamic
-        if (!string.IsNullOrEmpty(step.Element.Id) && !IsDynamicId(step.Element.Id))
-            confidence += 0.3;
-
-        // data-testid
-        if (step.Element.Attributes?.ContainsKey("data-testid") == true)
-            confidence += 0.3;
-
-        // aria-label
-        if (step.Element.Attributes?.ContainsKey("aria-label") == true)
-            confidence += 0.2;
-
-        // name attribute
-        if (!string.IsNullOrEmpty(step.Element.Name))
-            confidence += 0.15;
-
-        return Math.Min(1.0, confidence);
-    }
-
-    private bool IsDynamicId(string id)
-    {
-        if (string.IsNullOrEmpty(id)) return true;
-        if (id.Length > 30) return true;
-        if (id.Count(char.IsDigit) > id.Length * 0.5) return true;
-        var dynamicPrefixes = new[] { "ember", "react", "ng-", "_", "svelte", "vue-" };
-        return dynamicPrefixes.Any(p => id.StartsWith(p, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private void ShowStatus(string message, string type)
-    {
-        StatusText.Text = message;
-        StatusBar.Visibility = Visibility.Visible;
-
-        // Set icon and color based on type
-        switch (type)
-        {
-            case "success":
-                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
-                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-                break;
-            case "warning":
-                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Alert;
-                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
-                break;
-            case "error":
-                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.AlertCircle;
-                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-                break;
-            default:
-                StatusIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.Information;
-                StatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(59, 130, 246));
-                break;
-        }
-
-        // Auto-hide after 5 seconds
-        Task.Delay(5000).ContinueWith(_ =>
-        {
-            Dispatcher.Invoke(() =>
-            {
-                if (StatusText.Text == message)
-                {
-                    StatusBar.Visibility = Visibility.Collapsed;
-                }
-            });
-        });
-    }
-
-    private void GenerateAiSuggestions()
-    {
-        var suggestions = new List<string>();
-
-        // Check for quick succession actions
-        for (int i = 1; i < _recordedSteps.Count; i++)
-        {
-            if (_recordedSteps[i].OriginalStep?.Timestamp != null &&
-                _recordedSteps[i - 1].OriginalStep?.Timestamp != null)
-            {
-                var timeDiff = _recordedSteps[i].OriginalStep!.Timestamp -
-                               _recordedSteps[i - 1].OriginalStep!.Timestamp;
-                if (timeDiff.TotalMilliseconds < 200)
-                {
-                    suggestions.Add("พบการกระทำที่เร็วเกินไป แนะนำเพิ่ม Wait step");
-                    break;
-                }
-            }
-        }
-
-        // Check for low confidence selectors
-        var lowConfidenceSteps = _recordedSteps.Where(s => s.Confidence < 0.6).ToList();
-        if (lowConfidenceSteps.Count > 0)
-        {
-            suggestions.Add($"มี {lowConfidenceSteps.Count} step ที่ selector อาจไม่เสถียร");
-        }
-
-        // Check for type actions without preceding click
-        for (int i = 0; i < _recordedSteps.Count; i++)
-        {
-            if (_recordedSteps[i].Action == "type" &&
-                (i == 0 || _recordedSteps[i - 1].Action != "click"))
-            {
-                suggestions.Add($"Step #{_recordedSteps[i].StepNumber} อาจต้อง click element ก่อนพิมพ์");
-                break;
-            }
-        }
-
-        if (suggestions.Count > 0)
-        {
-            AiSuggestionText.Text = string.Join("\n• ", new[] { "" }.Concat(suggestions));
-            AiSuggestionPanel.Visibility = Visibility.Visible;
-        }
-    }
-
     #endregion
 
-    private async void TestWorkflowButton_Click(object sender, RoutedEventArgs e)
+    #region Workflow Save/Test
+
+    private void TestWorkflowButton_Click(object sender, RoutedEventArgs e)
     {
         if (_recordedSteps.Count == 0)
         {
-            MessageBox.Show("ยังไม่มี Steps ที่บันทึกไว้", "แจ้งเตือน",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("No steps recorded", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        // Stop recording first
-        if (_isRecording)
-        {
-            StopRecording();
-        }
-
-        MessageBox.Show("ฟีเจอร์ทดสอบ Workflow จะเปิด Browser ใหม่และรัน Steps ที่บันทึกไว้\n\n" +
-            "ในเวอร์ชันเต็ม จะใช้ Playwright Browser ในการทดสอบ",
+        MessageBox.Show("Test Workflow feature will replay recorded steps in the browser.\n\n" +
+            "Coming in full version with Playwright integration.",
             "Test Workflow", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
@@ -1930,24 +576,16 @@ public partial class WebLearningPage : Page
     {
         if (_recordedSteps.Count == 0)
         {
-            MessageBox.Show("ยังไม่มี Steps ที่บันทึกไว้", "แจ้งเตือน",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("No steps recorded", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         var workflowName = WorkflowNameTextBox.Text.Trim();
         if (string.IsNullOrEmpty(workflowName))
         {
-            MessageBox.Show("กรุณากรอกชื่อ Workflow", "แจ้งเตือน",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Please enter a workflow name", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             WorkflowNameTextBox.Focus();
             return;
-        }
-
-        // Stop recording first
-        if (_isRecording)
-        {
-            StopRecording();
         }
 
         try
@@ -1955,7 +593,6 @@ public partial class WebLearningPage : Page
             var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
             var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
 
-            // Create workflow
             var workflow = new LearnedWorkflow
             {
                 Id = Guid.NewGuid().ToString(),
@@ -1971,20 +608,19 @@ public partial class WebLearningPage : Page
             var order = 0;
             foreach (var recordedStep in _recordedSteps)
             {
-                var step = ConvertToWorkflowStep(recordedStep.OriginalStep, order++);
+                var step = ConvertToWorkflowStep(recordedStep, order++);
                 if (step != null)
                 {
                     workflow.Steps.Add(step);
                 }
             }
 
-            // Save workflow
             if (_workflowStorage != null)
             {
                 await _workflowStorage.SaveWorkflowAsync(workflow);
                 _logger?.LogInformation("Workflow saved: {Name} with {Count} steps", workflowName, workflow.Steps.Count);
 
-                MessageBox.Show($"บันทึก Workflow \"{workflowName}\" สำเร็จ!\n\nจำนวน Steps: {workflow.Steps.Count}",
+                MessageBox.Show($"Workflow \"{workflowName}\" saved!\n\nSteps: {workflow.Steps.Count}",
                     "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Clear form
@@ -1995,133 +631,108 @@ public partial class WebLearningPage : Page
             }
             else
             {
-                // Fallback: show JSON
                 var json = JsonConvert.SerializeObject(workflow, Formatting.Indented);
-                MessageBox.Show($"Workflow JSON (copy นี้ไปบันทึก):\n\n{json}",
-                    "Workflow Created", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Workflow JSON:\n\n{json}", "Workflow Created", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to save workflow");
-            MessageBox.Show($"เกิดข้อผิดพลาดในการบันทึก: {ex.Message}",
-                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error saving workflow: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
-    private WorkflowStep? ConvertToWorkflowStep(RecordedStep? recorded, int order)
+    private WorkflowStep? ConvertToWorkflowStep(RecordedStepViewModel recorded, int order)
     {
-        if (recorded == null) return null;
-
         var step = new WorkflowStep
         {
             Id = Guid.NewGuid().ToString(),
             Order = order,
-            Description = $"{recorded.Action} on {recorded.Element?.TagName ?? "element"}",
+            Description = $"{recorded.Action} on {recorded.TagName ?? "element"}",
             InputValue = recorded.Value,
-            WaitAfterMs = 500 // Default wait after each step
+            WaitAfterMs = 500
         };
 
-        // Set action
         step.Action = recorded.Action?.ToLower() switch
         {
             "click" => StepAction.Click,
+            "input" => StepAction.Type,
             "type" => StepAction.Type,
             "upload" => StepAction.Upload,
             "select" => StepAction.Select,
-            "check" => StepAction.Click, // Treat as click
             "submit" => StepAction.Click,
-            "navigate" => StepAction.Navigate,
             _ => StepAction.Click
         };
 
-        // Set selector
-        if (recorded.Element != null)
+        step.Selector = new ElementSelector
         {
-            step.Selector = new ElementSelector
-            {
-                Type = DetermineBestSelectorType(recorded.Element),
-                Value = GetBestSelectorValue(recorded.Element),
-                Confidence = 0.9
-            };
-
-            // Add alternative selectors
-            AddAlternativeSelectors(step, recorded.Element);
-        }
-        else if (step.Action == StepAction.Navigate)
-        {
-            step.Selector = new ElementSelector
-            {
-                Type = SelectorType.CSS,
-                Value = recorded.Value ?? "",
-                Confidence = 1.0
-            };
-        }
+            Type = SelectorType.CSS,
+            Value = recorded.Selector ?? "",
+            Confidence = recorded.Confidence
+        };
 
         return step;
     }
 
-    private SelectorType DetermineBestSelectorType(RecordedElement element)
-    {
-        if (!string.IsNullOrEmpty(element.Id))
-            return SelectorType.Id;
-        if (!string.IsNullOrEmpty(element.Name))
-            return SelectorType.Name;
-        if (!string.IsNullOrEmpty(element.Attributes?.GetValueOrDefault("data-testid")))
-            return SelectorType.TestId;
-        if (!string.IsNullOrEmpty(element.Attributes?.GetValueOrDefault("aria-label")))
-            return SelectorType.AriaLabel;
-        if (!string.IsNullOrEmpty(element.Placeholder))
-            return SelectorType.Placeholder;
-        if (!string.IsNullOrEmpty(element.CssSelector))
-            return SelectorType.CSS;
-        if (!string.IsNullOrEmpty(element.XPath))
-            return SelectorType.XPath;
+    #endregion
 
-        return SelectorType.CSS;
+    #region Helper Methods
+
+    private string GetActionText(string action)
+    {
+        return action.ToLower() switch
+        {
+            "click" => "Click",
+            "input" => "Type Text",
+            "type" => "Type Text",
+            "upload" => "Upload File",
+            "select" => "Select Option",
+            "submit" => "Submit Form",
+            _ => action
+        };
     }
 
-    private string GetBestSelectorValue(RecordedElement element)
+    private Brush GetActionColor(string action)
     {
-        if (!string.IsNullOrEmpty(element.Id))
-            return element.Id;
-        if (!string.IsNullOrEmpty(element.Name))
-            return element.Name;
-        if (!string.IsNullOrEmpty(element.Attributes?.GetValueOrDefault("data-testid")))
-            return element.Attributes["data-testid"];
-        if (!string.IsNullOrEmpty(element.Attributes?.GetValueOrDefault("aria-label")))
-            return element.Attributes["aria-label"];
-        if (!string.IsNullOrEmpty(element.Placeholder))
-            return element.Placeholder;
-        if (!string.IsNullOrEmpty(element.CssSelector))
-            return element.CssSelector;
-
-        return element.XPath ?? "";
+        return action.ToLower() switch
+        {
+            "click" => new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+            "input" => new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+            "type" => new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+            "upload" => new SolidColorBrush(Color.FromRgb(255, 152, 0)),
+            "select" => new SolidColorBrush(Color.FromRgb(156, 39, 176)),
+            "submit" => new SolidColorBrush(Color.FromRgb(0, 188, 212)),
+            _ => new SolidColorBrush(Color.FromRgb(158, 158, 158))
+        };
     }
 
-    private void AddAlternativeSelectors(WorkflowStep step, RecordedElement element)
+    private string GetElementDescription(WebViewStepEventArgs e)
     {
-        // Add XPath as alternative
-        if (!string.IsNullOrEmpty(element.XPath) && step.Selector.Type != SelectorType.XPath)
+        if (!string.IsNullOrEmpty(e.Text) && e.Text.Length > 0)
         {
-            step.AlternativeSelectors.Add(new ElementSelector
-            {
-                Type = SelectorType.XPath,
-                Value = element.XPath,
-                Confidence = 0.7
-            });
+            var text = e.Text.Length > 30 ? e.Text.Substring(0, 30) + "..." : e.Text;
+            return $"<{e.TagName ?? "element"}> \"{text}\"";
         }
+        return e.Selector ?? "Unknown element";
+    }
 
-        // Add CSS selector as alternative
-        if (!string.IsNullOrEmpty(element.CssSelector) && step.Selector.Type != SelectorType.CSS)
-        {
-            step.AlternativeSelectors.Add(new ElementSelector
-            {
-                Type = SelectorType.CSS,
-                Value = element.CssSelector,
-                Confidence = 0.8
-            });
-        }
+    private double CalculateStepConfidence(string? selector)
+    {
+        if (string.IsNullOrEmpty(selector)) return 0.5;
+
+        if (selector.StartsWith("#") && !selector.Contains(" "))
+            return 0.95; // ID selector
+
+        if (selector.Contains("[data-testid="))
+            return 0.9; // Test ID
+
+        if (selector.Contains("[aria-label="))
+            return 0.85; // Aria label
+
+        if (selector.Contains("[name="))
+            return 0.8; // Name attribute
+
+        return 0.6; // Generic selector
     }
 
     #endregion
@@ -2140,46 +751,19 @@ public class RecordedStepViewModel
     public string? Value { get; set; }
     public string? ValueText { get; set; }
     public bool HasValue { get; set; }
-    public RecordedStep? OriginalStep { get; set; }
     public double Confidence { get; set; } = 0.8;
+    public string? Selector { get; set; }
+    public string? TagName { get; set; }
+    public string? Text { get; set; }
+
     public string ConfidenceDisplay => Confidence >= 0.8 ? "High" : Confidence >= 0.6 ? "Medium" : "Low";
     public Brush ConfidenceColor => Confidence >= 0.8
-        ? new SolidColorBrush(Color.FromRgb(16, 185, 129))    // Green
+        ? new SolidColorBrush(Color.FromRgb(16, 185, 129))
         : Confidence >= 0.6
-            ? new SolidColorBrush(Color.FromRgb(245, 158, 11)) // Orange
-            : new SolidColorBrush(Color.FromRgb(239, 68, 68)); // Red
+            ? new SolidColorBrush(Color.FromRgb(245, 158, 11))
+            : new SolidColorBrush(Color.FromRgb(239, 68, 68));
 }
 
-/// <summary>
-/// ViewModel for teaching step display in AI Guided Teaching panel
-/// </summary>
-public class TeachingStepViewModel
-{
-    public int StepNumber { get; set; }
-    public string ActionType { get; set; } = "";
-    public Brush ActionColor { get; set; } = Brushes.Gray;
-    public string Description { get; set; } = "";
-    public string DescriptionThai { get; set; } = "";
-    public string? ElementHint { get; set; }
-    public string? InputHint { get; set; }
-    public bool IsOptional { get; set; }
-    public string IsOptionalText { get; set; } = "(optional)";
-    public bool IsCurrent { get; set; }
-    public bool IsCompleted { get; set; }
-    public bool IsNotCompleted => !IsCompleted;
-    public bool HasElementHint { get; set; }
-    public bool HasInputHint { get; set; }
-}
-
-public class WebViewMessage
-{
-    public string? Type { get; set; }
-    public RecordedStep? Data { get; set; }
-}
-
-/// <summary>
-/// Response model for Ollama API
-/// </summary>
 public class OllamaResponse
 {
     [JsonProperty("model")]
@@ -2190,12 +774,6 @@ public class OllamaResponse
 
     [JsonProperty("done")]
     public bool Done { get; set; }
-
-    [JsonProperty("total_duration")]
-    public long TotalDuration { get; set; }
-
-    [JsonProperty("eval_count")]
-    public int EvalCount { get; set; }
 }
 
 #endregion
