@@ -205,18 +205,28 @@ class ViralAnalysisController extends Controller
             ], 500);
         }
 
+
         $updatedCount = 0;
         foreach ($result['data']['keywords'] ?? [] as $kwData) {
-            $updated = TrendingKeyword::where('keyword', $kwData['keyword'])
-                ->update([
-                    'viral_score' => $kwData['viral_score'] ?? 0,
-                    'velocity' => $kwData['velocity'] ?? 0,
-                    'total_mentions' => DB::raw('total_mentions + ' . ($kwData['mentions'] ?? 0)),
-                    'total_engagement' => DB::raw('total_engagement + ' . ($kwData['engagement'] ?? 0)),
+            // Sanitize numeric values to prevent SQL injection
+            $mentions = max(0, (int) ($kwData['mentions'] ?? 0));
+            $engagement = max(0, (int) ($kwData['engagement'] ?? 0));
+            $viralScore = max(0.0, (float) ($kwData['viral_score'] ?? 0));
+            $velocity = max(0.0, (float) ($kwData['velocity'] ?? 0));
+
+            // Use safe increment instead of raw SQL concatenation
+            $keyword = TrendingKeyword::where('keyword', $kwData['keyword'])->first();
+            if ($keyword) {
+                $keyword->update([
+                    'viral_score' => $viralScore,
+                    'velocity' => $velocity,
+                    'total_mentions' => $keyword->total_mentions + $mentions,
+                    'total_engagement' => $keyword->total_engagement + $engagement,
                     'hourly_data' => $this->updateHourlyData($kwData),
                     'last_analyzed_at' => now(),
                 ]);
-            if ($updated) $updatedCount++;
+                $updatedCount++;
+            }
         }
 
         return response()->json([

@@ -7,6 +7,11 @@ namespace AIManager.API.Middleware;
 /// API Key Authentication Middleware
 /// ตรวจสอบ API Key ในทุก request ที่เข้ามา
 /// พร้อม logging การใช้งานและแจ้งเตือน
+///
+/// Production Security:
+/// - Test/Setup endpoints are protected in production
+/// - Only health endpoints are excluded
+/// - API keys in query parameters are logged as warnings
 /// </summary>
 public class ApiKeyAuthMiddleware
 {
@@ -15,31 +20,59 @@ public class ApiKeyAuthMiddleware
     private readonly CoreDatabaseService _coreDb;
     private readonly ILogger<ApiKeyAuthMiddleware> _logger;
     private readonly string[] _excludedPaths;
+    private readonly bool _isProduction;
 
     public ApiKeyAuthMiddleware(
         RequestDelegate next,
         ApiKeyService apiKeyService,
         CoreDatabaseService coreDb,
         ILogger<ApiKeyAuthMiddleware> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         _next = next;
         _apiKeyService = apiKeyService;
         _coreDb = coreDb;
         _logger = logger;
+        _isProduction = environment.IsProduction();
 
         // Paths that don't require authentication
-        _excludedPaths = configuration.GetSection("ApiKey:ExcludedPaths")
-            .Get<string[]>() ?? new[]
-            {
-                "/swagger",
-                "/health",
-                "/api/status/health",
-                "/hub/aimanager/negotiate",
-                "/api/apikeys/setup",
-                "/api/apitest",     // API Test page for development
-                "/api/setupwizard"  // Setup wizard for first-time installation
-            };
+        // Production: Only essential paths are excluded
+        // Development: Additional test/setup paths are excluded
+        var basePaths = new[]
+        {
+            "/swagger",
+            "/health",
+            "/api/status/health",
+            "/hub/aimanager/negotiate"
+        };
+
+        var devOnlyPaths = new[]
+        {
+            "/api/apikeys/setup",
+            "/api/apitest",     // API Test page - DEVELOPMENT ONLY
+            "/api/setupwizard"  // Setup wizard - DEVELOPMENT ONLY
+        };
+
+        // Read from configuration first, then use defaults
+        var configuredPaths = configuration.GetSection("ApiKey:ExcludedPaths").Get<string[]>();
+
+        if (configuredPaths != null && configuredPaths.Length > 0)
+        {
+            _excludedPaths = configuredPaths;
+        }
+        else if (environment.IsDevelopment())
+        {
+            // Development: include test/setup paths
+            _excludedPaths = basePaths.Concat(devOnlyPaths).ToArray();
+            _logger.LogWarning("Running in DEVELOPMENT mode - test/setup endpoints are NOT protected");
+        }
+        else
+        {
+            // Production: only base paths excluded
+            _excludedPaths = basePaths;
+            _logger.LogInformation("Running in PRODUCTION mode - all sensitive endpoints are protected");
+        }
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -55,16 +88,24 @@ public class ApiKeyAuthMiddleware
         }
 
         // Get API key from header or query
-        var apiKey = GetApiKey(context);
+        var (apiKey, source) = GetApiKeyWithSource(context);
         var clientIp = GetClientIp(context);
         var userAgent = context.Request.Headers["User-Agent"].FirstOrDefault();
         var method = context.Request.Method;
         var endpoint = context.Request.Path.Value ?? "/";
 
+        // Warn about query parameter usage (security risk - logged in URLs)
+        if (source == "query" && _isProduction)
+        {
+            _logger.LogWarning(
+                "API key passed in query parameter from {IP} - this is insecure and may be logged. Use X-API-Key header instead.",
+                clientIp);
+        }
+
         if (string.IsNullOrEmpty(apiKey))
         {
             _logger.LogWarning("API request without key from {IP}", clientIp);
-            await WriteUnauthorizedResponse(context, "API key is required. Use header 'X-API-Key' or query parameter 'api_key'");
+            await WriteUnauthorizedResponse(context, "API key is required. Use header 'X-API-Key' or 'Authorization: Bearer <key>'");
 
             // Log failed attempt
             stopwatch.Stop();
@@ -125,35 +166,36 @@ public class ApiKeyAuthMiddleware
         }
     }
 
-    private string? GetApiKey(HttpContext context)
+    private (string? key, string source) GetApiKeyWithSource(HttpContext context)
     {
-        // Try header first
+        // Try header first (preferred, secure method)
         if (context.Request.Headers.TryGetValue("X-API-Key", out var headerKey))
         {
-            return headerKey.FirstOrDefault();
+            return (headerKey.FirstOrDefault(), "header");
         }
 
-        // Try Authorization header with Bearer scheme
+        // Try Authorization header with Bearer scheme (secure)
         if (context.Request.Headers.TryGetValue("Authorization", out var authHeader))
         {
             var auth = authHeader.FirstOrDefault();
             if (auth?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true)
             {
-                return auth["Bearer ".Length..];
+                return (auth["Bearer ".Length..], "bearer");
             }
             if (auth?.StartsWith("ApiKey ", StringComparison.OrdinalIgnoreCase) == true)
             {
-                return auth["ApiKey ".Length..];
+                return (auth["ApiKey ".Length..], "apikey-header");
             }
         }
 
-        // Try query parameter
+        // Try query parameter (insecure - logged in URLs, browser history)
+        // Supported for backwards compatibility but warned in production
         if (context.Request.Query.TryGetValue("api_key", out var queryKey))
         {
-            return queryKey.FirstOrDefault();
+            return (queryKey.FirstOrDefault(), "query");
         }
 
-        return null;
+        return (null, "none");
     }
 
     private string GetClientIp(HttpContext context)
