@@ -48,28 +48,38 @@ class AccountCreationController extends Controller
         }
 
         // Check ownership
-        $brand = Brand::findOrFail($request->brand_id);
+        /** @var int $brandId */
+        $brandId = $request->input('brand_id');
+        $brand = Brand::findOrFail($brandId);
         $this->authorize('update', $brand);
 
+        /** @var string $platform */
+        $platform = $request->input('platform');
+
         // Check if we can create
-        if (!$this->creationService->canCreateAccount($request->platform)) {
+        if (!$this->creationService->canCreateAccount($platform)) {
             return response()->json([
                 'success' => false,
                 'message' => 'ไม่มีทรัพยากรเพียงพอสำหรับสร้างบัญชี กรุณาเพิ่มเบอร์โทร/อีเมลก่อน',
-                'resource_status' => $this->creationService->checkResourceAvailability($request->platform),
+                'resource_status' => $this->creationService->checkResourceAvailability($platform),
             ], 400);
         }
 
-        $pool = $request->account_pool_id
-            ? AccountPool::findOrFail($request->account_pool_id)
+        /** @var int|null $accountPoolId */
+        $accountPoolId = $request->input('account_pool_id');
+        $pool = $accountPoolId
+            ? AccountPool::findOrFail($accountPoolId)
             : null;
+
+        /** @var array<string, mixed>|null $profileData */
+        $profileData = $request->input('profile_data');
 
         $task = $this->creationService->createTask(
             $request->user(),
             $brand,
-            $request->platform,
+            $platform,
             $pool,
-            $request->profile_data
+            $profileData
         );
 
         return response()->json([
@@ -98,18 +108,27 @@ class AccountCreationController extends Controller
             ], 422);
         }
 
-        $brand = Brand::findOrFail($request->brand_id);
+        /** @var int $brandId */
+        $brandId = $request->input('brand_id');
+        $brand = Brand::findOrFail($brandId);
         $this->authorize('update', $brand);
 
-        $pool = $request->account_pool_id
-            ? AccountPool::findOrFail($request->account_pool_id)
+        /** @var int|null $accountPoolId */
+        $accountPoolId = $request->input('account_pool_id');
+        $pool = $accountPoolId
+            ? AccountPool::findOrFail($accountPoolId)
             : null;
+
+        /** @var string $platform */
+        $platform = $request->input('platform');
+        /** @var int $count */
+        $count = $request->input('count');
 
         $tasks = $this->creationService->createBulkTasks(
             $request->user(),
             $brand,
-            $request->platform,
-            $request->count,
+            $platform,
+            $count,
             $pool
         );
 
