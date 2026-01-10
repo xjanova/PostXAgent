@@ -24,6 +24,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  *
+ * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber first($columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber available()
  * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber forPlatform(string $platform)
  */

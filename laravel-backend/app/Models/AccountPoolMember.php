@@ -6,6 +6,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $account_pool_id
+ * @property int $social_account_id
+ * @property int $priority
+ * @property int $weight
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $cooldown_until
+ * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property int $posts_today
+ * @property int $posts_this_week
+ * @property int $posts_this_month
+ * @property int $total_posts
+ * @property int $success_count
+ * @property int $failure_count
+ * @property string|null $last_error
+ * @property array|null $performance_metrics
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPoolMember where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPoolMember create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPoolMember find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPoolMember findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPoolMember first($columns = ['*'])
+ */
 class AccountPoolMember extends Model
 {
     use HasFactory;
