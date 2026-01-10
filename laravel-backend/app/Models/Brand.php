@@ -24,6 +24,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Brand where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|Brand create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Brand find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Brand findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Brand first($columns = ['*'])
  */
 class Brand extends Model
 {

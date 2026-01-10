@@ -24,6 +24,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  *
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool first($columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPool active()
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPool forPlatform(string $platform)
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPool forBrand(int $brandId)
