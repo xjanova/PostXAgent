@@ -39,7 +39,7 @@ class AccountPoolController extends Controller
             $query->where('platform', $validated['platform']);
         }
 
-        $pools = $query->get()->map(function ($pool) {
+        $pools = $query->get()->map(function (AccountPool $pool) {
             return array_merge($pool->toArray(), [
                 'statistics' => $this->rotationService->getPoolStatistics($pool),
             ]);
@@ -252,6 +252,7 @@ class AccountPoolController extends Controller
             'status' => ['nullable', Rule::in(AccountPoolMember::getStatuses())],
         ]);
 
+        /** @var AccountPoolMember $member */
         $member = AccountPoolMember::where('account_pool_id', $accountPool->id)
             ->where('social_account_id', $accountId)
             ->firstOrFail();
@@ -287,6 +288,7 @@ class AccountPoolController extends Controller
             'reason' => 'nullable|string|max:500',
         ]);
 
+        /** @var AccountPoolMember $member */
         $member = AccountPoolMember::where('account_pool_id', $accountPool->id)
             ->where('social_account_id', $accountId)
             ->firstOrFail();
@@ -326,7 +328,7 @@ class AccountPoolController extends Controller
      */
     public function logs(Request $request, AccountPool $accountPool): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'hours' => 'nullable|integer|min:1|max:168', // max 1 week
             'event_type' => 'nullable|string',
             'account_id' => 'nullable|exists:social_accounts,id',
@@ -336,16 +338,16 @@ class AccountPoolController extends Controller
             ->with(['socialAccount', 'post'])
             ->latest();
 
-        if ($request->hours) {
-            $query->where('created_at', '>=', now()->subHours($request->hours));
+        if (isset($validated['hours'])) {
+            $query->where('created_at', '>=', now()->subHours($validated['hours']));
         }
 
-        if ($request->event_type) {
-            $query->where('event_type', $request->event_type);
+        if (isset($validated['event_type'])) {
+            $query->where('event_type', $validated['event_type']);
         }
 
-        if ($request->account_id) {
-            $query->where('social_account_id', $request->account_id);
+        if (isset($validated['account_id'])) {
+            $query->where('social_account_id', $validated['account_id']);
         }
 
         $logs = $query->paginate(50);

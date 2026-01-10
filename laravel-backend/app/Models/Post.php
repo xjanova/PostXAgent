@@ -6,6 +6,43 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $brand_id
+ * @property int|null $campaign_id
+ * @property int|null $social_account_id
+ * @property string $platform
+ * @property string|null $content_text
+ * @property string $content_type
+ * @property array|null $media_urls
+ * @property array|null $hashtags
+ * @property string|null $link_url
+ * @property bool $ai_generated
+ * @property string|null $ai_provider
+ * @property string|null $ai_prompt
+ * @property string|null $platform_post_id
+ * @property string|null $platform_url
+ * @property \Illuminate\Support\Carbon|null $scheduled_at
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property string $status
+ * @property string|null $error_message
+ * @property array|null $metrics
+ * @property float|null $viral_score
+ * @property array|null $viral_factors
+ * @property bool $is_viral
+ * @property \Illuminate\Support\Carbon|null $peak_engagement_at
+ * @property float|null $engagement_velocity
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Post where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|Post create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Post find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Post findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Post first($columns = ['*'])
+ */
 class Post extends Model
 {
     use HasFactory, SoftDeletes;
