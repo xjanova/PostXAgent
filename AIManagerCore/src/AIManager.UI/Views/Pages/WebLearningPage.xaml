@@ -48,7 +48,7 @@
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                     <GradientStop Color="#30FF6B6B" Offset="0"/>
                     <GradientStop Color="#304ECDC4" Offset="0.5"/>
-                    <GradientStop Color="#308B5CF6" Offset="1"/>
+                    <GradientStop Color="#30A78BFA" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
             <Border.Effect>
@@ -141,7 +141,7 @@
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                                 <materialDesign:PackIcon Kind="Cog" Width="22" Height="22"
-                                                          Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                                          Foreground="#A78BFA" VerticalAlignment="Center"/>
                                 <TextBlock Text="Settings" FontWeight="Bold" FontSize="16"
                                            Foreground="White" Margin="10,0,0,0"/>
                             </StackPanel>
@@ -198,7 +198,7 @@
 
                                 <StackPanel Orientation="Horizontal">
                                     <materialDesign:PackIcon Kind="Brain" Width="22" Height="22"
-                                                              Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                                              Foreground="#A78BFA" VerticalAlignment="Center"/>
                                     <TextBlock Text="AI Command" FontWeight="Bold" FontSize="16"
                                                Foreground="White" Margin="10,0,0,0"/>
                                 </StackPanel>
@@ -236,7 +236,7 @@
                             </Grid>
 
                             <!-- AI Response -->
-                            <Border x:Name="AiResponsePanel" Background="#208B5CF6" CornerRadius="8" Padding="12"
+                            <Border x:Name="AiResponsePanel" Background="#20A78BFA" CornerRadius="8" Padding="12"
                                     Margin="0,12,0,0" Visibility="Collapsed">
                                 <StackPanel>
                                     <Grid>
@@ -246,8 +246,8 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <materialDesign:PackIcon Kind="RobotOutline" Width="16" Height="16"
-                                                                  Foreground="#8B5CF6" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="AI Response" Foreground="#8B5CF6"
+                                                                  Foreground="#A78BFA" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="AI Response" Foreground="#A78BFA"
                                                    FontWeight="SemiBold" FontSize="11" Margin="6,0,0,0"/>
                                         <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
                                                 Click="DismissAiResponseButton_Click" Width="20" Height="20">
@@ -369,7 +369,7 @@
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="ListStatus" Width="22" Height="22"
-                                                          Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                                          Foreground="#A78BFA" VerticalAlignment="Center"/>
                                 <TextBlock Text="Recorded Steps" FontWeight="Bold" FontSize="16"
                                            Foreground="White" Margin="8,0,0,0"/>
                             </StackPanel>

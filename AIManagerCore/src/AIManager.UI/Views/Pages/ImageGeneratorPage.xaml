@@ -75,11 +75,35 @@
         <Border Grid.Column="0" Background="#12121A" BorderBrush="#2D2D4A" BorderThickness="0,0,1,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
                 <StackPanel>
-                    <!-- Header -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                        <materialDesign:PackIcon Kind="Creation" Width="24" Height="24" Foreground="#8B5CF6" VerticalAlignment="Center"/>
-                        <TextBlock Text="AI Studio" FontSize="18" FontWeight="Bold" Foreground="White" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <!-- Header with Status -->
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Creation" Width="24" Height="24" Foreground="#A78BFA" VerticalAlignment="Center"/>
+                            <TextBlock Text="AI Studio" FontSize="18" FontWeight="Bold" Foreground="White" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Pipeline Status Indicator -->
+                        <Border x:Name="PipelineStatusBorder" Grid.Column="2"
+                                Background="#201A2E" CornerRadius="12" Padding="8,4"
+                                Cursor="Hand" MouseLeftButtonDown="PipelineStatus_Click"
+                                ToolTip="คลิกเพื่อดูสถานะ Pipeline">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="PipelineStatusDot" Width="8" Height="8" VerticalAlignment="Center">
+                                    <Ellipse.Fill>
+                                        <SolidColorBrush x:Name="PipelineStatusColor" Color="#EF4444"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                                <TextBlock x:Name="PipelineStatusText" Text="ไม่พร้อม" FontSize="11"
+                                           Foreground="#9090A8" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
 
                     <!-- Mode Toggle -->
                     <Border Style="{StaticResource ModernCard}">
@@ -103,8 +127,8 @@
                                                 <Setter TargetName="border" Property="Background">
                                                     <Setter.Value>
                                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                            <GradientStop Color="#8B5CF6" Offset="0"/>
-                                                            <GradientStop Color="#7C3AED" Offset="1"/>
+                                                            <GradientStop Color="#A78BFA" Offset="0"/>
+                                                            <GradientStop Color="#A78BFA" Offset="1"/>
                                                         </LinearGradientBrush>
                                                     </Setter.Value>
                                                 </Setter>
@@ -206,7 +230,7 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
+                                                    <Setter TargetName="border" Property="Background" Value="#A78BFA"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -220,7 +244,7 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
+                                                    <Setter TargetName="border" Property="Background" Value="#A78BFA"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -234,7 +258,7 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
+                                                    <Setter TargetName="border" Property="Background" Value="#A78BFA"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -248,7 +272,7 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
+                                                    <Setter TargetName="border" Property="Background" Value="#A78BFA"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -372,12 +396,12 @@
                                 <Border x:Name="border" CornerRadius="10" Padding="16,12">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#8B5CF6" Offset="0"/>
+                                            <GradientStop Color="#A78BFA" Offset="0"/>
                                             <GradientStop Color="#EC4899" Offset="1"/>
                                         </LinearGradientBrush>
                                     </Border.Background>
                                     <Border.Effect>
-                                        <DropShadowEffect Color="#8B5CF6" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
+                                        <DropShadowEffect Color="#A78BFA" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
                                     </Border.Effect>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <materialDesign:PackIcon Kind="Creation" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
@@ -499,7 +523,7 @@
                                 </Border.Background>
                                 <ProgressBar x:Name="GenerationProgress" IsIndeterminate="True"
                                              Style="{StaticResource MaterialDesignCircularProgressBar}"
-                                             Width="50" Height="50" Foreground="#8B5CF6"/>
+                                             Width="50" Height="50" Foreground="#A78BFA"/>
                             </Border>
                             <TextBlock x:Name="TxtProgressStatus" Text="Generating..." FontSize="16" FontWeight="SemiBold"
                                        Foreground="White" HorizontalAlignment="Center" Margin="0,20,0,0"/>
@@ -628,7 +652,7 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="1" Margin="0,0,0,12">
-                                    <TextBlock x:Name="TxtTotalVram" Text="0 GB" FontSize="24" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                    <TextBlock x:Name="TxtTotalVram" Text="0 GB" FontSize="24" FontWeight="Bold" Foreground="#A78BFA"/>
                                     <TextBlock Text="Total VRAM" FontSize="11" Foreground="#6B6B8A"/>
                                 </StackPanel>
 
@@ -693,7 +717,7 @@
                                                 <StackPanel Grid.Column="2" HorizontalAlignment="Right">
                                                     <TextBlock Text="{Binding VramText}" FontSize="12" Foreground="#9090A8" HorizontalAlignment="Right"/>
                                                     <ProgressBar Value="{Binding VramPercent}" Maximum="100" Height="4" Width="50"
-                                                                 Background="#1A1A2E" Foreground="#8B5CF6"/>
+                                                                 Background="#1A1A2E" Foreground="#A78BFA"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>

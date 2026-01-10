@@ -136,23 +136,51 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Storage Info -->
+                    <!-- Storage Info with Free Space and Path Setting -->
                     <Border Background="#202038" CornerRadius="10" Padding="16,10" Margin="0,0,12,0">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="Harddisk" Width="16" Height="16" Foreground="#6B6B8A" Margin="0,0,8,0"/>
-                                <TextBlock x:Name="StorageUsedText" Text="0 GB used" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Harddisk" Width="16" Height="16" Foreground="#6B6B8A" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="StorageUsedText" Text="0 GB used" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text=" / " Foreground="#6B6B8A" FontSize="13"/>
+                                    <TextBlock x:Name="StorageFreeText" Text="0 GB free" Foreground="#10B981" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                                <ProgressBar x:Name="StorageProgressBar" Value="0" Maximum="100" Height="4"
+                                            Margin="0,6,0,0" Width="180">
+                                    <ProgressBar.Foreground>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#7C4DFF" Offset="0"/>
+                                            <GradientStop Color="#F472B6" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </ProgressBar.Foreground>
+                                </ProgressBar>
+                                <TextBlock x:Name="StoragePathText" Text="" FontSize="10" Foreground="#6B6B8A" Margin="0,4,0,0"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="180" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                             </StackPanel>
-                            <ProgressBar x:Name="StorageProgressBar" Value="0" Maximum="100" Height="4"
-                                        Margin="0,6,0,0" Width="140">
-                                <ProgressBar.Foreground>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                        <GradientStop Color="#7C4DFF" Offset="0"/>
-                                        <GradientStop Color="#F472B6" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </ProgressBar.Foreground>
-                            </ProgressBar>
-                        </StackPanel>
+                            <!-- Change Path Button -->
+                            <Button Grid.Column="1" x:Name="ChangePathButton" Click="ChangeStoragePath_Click"
+                                    ToolTip="Change model storage location" Cursor="Hand"
+                                    Width="32" Height="32" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#303050" CornerRadius="6">
+                                            <materialDesign:PackIcon Kind="FolderCog" Width="16" Height="16" Foreground="#9090A8"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#404068"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
                     </Border>
 
                     <!-- Refresh Button -->
@@ -334,12 +362,16 @@
                         <Border Background="#1E1E2E" CornerRadius="8" Padding="4">
                             <ComboBox x:Name="FilterTypeCombo" Width="160" SelectionChanged="FilterType_Changed"
                                       Background="Transparent" BorderThickness="0" Foreground="White">
-                                <ComboBoxItem Content="All Types" IsSelected="True"/>
-                                <ComboBoxItem Content="Text to Image"/>
-                                <ComboBoxItem Content="Text to Video"/>
-                                <ComboBoxItem Content="LoRA"/>
-                                <ComboBoxItem Content="ControlNet"/>
-                                <ComboBoxItem Content="VAE"/>
+                                <ComboBox.Resources>
+                                    <!-- Fix text color visibility in dropdown popup -->
+                                    <SolidColorBrush x:Key="MaterialDesignBody" Color="White"/>
+                                </ComboBox.Resources>
+                                <ComboBoxItem Content="All Types" IsSelected="True" Foreground="White"/>
+                                <ComboBoxItem Content="Text to Image" Foreground="White"/>
+                                <ComboBoxItem Content="Text to Video" Foreground="White"/>
+                                <ComboBoxItem Content="LoRA" Foreground="White"/>
+                                <ComboBoxItem Content="ControlNet" Foreground="White"/>
+                                <ComboBoxItem Content="VAE" Foreground="White"/>
                             </ComboBox>
                         </Border>
 
@@ -546,137 +578,449 @@
             <Grid x:Name="BrowsePanel" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Search Bar -->
-                <Border Grid.Row="0" Background="#12121A" Padding="20,16">
+                <!-- Search Header -->
+                <Border Grid.Row="0" Background="#12121A" Padding="20,20,20,16">
+                    <StackPanel>
+                        <!-- Title and Description -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Border Width="48" Height="48" CornerRadius="12">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#7C4DFF" Offset="0"/>
+                                        <GradientStop Color="#6366F1" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <materialDesign:PackIcon Kind="CloudSearch" Width="26" Height="26" Foreground="White"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="ค้นหาโมเดลจาก HuggingFace" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="ค้นหาและดาวน์โหลดโมเดล AI สำหรับสร้างภาพ ได้แก่ Checkpoint, LoRA, VAE และอื่นๆ"
+                                           FontSize="12" Foreground="#6B6B8A" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Search Box with Category Filters -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Search Input -->
+                            <Border Background="#1E1E2E" CornerRadius="10" Padding="16,0" Height="50">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <materialDesign:PackIcon Kind="Magnify" Width="22" Height="22" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="SearchHuggingFaceBox" Grid.Column="1"
+                                             Background="Transparent" BorderThickness="0" Foreground="White"
+                                             VerticalAlignment="Center" Margin="12,0,0,0" FontSize="14"
+                                             materialDesign:HintAssist.Hint="ค้นหาโมเดล เช่น stable-diffusion, flux, sdxl, anime..."
+                                             KeyDown="SearchHuggingFace_KeyDown"/>
+                                    <!-- Clear button -->
+                                    <Button Grid.Column="2" Click="ClearSearch_Click" Cursor="Hand" Visibility="Collapsed"
+                                            x:Name="ClearSearchButton" VerticalAlignment="Center">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="Transparent" Padding="8">
+                                                    <materialDesign:PackIcon Kind="Close" Width="18" Height="18" Foreground="#6B6B8A"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#2D2D48"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <Button Grid.Column="1" Margin="12,0,0,0" Click="SearchHuggingFace_Click" Cursor="Hand"
+                                    MinWidth="120" Height="50">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" CornerRadius="10"
+                                                MinWidth="{TemplateBinding MinWidth}" Height="{TemplateBinding Height}">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                                                    <GradientStop Color="#6366F1" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <materialDesign:PackIcon Kind="Magnify" Width="20" Height="20" Foreground="White"/>
+                                                <TextBlock Text="ค้นหา" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="8,0,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Effect">
+                                                    <Setter.Value>
+                                                        <DropShadowEffect Color="#7C4DFF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Category Filter Bar & View Toggle -->
+                <Border Grid.Row="1" Background="#15151F" Padding="20,12">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Search Input -->
-                        <Border Background="#1E1E2E" CornerRadius="10" Padding="16,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <materialDesign:PackIcon Kind="Magnify" Width="22" Height="22" Foreground="#6B6B8A" VerticalAlignment="Center"/>
-                                <TextBox x:Name="SearchHuggingFaceBox" Grid.Column="1"
-                                         Background="Transparent" BorderThickness="0" Foreground="White"
-                                         VerticalAlignment="Center" Margin="12,0,0,0" FontSize="14"
-                                         materialDesign:HintAssist.Hint="Search HuggingFace models (e.g., stable-diffusion, flux, sdxl)"
-                                         KeyDown="SearchHuggingFace_KeyDown"/>
-                            </Grid>
-                        </Border>
+                        <!-- Category Chips -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="หมวดหมู่:" FontSize="13" Foreground="#8B8BA8" VerticalAlignment="Center" Margin="0,0,12,0"/>
 
-                        <Button Grid.Column="1" Margin="16,0,0,0" Click="SearchHuggingFace_Click" Cursor="Hand">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border" CornerRadius="10" Padding="24,14">
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#7C4DFF" Offset="0"/>
-                                                <GradientStop Color="#6366F1" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <StackPanel Orientation="Horizontal">
-                                            <materialDesign:PackIcon Kind="Magnify" Width="18" Height="18" Foreground="White" Margin="0,0,8,0"/>
-                                            <TextBlock Text="Search" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="border" Property="Effect">
-                                                <Setter.Value>
-                                                    <DropShadowEffect Color="#7C4DFF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
+                            <!-- All Models -->
+                            <Border x:Name="FilterAll" Background="#307C4DFF" CornerRadius="8" Padding="14,8" Margin="0,0,8,0"
+                                    Cursor="Hand" MouseLeftButtonDown="FilterCategory_Click" Tag="all">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="SelectAll" Width="16" Height="16" Foreground="#7C4DFF" VerticalAlignment="Center"/>
+                                    <TextBlock Text="ทั้งหมด" FontSize="12" FontWeight="SemiBold" Foreground="#7C4DFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Checkpoint -->
+                            <Border x:Name="FilterCheckpoint" Background="#202030" CornerRadius="8" Padding="14,8" Margin="0,0,8,0"
+                                    Cursor="Hand" MouseLeftButtonDown="FilterCategory_Click" Tag="checkpoint">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Cube" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Checkpoint" FontSize="12" Foreground="#6B6B8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- LoRA -->
+                            <Border x:Name="FilterLora" Background="#202030" CornerRadius="8" Padding="14,8" Margin="0,0,8,0"
+                                    Cursor="Hand" MouseLeftButtonDown="FilterCategory_Click" Tag="lora">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="TuneVariant" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBlock Text="LoRA" FontSize="12" Foreground="#6B6B8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- SDXL -->
+                            <Border x:Name="FilterSdxl" Background="#202030" CornerRadius="8" Padding="14,8" Margin="0,0,8,0"
+                                    Cursor="Hand" MouseLeftButtonDown="FilterCategory_Click" Tag="sdxl">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="ImageSizeSelectLarge" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBlock Text="SDXL" FontSize="12" Foreground="#6B6B8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Flux -->
+                            <Border x:Name="FilterFlux" Background="#202030" CornerRadius="8" Padding="14,8" Margin="0,0,8,0"
+                                    Cursor="Hand" MouseLeftButtonDown="FilterCategory_Click" Tag="flux">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Flash" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Flux" FontSize="12" Foreground="#6B6B8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Anime -->
+                            <Border x:Name="FilterAnime" Background="#202030" CornerRadius="8" Padding="14,8"
+                                    Cursor="Hand" MouseLeftButtonDown="FilterCategory_Click" Tag="anime">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Animation" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Anime" FontSize="12" Foreground="#6B6B8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- View Toggle & Result Count -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <!-- Result Count -->
+                            <TextBlock x:Name="SearchResultCount" Text="" FontSize="12" Foreground="#6B6B8A"
+                                       VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                            <!-- Grid View -->
+                            <Border x:Name="ViewGridBtn" Background="#307C4DFF" CornerRadius="8,0,0,8" Padding="10,8"
+                                    Cursor="Hand" MouseLeftButtonDown="ViewToggle_Click" Tag="grid">
+                                <materialDesign:PackIcon Kind="ViewGrid" Width="18" Height="18" Foreground="#7C4DFF"/>
+                            </Border>
+
+                            <!-- List View -->
+                            <Border x:Name="ViewListBtn" Background="#202030" CornerRadius="0,8,8,0" Padding="10,8"
+                                    Cursor="Hand" MouseLeftButtonDown="ViewToggle_Click" Tag="list">
+                                <materialDesign:PackIcon Kind="ViewList" Width="18" Height="18" Foreground="#6B6B8A"/>
+                            </Border>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
-                <!-- Search Results -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12">
+                <!-- Search Results - Grid View -->
+                <ScrollViewer x:Name="SearchResultsGridView" Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="16">
                     <ItemsControl x:Name="SearchResultsList">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Columns="2"/>
+                                <WrapPanel/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="8" CornerRadius="12" Background="#1E1E2E" BorderBrush="#2D2D48" BorderThickness="1">
+                                <Border Margin="8" CornerRadius="14" Width="280" Background="#1E1E2E"
+                                        BorderBrush="#2D2D48" BorderThickness="1">
                                     <Grid>
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="140"/>
                                             <RowDefinition Height="*"/>
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
-                                        <!-- Thumbnail (when available) with async loading -->
-                                        <Border Grid.Row="0" Height="120" CornerRadius="12,12,0,0" ClipToBounds="True"
-                                                Visibility="{Binding HasThumbnail, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                                        <!-- Thumbnail Area -->
+                                        <Border Grid.Row="0" CornerRadius="14,14,0,0" ClipToBounds="True">
                                             <Grid>
-                                                <!-- Loading indicator -->
-                                                <Border Background="#20808080">
-                                                    <ProgressBar IsIndeterminate="True"
-                                                                 Style="{StaticResource MaterialDesignCircularProgressBar}"
-                                                                 Width="28" Height="28"
-                                                                 Foreground="#7C4DFF"/>
+                                                <!-- Gradient Background -->
+                                                <Border>
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#252540" Offset="0"/>
+                                                            <GradientStop Color="#1E1E35" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
+                                                    <Grid>
+                                                        <!-- Fallback icon -->
+                                                        <materialDesign:PackIcon Kind="Brain" Width="48" Height="48" Foreground="#3D3D5A"
+                                                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        <!-- Async loaded image -->
+                                                        <Image helpers:AsyncImageLoader.SourceUrl="{Binding ThumbnailUrl}"
+                                                               Stretch="UniformToFill"
+                                                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                    </Grid>
                                                 </Border>
-                                                <!-- Async loaded image -->
-                                                <Image helpers:AsyncImageLoader.SourceUrl="{Binding ThumbnailUrl}"
-                                                       Stretch="UniformToFill"
-                                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                                                <!-- Downloaded Badge (overlay) -->
+                                                <Border Visibility="{Binding IsDownloaded, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
+                                                        Background="#E010B981" CornerRadius="6" Padding="8,4"
+                                                        HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="Check" Width="14" Height="14" Foreground="White"/>
+                                                        <TextBlock Text="ดาวน์โหลดแล้ว" FontSize="10" FontWeight="Bold" Foreground="White" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Model Type Badge (overlay) -->
+                                                <Border Background="#C0000000" CornerRadius="6" Padding="8,4"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0">
+                                                    <TextBlock Text="{Binding ModelTypeDisplay, FallbackValue=Model}" FontSize="10"
+                                                               FontWeight="SemiBold" Foreground="#A78BFA"/>
+                                                </Border>
                                             </Grid>
                                         </Border>
 
                                         <!-- Model Info -->
-                                        <StackPanel Grid.Row="1" Margin="20,16">
-                                            <TextBlock Text="{Binding ModelId}" FontSize="15" FontWeight="SemiBold"
-                                                       Foreground="White" TextWrapping="Wrap"/>
-                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#6B6B8A"
-                                                       Margin="0,8,0,0" TextWrapping="Wrap" MaxHeight="40"/>
+                                        <StackPanel Grid.Row="1" Margin="16,14,16,10">
+                                            <!-- Model Name -->
+                                            <TextBlock Text="{Binding ModelId}" FontSize="14" FontWeight="Bold"
+                                                       Foreground="White" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding ModelId}"/>
 
+                                            <!-- Author -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <materialDesign:PackIcon Kind="Account" Width="12" Height="12" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Author, FallbackValue=Unknown}" FontSize="11" Foreground="#6B6B8A"
+                                                           Margin="4,0,0,0" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+
+                                            <!-- Description -->
+                                            <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#8888AA"
+                                                       Margin="0,8,0,0" TextWrapping="Wrap" MaxHeight="36"
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                            <!-- Stats Row -->
                                             <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                <Border Background="#202038" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
+                                                <Border Background="#1A10B981" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <materialDesign:PackIcon Kind="Download" Width="14" Height="14" Foreground="#10B981"/>
-                                                        <TextBlock Text="{Binding DownloadsFormatted}" FontSize="11" Foreground="#10B981" Margin="4,0,0,0"/>
+                                                        <materialDesign:PackIcon Kind="Download" Width="12" Height="12" Foreground="#10B981" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding DownloadsFormatted}" FontSize="10" Foreground="#10B981" Margin="4,0,0,0"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <Border Background="#202038" CornerRadius="6" Padding="8,4">
+                                                <Border Background="#1AF472B6" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <materialDesign:PackIcon Kind="Heart" Width="14" Height="14" Foreground="#F472B6"/>
-                                                        <TextBlock Text="{Binding LikesFormatted}" FontSize="11" Foreground="#F472B6" Margin="4,0,0,0"/>
+                                                        <materialDesign:PackIcon Kind="Heart" Width="12" Height="12" Foreground="#F472B6" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding LikesFormatted}" FontSize="10" Foreground="#F472B6" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#1A7C4DFF" CornerRadius="6" Padding="8,4"
+                                                        Visibility="{Binding HasSize, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="Harddisk" Width="12" Height="12" Foreground="#7C4DFF" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding SizeFormatted}" FontSize="10" Foreground="#7C4DFF" Margin="4,0,0,0"/>
                                                     </StackPanel>
                                                 </Border>
                                             </StackPanel>
                                         </StackPanel>
 
-                                        <!-- Download Button -->
-                                        <Border Grid.Row="2" Background="#15151F" CornerRadius="0,0,12,12" Padding="16,12">
-                                            <Button Tag="{Binding ModelId}" Click="DownloadModel_Click" Cursor="Hand" HorizontalAlignment="Stretch">
+                                        <!-- Action Button -->
+                                        <Border Grid.Row="2" Background="#15151F" CornerRadius="0,0,14,14" Padding="14,12">
+                                            <!-- Download Button -->
+                                            <Button Tag="{Binding ModelId}" Click="DownloadModel_Click" Cursor="Hand" HorizontalAlignment="Stretch"
+                                                    Visibility="{Binding IsDownloaded, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Visible}">
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="border" CornerRadius="8" Padding="0,10">
+                                                        <Border x:Name="border" CornerRadius="10" Height="42">
                                                             <Border.Background>
                                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                                                     <GradientStop Color="#10B981" Offset="0"/>
                                                                     <GradientStop Color="#059669" Offset="1"/>
                                                                 </LinearGradientBrush>
                                                             </Border.Background>
-                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                                 <materialDesign:PackIcon Kind="Download" Width="18" Height="18" Foreground="White"/>
-                                                                <TextBlock Text="Download" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="8,0,0,0"/>
+                                                                <TextBlock Text="ดาวน์โหลด" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Effect">
+                                                                    <Setter.Value>
+                                                                        <DropShadowEffect Color="#10B981" BlurRadius="12" ShadowDepth="0" Opacity="0.5"/>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Border>
+
+                                        <!-- Remove Button (when downloaded) -->
+                                        <Border Grid.Row="2" Background="#15151F" CornerRadius="0,0,14,14" Padding="14,12"
+                                                Visibility="{Binding IsDownloaded, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                                            <Button Tag="{Binding ModelId}" Click="RemoveModel_Click" Cursor="Hand" HorizontalAlignment="Stretch">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" CornerRadius="10" Height="42"
+                                                                Background="#2D1A1A" BorderBrush="#EF4444" BorderThickness="1.5">
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <materialDesign:PackIcon Kind="Delete" Width="18" Height="18" Foreground="#EF4444"/>
+                                                                <TextBlock Text="ลบออก" FontSize="13" FontWeight="SemiBold" Foreground="#EF4444" Margin="8,0,0,0"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#3D2020"/>
+                                                                <Setter TargetName="border" Property="Effect">
+                                                                    <Setter.Value>
+                                                                        <DropShadowEffect Color="#EF4444" BlurRadius="10" ShadowDepth="0" Opacity="0.3"/>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Search Results - List View (Hidden by default) -->
+                <ScrollViewer x:Name="SearchResultsListView" Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="16" Visibility="Collapsed">
+                    <ItemsControl x:Name="SearchResultsListMode">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,10" CornerRadius="12" Background="#1E1E2E"
+                                        BorderBrush="#2D2D48" BorderThickness="1" Height="100">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="160"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Thumbnail -->
+                                        <Border Grid.Column="0" CornerRadius="12,0,0,12" ClipToBounds="True">
+                                            <Grid>
+                                                <Border>
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#252540" Offset="0"/>
+                                                            <GradientStop Color="#1E1E35" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
+                                                    <Grid>
+                                                        <materialDesign:PackIcon Kind="Brain" Width="32" Height="32" Foreground="#3D3D5A"
+                                                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        <Image helpers:AsyncImageLoader.SourceUrl="{Binding ThumbnailUrl}"
+                                                               Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Model Info -->
+                                        <StackPanel Grid.Column="1" Margin="16,12,16,12" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding ModelId}" FontSize="15" FontWeight="Bold" Foreground="White"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="400"/>
+                                                <Border Visibility="{Binding IsDownloaded, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"
+                                                        Background="#10B981" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="ดาวน์โหลดแล้ว" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#8888AA"
+                                                       Margin="0,6,0,0" TextTrimming="CharacterEllipsis" MaxWidth="500"/>
+                                            <!-- Stats -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                <materialDesign:PackIcon Kind="Download" Width="12" Height="12" Foreground="#10B981"/>
+                                                <TextBlock Text="{Binding DownloadsFormatted}" FontSize="10" Foreground="#10B981" Margin="4,0,16,0"/>
+                                                <materialDesign:PackIcon Kind="Heart" Width="12" Height="12" Foreground="#F472B6"/>
+                                                <TextBlock Text="{Binding LikesFormatted}" FontSize="10" Foreground="#F472B6" Margin="4,0,16,0"/>
+                                                <materialDesign:PackIcon Kind="Tag" Width="12" Height="12" Foreground="#7C4DFF"/>
+                                                <TextBlock Text="{Binding ModelTypeDisplay, FallbackValue=Model}" FontSize="10" Foreground="#7C4DFF" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Size Info -->
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,16,0"
+                                                    Visibility="{Binding HasSize, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                                            <TextBlock Text="{Binding SizeFormatted}" FontSize="14" FontWeight="SemiBold" Foreground="#7C4DFF"/>
+                                            <TextBlock Text="ขนาดไฟล์" FontSize="10" Foreground="#6B6B8A"/>
+                                        </StackPanel>
+
+                                        <!-- Action Button -->
+                                        <Border Grid.Column="3" VerticalAlignment="Center" Margin="0,0,14,0">
+                                            <Button Tag="{Binding ModelId}" Click="DownloadModel_Click" Cursor="Hand"
+                                                    Visibility="{Binding IsDownloaded, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Visible}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" CornerRadius="10" Padding="20,12">
+                                                            <Border.Background>
+                                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                    <GradientStop Color="#10B981" Offset="0"/>
+                                                                    <GradientStop Color="#059669" Offset="1"/>
+                                                                </LinearGradientBrush>
+                                                            </Border.Background>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <materialDesign:PackIcon Kind="Download" Width="18" Height="18" Foreground="White"/>
+                                                                <TextBlock Text="ดาวน์โหลด" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="8,0,0,0"/>
                                                             </StackPanel>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
@@ -699,14 +1043,29 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                <!-- Loading State -->
-                <Border x:Name="SearchLoadingState" Visibility="Collapsed" Grid.Row="1"
+                <!-- Empty State -->
+                <Border x:Name="SearchEmptyState" Grid.Row="2" Visibility="Visible"
                         HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="100" Height="100" CornerRadius="50" Background="#1E1E2E" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="CloudSearch" Width="48" Height="48" Foreground="#4B4B6A"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="ค้นหาโมเดลที่ต้องการ" FontSize="18" FontWeight="SemiBold" Foreground="White"
+                                   Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="พิมพ์คำค้นหาแล้วกด Enter หรือเลือกหมวดหมู่ด้านบน" FontSize="13" Foreground="#6B6B8A"
+                                   Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Loading State -->
+                <Border x:Name="SearchLoadingState" Visibility="Collapsed" Grid.Row="2"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Background="#C012121A">
                     <StackPanel HorizontalAlignment="Center">
                         <ProgressBar IsIndeterminate="True" Width="60" Height="60"
                                     Style="{StaticResource MaterialDesignCircularProgressBar}"
                                     Foreground="#7C4DFF"/>
-                        <TextBlock Text="Searching HuggingFace..." FontSize="14" Foreground="#6B6B8A"
+                        <TextBlock Text="กำลังค้นหา..." FontSize="14" Foreground="#9090A8"
                                    Margin="0,20,0,0" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
@@ -789,53 +1148,269 @@
             <Border x:Name="DownloadProgressOverlay" Visibility="Collapsed" Background="#E0000000">
                 <Border Background="#1E1E2E" CornerRadius="16" Padding="32"
                         HorizontalAlignment="Center" VerticalAlignment="Center"
-                        MinWidth="450" BorderBrush="#333350" BorderThickness="1">
+                        MinWidth="500" MaxWidth="550" BorderBrush="#333350" BorderThickness="1">
+                    <Border.Effect>
+                        <DropShadowEffect Color="Black" BlurRadius="30" ShadowDepth="0" Opacity="0.6"/>
+                    </Border.Effect>
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                            <Border Width="48" Height="48" CornerRadius="12">
+                        <!-- Header with Icon and Title -->
+                        <Grid Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Width="56" Height="56" CornerRadius="14">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                         <GradientStop Color="#7C4DFF" Offset="0"/>
                                         <GradientStop Color="#6366F1" Offset="1"/>
                                     </LinearGradientBrush>
                                 </Border.Background>
-                                <materialDesign:PackIcon Kind="Download" Width="24" Height="24" Foreground="White"
+                                <materialDesign:PackIcon Kind="Download" Width="28" Height="28" Foreground="White"
                                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Downloading Model" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
-                                <TextBlock x:Name="DownloadModelName" Text="" FontSize="12" Foreground="#6B6B8A" Margin="0,4,0,0"/>
+
+                            <StackPanel Grid.Column="1" Margin="18,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Downloading Model" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock x:Name="DownloadModelName" Text="" FontSize="12" Foreground="#6B6B8A"
+                                           Margin="0,4,0,0" TextTrimming="CharacterEllipsis" MaxWidth="300"/>
                             </StackPanel>
-                        </StackPanel>
 
-                        <ProgressBar x:Name="DownloadProgressBar" Value="0" Maximum="100" Height="8" Margin="0,0,0,0">
-                            <ProgressBar.Foreground>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#7C4DFF" Offset="0"/>
-                                    <GradientStop Color="#10B981" Offset="1"/>
-                                </LinearGradientBrush>
-                            </ProgressBar.Foreground>
-                        </ProgressBar>
-
-                        <Grid Margin="0,12,0,0">
-                            <TextBlock x:Name="DownloadProgressText" Text="0%" FontSize="13" Foreground="White" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="DownloadSpeedText" Text="" FontSize="12" Foreground="#6B6B8A" HorizontalAlignment="Right"/>
+                            <!-- Status indicator -->
+                            <Border x:Name="DownloadStatusBadge" Grid.Column="2" CornerRadius="6" Padding="10,5"
+                                    Background="#302563EB" VerticalAlignment="Center">
+                                <TextBlock x:Name="DownloadStatusText" Text="Downloading" FontSize="11"
+                                           FontWeight="SemiBold" Foreground="#2563EB"/>
+                            </Border>
                         </Grid>
 
-                        <Button x:Name="CancelDownloadButton" Margin="0,24,0,0" Click="CancelDownload_Click" Cursor="Hand">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="border" Background="#251A1A" CornerRadius="8" Padding="0,12">
-                                        <TextBlock Text="Cancel Download" FontSize="13" Foreground="#EF4444" HorizontalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="border" Property="Background" Value="#3D2020"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
+                        <!-- Animated Progress Bar with Running Light Effect (same as GPU Setup) -->
+                        <Grid x:Name="DownloadProgressContainer">
+                            <!-- Background track -->
+                            <Border Height="12" Background="#2D2D4A" CornerRadius="6"/>
+
+                            <!-- Progress bar fill -->
+                            <ProgressBar x:Name="DownloadProgressBar" Value="0" Maximum="100" Height="12"
+                                         Background="Transparent" BorderThickness="0">
+                                <ProgressBar.Foreground>
+                                    <LinearGradientBrush x:Name="DownloadProgressGradient" StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop x:Name="DownloadGradStop1" Color="#7C4DFF" Offset="0"/>
+                                        <GradientStop x:Name="DownloadGradStop2" Color="#A78BFA" Offset="0.5"/>
+                                        <GradientStop x:Name="DownloadGradStop3" Color="#10B981" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </ProgressBar.Foreground>
+                                <ProgressBar.Resources>
+                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                </ProgressBar.Resources>
+                            </ProgressBar>
+
+                            <!-- Running light effect (moves inside the progress bar) -->
+                            <Border x:Name="DownloadRunningLight" Height="12" CornerRadius="6"
+                                    HorizontalAlignment="Left" Width="60" Opacity="0.7"
+                                    ClipToBounds="True" Visibility="Visible">
+                                <Border.RenderTransform>
+                                    <TranslateTransform x:Name="DownloadLightTransform" X="0"/>
+                                </Border.RenderTransform>
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="Transparent" Offset="0"/>
+                                        <GradientStop Color="#FFFFFF" Offset="0.5"/>
+                                        <GradientStop Color="Transparent" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Border.Effect>
+                                    <BlurEffect Radius="5"/>
+                                </Border.Effect>
+                            </Border>
+
+                            <!-- Outer glow effect -->
+                            <Border x:Name="DownloadProgressGlow" Height="12" CornerRadius="6" Opacity="0.4"
+                                    HorizontalAlignment="Left" Width="0">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#7C4DFF" Offset="0"/>
+                                        <GradientStop Color="#A78BFA" Offset="0.5"/>
+                                        <GradientStop Color="#10B981" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Border.Effect>
+                                    <BlurEffect Radius="8"/>
+                                </Border.Effect>
+                            </Border>
+                        </Grid>
+
+                        <!-- Progress Info Grid -->
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Percentage -->
+                            <TextBlock x:Name="DownloadProgressText" Text="0%" FontSize="28" Foreground="White"
+                                       FontWeight="Bold" VerticalAlignment="Center"/>
+
+                            <!-- Speed indicator -->
+                            <Border Grid.Column="1" Background="#1A10B981" CornerRadius="8" Padding="12,6">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="SpeedometerMedium" Width="16" Height="16"
+                                                            Foreground="#10B981" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="DownloadSpeedText" Text="-- MB/s" FontSize="13"
+                                               Foreground="#10B981" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Downloaded/Total and ETA row -->
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock x:Name="DownloadSizeText" Text="0 MB / 0 MB" FontSize="13" Foreground="#9090A8"/>
+                                <TextBlock Text=" • " FontSize="13" Foreground="#4B4B6A"/>
+                                <materialDesign:PackIcon Kind="ClockOutline" Width="14" Height="14"
+                                                        Foreground="#6B6B8A" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="DownloadEtaText" Text="ETA: --" FontSize="13" Foreground="#9090A8"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Action Buttons - Balanced and proportioned -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,24,0,0">
+                            <!-- Cancel Button (shown during download) -->
+                            <Button x:Name="CancelDownloadButton" Click="CancelDownload_Click" Cursor="Hand"
+                                    MinWidth="160" Height="48">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#2D1A1A" CornerRadius="10"
+                                                BorderBrush="#EF4444" BorderThickness="1.5"
+                                                MinWidth="{TemplateBinding MinWidth}" Height="{TemplateBinding Height}">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <materialDesign:PackIcon Kind="Stop" Width="20" Height="20"
+                                                                        Foreground="#EF4444" VerticalAlignment="Center"/>
+                                                <TextBlock Text="หยุดดาวน์โหลด" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="#EF4444" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#3D2020"/>
+                                                <Setter TargetName="border" Property="Effect">
+                                                    <Setter.Value>
+                                                        <DropShadowEffect Color="#EF4444" BlurRadius="12" ShadowDepth="0" Opacity="0.3"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- Close Button (shown after cancel/error) -->
+                            <Button x:Name="CloseDownloadButton" Click="CloseDownload_Click"
+                                    Cursor="Hand" Visibility="Collapsed" MinWidth="120" Height="48" Margin="12,0,0,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#252540" CornerRadius="10"
+                                                BorderBrush="#4D4D6C" BorderThickness="1.5"
+                                                MinWidth="{TemplateBinding MinWidth}" Height="{TemplateBinding Height}">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <materialDesign:PackIcon Kind="Close" Width="20" Height="20"
+                                                                        Foreground="#B0B0C8" VerticalAlignment="Center"/>
+                                                <TextBlock Text="ปิด" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="#B0B0C8" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#2D2D48"/>
+                                                <Setter TargetName="border" Property="BorderBrush" Value="#6D6D8C"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- Delete Files Button (shown when download fails/cancelled) -->
+                            <Button x:Name="DeleteDownloadButton" Click="DeleteDownload_Click"
+                                    Cursor="Hand" Visibility="Collapsed" MinWidth="140" Height="48" Margin="12,0,0,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="#2D1A1A" CornerRadius="10"
+                                                BorderBrush="#EF4444" BorderThickness="1.5"
+                                                MinWidth="{TemplateBinding MinWidth}" Height="{TemplateBinding Height}">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <materialDesign:PackIcon Kind="Delete" Width="20" Height="20"
+                                                                        Foreground="#EF4444" VerticalAlignment="Center"/>
+                                                <TextBlock Text="ลบไฟล์" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="#EF4444" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#3D2020"/>
+                                                <Setter TargetName="border" Property="Effect">
+                                                    <Setter.Value>
+                                                        <DropShadowEffect Color="#EF4444" BlurRadius="10" ShadowDepth="0" Opacity="0.3"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Resume Section (shown when download was interrupted) -->
+                        <Border x:Name="ResumeSection" Visibility="Collapsed" Background="#1A1A28"
+                                CornerRadius="12" Padding="18" Margin="0,20,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="การดาวน์โหลดถูกหยุด" FontSize="14"
+                                               Foreground="#F59E0B" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="ResumeInfoText" Text="ดาวน์โหลดไปแล้ว 0 MB" FontSize="12"
+                                               Foreground="#8B8BA8" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" x:Name="ResumeDownloadButton" Click="ResumeDownload_Click"
+                                        Cursor="Hand" MinWidth="130" Height="42">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" CornerRadius="10"
+                                                    MinWidth="{TemplateBinding MinWidth}" Height="{TemplateBinding Height}">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                        <GradientStop Color="#F59E0B" Offset="0"/>
+                                                        <GradientStop Color="#D97706" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <materialDesign:PackIcon Kind="Play" Width="18" Height="18"
+                                                                            Foreground="White" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="ดาวน์โหลดต่อ" FontSize="14" FontWeight="SemiBold"
+                                                               Foreground="White" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="#F59E0B" BlurRadius="12" ShadowDepth="0" Opacity="0.5"/>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </Border>
             </Border>

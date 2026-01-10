@@ -15,8 +15,8 @@
         <Setter Property="Background">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#8B5CF6" Offset="0"/>
-                    <GradientStop Color="#7C3AED" Offset="1"/>
+                    <GradientStop Color="#A78BFA" Offset="0"/>
+                    <GradientStop Color="#A78BFA" Offset="1"/>
                 </LinearGradientBrush>
             </Setter.Value>
         </Setter>
@@ -33,7 +33,7 @@
                             CornerRadius="8" Padding="{TemplateBinding Padding}"
                             BorderThickness="0">
                         <Border.Effect>
-                            <DropShadowEffect Color="#8B5CF6" BlurRadius="12" ShadowDepth="0" Opacity="0.3"/>
+                            <DropShadowEffect Color="#A78BFA" BlurRadius="12" ShadowDepth="0" Opacity="0.3"/>
                         </Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -43,7 +43,7 @@
                                 <Setter.Value>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                         <GradientStop Color="#9D7AFF" Offset="0"/>
-                                        <GradientStop Color="#8B5CF6" Offset="1"/>
+                                        <GradientStop Color="#A78BFA" Offset="1"/>
                                     </LinearGradientBrush>
                                 </Setter.Value>
                             </Setter>
@@ -309,6 +309,180 @@
     <Style x:Key="StatLabel" TargetType="TextBlock">
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Foreground" Value="#808080"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- Beautiful Animated Progress Bar Styles                          -->
+    <!-- Use with AnimatedProgressBarHelper for running light effect     -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Standard Progress Bar (Purple to Green Gradient) -->
+    <Style x:Key="AnimatedProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="12"/>
+        <Setter Property="Background" Value="#2D2D4A"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#A78BFA" Offset="0"/>
+                    <GradientStop Color="#EC4899" Offset="0.5"/>
+                    <GradientStop Color="#10B981" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <!-- Background track with rounded corners -->
+                        <Border CornerRadius="6" Background="{TemplateBinding Background}"/>
+                        <!-- Progress fill with rounded corners -->
+                        <Border x:Name="PART_Track" CornerRadius="6" ClipToBounds="True">
+                            <Border x:Name="PART_Indicator"
+                                    Background="{TemplateBinding Foreground}"
+                                    CornerRadius="6"
+                                    HorizontalAlignment="Left"/>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Purple Progress Bar -->
+    <Style x:Key="PurpleProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="10"/>
+        <Setter Property="Background" Value="#252540"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                    <GradientStop Color="#A78BFA" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border CornerRadius="5" Background="{TemplateBinding Background}"/>
+                        <Border CornerRadius="5" ClipToBounds="True">
+                            <Border x:Name="PART_Indicator"
+                                    Background="{TemplateBinding Foreground}"
+                                    CornerRadius="5"
+                                    HorizontalAlignment="Left">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#7C4DFF" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                                </Border.Effect>
+                            </Border>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Green Progress Bar -->
+    <Style x:Key="GreenProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="10"/>
+        <Setter Property="Background" Value="#1A2520"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#10B981" Offset="0"/>
+                    <GradientStop Color="#34D399" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border CornerRadius="5" Background="{TemplateBinding Background}"/>
+                        <Border CornerRadius="5" ClipToBounds="True">
+                            <Border x:Name="PART_Indicator"
+                                    Background="{TemplateBinding Foreground}"
+                                    CornerRadius="5"
+                                    HorizontalAlignment="Left">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#10B981" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                                </Border.Effect>
+                            </Border>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Pink Progress Bar -->
+    <Style x:Key="PinkProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="10"/>
+        <Setter Property="Background" Value="#2A1A25"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#EC4899" Offset="0"/>
+                    <GradientStop Color="#F472B6" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border CornerRadius="5" Background="{TemplateBinding Background}"/>
+                        <Border CornerRadius="5" ClipToBounds="True">
+                            <Border x:Name="PART_Indicator"
+                                    Background="{TemplateBinding Foreground}"
+                                    CornerRadius="5"
+                                    HorizontalAlignment="Left">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#EC4899" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                                </Border.Effect>
+                            </Border>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Cyan Progress Bar (Download style) -->
+    <Style x:Key="CyanProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="10"/>
+        <Setter Property="Background" Value="#1A2530"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#06B6D4" Offset="0"/>
+                    <GradientStop Color="#22D3EE" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border CornerRadius="5" Background="{TemplateBinding Background}"/>
+                        <Border CornerRadius="5" ClipToBounds="True">
+                            <Border x:Name="PART_Indicator"
+                                    Background="{TemplateBinding Foreground}"
+                                    CornerRadius="5"
+                                    HorizontalAlignment="Left">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#06B6D4" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                                </Border.Effect>
+                            </Border>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>

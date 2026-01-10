@@ -118,10 +118,10 @@
 
         <!-- Selection Border -->
         <Border x:Name="SelectionBorder" CornerRadius="14"
-                BorderThickness="2" BorderBrush="#8B5CF6"
+                BorderThickness="2" BorderBrush="#A78BFA"
                 Visibility="Collapsed">
             <Border.Effect>
-                <DropShadowEffect Color="#8B5CF6" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                <DropShadowEffect Color="#A78BFA" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
             </Border.Effect>
         </Border>
 

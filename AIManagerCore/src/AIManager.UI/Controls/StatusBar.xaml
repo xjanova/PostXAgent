@@ -156,7 +156,7 @@
 
                 <!-- Copyright & Version -->
                 <TextBlock Text="© 2025 Xman Studio" FontSize="10" Opacity="0.4" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBlock x:Name="TxtVersion" Text="v1.1.0" FontSize="10" Opacity="0.5" VerticalAlignment="Center" Foreground="#8B5CF6"/>
+                <TextBlock x:Name="TxtVersion" Text="v1.1.0" FontSize="10" Opacity="0.5" VerticalAlignment="Center" Foreground="#A78BFA"/>
             </StackPanel>
         </Grid>
     </Border>

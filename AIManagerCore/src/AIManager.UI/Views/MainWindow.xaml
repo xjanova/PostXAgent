@@ -77,7 +77,7 @@
                             <Border x:Name="RgbGlowRing" Width="90" Height="90" CornerRadius="45" HorizontalAlignment="Center">
                                 <!-- RGB Glow Effect -->
                                 <Border.Effect>
-                                    <DropShadowEffect x:Name="RgbGlowEffect" Color="#8B5CF6" BlurRadius="30" ShadowDepth="0" Opacity="0.9"/>
+                                    <DropShadowEffect x:Name="RgbGlowEffect" Color="#A78BFA" BlurRadius="30" ShadowDepth="0" Opacity="0.9"/>
                                 </Border.Effect>
                                 <Border.Background>
                                     <LinearGradientBrush x:Name="RgbGradient" StartPoint="0,0" EndPoint="1,1">
@@ -144,10 +144,10 @@
                                 <Button x:Name="BtnDashboard" Click="NavButton_Click" Tag="Dashboard"
                                         Style="{StaticResource FuturisticNavButton}" Margin="5,3">
                                     <StackPanel Orientation="Horizontal">
-                                        <Border Width="36" Height="36" CornerRadius="8" Background="#208B5CF6">
+                                        <Border Width="36" Height="36" CornerRadius="8" Background="#20A78BFA">
                                             <materialDesign:PackIcon Kind="ViewDashboard" Width="20" Height="20"
                                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                     Foreground="#8B5CF6"/>
+                                                                     Foreground="#A78BFA"/>
                                         </Border>
                                         <TextBlock Text="Dashboard" Margin="12,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -219,13 +219,13 @@
                                         <Border Width="36" Height="36" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#208B5CF6" Offset="0"/>
+                                                    <GradientStop Color="#20A78BFA" Offset="0"/>
                                                     <GradientStop Color="#2010B981" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
                                             <materialDesign:PackIcon Kind="Creation" Width="20" Height="20"
                                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                     Foreground="#8B5CF6"/>
+                                                                     Foreground="#A78BFA"/>
                                         </Border>
                                         <TextBlock Text="Content Creator" Margin="12,0,0,0" VerticalAlignment="Center"/>
                                         <Border Style="{StaticResource BadgeNew}">
@@ -241,7 +241,7 @@
                                         <Border Width="36" Height="36" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#208B5CF6" Offset="0"/>
+                                                    <GradientStop Color="#20A78BFA" Offset="0"/>
                                                     <GradientStop Color="#20EC4899" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
@@ -260,7 +260,7 @@
                                         <Border Width="36" Height="36" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#308B5CF6" Offset="0"/>
+                                                    <GradientStop Color="#30A78BFA" Offset="0"/>
                                                     <GradientStop Color="#30EC4899" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
@@ -397,7 +397,7 @@
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                                     <GradientStop Color="#2010B981" Offset="0"/>
-                                                    <GradientStop Color="#208B5CF6" Offset="1"/>
+                                                    <GradientStop Color="#20A78BFA" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
                                             <materialDesign:PackIcon Kind="Strategy" Width="20" Height="20"
@@ -462,7 +462,7 @@
                                         <Border Width="36" Height="36" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#208B5CF6" Offset="0"/>
+                                                    <GradientStop Color="#20A78BFA" Offset="0"/>
                                                     <GradientStop Color="#20EF4444" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
@@ -599,7 +599,7 @@
                                 Padding="12,6" Cursor="Hand" MouseLeftButtonDown="AIMessagePanel_Click"
                                 MinWidth="200" MaxWidth="500">
                             <Border.Effect>
-                                <DropShadowEffect Color="#8B5CF6" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
+                                <DropShadowEffect Color="#A78BFA" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
                             </Border.Effect>
                             <Grid ClipToBounds="True">
                                 <Grid.ColumnDefinitions>
@@ -607,7 +607,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <materialDesign:PackIcon x:Name="AIMessageIcon" Kind="Robot" Width="18" Height="18"
-                                                         Foreground="#8B5CF6" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                         Foreground="#A78BFA" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <!-- Marquee Container -->
                                 <Canvas Grid.Column="1" x:Name="MarqueeCanvas" ClipToBounds="True" Height="20">
                                     <TextBlock x:Name="TxtAIMessage" Text="AI Assistant พร้อมช่วยเหลือ"

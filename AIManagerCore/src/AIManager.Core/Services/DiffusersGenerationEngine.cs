@@ -17,6 +17,7 @@ public class DiffusersGenerationEngine : IDisposable
     private readonly ILogger<DiffusersGenerationEngine>? _logger;
     private readonly HuggingFaceModelService _modelService;
     private readonly LocalGpuService _gpuService;
+    private readonly AutoSetupService _autoSetup;
     private readonly string _scriptsDir;
     private Process? _serverProcess;
     private HttpClient? _httpClient;
@@ -57,6 +58,11 @@ public class DiffusersGenerationEngine : IDisposable
     public event EventHandler<LocalGpuStatusEventArgs>? GpuStatusChanged;
 
     /// <summary>
+    /// Event raised when auto-setup progress changes
+    /// </summary>
+    public event EventHandler<SetupProgressEventArgs>? SetupProgressChanged;
+
+    /// <summary>
     /// Gets whether the engine is running
     /// </summary>
     public bool IsRunning => _isRunning;
@@ -84,11 +90,16 @@ public class DiffusersGenerationEngine : IDisposable
     public DiffusersGenerationEngine(
         HuggingFaceModelService modelService,
         LocalGpuService? gpuService = null,
+        AutoSetupService? autoSetup = null,
         ILogger<DiffusersGenerationEngine>? logger = null)
     {
         _modelService = modelService;
         _gpuService = gpuService ?? new LocalGpuService();
+        _autoSetup = autoSetup ?? new AutoSetupService(_gpuService);
         _logger = logger;
+
+        // Subscribe to auto-setup progress events
+        _autoSetup.ProgressChanged += (s, e) => SetupProgressChanged?.Invoke(this, e);
 
         // Setup scripts directory
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -96,12 +107,23 @@ public class DiffusersGenerationEngine : IDisposable
         Directory.CreateDirectory(_scriptsDir);
     }
 
+    /// <summary>
+    /// Gets whether the auto-setup has been completed
+    /// </summary>
+    public bool IsSetupComplete => _autoSetup.IsPythonInstalled;
+
+    /// <summary>
+    /// Gets the AutoSetupService instance for manual control
+    /// </summary>
+    public AutoSetupService AutoSetup => _autoSetup;
+
     #region Engine Lifecycle
 
     /// <summary>
     /// Perform pre-flight checks before starting the engine
+    /// If autoInstall is true, automatically installs missing dependencies
     /// </summary>
-    public async Task<PreflightCheckResult> PerformPreflightChecksAsync(CancellationToken ct = default)
+    public async Task<PreflightCheckResult> PerformPreflightChecksAsync(bool autoInstall = true, CancellationToken ct = default)
     {
         var result = new PreflightCheckResult();
 
@@ -115,12 +137,77 @@ public class DiffusersGenerationEngine : IDisposable
 
             GpuStatusChanged?.Invoke(this, new LocalGpuStatusEventArgs(_cachedGpuInfo));
 
-            // Check Python environment
+            // Check if we have embedded Python from auto-setup
+            if (_autoSetup.IsPythonInstalled)
+            {
+                // Verify embedded Python installation
+                StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Verifying embedded Python..."));
+                var verification = await _autoSetup.VerifyInstallationAsync(ct);
+
+                if (verification.IsValid)
+                {
+                    result.HasPython = true;
+                    result.PythonReady = true;
+                    _cachedPythonEnv = new PythonEnvironmentInfo
+                    {
+                        IsAvailable = true,
+                        IsReady = true,
+                        PythonPath = _autoSetup.PythonPath,
+                        PythonVersion = verification.PythonVersion,
+                        HasCudaSupport = verification.HasCuda,
+                        InstalledPackages = new List<string> { "PyTorch", "Diffusers", "Transformers", "Accelerate" }
+                    };
+                    result.PythonEnv = _cachedPythonEnv;
+                    result.IsReady = true;
+
+                    _logger?.LogInformation("Embedded Python ready: {Version}, CUDA: {Cuda}",
+                        verification.PythonVersion, verification.HasCuda);
+                    return result;
+                }
+            }
+
+            // Check system Python environment
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Checking Python environment..."));
             _cachedPythonEnv = await _gpuService.CheckPythonEnvironmentAsync(ct);
             result.PythonEnv = _cachedPythonEnv;
             result.HasPython = _cachedPythonEnv.IsAvailable;
             result.PythonReady = _cachedPythonEnv.IsReady;
+
+            // Auto-install if enabled and not ready
+            if (autoInstall && (!result.HasPython || !result.PythonReady))
+            {
+                _logger?.LogInformation("Python not ready, starting automatic installation...");
+                StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Installing Python and dependencies automatically..."));
+
+                var setupResult = await _autoSetup.PerformFullSetupAsync(ct);
+
+                if (setupResult.Success && setupResult.VerificationResult?.IsValid == true)
+                {
+                    result.HasPython = true;
+                    result.PythonReady = true;
+                    result.AutoInstalled = true;
+                    _cachedPythonEnv = new PythonEnvironmentInfo
+                    {
+                        IsAvailable = true,
+                        IsReady = true,
+                        PythonPath = _autoSetup.PythonPath,
+                        PythonVersion = setupResult.VerificationResult.PythonVersion,
+                        HasCudaSupport = setupResult.VerificationResult.HasCuda,
+                        InstalledPackages = new List<string> { "PyTorch", "Diffusers", "Transformers", "Accelerate" }
+                    };
+                    result.PythonEnv = _cachedPythonEnv;
+
+                    _logger?.LogInformation("Automatic installation completed successfully");
+                }
+                else
+                {
+                    result.Errors.Add($"Automatic installation failed: {setupResult.Message}");
+                    if (setupResult.VerificationResult?.Errors.Count > 0)
+                    {
+                        result.Errors.AddRange(setupResult.VerificationResult.Errors);
+                    }
+                }
+            }
 
             // Set overall readiness
             result.IsReady = result.HasPython && result.PythonReady;
@@ -135,27 +222,27 @@ public class DiffusersGenerationEngine : IDisposable
                 result.Warnings.Add($"Low VRAM ({_cachedGpuInfo.TotalVramGb:F1}GB). Only small models supported.");
             }
 
-            if (!result.HasPython)
+            if (!result.IsReady && !autoInstall)
             {
-                result.Errors.Add("Python 3.10+ not found. Please install Python.");
-            }
-            else if (!result.PythonReady)
-            {
-                var installCmd = _gpuService.GetInstallCommand(_cachedPythonEnv, _cachedGpuInfo);
-                result.Errors.Add($"Missing packages: {string.Join(", ", _cachedPythonEnv.MissingPackages)}");
-                result.InstallCommand = installCmd;
+                if (!result.HasPython)
+                {
+                    result.Errors.Add("Python 3.10+ not found. Please install Python.");
+                }
+                else if (!result.PythonReady)
+                {
+                    var installCmd = _gpuService.GetInstallCommand(_cachedPythonEnv, _cachedGpuInfo);
+                    result.Errors.Add($"Missing packages: {string.Join(", ", _cachedPythonEnv.MissingPackages)}");
+                    result.InstallCommand = installCmd;
+                }
             }
 
-            if (!_cachedPythonEnv.HasCudaSupport && result.HasGpu && _cachedGpuInfo.Vendor == GpuVendor.Nvidia)
+            if (_cachedPythonEnv != null && !_cachedPythonEnv.HasCudaSupport && result.HasGpu && _cachedGpuInfo.Vendor == GpuVendor.Nvidia)
             {
                 result.Warnings.Add("PyTorch doesn't have CUDA support. GPU acceleration unavailable.");
-                result.InstallCommand = _gpuService.GetInstallCommand(
-                    new PythonEnvironmentInfo { MissingPackages = new List<string> { "PyTorch" } },
-                    _cachedGpuInfo);
             }
 
-            _logger?.LogInformation("Preflight check complete. Ready: {Ready}, GPU: {Gpu}, Python: {Python}",
-                result.IsReady, result.HasGpu, result.PythonReady);
+            _logger?.LogInformation("Preflight check complete. Ready: {Ready}, GPU: {Gpu}, Python: {Python}, AutoInstalled: {AutoInstalled}",
+                result.IsReady, result.HasGpu, result.PythonReady, result.AutoInstalled);
 
             return result;
         }
@@ -192,7 +279,7 @@ public class DiffusersGenerationEngine : IDisposable
             // Perform pre-flight checks
             if (!skipPreflightChecks)
             {
-                var preflightResult = await PerformPreflightChecksAsync(ct);
+                var preflightResult = await PerformPreflightChecksAsync(autoInstall: true, ct: ct);
                 if (!preflightResult.IsReady)
                 {
                     StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Error, "Pre-flight checks failed"));
@@ -210,7 +297,21 @@ public class DiffusersGenerationEngine : IDisposable
 
             // Start Python process
             var scriptPath = Path.Combine(_scriptsDir, "generation_server.py");
-            var pythonPath = _cachedPythonEnv?.PythonPath ?? "python";
+
+            // Determine Python path - prefer embedded Python from auto-setup
+            string pythonPath;
+            var useEmbeddedPython = _autoSetup.IsPythonInstalled;
+
+            if (useEmbeddedPython)
+            {
+                pythonPath = _autoSetup.PythonPath;
+                _logger?.LogInformation("Using embedded Python: {Path}", pythonPath);
+            }
+            else
+            {
+                pythonPath = _cachedPythonEnv?.PythonPath ?? "python";
+                _logger?.LogInformation("Using system Python: {Path}", pythonPath);
+            }
 
             var psi = new ProcessStartInfo
             {
@@ -222,6 +323,19 @@ public class DiffusersGenerationEngine : IDisposable
                 CreateNoWindow = true,
                 WorkingDirectory = _scriptsDir
             };
+
+            // Set environment for embedded Python
+            if (useEmbeddedPython)
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var pythonDir = Path.Combine(appData, "PostXAgent", "python");
+                var scriptsDir = Path.Combine(pythonDir, "Scripts");
+                var libDir = Path.Combine(pythonDir, "Lib", "site-packages");
+
+                psi.EnvironmentVariables["PYTHONHOME"] = pythonDir;
+                psi.EnvironmentVariables["PYTHONPATH"] = libDir;
+                psi.EnvironmentVariables["PATH"] = $"{pythonDir};{scriptsDir};{Environment.GetEnvironmentVariable("PATH")}";
+            }
 
             // Set environment variables for CUDA
             if (_cachedGpuInfo?.Vendor == GpuVendor.Nvidia)
@@ -1207,6 +1321,7 @@ public class PreflightCheckResult
     public bool HasGpu { get; set; }
     public bool HasPython { get; set; }
     public bool PythonReady { get; set; }
+    public bool AutoInstalled { get; set; }
     public GpuInfo? GpuInfo { get; set; }
     public PythonEnvironmentInfo? PythonEnv { get; set; }
     public List<string> Errors { get; set; } = new();

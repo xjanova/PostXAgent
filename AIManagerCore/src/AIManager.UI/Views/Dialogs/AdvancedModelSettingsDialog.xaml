@@ -1,0 +1,502 @@
+<Window x:Class="AIManager.UI.Views.Dialogs.AdvancedModelSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="Advanced Model Settings"
+        Width="800" Height="700"
+        WindowStartupLocation="CenterOwner"
+        Background="#0D0D15"
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <Style x:Key="SettingsSection" TargetType="Border">
+            <Setter Property="Background" Value="#1A1A2E"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <Style x:Key="SettingLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#9090A8"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="SettingInput" TargetType="TextBox">
+            <Setter Property="Background" Value="#2D2D4A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style x:Key="SettingCombo" TargetType="ComboBox">
+            <Setter Property="Background" Value="#2D2D4A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Style.Resources>
+                <!-- Fix text color visibility in dropdown popup -->
+                <SolidColorBrush x:Key="MaterialDesignBody" Color="White"/>
+            </Style.Resources>
+        </Style>
+
+        <Style x:Key="SettingComboItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Padding="20,16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#30A78BFA" Offset="0"/>
+                    <GradientStop Color="#30EC4899" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="48" Height="48" CornerRadius="12" Background="#30A78BFA">
+                    <materialDesign:PackIcon Kind="TuneVertical" Width="28" Height="28" Foreground="#A78BFA"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Advanced Model Settings" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Configure Model, LoRA, VAE, Sampler, and more" FontSize="12" Foreground="#80FFFFFF"/>
+                </StackPanel>
+
+                <!-- Validation Status -->
+                <Border x:Name="ValidationBadge" Grid.Column="2" CornerRadius="8" Padding="12,6">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon x:Name="ValidationIcon" Kind="CheckCircle" Width="18" Height="18"
+                                                  Foreground="#10B981" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ValidationText" Text="Ready" Margin="8,0,0,0" FontSize="12"
+                                   FontWeight="SemiBold" Foreground="#10B981" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,0">
+            <StackPanel>
+
+                <!-- MODEL SELECTION -->
+                <Border Style="{StaticResource SettingsSection}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="CubeOutline" Width="20" Height="20" Foreground="#A78BFA" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Checkpoint / Base Model" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
+                            <Ellipse x:Name="ModelStatusDot" Grid.Column="2" Width="10" Height="10" Fill="#EF4444"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="CmbCheckpoint" Style="{StaticResource SettingCombo}"
+                                      DisplayMemberPath="DisplayName" SelectedValuePath="Id"
+                                      SelectionChanged="Checkpoint_Changed"/>
+                            <Button Grid.Column="1" Margin="8,0,0,0" Click="BrowseCheckpoint_Click"
+                                    Style="{StaticResource MaterialDesignIconButton}" ToolTip="Browse...">
+                                <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Foreground="#6B6B8A"/>
+                            </Button>
+                        </Grid>
+
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Precision" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox x:Name="CmbPrecision" Style="{StaticResource SettingCombo}">
+                                    <ComboBoxItem Content="FP16 (Recommended)" IsSelected="True" Foreground="White"/>
+                                    <ComboBoxItem Content="FP32 (High VRAM)" Foreground="White"/>
+                                    <ComboBoxItem Content="BF16 (RTX 30/40)" Foreground="White"/>
+                                    <ComboBoxItem Content="INT8 (Quantized)" Foreground="White"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                <TextBlock Text="CLIP Skip" Style="{StaticResource SettingLabel}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox x:Name="TxtClipSkip" Text="1" Width="60" Style="{StaticResource SettingInput}"/>
+                                    <TextBlock Text="layers" Foreground="#6B6B8A" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- VAE SETTINGS -->
+                <Border Style="{StaticResource SettingsSection}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="Palette" Width="20" Height="20" Foreground="#EC4899" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="VAE (Variational Autoencoder)" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
+                            <CheckBox x:Name="ChkCustomVae" Content="Custom VAE" Foreground="White" Grid.Column="2"
+                                      Checked="CustomVae_Changed" Unchecked="CustomVae_Changed"/>
+                        </Grid>
+
+                        <Grid x:Name="VaeSettings" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="CmbVae" Style="{StaticResource SettingCombo}" Margin="0,0,8,0"/>
+                            <Button Grid.Column="1" Click="BrowseVae_Click"
+                                    Style="{StaticResource MaterialDesignIconButton}" ToolTip="Browse...">
+                                <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Foreground="#6B6B8A"/>
+                            </Button>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <CheckBox x:Name="ChkTiledVae" Content="Tiled VAE (Low VRAM)" Foreground="White" Margin="0,0,20,0"/>
+                            <TextBlock Text="Tile Size:" Foreground="#9090A8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox x:Name="TxtVaeTileSize" Text="512" Width="60" Style="{StaticResource SettingInput}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- LORA CONFIGURATION -->
+                <Border Style="{StaticResource SettingsSection}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="Tune" Width="20" Height="20" Foreground="#F59E0B" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="LoRA (Low-Rank Adaptation)" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
+                            <Button Grid.Column="2" Click="AddLora_Click" ToolTip="Add LoRA"
+                                    Style="{StaticResource MaterialDesignIconButton}">
+                                <materialDesign:PackIcon Kind="Plus" Width="18" Height="18" Foreground="#10B981"/>
+                            </Button>
+                        </Grid>
+
+                        <ItemsControl x:Name="LoraList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#25000000" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
+                                                <TextBlock Text="{Binding Path}" FontSize="10" Foreground="#6B6B8A" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Margin="8,0">
+                                                <TextBlock Text="Weight" FontSize="10" Foreground="#6B6B8A"/>
+                                                <Slider Value="{Binding Weight}" Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" Margin="8,0">
+                                                <TextBlock Text="CLIP" FontSize="10" Foreground="#6B6B8A"/>
+                                                <Slider Value="{Binding ClipWeight}" Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+                                            </StackPanel>
+
+                                            <Button Grid.Column="3" Click="RemoveLora_Click" Tag="{Binding}"
+                                                    Style="{StaticResource MaterialDesignIconButton}" Width="28" Height="28">
+                                                <materialDesign:PackIcon Kind="Close" Width="14" Height="14" Foreground="#EF4444"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock x:Name="TxtNoLoras" Text="No LoRAs added. Click + to add."
+                                   Foreground="#6B6B8A" FontSize="11" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- SAMPLER SETTINGS -->
+                <Border Style="{StaticResource SettingsSection}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="Waveform" Width="20" Height="20" Foreground="#06B6D4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Sampler &amp; Scheduler" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Sampler" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox x:Name="CmbSampler" Style="{StaticResource SettingCombo}">
+                                    <ComboBoxItem Content="DPM++ 2M Karras" IsSelected="True" Foreground="White"/>
+                                    <ComboBoxItem Content="DPM++ SDE Karras" Foreground="White"/>
+                                    <ComboBoxItem Content="Euler a" Foreground="White"/>
+                                    <ComboBoxItem Content="Euler" Foreground="White"/>
+                                    <ComboBoxItem Content="Heun" Foreground="White"/>
+                                    <ComboBoxItem Content="LMS" Foreground="White"/>
+                                    <ComboBoxItem Content="DDIM" Foreground="White"/>
+                                    <ComboBoxItem Content="UniPC" Foreground="White"/>
+                                    <ComboBoxItem Content="LCM" Foreground="White"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                <TextBlock Text="Scheduler" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox x:Name="CmbScheduler" Style="{StaticResource SettingCombo}">
+                                    <ComboBoxItem Content="Normal" IsSelected="True" Foreground="White"/>
+                                    <ComboBoxItem Content="Karras" Foreground="White"/>
+                                    <ComboBoxItem Content="Exponential" Foreground="White"/>
+                                    <ComboBoxItem Content="SGM Uniform" Foreground="White"/>
+                                    <ComboBoxItem Content="Simple" Foreground="White"/>
+                                    <ComboBoxItem Content="DDIM Uniform" Foreground="White"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Steps" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtSteps" Text="30" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="8,0">
+                                <TextBlock Text="CFG Scale" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtCfg" Text="7.5" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Margin="8,0">
+                                <TextBlock Text="Seed (-1 = random)" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtSeed" Text="-1" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="3" Margin="8,0,0,0">
+                                <TextBlock Text="Denoise" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtDenoise" Text="1.0" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- IMAGE SIZE -->
+                <Border Style="{StaticResource SettingsSection}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="AspectRatio" Width="20" Height="20" Foreground="#10B981" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Image Size" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel>
+                                <TextBlock Text="Width" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtWidth" Text="1024" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="16,20,16,0">
+                                <materialDesign:PackIcon Kind="Link" Width="16" Height="16" Foreground="#6B6B8A"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Height" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtHeight" Text="1024" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Quick Size Presets -->
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="512x512" Margin="0,0,8,0" Click="SetSize_Click" Tag="512,512"
+                                    Padding="12,4" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+                            <Button Content="768x768" Margin="0,0,8,0" Click="SetSize_Click" Tag="768,768"
+                                    Padding="12,4" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+                            <Button Content="1024x1024" Margin="0,0,8,0" Click="SetSize_Click" Tag="1024,1024"
+                                    Padding="12,4" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+                            <Button Content="1024x768" Margin="0,0,8,0" Click="SetSize_Click" Tag="1024,768"
+                                    Padding="12,4" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+                            <Button Content="768x1024" Margin="0,0,8,0" Click="SetSize_Click" Tag="768,1024"
+                                    Padding="12,4" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+                            <Button Content="1920x1080" Click="SetSize_Click" Tag="1920,1080"
+                                    Padding="12,4" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- HI-RES FIX -->
+                <Border Style="{StaticResource SettingsSection}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="Resize" Width="20" Height="20" Foreground="#A855F7" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Hi-Res Fix / Upscale" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
+                            <CheckBox x:Name="ChkHiResFix" Content="Enable" Foreground="White" Grid.Column="2"
+                                      Checked="HiResFix_Changed" Unchecked="HiResFix_Changed"/>
+                        </Grid>
+
+                        <Grid x:Name="HiResSettings" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Scale" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtHiResScale" Text="1.5" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="8,0">
+                                <TextBlock Text="Steps" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtHiResSteps" Text="15" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Margin="8,0">
+                                <TextBlock Text="Denoise" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtHiResDenoise" Text="0.5" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="3" Margin="8,0,0,0">
+                                <TextBlock Text="Upscaler" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox x:Name="CmbHiResUpscaler" Style="{StaticResource SettingCombo}">
+                                    <ComboBoxItem Content="Latent" IsSelected="True" Foreground="White"/>
+                                    <ComboBoxItem Content="Real-ESRGAN 4x" Foreground="White"/>
+                                    <ComboBoxItem Content="Lanczos" Foreground="White"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- REFINER (SDXL) -->
+                <Border Style="{StaticResource SettingsSection}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon Kind="AutoFix" Width="20" Height="20" Foreground="#F472B6" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Refiner (SDXL)" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
+                            <CheckBox x:Name="ChkRefiner" Content="Enable" Foreground="White" Grid.Column="2"
+                                      Checked="Refiner_Changed" Unchecked="Refiner_Changed"/>
+                        </Grid>
+
+                        <Grid x:Name="RefinerSettings" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Refiner Model" Style="{StaticResource SettingLabel}"/>
+                                <ComboBox x:Name="CmbRefinerModel" Style="{StaticResource SettingCombo}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                <TextBlock Text="Switch at %" Style="{StaticResource SettingLabel}"/>
+                                <TextBox x:Name="TxtRefinerSwitch" Text="80" Style="{StaticResource SettingInput}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Padding="20,16" Background="#12121A">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Validation Messages -->
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="TxtValidationMessage" Text="" Foreground="#F59E0B" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="Reset to Defaults" Margin="0,0,12,0" Click="ResetDefaults_Click"
+                        Padding="20,10" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+
+                <Button Grid.Column="2" x:Name="BtnApply" Content="Apply Settings" Click="Apply_Click"
+                        Padding="24,10" BorderThickness="0">
+                    <Button.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#A78BFA" Offset="0"/>
+                            <GradientStop Color="#EC4899" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Button.Background>
+                    <Button.Foreground>
+                        <SolidColorBrush Color="White"/>
+                    </Button.Foreground>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

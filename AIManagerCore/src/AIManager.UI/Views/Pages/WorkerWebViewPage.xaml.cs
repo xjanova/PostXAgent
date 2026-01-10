@@ -371,7 +371,7 @@ public partial class WorkerWebViewPage : Page
 
                 case WorkerViewMode.Learning:
                     TxtStatus.Text = "Learning";
-                    StatusDot.Fill = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+                    StatusDot.Fill = new SolidColorBrush(Color.FromRgb(167, 139, 250));
                     LearningOverlay.Visibility = Visibility.Visible;
                     BtnViewOnly.IsEnabled = false;
                     BtnAssist.IsEnabled = false;

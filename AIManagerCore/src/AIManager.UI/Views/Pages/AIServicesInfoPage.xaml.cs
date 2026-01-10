@@ -17,7 +17,7 @@ public partial class AIServicesInfoPage : Page
 
     private static readonly SolidColorBrush GreenBrush = new(Color.FromRgb(16, 185, 129));
     private static readonly SolidColorBrush RedBrush = new(Color.FromRgb(239, 68, 68));
-    private static readonly SolidColorBrush PurpleBrush = new(Color.FromRgb(139, 92, 246));
+    private static readonly SolidColorBrush PurpleBrush = new(Color.FromRgb(167, 139, 250));
 
     public AIServicesInfoPage()
     {

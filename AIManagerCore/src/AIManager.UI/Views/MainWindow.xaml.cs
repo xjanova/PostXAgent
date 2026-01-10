@@ -547,7 +547,7 @@ public partial class MainWindow : Window
                 AIMessageType.Warning => new SolidColorBrush(Color.FromRgb(244, 67, 54)),   // Red
                 AIMessageType.Celebration => new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
                 AIMessageType.Suggestion => new SolidColorBrush(Color.FromRgb(255, 193, 7)), // Yellow
-                _ => new SolidColorBrush(Color.FromRgb(139, 92, 246))  // Purple (default)
+                _ => new SolidColorBrush(Color.FromRgb(167, 139, 250))  // Purple (default)
             };
 
             // Update tooltip with full message

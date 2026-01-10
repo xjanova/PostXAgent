@@ -159,7 +159,7 @@
                                     <Setter Property="Background">
                                         <Setter.Value>
                                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                <GradientStop Color="#8B5CF6" Offset="0"/>
+                                                <GradientStop Color="#A78BFA" Offset="0"/>
                                                 <GradientStop Color="#06B6D4" Offset="1"/>
                                             </LinearGradientBrush>
                                         </Setter.Value>
@@ -215,7 +215,7 @@
                             BorderBrush="#4006B6D4" Foreground="White" Padding="15,8"/>
                     <Button Content="Export All" Click="BtnExportAll_Click"
                             Style="{StaticResource MaterialDesignOutlinedButton}"
-                            BorderBrush="#408B5CF6" Foreground="White" Padding="15,8"/>
+                            BorderBrush="#40A78BFA" Foreground="White" Padding="15,8"/>
                 </StackPanel>
             </Grid>
 
@@ -319,7 +319,7 @@
                                                     Style="{StaticResource WorkflowTypeButton}"
                                                     Visibility="{Binding ShowPrimaryAction, Converter={StaticResource BoolToVisibility}}">
                                                 <Button.Background>
-                                                    <SolidColorBrush Color="#8B5CF6" Opacity="0.2"/>
+                                                    <SolidColorBrush Color="#A78BFA" Opacity="0.2"/>
                                                 </Button.Background>
                                             </Button>
                                         </WrapPanel>

@@ -39,7 +39,7 @@ public partial class DashboardPage : Page
         { SocialPlatform.LinkedIn, "#0A66C2" },
         { SocialPlatform.Pinterest, "#E60023" },
         { SocialPlatform.Freepik, "#00C7B7" },
-        { SocialPlatform.Runway, "#8B5CF6" },
+        { SocialPlatform.Runway, "#A78BFA" },
         { SocialPlatform.PikaLabs, "#F59E0B" },
         { SocialPlatform.LumaAI, "#10B981" },
         { SocialPlatform.SunoAI, "#EC4899" }

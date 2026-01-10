@@ -227,6 +227,30 @@ builder.Services.AddSingleton<SelfHealingWorker>();
 // GPU Pool Service (Distributed GPU Worker Management)
 builder.Services.AddSingleton<GpuPoolService>();
 
+// GPU Node Monitor Service (Advanced monitoring with quota, prestart, failover)
+builder.Services.AddSingleton<GpuNodeMonitorService>();
+
+// HuggingFace Model Service (Model Download and Management)
+builder.Services.AddSingleton<HuggingFaceModelService>();
+
+// Local GPU Service (GPU Detection and Monitoring)
+builder.Services.AddSingleton<LocalGpuService>();
+
+// ComfyUI Service (optional - for ComfyUI backend)
+builder.Services.AddSingleton<ComfyUIService>();
+
+// Unified Generation Engine (combines all image/video generation providers)
+// Now includes GpuPoolService for distributed generation across multiple GPUs
+builder.Services.AddSingleton<UnifiedGenerationEngine>(sp =>
+{
+    var modelService = sp.GetRequiredService<HuggingFaceModelService>();
+    var gpuService = sp.GetRequiredService<LocalGpuService>();
+    var comfyService = sp.GetRequiredService<ComfyUIService>();
+    var gpuPoolService = sp.GetRequiredService<GpuPoolService>();
+    var logger = sp.GetRequiredService<ILogger<UnifiedGenerationEngine>>();
+    return new UnifiedGenerationEngine(modelService, gpuService, comfyService, gpuPoolService, logger);
+});
+
 var app = builder.Build();
 
 // Generate master key if no keys exist (for initial setup)

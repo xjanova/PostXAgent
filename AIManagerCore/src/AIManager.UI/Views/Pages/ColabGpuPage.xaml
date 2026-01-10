@@ -59,10 +59,10 @@
 
                         <!-- Quick Stats -->
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                            <Border Background="#208B5CF6" CornerRadius="8" Padding="12,8" Margin="0,0,12,0">
+                            <Border Background="#20A78BFA" CornerRadius="8" Padding="12,8" Margin="0,0,12,0">
                                 <StackPanel Orientation="Horizontal">
                                     <materialDesign:PackIcon Kind="AccountMultiple" Width="18" Height="18"
-                                                             Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                                             Foreground="#A78BFA" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="TxtTotalAccounts" Text="0 Accounts" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Border>
@@ -193,7 +193,7 @@
                         </Button>
                         <Button Content="เพิ่ม Account" Click="AddAccount_Click"
                                 Style="{StaticResource MaterialDesignFlatMidBgButton}"
-                                Background="#8B5CF6" Foreground="White" Margin="0,0,8,0">
+                                Background="#A78BFA" Foreground="White" Margin="0,0,8,0">
                             <Button.ContentTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
@@ -242,7 +242,7 @@
                                            HorizontalAlignment="Center" Opacity="0.4"/>
                                 <Button Content="เพิ่ม Account แรก" Margin="0,20,0,0" Click="AddAccount_Click"
                                         Style="{StaticResource MaterialDesignFlatMidBgButton}"
-                                        Background="#8B5CF6" Foreground="White"/>
+                                        Background="#A78BFA" Foreground="White"/>
                             </StackPanel>
                         </Border>
 
@@ -258,7 +258,7 @@
                         <!-- Step 1 -->
                         <StackPanel Margin="0,0,0,16">
                             <StackPanel Orientation="Horizontal">
-                                <Border Width="24" Height="24" CornerRadius="12" Background="#8B5CF6">
+                                <Border Width="24" Height="24" CornerRadius="12" Background="#A78BFA">
                                     <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
                                 </Border>
                                 <TextBlock Text="เพิ่ม Google Accounts" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
@@ -309,7 +309,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Pro ($9.99/เดือน)" Opacity="0.7"/>
-                            <TextBlock Grid.Column="1" Text="~24 ชม./วัน" FontWeight="SemiBold" Foreground="#8B5CF6"/>
+                            <TextBlock Grid.Column="1" Text="~24 ชม./วัน" FontWeight="SemiBold" Foreground="#A78BFA"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions>

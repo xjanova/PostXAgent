@@ -48,7 +48,7 @@
 
                         <Border x:Name="StrategyDescriptionPanel" Background="#1A1A2E" CornerRadius="8" Padding="15">
                             <StackPanel>
-                                <TextBlock x:Name="TxtStrategyName" Text="Organic Growth" FontSize="14" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                <TextBlock x:Name="TxtStrategyName" Text="Organic Growth" FontSize="14" FontWeight="Bold" Foreground="#A78BFA"/>
                                 <TextBlock x:Name="TxtStrategyDescription" Text="Natural posting for quality engagement" Foreground="#BBBBBB"
                                            TextWrapping="Wrap" Margin="0,5,0,0"/>
                             </StackPanel>
@@ -228,7 +228,7 @@
                 <materialDesign:Card Padding="20" Margin="0,0,0,15">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <materialDesign:PackIcon Kind="Workflow" Width="24" Height="24" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#8B5CF6"/>
+                            <materialDesign:PackIcon Kind="Workflow" Width="24" Height="24" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#A78BFA"/>
                             <TextBlock Text="Workflow Automation" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
 
@@ -252,13 +252,13 @@
                                                     </Grid.ColumnDefinitions>
 
                                                     <materialDesign:PackIcon Kind="Workflow" Width="20" Height="20"
-                                                                             Foreground="#8B5CF6" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                                             Foreground="#A78BFA" VerticalAlignment="Center" Margin="0,0,12,0"/>
 
                                                     <StackPanel Grid.Column="1">
                                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
                                                         <StackPanel Orientation="Horizontal">
                                                             <TextBlock Text="Next: " FontSize="11" Foreground="#B8B8D0"/>
-                                                            <TextBlock Text="{Binding NextScheduledDisplay}" FontSize="11" Foreground="#8B5CF6"/>
+                                                            <TextBlock Text="{Binding NextScheduledDisplay}" FontSize="11" Foreground="#A78BFA"/>
                                                         </StackPanel>
                                                     </StackPanel>
 
@@ -351,7 +351,7 @@
 
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
-                                                <TextBlock Text="{Binding TemplateType}" FontSize="11" Foreground="#8B5CF6"/>
+                                                <TextBlock Text="{Binding TemplateType}" FontSize="11" Foreground="#A78BFA"/>
                                                 <TextBlock Text="{Binding Content}" FontSize="12" Foreground="#AAAAAA"
                                                            TextTrimming="CharacterEllipsis" MaxWidth="500"/>
                                             </StackPanel>

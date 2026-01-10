@@ -9,7 +9,7 @@
     <UserControl.Resources>
         <!-- Gradient Colors for Blobs -->
         <RadialGradientBrush x:Key="Blob1Gradient" GradientOrigin="0.3,0.3">
-            <GradientStop Color="#8B5CF6" Offset="0"/>
+            <GradientStop Color="#A78BFA" Offset="0"/>
             <GradientStop Color="#6366F1" Offset="0.5"/>
             <GradientStop Color="Transparent" Offset="1"/>
         </RadialGradientBrush>

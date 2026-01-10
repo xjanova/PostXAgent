@@ -8,7 +8,9 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using AIManager.Core.Models;
 using AIManager.Core.Services;
+using AIManager.UI.Views.Dialogs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -26,10 +28,15 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     private readonly DiffusersGenerationEngine _diffusersEngine;
     private readonly ComfyUIService _comfyService;
     private readonly HuggingFaceModelService _modelService;
+    private readonly AutoSetupService _autoSetupService;
     private readonly ILogger<GenerationPipelinePage>? _logger;
     private readonly DispatcherTimer _statusTimer;
     private readonly DispatcherTimer _vramTimer;
     private readonly ObservableCollection<WorkerDisplayItem> _activeWorkers = new();
+    private bool _isSettingUpPython;
+    private CancellationTokenSource? _setupCts;
+    private DispatcherTimer? _setupAnimationTimer;
+    private int _animationFrame;
 
     private bool _isVideoMode;
     private bool _isGenerating;
@@ -39,6 +46,10 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     private double _totalGenerationTime;
     private string? _currentModel;
     private GpuInfo? _localGpuInfo;
+
+    // Pipeline configuration with validation
+    private PipelineConfiguration _pipelineConfig = new();
+    private PipelineValidationResult? _lastValidation;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -50,13 +61,18 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         // Initialize services
         _modelService = new HuggingFaceModelService();
         _localGpuService = new LocalGpuService();
+        _autoSetupService = new AutoSetupService(_localGpuService);
         _diffusersEngine = new DiffusersGenerationEngine(_modelService, _localGpuService);
         _comfyService = new ComfyUIService();
+
+        // Subscribe to auto setup events
+        _autoSetupService.ProgressChanged += AutoSetupService_ProgressChanged;
 
         // Subscribe to events
         _diffusersEngine.ProgressChanged += DiffusersEngine_ProgressChanged;
         _diffusersEngine.GpuStatusChanged += DiffusersEngine_GpuStatusChanged;
         _diffusersEngine.StatusChanged += DiffusersEngine_StatusChanged;
+        _diffusersEngine.SetupProgressChanged += DiffusersEngine_SetupProgressChanged;
         _comfyService.ProgressChanged += ComfyService_ProgressChanged;
 
         // Get services from DI
@@ -104,9 +120,27 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
 
         Loaded += async (s, e) =>
         {
+            // Reset setup UI in case previous session was interrupted
+            // This ensures the overlay is hidden when returning to this page
+            if (SetupOverlay.Visibility == Visibility.Visible && !_isSettingUpPython)
+            {
+                ResetSetupUI();
+            }
+
+            // Always sync with the latest active model from ModelManagerPage
+            if (!string.IsNullOrEmpty(ModelManagerPage.ActiveModelId))
+            {
+                _currentModel = ModelManagerPage.ActiveModelId;
+            }
+
             await InitializeGpuAsync();
             await RefreshStatusAsync();
+            await CheckPythonStatusAsync();
             UpdateActiveModelDisplay();
+
+            // Update block status indicators based on current state
+            UpdateBlockStatusIndicators();
+
             _statusTimer.Start();
             _vramTimer.Start();
         };
@@ -132,6 +166,499 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         }
     }
 
+    #region Python Auto Setup
+
+    /// <summary>
+    /// Check Python installation status and update UI (fast file-based check)
+    /// </summary>
+    private async Task CheckPythonStatusAsync()
+    {
+        try
+        {
+            // Use fast file-based verification instead of running Python processes
+            var verification = QuickVerifyInstallation();
+            UpdatePythonStatusUI(verification);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to check Python status");
+            UpdatePythonStatusUI(null);
+        }
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Quick file-based verification without running Python processes
+    /// </summary>
+    private VerificationResult QuickVerifyInstallation()
+    {
+        var result = new VerificationResult();
+        var installDir = _autoSetupService.InstallDirectory;
+        var pythonDir = Path.Combine(installDir, "python");
+
+        result.HasPython = File.Exists(Path.Combine(pythonDir, "python.exe"));
+        result.HasPyTorch = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "torch", "__init__.py"));
+        result.HasDiffusers = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "diffusers", "__init__.py"));
+        result.HasTransformers = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "transformers", "__init__.py"));
+
+        result.IsValid = result.HasPython && result.HasPyTorch && result.HasDiffusers && result.HasTransformers;
+
+        if (result.HasPython) result.PythonVersion = "Python 3.11";
+        if (result.HasPyTorch) result.PyTorchVersion = "PyTorch (installed)";
+        if (result.HasDiffusers) result.DiffusersVersion = "Diffusers (installed)";
+        if (result.HasTransformers) result.TransformersVersion = "Transformers (installed)";
+
+        // Check CUDA by looking for CUDA-specific files
+        result.HasCuda = Directory.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "torch", "lib")) &&
+                         Directory.GetFiles(Path.Combine(pythonDir, "Lib", "site-packages", "torch", "lib"), "cudart*.dll").Length > 0;
+
+        if (result.HasCuda && _localGpuInfo != null)
+        {
+            result.CudaDevice = _localGpuInfo.Name;
+        }
+
+        return result;
+    }
+
+    private void UpdatePythonStatusUI(VerificationResult? verification)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (verification == null || !verification.HasPython)
+            {
+                // Not installed
+                PythonStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0xEF, 0x44, 0x44));
+                PythonStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                TxtPythonStatus.Text = "Setup Required";
+                PythonStatusBorder.ToolTip = "Click to install Python and AI packages automatically";
+            }
+            else if (!verification.IsValid)
+            {
+                // Partial installation
+                PythonStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0xF5, 0x9E, 0x0B));
+                PythonStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+                TxtPythonStatus.Text = "Incomplete";
+                PythonStatusBorder.ToolTip = $"Missing: {string.Join(", ", verification.Errors)}\nClick to complete setup";
+            }
+            else
+            {
+                // Fully installed
+                var cudaText = verification.HasCuda ? " + CUDA" : "";
+                PythonStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0x10, 0xB9, 0x81));
+                PythonStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                TxtPythonStatus.Text = $"Ready{cudaText}";
+                PythonStatusBorder.ToolTip = verification.GetSummary();
+            }
+
+            // Also update the other status indicators
+            UpdateHeaderStatusIndicators();
+        });
+    }
+
+    /// <summary>
+    /// Update all header status indicators (Model, GPU, VRAM)
+    /// </summary>
+    private void UpdateHeaderStatusIndicators()
+    {
+        var greenColor = Color.FromRgb(16, 185, 129);   // #10B981
+        var redColor = Color.FromRgb(239, 68, 68);      // #EF4444
+        var yellowColor = Color.FromRgb(245, 158, 11);  // #F59E0B
+        var grayColor = Color.FromRgb(107, 114, 128);   // #6B7280
+
+        // Sync with ModelManagerPage active model
+        if (string.IsNullOrEmpty(_currentModel) && !string.IsNullOrEmpty(ModelManagerPage.ActiveModelId))
+        {
+            _currentModel = ModelManagerPage.ActiveModelId;
+        }
+
+        // Model Status
+        if (!string.IsNullOrEmpty(_currentModel))
+        {
+            var modelName = _currentModel.Split('/').LastOrDefault() ?? _currentModel;
+            if (modelName.Length > 15) modelName = modelName.Substring(0, 12) + "...";
+
+            ModelStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0x10, 0xB9, 0x81));
+            ModelStatusIcon.Foreground = new SolidColorBrush(greenColor);
+            TxtModelStatus.Text = modelName;
+            ModelStatusBorder.ToolTip = $"Active Model: {_currentModel}\nClick to change model";
+        }
+        else
+        {
+            ModelStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0xEF, 0x44, 0x44));
+            ModelStatusIcon.Foreground = new SolidColorBrush(redColor);
+            TxtModelStatus.Text = "ไม่มีโมเดล";
+            ModelStatusBorder.ToolTip = "ยังไม่ได้เลือกโมเดล - คลิกเพื่อเลือก";
+        }
+
+        // GPU Status
+        if (_localGpuInfo?.IsAvailable == true)
+        {
+            var gpuName = _localGpuInfo.Name;
+            if (gpuName.Length > 18) gpuName = gpuName.Substring(0, 15) + "...";
+
+            GpuStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0x10, 0xB9, 0x81));
+            GpuStatusIcon.Foreground = new SolidColorBrush(greenColor);
+            TxtGpuStatus.Text = gpuName;
+        }
+        else
+        {
+            GpuStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0xF5, 0x9E, 0x0B));
+            GpuStatusIcon.Foreground = new SolidColorBrush(yellowColor);
+            TxtGpuStatus.Text = "CPU Only";
+        }
+
+        // VRAM Status
+        if (_localGpuInfo?.IsAvailable == true && _localGpuInfo.TotalVramGb > 0)
+        {
+            var usedVram = _localGpuInfo.TotalVramGb - _localGpuInfo.FreeVramGb;
+            var usagePercent = _localGpuInfo.UsagePercent;
+
+            VramStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20,
+                usagePercent > 90 ? (byte)0xEF : usagePercent > 70 ? (byte)0xF5 : (byte)0x10,
+                usagePercent > 90 ? (byte)0x44 : usagePercent > 70 ? (byte)0x9E : (byte)0xB9,
+                usagePercent > 90 ? (byte)0x44 : usagePercent > 70 ? (byte)0x0B : (byte)0x81));
+
+            var vramColor = usagePercent > 90 ? redColor : usagePercent > 70 ? yellowColor : greenColor;
+            ((Border)VramStatusBorder).Child.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
+            if (VramStatusBorder.Child is StackPanel sp && sp.Children.Count >= 1)
+            {
+                if (sp.Children[0] is MaterialDesignThemes.Wpf.PackIcon icon)
+                    icon.Foreground = new SolidColorBrush(vramColor);
+            }
+
+            TxtVramStatus.Text = $"{usedVram:F1}/{_localGpuInfo.TotalVramGb:F0} GB";
+        }
+        else
+        {
+            VramStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0x6B, 0x72, 0x80));
+            TxtVramStatus.Text = "-- GB";
+        }
+    }
+
+    private void ModelStatus_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Navigate to Model Manager page
+        if (Window.GetWindow(this) is MainWindow mainWindow)
+        {
+            mainWindow.NavigateToPage("ModelManager");
+        }
+    }
+
+    private void AutoSetupService_ProgressChanged(object? sender, SetupProgressEventArgs e)
+    {
+        Dispatcher.Invoke(() => UpdateSetupProgress(e));
+    }
+
+    private async void PythonStatus_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (_isSettingUpPython) return;
+
+        // Use fast file-based check instead of running Python processes
+        var verification = QuickVerifyInstallation();
+        if (verification.IsValid)
+        {
+            // Already fully installed - show info
+            MessageBox.Show(
+                verification.GetSummary(),
+                "Python Environment",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        // Ask user to confirm setup
+        var result = MessageBox.Show(
+            "ต้องการติดตั้ง Python และ AI packages โดยอัตโนมัติหรือไม่?\n\n" +
+            "ระบบจะติดตั้ง:\n" +
+            "• Python 3.11 (Embedded)\n" +
+            "• PyTorch (with CUDA support)\n" +
+            "• Diffusers, Transformers, Accelerate\n\n" +
+            "ใช้เวลาประมาณ 5-15 นาที ขึ้นอยู่กับความเร็วอินเทอร์เน็ต",
+            "Auto Setup",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        await StartAutoSetupAsync();
+    }
+
+    private async Task StartAutoSetupAsync()
+    {
+        _isSettingUpPython = true;
+        _setupCts = new CancellationTokenSource();
+        SetupOverlay.Visibility = Visibility.Visible;
+
+        // Start animation timer for RGB glow effect
+        StartSetupAnimation();
+
+        try
+        {
+            var setupResult = await _autoSetupService.PerformFullSetupAsync(_setupCts.Token);
+
+            if (setupResult.Success)
+            {
+                MessageBox.Show(
+                    "การติดตั้งเสร็จสมบูรณ์!\n\n" +
+                    (setupResult.VerificationResult?.GetSummary() ?? "Ready to generate images."),
+                    "Setup Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                await CheckPythonStatusAsync();
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"การติดตั้งล้มเหลว:\n{setupResult.Message}",
+                    "Setup Failed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show(
+                "การติดตั้งถูกยกเลิก\n\nคุณสามารถเริ่มใหม่ได้โดยคลิกที่ปุ่ม Python Status",
+                "Cancelled",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Auto setup failed");
+            MessageBox.Show(
+                $"เกิดข้อผิดพลาดระหว่างติดตั้ง:\n{ex.Message}",
+                "Setup Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            StopSetupAnimation();
+            _isSettingUpPython = false;
+            _setupCts?.Dispose();
+            _setupCts = null;
+            SetupOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private async void CancelSetup_Click(object sender, RoutedEventArgs e)
+    {
+        // Ask for confirmation
+        var result = MessageBox.Show(
+            "ยกเลิกการติดตั้ง?\n\n" +
+            "ไฟล์ที่ดาวน์โหลดไปแล้วจะถูกลบเพื่อคืนพื้นที่\n" +
+            "คุณสามารถเริ่มใหม่ได้ทุกเมื่อ",
+            "ยืนยันการยกเลิก",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        // Cancel the setup operation
+        if (_setupCts != null && !_setupCts.IsCancellationRequested)
+        {
+            _setupCts.Cancel();
+            _logger?.LogInformation("User cancelled setup");
+        }
+
+        // Update UI to show cleanup in progress
+        SetupStatusText.Text = "กำลังยกเลิกและลบไฟล์...";
+        BtnCancelSetup.IsEnabled = false;
+
+        try
+        {
+            // Cleanup installed files
+            if (_autoSetupService != null)
+            {
+                var progress = new Progress<string>(msg =>
+                {
+                    Dispatcher.Invoke(() => SetupStatusText.Text = msg);
+                });
+
+                var cleanupResult = await _autoSetupService.CleanupInstallationAsync(progress);
+
+                if (cleanupResult.Success)
+                {
+                    _logger?.LogInformation("Cleanup completed: {Message}", cleanupResult.Message);
+
+                    // Show result
+                    MessageBox.Show(
+                        $"ยกเลิกการติดตั้งเรียบร้อย\n\n{cleanupResult.Message}",
+                        "ยกเลิกสำเร็จ",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    _logger?.LogWarning("Cleanup failed: {Message}", cleanupResult.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error during cleanup");
+        }
+
+        // Reset UI state
+        ResetSetupUI();
+
+        // Refresh Python status display
+        await CheckPythonStatusAsync();
+    }
+
+    /// <summary>
+    /// Reset setup UI to initial state
+    /// </summary>
+    private void ResetSetupUI()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            // Stop animation
+            StopSetupAnimation();
+
+            // Hide overlay
+            SetupOverlay.Visibility = Visibility.Collapsed;
+
+            // Reset progress
+            SetupProgressBar.Value = 0;
+            SetupProgressPercent.Text = "0%";
+            SetupStatusText.Text = "";
+
+            // Reset step indicators
+            var grayBrush = new SolidColorBrush(Color.FromRgb(107, 107, 138));
+            Step1Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step1Icon.Foreground = grayBrush;
+            Step1Status.Text = "Pending";
+            Step1Status.Foreground = grayBrush;
+
+            Step2Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step2Icon.Foreground = grayBrush;
+            Step2Status.Text = "Pending";
+            Step2Status.Foreground = grayBrush;
+
+            Step3Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step3Icon.Foreground = grayBrush;
+            Step3Status.Text = "Pending";
+            Step3Status.Foreground = grayBrush;
+
+            Step4Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step4Icon.Foreground = grayBrush;
+            Step4Status.Text = "Pending";
+            Step4Status.Foreground = grayBrush;
+
+            // Re-enable cancel button for next time
+            BtnCancelSetup.IsEnabled = true;
+
+            // Reset flags
+            _isSettingUpPython = false;
+
+            _logger?.LogInformation("Setup UI reset to initial state");
+        });
+    }
+
+    private void StartSetupAnimation()
+    {
+        _animationFrame = 0;
+        _setupAnimationTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(50)
+        };
+        _setupAnimationTimer.Tick += SetupAnimation_Tick;
+        _setupAnimationTimer.Start();
+    }
+
+    private void StopSetupAnimation()
+    {
+        _setupAnimationTimer?.Stop();
+        _setupAnimationTimer = null;
+    }
+
+    private void SetupAnimation_Tick(object? sender, EventArgs e)
+    {
+        _animationFrame++;
+
+        try
+        {
+            // Get container width - use a default if not yet rendered
+            var containerWidth = ProgressBarContainer.ActualWidth;
+            if (containerWidth <= 0) containerWidth = 400; // Default width
+
+            var progressPercent = SetupProgressBar.Value / 100.0;
+            var progressWidth = progressPercent * containerWidth;
+
+            // Animate gradient colors (RGB cycling for the fill)
+            var offset = (_animationFrame % 100) / 100.0;
+            var hue1 = (offset * 360) % 360;
+            var hue2 = ((offset + 0.5) * 360) % 360;
+
+            if (SetupProgressBar.Foreground is LinearGradientBrush gradient && gradient.GradientStops.Count >= 3)
+            {
+                gradient.GradientStops[0].Color = HsvToColor(hue1, 0.7, 0.95);
+                gradient.GradientStops[1].Color = HsvToColor(hue2, 0.7, 0.95);
+                gradient.GradientStops[2].Color = HsvToColor(hue1, 0.7, 0.95);
+            }
+
+            // Running light animation - always visible and moving
+            var lightWidth = 60.0;
+            var maxX = Math.Max(containerWidth - lightWidth, lightWidth);
+
+            // Continuous left-to-right animation using modulo
+            var cycleTime = 40.0; // Complete cycle every 40 frames (2 seconds at 50ms)
+            var normalizedPosition = (_animationFrame % cycleTime) / cycleTime;
+
+            // Ping-pong motion (0->1->0)
+            var pingPong = normalizedPosition < 0.5
+                ? normalizedPosition * 2
+                : 2 - normalizedPosition * 2;
+
+            // Move within the progress bar area (or full width if progress is low)
+            var moveRange = progressWidth > lightWidth ? progressWidth - lightWidth : maxX;
+            var lightX = pingPong * moveRange;
+
+            RunningLightTransform.X = lightX;
+
+            // Pulsing opacity for the light
+            RunningLightBorder.Opacity = 0.5 + 0.4 * Math.Sin(_animationFrame * 0.2);
+
+            // Update outer glow border width to match progress
+            ProgressGlowBorder.Width = Math.Max(progressWidth, 10);
+
+            // Pulse glow opacity
+            ProgressGlowBorder.Opacity = 0.3 + 0.2 * Math.Sin(_animationFrame * 0.1);
+        }
+        catch { }
+    }
+
+    private static Color HsvToColor(double hue, double saturation, double value)
+    {
+        int hi = (int)(hue / 60) % 6;
+        double f = hue / 60 - Math.Floor(hue / 60);
+
+        value *= 255;
+        byte v = (byte)value;
+        byte p = (byte)(value * (1 - saturation));
+        byte q = (byte)(value * (1 - f * saturation));
+        byte t = (byte)(value * (1 - (1 - f) * saturation));
+
+        return hi switch
+        {
+            0 => Color.FromRgb(v, t, p),
+            1 => Color.FromRgb(q, v, p),
+            2 => Color.FromRgb(p, v, t),
+            3 => Color.FromRgb(p, q, v),
+            4 => Color.FromRgb(t, p, v),
+            _ => Color.FromRgb(v, p, q)
+        };
+    }
+
+    #endregion
+
     private void DiffusersEngine_GpuStatusChanged(object? sender, LocalGpuStatusEventArgs e)
     {
         _localGpuInfo = e.GpuInfo;
@@ -148,7 +675,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             {
                 EngineStatus.Running => Color.FromRgb(16, 185, 129),   // Green
                 EngineStatus.Loading => Color.FromRgb(245, 158, 11),   // Yellow
-                EngineStatus.Generating => Color.FromRgb(139, 92, 246), // Purple
+                EngineStatus.Generating => Color.FromRgb(167, 139, 250), // Purple
                 EngineStatus.Error => Color.FromRgb(239, 68, 68),      // Red
                 _ => Color.FromRgb(107, 114, 128)                      // Gray
             };
@@ -164,30 +691,41 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             TxtLocalGpuVram.Text = "N/A";
             TxtLocalGpuTemp.Text = "N/A";
             LocalGpuVramBar.Value = 0;
-            return;
+        }
+        else
+        {
+            TxtLocalGpuName.Text = _localGpuInfo.Name;
+            TxtLocalGpuVram.Text = $"{_localGpuInfo.FreeVramGb:F1} / {_localGpuInfo.TotalVramGb:F1} GB";
+            TxtLocalGpuTemp.Text = _localGpuInfo.Temperature > 0 ? $"{_localGpuInfo.Temperature}°C" : "N/A";
+            LocalGpuVramBar.Value = _localGpuInfo.UsagePercent;
+            LocalGpuVramBar.Foreground = new SolidColorBrush(
+                _localGpuInfo.UsagePercent > 90 ? Color.FromRgb(239, 68, 68) :
+                _localGpuInfo.UsagePercent > 70 ? Color.FromRgb(245, 158, 11) :
+                Color.FromRgb(16, 185, 129));
+
+            // Update compatible models indicator
+            var compatibleModels = _diffusersEngine.GetCompatibleModelTypes().ToList();
+            TxtCompatibleModels.Text = string.Join(", ", compatibleModels);
         }
 
-        TxtLocalGpuName.Text = _localGpuInfo.Name;
-        TxtLocalGpuVram.Text = $"{_localGpuInfo.FreeVramGb:F1} / {_localGpuInfo.TotalVramGb:F1} GB";
-        TxtLocalGpuTemp.Text = _localGpuInfo.Temperature > 0 ? $"{_localGpuInfo.Temperature}°C" : "N/A";
-        LocalGpuVramBar.Value = _localGpuInfo.UsagePercent;
-        LocalGpuVramBar.Foreground = new SolidColorBrush(
-            _localGpuInfo.UsagePercent > 90 ? Color.FromRgb(239, 68, 68) :
-            _localGpuInfo.UsagePercent > 70 ? Color.FromRgb(245, 158, 11) :
-            Color.FromRgb(16, 185, 129));
-
-        // Update compatible models indicator
-        var compatibleModels = _diffusersEngine.GetCompatibleModelTypes().ToList();
-        TxtCompatibleModels.Text = string.Join(", ", compatibleModels);
+        // Update header status indicators
+        UpdateHeaderStatusIndicators();
     }
 
     private async Task UpdateVramStatusAsync()
     {
-        if (_localGpuInfo == null || !_localGpuInfo.IsAvailable) return;
-
         try
         {
             var vram = await _localGpuService.GetVramUsageAsync();
+
+            // Update local GPU info (only mutable properties)
+            if (_localGpuInfo != null)
+            {
+                _localGpuInfo.FreeVramGb = vram.FreeMb / 1024.0;
+                _localGpuInfo.TotalVramGb = vram.TotalMb / 1024.0;
+                // Note: UsagePercent is calculated from Free/Total, so we don't need to set it
+            }
+
             Dispatcher.Invoke(() =>
             {
                 TxtLocalGpuVram.Text = $"{vram.FreeMb / 1024.0:F1} / {vram.TotalMb / 1024.0:F1} GB";
@@ -196,6 +734,9 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
                     vram.UsagePercent > 90 ? Color.FromRgb(239, 68, 68) :
                     vram.UsagePercent > 70 ? Color.FromRgb(245, 158, 11) :
                     Color.FromRgb(16, 185, 129));
+
+                // Update header VRAM indicator
+                UpdateHeaderStatusIndicators();
             });
         }
         catch
@@ -207,7 +748,12 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     private void OnModelActivated(object? sender, ModelActivatedEventArgs e)
     {
         _currentModel = e.ModelId;
-        Dispatcher.Invoke(() => UpdateActiveModelDisplay());
+        Dispatcher.Invoke(() =>
+        {
+            UpdateActiveModelDisplay();
+            UpdateHeaderStatusIndicators();
+            UpdateBlockStatusIndicators();
+        });
     }
 
     private void UpdateActiveModelDisplay()
@@ -280,12 +826,9 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             var onlineCount = _gpuPoolService.OnlineWorkers.Count;
             var totalVram = _gpuPoolService.OnlineWorkers.Sum(w => w.TotalVramGb);
 
-            TxtPoolStatus.Text = $"{onlineCount} workers online";
+            TxtPoolStatus.Text = $"{onlineCount} workers online ({totalVram:F0} GB)";
             PoolStatusDot.Fill = new SolidColorBrush(
                 onlineCount > 0 ? Color.FromRgb(16, 185, 129) : Color.FromRgb(239, 68, 68));
-
-            TxtOnlineGpus.Text = $"{onlineCount} GPUs";
-            TxtTotalVram.Text = $"{totalVram:F0} GB";
 
             // Update combined status
             var comfyOnline = ComfyStatusDot.Fill is SolidColorBrush b && b.Color == Color.FromRgb(16, 185, 129);
@@ -358,6 +901,164 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         });
     }
 
+    private void DiffusersEngine_SetupProgressChanged(object? sender, SetupProgressEventArgs e)
+    {
+        Dispatcher.Invoke(() => UpdateSetupProgress(e));
+    }
+
+    private void UpdateSetupProgress(SetupProgressEventArgs e)
+    {
+        // Show/hide overlay based on phase
+        if (e.Phase == SetupPhase.Complete || e.Phase == SetupPhase.Error)
+        {
+            // Hide overlay after a brief delay to show completion
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+            timer.Tick += (s, args) =>
+            {
+                timer.Stop();
+                SetupOverlay.Visibility = Visibility.Collapsed;
+            };
+            timer.Start();
+        }
+        else if (e.Phase != SetupPhase.Starting || e.Percentage > 0)
+        {
+            SetupOverlay.Visibility = Visibility.Visible;
+        }
+
+        // Update progress bar and percentage
+        SetupProgressBar.Value = Math.Max(0, e.Percentage);
+        SetupProgressPercent.Text = $"{Math.Max(0, e.Percentage)}%";
+        SetupStatusText.Text = e.Message;
+
+        // Update phase icon and text
+        var (icon, text, color) = e.Phase switch
+        {
+            SetupPhase.DetectingGpu => (MaterialDesignThemes.Wpf.PackIconKind.Gpu, "Detecting GPU", "#F59E0B"),
+            SetupPhase.InstallingPython => (MaterialDesignThemes.Wpf.PackIconKind.Language, "Installing Python", "#A78BFA"),
+            SetupPhase.InstallingPip => (MaterialDesignThemes.Wpf.PackIconKind.Package, "Installing pip", "#A78BFA"),
+            SetupPhase.InstallingPyTorch => (MaterialDesignThemes.Wpf.PackIconKind.Fire, "Installing PyTorch", "#EC4899"),
+            SetupPhase.InstallingPackages => (MaterialDesignThemes.Wpf.PackIconKind.Puzzle, "Installing AI Packages", "#06B6D4"),
+            SetupPhase.Verifying => (MaterialDesignThemes.Wpf.PackIconKind.CheckDecagram, "Verifying Installation", "#10B981"),
+            SetupPhase.Complete => (MaterialDesignThemes.Wpf.PackIconKind.Check, "Setup Complete!", "#10B981"),
+            SetupPhase.Error => (MaterialDesignThemes.Wpf.PackIconKind.AlertCircle, "Setup Failed", "#EF4444"),
+            _ => (MaterialDesignThemes.Wpf.PackIconKind.CloudDownload, "Preparing", "#80FFFFFF")
+        };
+
+        SetupPhaseIcon.Kind = icon;
+        SetupPhaseText.Text = text;
+        SetupPhaseText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+        SetupPhaseIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+
+        // Update step indicators
+        UpdateStepIndicator(e.Phase);
+    }
+
+    private void UpdateStepIndicator(SetupPhase phase)
+    {
+        var greenBrush = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        var purpleBrush = new SolidColorBrush(Color.FromRgb(167, 139, 250));
+        var grayBrush = new SolidColorBrush(Color.FromRgb(107, 107, 138));
+
+        // Step 1: Python
+        if (phase > SetupPhase.InstallingPip)
+        {
+            Step1Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
+            Step1Icon.Foreground = greenBrush;
+            Step1Status.Text = "Done";
+            Step1Status.Foreground = greenBrush;
+        }
+        else if (phase == SetupPhase.InstallingPython || phase == SetupPhase.InstallingPip)
+        {
+            Step1Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.ProgressDownload;
+            Step1Icon.Foreground = purpleBrush;
+            Step1Status.Text = "Installing...";
+            Step1Status.Foreground = purpleBrush;
+        }
+        else
+        {
+            Step1Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step1Icon.Foreground = grayBrush;
+            Step1Status.Text = "Pending";
+            Step1Status.Foreground = grayBrush;
+        }
+
+        // Step 2: PyTorch
+        if (phase > SetupPhase.InstallingPyTorch)
+        {
+            Step2Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
+            Step2Icon.Foreground = greenBrush;
+            Step2Status.Text = "Done";
+            Step2Status.Foreground = greenBrush;
+        }
+        else if (phase == SetupPhase.InstallingPyTorch)
+        {
+            Step2Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.ProgressDownload;
+            Step2Icon.Foreground = purpleBrush;
+            Step2Status.Text = "Installing...";
+            Step2Status.Foreground = purpleBrush;
+        }
+        else
+        {
+            Step2Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step2Icon.Foreground = grayBrush;
+            Step2Status.Text = "Pending";
+            Step2Status.Foreground = grayBrush;
+        }
+
+        // Step 3: AI Packages
+        if (phase > SetupPhase.InstallingPackages)
+        {
+            Step3Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
+            Step3Icon.Foreground = greenBrush;
+            Step3Status.Text = "Done";
+            Step3Status.Foreground = greenBrush;
+        }
+        else if (phase == SetupPhase.InstallingPackages)
+        {
+            Step3Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.ProgressDownload;
+            Step3Icon.Foreground = purpleBrush;
+            Step3Status.Text = "Installing...";
+            Step3Status.Foreground = purpleBrush;
+        }
+        else
+        {
+            Step3Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step3Icon.Foreground = grayBrush;
+            Step3Status.Text = "Pending";
+            Step3Status.Foreground = grayBrush;
+        }
+
+        // Step 4: Verification
+        if (phase == SetupPhase.Complete)
+        {
+            Step4Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
+            Step4Icon.Foreground = greenBrush;
+            Step4Status.Text = "Done";
+            Step4Status.Foreground = greenBrush;
+        }
+        else if (phase == SetupPhase.Verifying)
+        {
+            Step4Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.ProgressDownload;
+            Step4Icon.Foreground = purpleBrush;
+            Step4Status.Text = "Verifying...";
+            Step4Status.Foreground = purpleBrush;
+        }
+        else if (phase == SetupPhase.Error)
+        {
+            Step4Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.AlertCircle;
+            Step4Icon.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+            Step4Status.Text = "Failed";
+            Step4Status.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+        }
+        else
+        {
+            Step4Icon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CircleOutline;
+            Step4Icon.Foreground = grayBrush;
+            Step4Status.Text = "Pending";
+            Step4Status.Foreground = grayBrush;
+        }
+    }
+
     #endregion
 
     #region UI Event Handlers
@@ -404,7 +1105,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         else if (RbCombined?.IsChecked == true)
         {
             TxtPipelineMode.Text = "COMBINED MODE";
-            TxtPipelineMode.Foreground = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+            TxtPipelineMode.Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250));
         }
         else if (RbGpuPool?.IsChecked == true)
         {
@@ -423,7 +1124,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         var isAuto = ToggleAutoMode.IsChecked == true;
         TxtSelectionMode.Text = isAuto ? "Auto - Best Available" : "Manual Selection";
         TxtSelectionMode.Foreground = new SolidColorBrush(
-            isAuto ? Color.FromRgb(16, 185, 129) : Color.FromRgb(139, 92, 246));
+            isAuto ? Color.FromRgb(16, 185, 129) : Color.FromRgb(167, 139, 250));
 
         // Disable manual selection when auto mode is on
         RbDiffusers.IsEnabled = !isAuto;
@@ -468,6 +1169,15 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     private async void RefreshProcessors_Click(object sender, RoutedEventArgs e)
     {
         await RefreshStatusAsync();
+    }
+
+    private void GpuSetup_Click(object sender, RoutedEventArgs e)
+    {
+        // Navigate to GPU Setup Wizard page
+        if (Window.GetWindow(this) is MainWindow mainWindow)
+        {
+            mainWindow.NavigateToPage("GpuSetupWizard");
+        }
     }
 
     private void ConfigureDiffusers_Click(object sender, RoutedEventArgs e)
@@ -546,6 +1256,41 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         {
             MessageBox.Show("Please enter a prompt.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
+        }
+
+        // Update pipeline configuration from UI
+        UpdatePipelineConfigFromUI();
+
+        // Validate pipeline before generation
+        _lastValidation = _pipelineConfig.Validate();
+        UpdateBlockStatusIndicators();
+
+        if (!_lastValidation.IsValid)
+        {
+            var errorMessage = $"Pipeline configuration is invalid.\n\n" +
+                              $"First invalid block: {_lastValidation.FirstInvalidBlock}\n\n" +
+                              $"Errors:\n" + string.Join("\n", _lastValidation.Errors.Select(e => $"• {e}"));
+
+            if (_lastValidation.Warnings.Count > 0)
+            {
+                errorMessage += $"\n\nWarnings:\n" + string.Join("\n", _lastValidation.Warnings.Select(w => $"• {w}"));
+            }
+
+            MessageBox.Show(errorMessage, "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Show warnings if any
+        if (_lastValidation.Warnings.Count > 0)
+        {
+            var warningMessage = "The following warnings were found:\n\n" +
+                                string.Join("\n", _lastValidation.Warnings.Select(w => $"• {w}")) +
+                                "\n\nContinue anyway?";
+
+            if (MessageBox.Show(warningMessage, "Warnings", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                return;
+            }
         }
 
         _isGenerating = true;
@@ -770,18 +1515,76 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             var startResult = await _diffusersEngine.StartAsync(ct: _generateCts!.Token);
             if (!startResult.Success)
             {
-                var errorMessage = startResult.Message;
+                var errorMessage = "Failed to start AI generation engine.\n\n";
+
+                // Show detailed error info
                 if (startResult.PreflightResult != null)
                 {
-                    if (startResult.PreflightResult.Errors.Count > 0)
+                    var pf = startResult.PreflightResult;
+
+                    // GPU info
+                    if (pf.GpuInfo != null)
                     {
-                        errorMessage = string.Join("\n", startResult.PreflightResult.Errors);
+                        if (pf.GpuInfo.IsAvailable)
+                        {
+                            errorMessage += $"✓ GPU: {pf.GpuInfo.Name} ({pf.GpuInfo.TotalVramGb:F1}GB VRAM)\n";
+                        }
+                        else
+                        {
+                            errorMessage += "✗ GPU: Not detected (will use CPU - very slow)\n";
+                        }
                     }
-                    if (!string.IsNullOrEmpty(startResult.PreflightResult.InstallCommand))
+                    else
                     {
-                        errorMessage += $"\n\nTo fix, run:\n{startResult.PreflightResult.InstallCommand}";
+                        errorMessage += "✗ GPU: Detection failed\n";
+                    }
+
+                    // Python info
+                    if (pf.PythonEnv != null)
+                    {
+                        if (pf.PythonEnv.IsAvailable)
+                        {
+                            errorMessage += $"✓ Python: {pf.PythonEnv.PythonVersion}\n";
+
+                            if (pf.PythonEnv.HasCudaSupport)
+                            {
+                                errorMessage += "✓ PyTorch CUDA: Available\n";
+                            }
+                            else
+                            {
+                                errorMessage += "✗ PyTorch CUDA: Not available (GPU acceleration disabled)\n";
+                            }
+
+                            if (pf.PythonEnv.MissingPackages.Count > 0)
+                            {
+                                errorMessage += $"\n✗ Missing packages: {string.Join(", ", pf.PythonEnv.MissingPackages)}\n";
+                            }
+                        }
+                        else
+                        {
+                            errorMessage += "✗ Python: Not found (Python 3.10+ required)\n";
+                        }
+                    }
+
+                    // Errors
+                    if (pf.Errors.Count > 0)
+                    {
+                        errorMessage += "\nErrors:\n" + string.Join("\n", pf.Errors.Select(e => $"• {e}"));
+                    }
+
+                    // Install command
+                    if (!string.IsNullOrEmpty(pf.InstallCommand))
+                    {
+                        errorMessage += $"\n\n📋 To fix, run in terminal:\n{pf.InstallCommand}";
                     }
                 }
+                else
+                {
+                    errorMessage += startResult.Message;
+                }
+
+                errorMessage += "\n\n💡 Click 'GPU Setup' button in DISTRIBUTOR section for guided setup.";
+
                 throw new InvalidOperationException(errorMessage);
             }
         }
@@ -915,6 +1718,219 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
     }
 
     #endregion
+
+    #region Pipeline Configuration
+
+    /// <summary>
+    /// Update pipeline configuration from UI controls
+    /// </summary>
+    private void UpdatePipelineConfigFromUI()
+    {
+        // Input block
+        _pipelineConfig.Input.Prompt = TxtPrompt.Text.Trim();
+        _pipelineConfig.Input.NegativePrompt = TxtNegative.Text.Trim();
+        _pipelineConfig.Input.GenerationType = _isVideoMode ? GenerationType.Video : GenerationType.Image;
+
+        // Model block - ALWAYS sync with ModelManagerPage.ActiveModelId first
+        // This fixes the issue where model was selected in ComboBox but not recognized
+        if (string.IsNullOrEmpty(_currentModel) && !string.IsNullOrEmpty(ModelManagerPage.ActiveModelId))
+        {
+            _currentModel = ModelManagerPage.ActiveModelId;
+        }
+
+        // Model block - use current model or from advanced settings
+        if (!string.IsNullOrEmpty(_currentModel))
+        {
+            _pipelineConfig.Model.CheckpointId = _currentModel;
+        }
+
+        // Sampler defaults (can be overridden by advanced settings)
+        if (_pipelineConfig.Sampler.Steps == 0)
+        {
+            _pipelineConfig.Sampler.Steps = 30;
+            _pipelineConfig.Sampler.CfgScale = 7.5;
+            _pipelineConfig.Sampler.Width = 1024;
+            _pipelineConfig.Sampler.Height = 1024;
+        }
+
+        // Processor - mark as available for validation (actual check happens later)
+        _pipelineConfig.Processor.IsAvailable = true;
+        _pipelineConfig.Processor.StatusMessage = "Ready";
+
+        // Output block
+        var outputDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+            "PostXAgent");
+        _pipelineConfig.Output.OutputDirectory = outputDir;
+    }
+
+    /// <summary>
+    /// Update visual indicators for block validation status
+    /// </summary>
+    private void UpdateBlockStatusIndicators()
+    {
+        var greenColor = Color.FromRgb(16, 185, 129);   // #10B981 - Valid
+        var redColor = Color.FromRgb(239, 68, 68);      // #EF4444 - Invalid
+        var yellowColor = Color.FromRgb(245, 158, 11);  // #F59E0B - Warning
+        var grayColor = Color.FromRgb(107, 114, 128);   // #6B7280 - Disabled
+
+        // Check 1: Is Python/Diffusers installed?
+        var pythonVerification = QuickVerifyInstallation();
+        var isPythonReady = pythonVerification.IsValid;
+
+        // Check 2: Is there an active model?
+        var hasActiveModel = !string.IsNullOrEmpty(_currentModel) ||
+                             !string.IsNullOrEmpty(ModelManagerPage.ActiveModelId);
+
+        // Check 3: Is GPU available?
+        var hasGpu = _localGpuInfo?.IsAvailable == true;
+
+        if (!isPythonReady)
+        {
+            // Python not ready - all blocks should be red/gray
+            InputStatusDot.Fill = new SolidColorBrush(grayColor);
+            DiffusersStatusDot.Fill = new SolidColorBrush(redColor);
+            TxtDiffusersStatus.Text = "ต้องติดตั้ง Python ก่อน";
+            DistributorStatusDot.Fill = new SolidColorBrush(grayColor);
+            OutputStatusDot.Fill = new SolidColorBrush(grayColor);
+            return;
+        }
+
+        if (!hasActiveModel)
+        {
+            // No model selected
+            InputStatusDot.Fill = new SolidColorBrush(grayColor);
+            DiffusersStatusDot.Fill = new SolidColorBrush(redColor);
+            TxtDiffusersStatus.Text = "ยังไม่ได้เลือกโมเดล";
+            DistributorStatusDot.Fill = new SolidColorBrush(grayColor);
+            OutputStatusDot.Fill = new SolidColorBrush(grayColor);
+            return;
+        }
+
+        // Both Python and Model ready - check validation
+        if (_lastValidation == null)
+        {
+            // No validation yet but we have Python + Model
+            InputStatusDot.Fill = new SolidColorBrush(yellowColor);
+            DiffusersStatusDot.Fill = new SolidColorBrush(greenColor);
+            var modelName = (_currentModel ?? ModelManagerPage.ActiveModelId)?.Split('/').LastOrDefault() ?? "Ready";
+            TxtDiffusersStatus.Text = $"Active: {modelName}";
+            DistributorStatusDot.Fill = hasGpu ? new SolidColorBrush(greenColor) : new SolidColorBrush(yellowColor);
+            OutputStatusDot.Fill = new SolidColorBrush(greenColor);
+            return;
+        }
+
+        // Determine validity of each block in sequence
+        var firstInvalid = _lastValidation.FirstInvalidBlock;
+        var inputValid = firstInvalid != "Input";
+        var modelValid = inputValid && firstInvalid != "Model";
+        var samplerValid = modelValid && firstInvalid != "Sampler";
+        var outputValid = samplerValid && firstInvalid != "Output";
+
+        // Update INPUT block status
+        if (!inputValid)
+        {
+            InputStatusDot.Fill = new SolidColorBrush(redColor);
+        }
+        else if (_lastValidation.Warnings.Any(w => w.Contains("Prompt", StringComparison.OrdinalIgnoreCase)))
+        {
+            InputStatusDot.Fill = new SolidColorBrush(yellowColor);
+        }
+        else
+        {
+            InputStatusDot.Fill = new SolidColorBrush(greenColor);
+        }
+
+        // Update MODEL/PROCESSOR block status (Diffusers is primary)
+        if (!inputValid)
+        {
+            // Previous block invalid - disable this block
+            DiffusersStatusDot.Fill = new SolidColorBrush(grayColor);
+            TxtDiffusersStatus.Text = "กรอก Prompt ก่อน";
+        }
+        else if (!modelValid)
+        {
+            DiffusersStatusDot.Fill = new SolidColorBrush(redColor);
+            TxtDiffusersStatus.Text = "Model not configured";
+        }
+        else if (_lastValidation.Warnings.Any(w => w.Contains("Model", StringComparison.OrdinalIgnoreCase) ||
+                                                   w.Contains("LoRA", StringComparison.OrdinalIgnoreCase) ||
+                                                   w.Contains("VAE", StringComparison.OrdinalIgnoreCase)))
+        {
+            DiffusersStatusDot.Fill = new SolidColorBrush(yellowColor);
+            TxtDiffusersStatus.Text = "Configured with warnings";
+        }
+        else
+        {
+            DiffusersStatusDot.Fill = new SolidColorBrush(greenColor);
+            var modelName = _pipelineConfig.Model.CheckpointId?.Split('/').LastOrDefault() ?? "Ready";
+            TxtDiffusersStatus.Text = $"Active: {modelName}";
+        }
+
+        // Update DISTRIBUTOR block status
+        if (!modelValid)
+        {
+            DistributorStatusDot.Fill = new SolidColorBrush(grayColor);
+        }
+        else if (!samplerValid)
+        {
+            DistributorStatusDot.Fill = new SolidColorBrush(redColor);
+        }
+        else
+        {
+            DistributorStatusDot.Fill = new SolidColorBrush(greenColor);
+        }
+
+        // Update OUTPUT block status
+        if (!samplerValid)
+        {
+            OutputStatusDot.Fill = new SolidColorBrush(grayColor);
+        }
+        else if (!outputValid)
+        {
+            OutputStatusDot.Fill = new SolidColorBrush(redColor);
+        }
+        else
+        {
+            OutputStatusDot.Fill = new SolidColorBrush(greenColor);
+        }
+    }
+
+    /// <summary>
+    /// Open Advanced Model Settings dialog
+    /// </summary>
+    private void OpenAdvancedModelSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new AdvancedModelSettingsDialog(_pipelineConfig)
+        {
+            Owner = Window.GetWindow(this)
+        };
+
+        if (dialog.ShowDialog() == true && dialog.Applied)
+        {
+            _pipelineConfig = dialog.Configuration;
+
+            // Update UI with new settings
+            _currentModel = _pipelineConfig.Model.CheckpointId;
+            UpdateActiveModelDisplay();
+
+            // Re-validate and update indicators
+            _lastValidation = _pipelineConfig.Validate();
+            UpdateBlockStatusIndicators();
+
+            _logger?.LogInformation("Advanced settings applied: Model={Model}, Steps={Steps}, CFG={CFG}",
+                _pipelineConfig.Model.CheckpointId,
+                _pipelineConfig.Sampler.Steps,
+                _pipelineConfig.Sampler.CfgScale);
+        }
+    }
+
+    /// <summary>
+    /// Get pipeline configuration for external use
+    /// </summary>
+    public PipelineConfiguration GetCurrentConfiguration() => _pipelineConfig;
+
+    #endregion
 }
 
 #region Models
@@ -1024,7 +2040,7 @@ public class ComfyUISettingsDialog : Window
         {
             Content = "Save",
             Padding = new Thickness(20, 8, 20, 8),
-            Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)),
+            Background = new SolidColorBrush(Color.FromRgb(167, 139, 250)),
             Foreground = Brushes.White
         };
         okButton.Click += (s, e) => DialogResult = true;

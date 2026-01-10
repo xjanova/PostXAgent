@@ -869,7 +869,7 @@ public partial class AddTemplateDialog : Window
         {
             Content = "Save",
             Padding = new Thickness(20, 8, 20, 8),
-            Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)),
+            Background = new SolidColorBrush(Color.FromRgb(167, 139, 250)),
             Foreground = Brushes.White
         };
         btnSave.Click += (s, e) =>
