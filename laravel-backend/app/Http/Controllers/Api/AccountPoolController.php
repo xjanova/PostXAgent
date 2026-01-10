@@ -26,17 +26,17 @@ class AccountPoolController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'brand_id' => 'required|exists:brands,id',
             'platform' => 'nullable|string',
         ]);
 
-        $query = AccountPool::where('brand_id', $request->brand_id)
+        $query = AccountPool::where('brand_id', $validated['brand_id'])
             ->with(['members.socialAccount'])
             ->withCount('members');
 
-        if ($request->platform) {
-            $query->where('platform', $request->platform);
+        if (isset($validated['platform'])) {
+            $query->where('platform', $validated['platform']);
         }
 
         $pools = $query->get()->map(function ($pool) {

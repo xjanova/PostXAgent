@@ -6,6 +6,25 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $name
+ * @property string|null $description
+ * @property string|null $industry
+ * @property string|null $target_audience
+ * @property string|null $tone
+ * @property string|null $logo_url
+ * @property array|null $brand_colors
+ * @property array|null $keywords
+ * @property array|null $hashtags
+ * @property string|null $website_url
+ * @property array|null $settings
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ */
 class Brand extends Model
 {
     use HasFactory, SoftDeletes;

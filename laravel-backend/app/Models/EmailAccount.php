@@ -7,6 +7,31 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @property int $id
+ * @property string $email
+ * @property string $password_encrypted
+ * @property string $provider
+ * @property string|null $recovery_email
+ * @property string|null $recovery_phone
+ * @property string $status
+ * @property string|null $used_for_platform
+ * @property int|null $used_for_account_id
+ * @property string|null $imap_host
+ * @property int|null $imap_port
+ * @property string|null $smtp_host
+ * @property int|null $smtp_port
+ * @property \Illuminate\Support\Carbon|null $last_checked_at
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
+ * @property-write string $password
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount available()
+ * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount forPlatform(string $platform)
+ */
 class EmailAccount extends Model
 {
     use HasFactory, SoftDeletes;

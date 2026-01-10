@@ -6,6 +6,27 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property string $phone_number
+ * @property string $country_code
+ * @property string $provider
+ * @property string|null $provider_order_id
+ * @property string $status
+ * @property string|null $used_for_platform
+ * @property int|null $used_for_account_id
+ * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property \Illuminate\Support\Carbon|null $last_sms_received_at
+ * @property array|null $sms_messages
+ * @property float|null $cost
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber available()
+ * @method static \Illuminate\Database\Eloquent\Builder|PhoneNumber forPlatform(string $platform)
+ */
 class PhoneNumber extends Model
 {
     use HasFactory, SoftDeletes;
