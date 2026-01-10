@@ -43,7 +43,7 @@ class AccountPoolController extends Controller
             return array_merge($pool->toArray(), [
                 'statistics' => $this->rotationService->getPoolStatistics($pool),
             ]);
-        });
+        })->values();
 
         return response()->json([
             'success' => true,

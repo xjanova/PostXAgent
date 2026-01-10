@@ -144,7 +144,7 @@ class AnalyticsController extends Controller
             ->get();
 
         // Daily engagement
-        $dailyEngagement = $posts->groupBy(fn($p) => $p->published_at->toDateString())
+        $dailyEngagement = $posts->groupBy(fn(Post $p) => $p->published_at->toDateString())
             ->map(fn($dayPosts) => [
                 'likes' => $dayPosts->sum(fn($p) => $p->metrics['likes'] ?? 0),
                 'comments' => $dayPosts->sum(fn($p) => $p->metrics['comments'] ?? 0),
@@ -162,7 +162,7 @@ class AnalyticsController extends Controller
             ]);
 
         // Best time to post (hour analysis)
-        $byHour = $posts->groupBy(fn($p) => $p->published_at->format('H'))
+        $byHour = $posts->groupBy(fn(Post $p) => $p->published_at->format('H'))
             ->map(fn($hourPosts) => round($hourPosts->avg(fn($p) =>
                 $p->metrics['engagement_rate'] ?? 0
             ), 2))

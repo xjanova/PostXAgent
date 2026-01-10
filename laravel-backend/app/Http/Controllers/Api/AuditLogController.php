@@ -21,31 +21,31 @@ class AuditLogController extends Controller
 
         // Filter by log name (category)
         if ($request->has('log_name')) {
-            $query->where('log_name', $request->log_name);
+            $query->where('log_name', $request->input('log_name'));
         }
 
         // Filter by causer (user who performed the action)
         if ($request->has('causer_id')) {
-            $query->where('causer_id', $request->causer_id)
+            $query->where('causer_id', $request->input('causer_id'))
                   ->where('causer_type', 'App\\Models\\User');
         }
 
         // Filter by subject type (model affected)
         if ($request->has('subject_type')) {
-            $query->where('subject_type', $request->subject_type);
+            $query->where('subject_type', $request->input('subject_type'));
         }
 
         // Filter by event
         if ($request->has('event')) {
-            $query->where('event', $request->event);
+            $query->where('event', $request->input('event'));
         }
 
         // Filter by date range
         if ($request->has('from')) {
-            $query->whereDate('created_at', '>=', $request->from);
+            $query->whereDate('created_at', '>=', $request->input('from'));
         }
         if ($request->has('to')) {
-            $query->whereDate('created_at', '<=', $request->to);
+            $query->whereDate('created_at', '<=', $request->input('to'));
         }
 
         $logs = $query->paginate($request->get('per_page', 50));
