@@ -39,11 +39,11 @@ class AccountPoolController extends Controller
             $query->where('platform', $validated['platform']);
         }
 
-        $pools = $query->get()->map(function (AccountPool $pool): array {
+        $pools = $query->get()->map(function (AccountPool $pool) {
             return array_merge($pool->toArray(), [
                 'statistics' => $this->rotationService->getPoolStatistics($pool),
             ]);
-        })->values();
+        })->values()->all();
 
         return response()->json([
             'success' => true,

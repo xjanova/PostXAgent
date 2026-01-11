@@ -1,0 +1,9 @@
+parameters:
+    level: 5
+    paths:
+        - app
+
+    # Ignore errors from third-party Spatie Activity model that we cannot control
+    ignoreErrors:
+        - '#Call to an undefined static method Spatie\\Activitylog\\Models\\Activity::where\(\)#'
+        - '#Call to method toArray\(\) on an unknown class Eloquent#'

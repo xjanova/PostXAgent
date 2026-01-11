@@ -144,13 +144,14 @@ class AnalyticsController extends Controller
             ->get();
 
         // Daily engagement
-        $dailyEngagement = $posts->groupBy(fn(Post $p): string => $p->published_at->toDateString())
-            ->map(fn($dayPosts) => [
-                'likes' => $dayPosts->sum(fn($p) => $p->metrics['likes'] ?? 0),
-                'comments' => $dayPosts->sum(fn($p) => $p->metrics['comments'] ?? 0),
-                'shares' => $dayPosts->sum(fn($p) => $p->metrics['shares'] ?? 0),
-                'views' => $dayPosts->sum(fn($p) => $p->metrics['views'] ?? 0),
-            ]);
+        $dailyEngagement = $posts->groupBy(function (Post $p) {
+            return $p->published_at->toDateString();
+        })->map(fn($dayPosts) => [
+            'likes' => $dayPosts->sum(fn($p) => $p->metrics['likes'] ?? 0),
+            'comments' => $dayPosts->sum(fn($p) => $p->metrics['comments'] ?? 0),
+            'shares' => $dayPosts->sum(fn($p) => $p->metrics['shares'] ?? 0),
+            'views' => $dayPosts->sum(fn($p) => $p->metrics['views'] ?? 0),
+        ]);
 
         // Engagement by content type
         $byContentType = $posts->groupBy('content_type')
@@ -162,7 +163,9 @@ class AnalyticsController extends Controller
             ]);
 
         // Best time to post (hour analysis)
-        $byHour = $posts->groupBy(fn(Post $p): string => $p->published_at->format('H'))
+        $byHour = $posts->groupBy(function (Post $p) {
+            return $p->published_at->format('H');
+        })
             ->map(fn($hourPosts) => round($hourPosts->avg(fn($p) =>
                 $p->metrics['engagement_rate'] ?? 0
             ), 2))
@@ -247,13 +250,15 @@ class AnalyticsController extends Controller
         $campaignStats = Campaign::where('brand_id', $brand->id)
             ->withCount(['posts as total_posts', 'posts as published_posts' => fn($q) => $q->where('status', 'published')])
             ->get()
-            ->map(fn(Campaign $c) => [
-                'id' => $c->id,
-                'name' => $c->name,
-                'status' => $c->status,
-                'total_posts' => $c->total_posts ?? 0,
-                'published_posts' => $c->published_posts ?? 0,
-            ]);
+            ->map(function (Campaign $c) {
+                return [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'status' => $c->status,
+                    'total_posts' => $c->total_posts ?? 0,
+                    'published_posts' => $c->published_posts ?? 0,
+                ];
+            });
 
         // Platform breakdown for brand
         $platformBreakdown = $posts->groupBy('platform')->map(fn($p) => [
