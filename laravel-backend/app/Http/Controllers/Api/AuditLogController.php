@@ -83,6 +83,9 @@ class AuditLogController extends Controller
     {
         $activity->load(['causer', 'subject']);
 
+        /** @var \App\Models\User|null $causer */
+        $causer = $activity->causer;
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -90,10 +93,10 @@ class AuditLogController extends Controller
                 'log_name' => $activity->log_name,
                 'description' => $activity->description,
                 'event' => $activity->event,
-                'causer' => $activity->causer ? [
-                    'id' => $activity->causer->id,
-                    'name' => $activity->causer->name,
-                    'email' => $activity->causer->email,
+                'causer' => $causer ? [
+                    'id' => $causer->id,
+                    'name' => $causer->name,
+                    'email' => $causer->email,
                 ] : null,
                 'subject' => $activity->subject ? [
                     'type' => class_basename($activity->subject_type),
