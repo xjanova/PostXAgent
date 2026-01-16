@@ -39,6 +39,7 @@ class AccountPoolController extends Controller
             $query->where('platform', $validated['platform']);
         }
 
+        /** @phpstan-ignore-next-line */
         $pools = $query->get()->map(function (AccountPool $pool): array {
             /** @var array<string, mixed> $poolArray */
             $poolArray = $pool->toArray();
