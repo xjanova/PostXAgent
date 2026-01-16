@@ -115,6 +115,10 @@ public partial class App : Application
             // Continue anyway - Ollama is optional
         }
 
+        // Note: Diffusers Engine is NOT auto-started
+        // User can start it manually from the Diffusers Manager page (click status bar)
+        _logger.LogInfo("Diffusers", "Diffusers Engine available - start manually from status bar");
+
         // Step 7: Initialize content generators
         ReportProgress("Initializing content generators...");
         var contentGenerator = Services.GetService<ContentGeneratorService>();
@@ -288,6 +292,19 @@ public partial class App : Application
                 await _ollamaService.StopAsync();
                 _ollamaService.Dispose();
                 _logger.LogInfo("Ollama", "Stopped successfully");
+            }
+
+            // Gracefully stop Diffusers Engine
+            try
+            {
+                _logger.LogInfo("Diffusers", "Stopping Diffusers Engine...");
+                await DiffusersEngineManager.Instance.ShutdownAsync();
+                DiffusersEngineManager.Instance.Dispose();
+                _logger.LogInfo("Diffusers", "Stopped successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Diffusers", "Error stopping Diffusers Engine", ex);
             }
 
             if (Services is IDisposable disposable)

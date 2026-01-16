@@ -28,6 +28,15 @@ public partial class MainWindow : Window
     private Storyboard? _marqueeStoryboard;
     private bool _isMarqueeNeeded = false;
 
+    // Cache pages ที่ต้องการเก็บสถานะ (ไม่สร้างใหม่ทุกครั้งที่สลับหน้า)
+    private ChatPage? _chatPage;
+    private DiffusersManagerPage? _diffusersManagerPage;
+    private WorkflowEditorPage? _workflowEditorPage;
+    private GenerationPipelinePage? _generationPipelinePage;
+    private ContentCreatorPage? _contentCreatorPage;
+    private ImageGeneratorPage? _imageGeneratorPage;
+    private ModelManagerPage? _modelManagerPage;
+
     // RGB colors for smooth cycling
     private readonly Color[] _rgbColors = new[]
     {
@@ -88,6 +97,7 @@ public partial class MainWindow : Window
 
         // Setup Status Bar events
         AppStatusBar.OllamaClicked += (s, e) => NavigateTo("Settings");
+        AppStatusBar.DiffusersClicked += (s, e) => NavigateTo("DiffusersManager");
         AppStatusBar.ComfyClicked += (s, e) => NavigateTo("Settings");
         AppStatusBar.HuggingFaceClicked += (s, e) => NavigateTo("AIProviders");
         AppStatusBar.GpuClicked += (s, e) => NavigateTo("AIProviders");
@@ -321,18 +331,19 @@ public partial class MainWindow : Window
             "Tasks" => new TasksPage(_orchestrator),
             "Platforms" => new PlatformsPage(),
             "AIProviders" => new AIProvidersPage(),
-            "ContentCreator" => new ContentCreatorPage(),
-            "Chat" => new ChatPage(),
-            "ImageGenerator" => new ImageGeneratorPage(),
-            "GenerationPipeline" => new GenerationPipelinePage(),
+            "ContentCreator" => _contentCreatorPage ??= new ContentCreatorPage(),
+            "Chat" => _chatPage ??= new ChatPage(),
+            "ImageGenerator" => _imageGeneratorPage ??= new ImageGeneratorPage(),
+            "GenerationPipeline" => _generationPipelinePage ??= new GenerationPipelinePage(),
             "SunoOptions" => new SunoOptionsPage(),
-            "ModelManager" => new ModelManagerPage(),
+            "ModelManager" => _modelManagerPage ??= new ModelManagerPage(),
+            "DiffusersManager" => _diffusersManagerPage ??= new DiffusersManagerPage(),
             "ColabGpu" => new ColabGpuPage(),
             "GpuNodeMonitor" => new GpuNodeMonitorPage(),
             "GpuSetupWizard" => new GpuSetupWizardPage(),
             "AIServicesInfo" => new AIServicesInfoPage(),
             "WorkflowManager" => new WorkflowManagerPage(),
-            "WorkflowEditor" => new WorkflowEditorPage(),
+            "WorkflowEditor" => _workflowEditorPage ??= new WorkflowEditorPage(),
             "WorkflowMonitor" => new WorkflowMonitorPage(),
             "WebLearning" => new WebLearningPage(initialUrl, platformName),
             "WorkerWebView" => new WorkerWebViewPage(),
@@ -547,7 +558,7 @@ public partial class MainWindow : Window
                 AIMessageType.Warning => new SolidColorBrush(Color.FromRgb(244, 67, 54)),   // Red
                 AIMessageType.Celebration => new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
                 AIMessageType.Suggestion => new SolidColorBrush(Color.FromRgb(255, 193, 7)), // Yellow
-                _ => new SolidColorBrush(Color.FromRgb(139, 92, 246))  // Purple (default)
+                _ => new SolidColorBrush(Color.FromRgb(167, 139, 250))  // Purple (default)
             };
 
             // Update tooltip with full message

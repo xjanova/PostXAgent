@@ -43,8 +43,8 @@
         <Border x:Name="NodeBorder" CornerRadius="12" MinWidth="180" MinHeight="80">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#30000000" Offset="0"/>
-                    <GradientStop Color="#50000000" Offset="1"/>
+                    <GradientStop Color="#E0202030" Offset="0"/>
+                    <GradientStop Color="#F0151525" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
             <Border.Effect>
@@ -118,10 +118,10 @@
 
         <!-- Selection Border -->
         <Border x:Name="SelectionBorder" CornerRadius="14"
-                BorderThickness="2" BorderBrush="#8B5CF6"
+                BorderThickness="2" BorderBrush="#C084FC"
                 Visibility="Collapsed">
             <Border.Effect>
-                <DropShadowEffect Color="#8B5CF6" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                <DropShadowEffect Color="#C084FC" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
             </Border.Effect>
         </Border>
 

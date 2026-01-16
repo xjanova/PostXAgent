@@ -255,7 +255,7 @@ public partial class ContentCreatorPage : Page
                 var textBlock = new TextBlock
                 {
                     Text = $"#{hashtag}",
-                    Foreground = new SolidColorBrush(Color.FromRgb(139, 92, 246)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250)),
                     FontSize = 12
                 };
 

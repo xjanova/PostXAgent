@@ -339,7 +339,7 @@
                     <!-- Empty State -->
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
                                 Visibility="{Binding RunHistory.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
-                        <materialDesign:PackIcon Kind="HistoryOff" Width="60" Height="60"
+                        <materialDesign:PackIcon Kind="History" Width="60" Height="60"
                                                  Opacity="0.2" HorizontalAlignment="Center"/>
                         <TextBlock Text="ยังไม่มีประวัติการรัน" FontSize="14" Opacity="0.4"
                                    HorizontalAlignment="Center" Margin="0,15,0,0"/>

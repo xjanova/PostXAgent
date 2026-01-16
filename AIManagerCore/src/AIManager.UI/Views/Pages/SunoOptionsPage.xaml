@@ -12,12 +12,12 @@
             <!-- Header -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
                 <materialDesign:PackIcon Kind="Music" Width="32" Height="32" VerticalAlignment="Center"
-                                         Foreground="#9C27B0"/>
+                                         Foreground="#EC4899"/>
                 <TextBlock Text="Suno AI Options" FontSize="24" FontWeight="Bold" Margin="10,0,0,0"
-                           VerticalAlignment="Center"/>
-                <Border Background="#E1BEE7" CornerRadius="4" Padding="8,4" Margin="15,0,0,0"
+                           VerticalAlignment="Center" Foreground="White"/>
+                <Border Background="#30EC4899" CornerRadius="4" Padding="8,4" Margin="15,0,0,0"
                         VerticalAlignment="Center">
-                    <TextBlock Text="Music Generation" FontSize="11" Foreground="#7B1FA2"/>
+                    <TextBlock Text="Music Generation" FontSize="11" Foreground="#EC4899"/>
                 </Border>
             </StackPanel>
 
@@ -44,13 +44,13 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="MusicNote" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#EC4899"/>
                             <TextBlock Text="Music Style" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
 
                         <!-- Style Presets -->
-                        <TextBlock Text="Quick Presets:" FontWeight="Medium" Margin="0,0,0,10"/>
+                        <TextBlock Text="Quick Presets:" FontWeight="Medium" Margin="0,0,0,10" Foreground="#E0E0E0"/>
                         <ItemsControl x:Name="PresetsControl" ItemsSource="{Binding StylePresets}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -61,11 +61,12 @@
                                 <DataTemplate>
                                     <Button Margin="0,0,8,8" Padding="12,8"
                                             Click="PresetButton_Click" Tag="{Binding}"
-                                            Style="{StaticResource MaterialDesignOutlinedButton}">
+                                            Background="#EC4899" Foreground="White"
+                                            BorderThickness="0">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="{Binding Icon}" Width="16" Height="16"
-                                                                     Margin="0,0,6,0"/>
-                                            <TextBlock Text="{Binding Name}"/>
+                                                                     Margin="0,0,6,0" Foreground="White"/>
+                                            <TextBlock Text="{Binding Name}" Foreground="White"/>
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -85,9 +86,9 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="FormatTitle" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#22D3EE"/>
                             <TextBlock Text="Song Title" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                             <TextBlock Text="(Optional)" FontSize="12" Foreground="#B8B8D0"
                                        Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -103,9 +104,9 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="TextBox" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#F59E0B"/>
                             <TextBlock Text="Lyrics" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
 
                         <!-- Options -->
@@ -118,7 +119,7 @@
 
                         <!-- Lyrics Templates -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="Template:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="Template:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#E0E0E0"/>
                             <ComboBox x:Name="CboTemplates" ItemsSource="{Binding LyricsTemplates}"
                                       SelectedItem="{Binding SelectedTemplate}"
                                       DisplayMemberPath="Name" Width="200"
@@ -138,7 +139,7 @@
                 <!-- Run Button -->
                 <Button Content="Create Song with Suno AI" Click="RunWorkflow_Click"
                         Style="{StaticResource MaterialDesignRaisedButton}"
-                        Background="#9C27B0" Foreground="White"
+                        Background="#10B981" Foreground="White"
                         Height="45" FontSize="14" Margin="0,10,0,0"
                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}">
                     <Button.ContentTemplate>
@@ -158,9 +159,9 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="FolderDownload" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#10B981"/>
                             <TextBlock Text="Download Location" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
 
                         <Grid Margin="0,0,0,15">
@@ -172,7 +173,8 @@
                                      materialDesign:HintAssist.Hint="Download Folder"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
                             <Button Grid.Column="1" Content="Browse" Click="BrowseFolder_Click"
-                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Background="#3010B981" Foreground="#10B981"
+                                    BorderBrush="#10B981" BorderThickness="1"
                                     Margin="10,0,0,0"/>
                         </Grid>
 
@@ -188,7 +190,7 @@
                         <Border Background="#252540" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                             <StackPanel>
                                 <TextBlock Text="Preview:" FontWeight="Medium" Foreground="#B8B8D0"/>
-                                <TextBlock Text="{Binding PreviewFolderName}" FontSize="14" Foreground="#9C27B0"/>
+                                <TextBlock Text="{Binding PreviewFolderName}" FontSize="14" Foreground="#10B981"/>
                             </StackPanel>
                         </Border>
 
@@ -202,13 +204,13 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="FileMusic" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#3B82F6"/>
                             <TextBlock Text="File Format" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                            <TextBlock Text="Download Format:" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                            <TextBlock Text="Download Format:" VerticalAlignment="Center" Margin="0,0,15,0" Foreground="#E0E0E0"/>
                             <ComboBox ItemsSource="{Binding AvailableFormats}"
                                       SelectedItem="{Binding DownloadFormat}"
                                       Style="{StaticResource MaterialDesignOutlinedComboBox}"
@@ -223,17 +225,17 @@
 
                 <materialDesign:Card Padding="20">
                     <StackPanel>
-                        <TextBlock Text="Download Options" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <TextBlock Text="Download Options" FontSize="16" FontWeight="Bold" Margin="0,0,0,15" Foreground="White"/>
 
                         <CheckBox Content="Download both songs (Suno creates 2 variations)"
                                   IsChecked="{Binding DownloadBothSongs}"
                                   Style="{StaticResource MaterialDesignCheckBox}" Margin="0,0,0,10"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="Wait after download:" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                            <TextBlock Text="Wait after download:" VerticalAlignment="Center" Margin="0,0,15,0" Foreground="#E0E0E0"/>
                             <TextBox Text="{Binding WaitAfterDownloadMs}" Width="80"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
-                            <TextBlock Text="ms" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            <TextBlock Text="ms" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="#B8B8D0"/>
                         </StackPanel>
                     </StackPanel>
                 </materialDesign:Card>
@@ -245,9 +247,9 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="Cog" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#F59E0B"/>
                             <TextBlock Text="Timing Settings" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
 
                         <Grid>
@@ -261,7 +263,7 @@
                             </Grid.RowDefinitions>
 
                             <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,15">
-                                <TextBlock Text="Wait for song generation:" Margin="0,0,0,5"/>
+                                <TextBlock Text="Wait for song generation:" Margin="0,0,0,5" Foreground="#E0E0E0"/>
                                 <StackPanel Orientation="Horizontal">
                                     <TextBox Text="{Binding WaitForGenerationMs}" Width="100"
                                              Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
@@ -271,7 +273,7 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,15">
-                                <TextBlock Text="Max retries on failure:" Margin="0,0,0,5"/>
+                                <TextBlock Text="Max retries on failure:" Margin="0,0,0,5" Foreground="#E0E0E0"/>
                                 <StackPanel Orientation="Horizontal">
                                     <TextBox Text="{Binding MaxRetries}" Width="60"
                                              Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
@@ -291,9 +293,9 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="CodeJson" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#C084FC"/>
                             <TextBlock Text="Workflow JSON" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
 
                         <TextBlock TextWrapping="Wrap" Margin="0,0,0,15" Foreground="#B8B8D0">
@@ -301,8 +303,9 @@
                         </TextBlock>
 
                         <Button Content="Copy Workflow JSON" Click="CopyWorkflowJson_Click"
-                                Style="{StaticResource MaterialDesignOutlinedButton}"
-                                HorizontalAlignment="Left"/>
+                                Background="#30C084FC" Foreground="#C084FC"
+                                BorderBrush="#C084FC" BorderThickness="1"
+                                Padding="16,8" HorizontalAlignment="Left"/>
                     </StackPanel>
                 </materialDesign:Card>
 
@@ -312,9 +315,9 @@
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <materialDesign:PackIcon Kind="FileDocument" Width="20" Height="20"
                                                      Foreground="#4CAF50"/>
-                            <TextBlock Text="Workflow File" FontWeight="Bold" Margin="8,0,0,0"/>
+                            <TextBlock Text="Workflow File" FontWeight="Bold" Margin="8,0,0,0" Foreground="White"/>
                         </StackPanel>
-                        <TextBlock Text="suno-create-music.json" Foreground="#9C27B0" FontFamily="Consolas"/>
+                        <TextBlock Text="suno-create-music.json" Foreground="#22D3EE" FontFamily="Consolas"/>
                         <TextBlock Text="Location: WebAutomation/Workflows/" Foreground="#B8B8D0"
                                    FontSize="11" Margin="0,5,0,0"/>
                     </StackPanel>
@@ -327,9 +330,9 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                             <materialDesign:PackIcon Kind="Account" Width="24" Height="24"
-                                                     VerticalAlignment="Center" Foreground="#9C27B0"/>
+                                                     VerticalAlignment="Center" Foreground="#3B82F6"/>
                             <TextBlock Text="Suno Account" FontSize="18" FontWeight="Bold"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                       Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
                         </StackPanel>
 
                         <TextBox Text="{Binding SunoEmail}"
@@ -375,14 +378,15 @@
                                 </TextBlock>
                                 <TextBlock Text=" | Credits: " Foreground="#B8B8D0"
                                            Visibility="{Binding IsLoggedIn, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                <TextBlock Text="{Binding CreditsRemaining}" Foreground="#9C27B0" FontWeight="Bold"
+                                <TextBlock Text="{Binding CreditsRemaining}" Foreground="#10B981" FontWeight="Bold"
                                            Visibility="{Binding IsLoggedIn, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             </StackPanel>
                         </Border>
 
                         <Button Content="Test Connection" Click="TestConnection_Click"
-                                Style="{StaticResource MaterialDesignOutlinedButton}"
-                                Margin="0,15,0,0" HorizontalAlignment="Left"/>
+                                Background="#303B82F6" Foreground="#3B82F6"
+                                BorderBrush="#3B82F6" BorderThickness="1"
+                                Padding="16,8" Margin="0,15,0,0" HorizontalAlignment="Left"/>
                     </StackPanel>
                 </materialDesign:Card>
 
@@ -416,10 +420,11 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <Button Content="Save" Click="SaveSettings_Click"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
-                                Background="#9C27B0" Foreground="White"
+                                Background="#10B981" Foreground="White"
                                 Margin="0,0,10,0" Width="100"/>
                         <Button Content="Reset" Click="ResetSettings_Click"
-                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Background="#30F59E0B" Foreground="#F59E0B"
+                                BorderBrush="#F59E0B" BorderThickness="1"
                                 Width="100"/>
                     </StackPanel>
                 </Grid>

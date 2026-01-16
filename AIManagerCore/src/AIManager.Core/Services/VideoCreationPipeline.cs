@@ -1,4 +1,5 @@
 using AIManager.Core.Models;
+using AIManager.Core.Services.VideoGeneration;
 using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Services;
@@ -6,6 +7,7 @@ namespace AIManager.Core.Services;
 /// <summary>
 /// VideoCreationPipeline - ระบบสร้างวิดีโอแบบครบวงจร
 /// รวมการสร้างรูป สร้างวิดีโอ สร้างเพลง และตัดต่อรวมกัน
+/// รองรับหลาย providers: Freepik (PRIMARY), Runway ML, Pika Labs, Luma AI
 /// </summary>
 public class VideoCreationPipeline
 {
@@ -16,6 +18,7 @@ public class VideoCreationPipeline
     private readonly AudioProcessor _audioProcessor;
     private readonly ContentGeneratorService _contentGenerator;
     private readonly PostPublisherService _postPublisher;
+    private readonly VideoProviderFactory? _videoProviderFactory;
 
     private readonly string _outputPath;
 
@@ -27,6 +30,7 @@ public class VideoCreationPipeline
         AudioProcessor audioProcessor,
         ContentGeneratorService contentGenerator,
         PostPublisherService postPublisher,
+        VideoProviderFactory? videoProviderFactory = null,
         string? outputPath = null)
     {
         _logger = logger;
@@ -36,6 +40,7 @@ public class VideoCreationPipeline
         _audioProcessor = audioProcessor;
         _contentGenerator = contentGenerator;
         _postPublisher = postPublisher;
+        _videoProviderFactory = videoProviderFactory;
 
         _outputPath = outputPath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
@@ -128,23 +133,44 @@ public class VideoCreationPipeline
             {
                 ReportProgress(progress, ++currentStep, totalSteps, "กำลังสร้างวิดีโอจากรูป...", PipelineStage.VideoGeneration);
 
-                foreach (var imagePath in generatedImages.Take(request.MaxVideosFromImages))
+                // ลองใช้ alternative providers ถ้ามี VideoProviderFactory
+                var useAlternativeProvider = _videoProviderFactory != null && request.PreferredVideoProvider != null;
+
+                if (useAlternativeProvider && _videoProviderFactory != null)
                 {
-                    if (ct.IsCancellationRequested) break;
+                    var alternativeVideos = await GenerateVideosWithProviderAsync(
+                        generatedImages.Take(request.MaxVideosFromImages).ToList(),
+                        contentPlan.VideoPrompts?.FirstOrDefault() ?? "Smooth cinematic camera movement",
+                        request,
+                        progress,
+                        currentStep,
+                        totalSteps,
+                        ct);
 
-                    var motionPrompt = contentPlan.VideoPrompts?.FirstOrDefault()
-                                       ?? "Smooth cinematic camera movement";
-
-                    var videoResult = await _freepikService.GenerateVideoFromImageAsync(
-                        imagePath, motionPrompt, new FreepikVideoOptions
-                        {
-                            DurationSeconds = request.VideoClipDurationSeconds
-                        }, ct);
-
-                    if (videoResult.Success && !string.IsNullOrEmpty(videoResult.LocalPath))
+                    generatedVideos.AddRange(alternativeVideos.Select(v => v.LocalPath).Where(p => p != null)!);
+                    result.UsedVideoProvider = alternativeVideos.FirstOrDefault()?.Provider;
+                }
+                else
+                {
+                    // Default: ใช้ Freepik
+                    foreach (var imagePath in generatedImages.Take(request.MaxVideosFromImages))
                     {
-                        generatedVideos.Add(videoResult.LocalPath);
-                        result.GeneratedVideos.Add(videoResult);
+                        if (ct.IsCancellationRequested) break;
+
+                        var motionPrompt = contentPlan.VideoPrompts?.FirstOrDefault()
+                                           ?? "Smooth cinematic camera movement";
+
+                        var videoResult = await _freepikService.GenerateVideoFromImageAsync(
+                            imagePath, motionPrompt, new FreepikVideoOptions
+                            {
+                                DurationSeconds = request.VideoClipDurationSeconds
+                            }, ct);
+
+                        if (videoResult.Success && !string.IsNullOrEmpty(videoResult.LocalPath))
+                        {
+                            generatedVideos.Add(videoResult.LocalPath);
+                            result.GeneratedVideos.Add(videoResult);
+                        }
                     }
                 }
             }
@@ -317,6 +343,194 @@ public class VideoCreationPipeline
     #endregion
 
     #region Private Methods
+
+    /// <summary>
+    /// สร้างวิดีโอโดยใช้ alternative providers (Runway, Pika, Luma)
+    /// </summary>
+    private async Task<List<VideoGenerationResult>> GenerateVideosWithProviderAsync(
+        List<string> imagePaths,
+        string motionPrompt,
+        VideoConceptRequest request,
+        IProgress<PipelineProgress>? progress,
+        int currentStep,
+        int totalSteps,
+        CancellationToken ct)
+    {
+        var results = new List<VideoGenerationResult>();
+
+        if (_videoProviderFactory == null)
+            return results;
+
+        // ดึง provider ตามที่ระบุ หรือ fallback อัตโนมัติ
+        IVideoGenerationProvider? provider = null;
+
+        if (request.PreferredVideoProvider.HasValue)
+        {
+            provider = _videoProviderFactory.GetProvider(request.PreferredVideoProvider.Value);
+        }
+
+        // ถ้าไม่มี provider ที่ต้องการ หรือไม่พร้อมใช้งาน ให้หา provider อื่น
+        if (provider == null || !await provider.IsAvailableAsync(ct))
+        {
+            provider = await _videoProviderFactory.GetAvailableProviderAsync(ct: ct);
+        }
+
+        if (provider == null)
+        {
+            _logger.LogWarning("No video provider available, falling back to Freepik");
+            return results;
+        }
+
+        _logger.LogInformation("Using video provider: {Provider}", provider.ProviderName);
+
+        var config = new VideoGenerationConfig
+        {
+            Mode = VideoGenerationMode.ImageToVideo,
+            Duration = request.VideoClipDurationSeconds,
+            AspectRatio = request.AspectRatio,
+            Quality = VideoQuality.High_1080p
+        };
+
+        var videoProgress = new Progress<VideoGenerationProgress>(p =>
+        {
+            ReportProgress(progress, currentStep, totalSteps,
+                $"[{provider.ProviderName}] {p.Message} ({p.PercentComplete}%)",
+                PipelineStage.VideoGeneration);
+        });
+
+        foreach (var imagePath in imagePaths)
+        {
+            if (ct.IsCancellationRequested) break;
+
+            try
+            {
+                var result = await provider.GenerateFromImageAsync(
+                    imagePath,
+                    motionPrompt,
+                    config,
+                    videoProgress,
+                    ct);
+
+                if (result.Success)
+                {
+                    results.Add(result);
+                    _logger.LogInformation("Video generated successfully with {Provider}: {Path}",
+                        provider.ProviderName, result.LocalPath);
+                }
+                else
+                {
+                    _logger.LogWarning("Video generation failed with {Provider}: {Error}",
+                        provider.ProviderName, result.Error);
+
+                    // Try fallback provider
+                    if (request.EnableProviderFallback)
+                    {
+                        var fallbackConfig = new VideoGenerationConfig
+                        {
+                            Mode = config.Mode,
+                            Duration = config.Duration,
+                            AspectRatio = config.AspectRatio,
+                            Quality = config.Quality,
+                            SourceImageUrl = imagePath
+                        };
+
+                        var fallbackResult = await _videoProviderFactory.GenerateWithFallbackAsync(
+                            motionPrompt,
+                            fallbackConfig,
+                            null, // Use default priority
+                            videoProgress,
+                            ct);
+
+                        if (fallbackResult.Success)
+                        {
+                            results.Add(fallbackResult);
+                        }
+                    }
+                }
+
+                // Rate limiting between generations
+                await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating video with {Provider}", provider.ProviderName);
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// สร้างวิดีโอจาก text prompt โดยตรง (Text-to-Video)
+    /// </summary>
+    public async Task<VideoGenerationResult?> GenerateVideoFromTextAsync(
+        string prompt,
+        VideoGenerationConfig config,
+        SocialPlatform? preferredProvider = null,
+        IProgress<VideoGenerationProgress>? progress = null,
+        CancellationToken ct = default)
+    {
+        if (_videoProviderFactory == null)
+        {
+            _logger.LogWarning("VideoProviderFactory not available");
+            return null;
+        }
+
+        IVideoGenerationProvider? provider = null;
+
+        if (preferredProvider.HasValue)
+        {
+            provider = _videoProviderFactory.GetProvider(preferredProvider.Value);
+        }
+
+        if (provider == null || !await provider.IsAvailableAsync(ct))
+        {
+            provider = await _videoProviderFactory.GetAvailableProviderAsync(ct: ct);
+        }
+
+        if (provider == null)
+        {
+            _logger.LogWarning("No video provider available");
+            return null;
+        }
+
+        _logger.LogInformation("Generating text-to-video with {Provider}: {Prompt}",
+            provider.ProviderName, prompt);
+
+        return await provider.GenerateFromTextAsync(prompt, config, progress, ct);
+    }
+
+    /// <summary>
+    /// ดึงข้อมูล providers ที่พร้อมใช้งาน
+    /// </summary>
+    public async Task<List<VideoProviderStatus>> GetAvailableProvidersAsync(CancellationToken ct = default)
+    {
+        var statuses = new List<VideoProviderStatus>();
+
+        if (_videoProviderFactory == null)
+            return statuses;
+
+        var creditsInfo = await _videoProviderFactory.GetAllCreditsInfoAsync(ct);
+
+        foreach (var (platform, credits) in creditsInfo)
+        {
+            var provider = _videoProviderFactory.GetProvider(platform);
+            var isAvailable = provider != null && await provider.IsAvailableAsync(ct);
+
+            statuses.Add(new VideoProviderStatus
+            {
+                Platform = platform,
+                ProviderName = platform.GetProviderDisplayName(),
+                IsAvailable = isAvailable,
+                HasCredits = credits.HasCredits,
+                RemainingCredits = credits.RemainingCredits,
+                IsUnlimited = credits.IsUnlimited,
+                MaxDurationSeconds = platform.GetMaxDurationSeconds()
+            });
+        }
+
+        return statuses;
+    }
 
     private async Task<ContentPlan> GenerateContentPlanAsync(VideoConceptRequest request, CancellationToken ct)
     {
@@ -543,6 +757,15 @@ public class VideoConceptRequest
 
     /// <summary>โพสต์อัตโนมัติหลังสร้างเสร็จ</summary>
     public bool AutoPost { get; set; } = false;
+
+    /// <summary>Provider ที่ต้องการใช้สร้างวิดีโอ (Freepik, Runway, PikaLabs, LumaAI)</summary>
+    public SocialPlatform? PreferredVideoProvider { get; set; }
+
+    /// <summary>เปิด fallback ไปยัง provider อื่นถ้า provider หลักไม่พร้อม</summary>
+    public bool EnableProviderFallback { get; set; } = true;
+
+    /// <summary>ลำดับ priority ของ providers (ถ้าไม่กำหนดใช้ค่าเริ่มต้น)</summary>
+    public SocialPlatform[]? ProviderPriorityOrder { get; set; }
 }
 
 /// <summary>
@@ -562,11 +785,31 @@ public class PipelineResult
     public List<FreepikGenerationResult> GeneratedVideos { get; set; } = new();
     public SunoGenerationResult? GeneratedMusic { get; set; }
 
+    /// <summary>Provider ที่ใช้สร้างวิดีโอ</summary>
+    public SocialPlatform? UsedVideoProvider { get; set; }
+
+    /// <summary>ผลลัพธ์จาก alternative providers (ถ้าใช้)</summary>
+    public List<VideoGenerationResult> AlternativeProviderResults { get; set; } = new();
+
     public string? FinalVideoPath { get; set; }
     public Dictionary<SocialPlatform, string> PlatformVideos { get; set; } = new();
     public Dictionary<SocialPlatform, PostResult> PostResults { get; set; } = new();
 
     public TimeSpan? Duration => CompletedAt.HasValue ? CompletedAt.Value - StartedAt : null;
+}
+
+/// <summary>
+/// สถานะของ Video Provider
+/// </summary>
+public class VideoProviderStatus
+{
+    public SocialPlatform Platform { get; set; }
+    public string ProviderName { get; set; } = "";
+    public bool IsAvailable { get; set; }
+    public bool HasCredits { get; set; }
+    public int? RemainingCredits { get; set; }
+    public bool IsUnlimited { get; set; }
+    public int MaxDurationSeconds { get; set; }
 }
 
 /// <summary>

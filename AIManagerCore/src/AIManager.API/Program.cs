@@ -5,6 +5,8 @@ using AIManager.Core.Models;
 using AIManager.Core.Workers;
 using AIManager.Core.WebAutomation;
 using AIManager.Core.Services;
+using AIManager.Core.Services.MusicGeneration;
+using AIManager.Core.Services.VideoGeneration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,72 +95,108 @@ builder.Services.AddSingleton<FFmpegService>();
 builder.Services.AddSingleton<VideoProcessor>();
 builder.Services.AddSingleton<AudioProcessor>();
 
-// Freepik Automation Service (Image/Video Generation)
-builder.Services.AddSingleton<FreepikAutomationService?>(sp =>
+// Browser Controller (Playwright-based) for Web Automation
+builder.Services.AddSingleton<BrowserController>(sp =>
 {
-    try
+    var logger = sp.GetRequiredService<ILogger<BrowserController>>();
+    var config = new BrowserConfig
     {
-        var browserController = sp.GetService<BrowserController>();
-        var workflowStorage = sp.GetRequiredService<WorkflowStorage>();
-        var workflowExecutor = sp.GetService<WorkflowExecutor>();
-        var logger = sp.GetRequiredService<ILogger<FreepikAutomationService>>();
-        if (browserController != null && workflowExecutor != null)
-        {
-            return new FreepikAutomationService(logger, browserController, workflowExecutor, workflowStorage);
-        }
-    }
-    catch { }
-    return null;
+        Headless = builder.Configuration.GetValue<bool>("WebAutomation:Headless", true),
+        DefaultTimeout = builder.Configuration.GetValue<int>("WebAutomation:Timeout", 30000)
+    };
+    return new BrowserController(logger, config);
 });
 
-// Suno Automation Service (Music Generation)
-builder.Services.AddSingleton<SunoAutomationService?>(sp =>
+// Workflow Executor (Playwright-based) for executing learned workflows
+builder.Services.AddSingleton<WorkflowExecutor>(sp =>
 {
-    try
+    var logger = sp.GetRequiredService<ILogger<WorkflowExecutor>>();
+    var browserController = sp.GetRequiredService<BrowserController>();
+    var learningEngine = sp.GetRequiredService<WorkflowLearningEngine>();
+    var aiAnalyzer = sp.GetRequiredService<AIElementAnalyzer>();
+    return new WorkflowExecutor(logger, browserController, learningEngine, aiAnalyzer);
+});
+
+// Freepik Automation Service (Image/Video Generation)
+builder.Services.AddSingleton<FreepikAutomationService>(sp =>
+{
+    var browserController = sp.GetRequiredService<BrowserController>();
+    var workflowStorage = sp.GetRequiredService<WorkflowStorage>();
+    var workflowExecutor = sp.GetRequiredService<WorkflowExecutor>();
+    var logger = sp.GetRequiredService<ILogger<FreepikAutomationService>>();
+    return new FreepikAutomationService(logger, browserController, workflowExecutor, workflowStorage);
+});
+
+// Suno Automation Service (Music Generation via Web Automation)
+builder.Services.AddSingleton<SunoAutomationService>(sp =>
+{
+    var browserController = sp.GetRequiredService<BrowserController>();
+    var workflowStorage = sp.GetRequiredService<WorkflowStorage>();
+    var workflowExecutor = sp.GetRequiredService<WorkflowExecutor>();
+    var logger = sp.GetRequiredService<ILogger<SunoAutomationService>>();
+    return new SunoAutomationService(logger, browserController, workflowExecutor, workflowStorage);
+});
+
+// Suno Session Manager (Music Generation Session/Token Management)
+builder.Services.AddSingleton<SunoSessionManager>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<SunoSessionManager>>();
+    var sessionPath = builder.Configuration.GetValue<string>("MusicGeneration:Suno:SessionFilePath");
+    return new SunoSessionManager(logger, sessionPath);
+});
+
+// Music Provider Factory (Music Generation via API - Suno, etc.)
+builder.Services.AddSingleton<MusicProviderFactory>(sp =>
+{
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    var sessionManager = sp.GetRequiredService<SunoSessionManager>();
+    var config = new MusicProviderConfig
     {
-        var browserController = sp.GetService<BrowserController>();
-        var workflowStorage = sp.GetRequiredService<WorkflowStorage>();
-        var workflowExecutor = sp.GetService<WorkflowExecutor>();
-        var logger = sp.GetRequiredService<ILogger<SunoAutomationService>>();
-        if (browserController != null && workflowExecutor != null)
-        {
-            return new SunoAutomationService(logger, browserController, workflowExecutor, workflowStorage);
-        }
-    }
-    catch { }
-    return null;
+        SunoSessionToken = builder.Configuration.GetValue<string>("MusicGeneration:Suno:SessionToken"),
+        DownloadPath = builder.Configuration.GetValue<string>("MusicGeneration:DownloadPath")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "PostXAgent", "Generated"),
+        DefaultGenre = builder.Configuration.GetValue<string>("MusicGeneration:DefaultGenre") ?? "Pop",
+        DefaultMood = builder.Configuration.GetValue<string>("MusicGeneration:DefaultMood") ?? "Energetic",
+        DownloadAllSongs = builder.Configuration.GetValue<bool>("MusicGeneration:DownloadAllSongs", true),
+        TimeoutSeconds = builder.Configuration.GetValue<int>("MusicGeneration:TimeoutSeconds", 180)
+    };
+    return new MusicProviderFactory(loggerFactory, config, sessionManager);
+});
+
+// Video Provider Factory (Video Generation via API - Runway, Pika, Luma)
+builder.Services.AddSingleton<VideoProviderFactory>(sp =>
+{
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    var config = new VideoProviderConfig
+    {
+        RunwayApiKey = builder.Configuration.GetValue<string>("VideoGeneration:Runway:ApiKey"),
+        PikaLabsApiKey = builder.Configuration.GetValue<string>("VideoGeneration:PikaLabs:ApiKey"),
+        LumaAIApiKey = builder.Configuration.GetValue<string>("VideoGeneration:LumaAI:ApiKey"),
+        DownloadPath = builder.Configuration.GetValue<string>("VideoGeneration:DownloadPath")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "PostXAgent", "Generated")
+    };
+    return new VideoProviderFactory(loggerFactory, config);
 });
 
 // Video Creation Pipeline (Full workflow: Images -> Videos -> Music -> Compose -> Post)
-builder.Services.AddSingleton<VideoCreationPipeline?>(sp =>
+builder.Services.AddSingleton<VideoCreationPipeline>(sp =>
 {
-    try
-    {
-        var freepikService = sp.GetService<FreepikAutomationService>();
-        var sunoService = sp.GetService<SunoAutomationService>();
+    var logger = sp.GetRequiredService<ILogger<VideoCreationPipeline>>();
+    var freepikService = sp.GetRequiredService<FreepikAutomationService>();
+    var sunoService = sp.GetRequiredService<SunoAutomationService>();
+    var videoProcessor = sp.GetRequiredService<VideoProcessor>();
+    var audioProcessor = sp.GetRequiredService<AudioProcessor>();
+    var contentGenerator = sp.GetRequiredService<ContentGeneratorService>();
+    var postPublisher = sp.GetRequiredService<PostPublisherService>();
 
-        if (freepikService == null || sunoService == null)
-        {
-            return null;
-        }
-
-        var logger = sp.GetRequiredService<ILogger<VideoCreationPipeline>>();
-        var videoProcessor = sp.GetRequiredService<VideoProcessor>();
-        var audioProcessor = sp.GetRequiredService<AudioProcessor>();
-        var contentGenerator = sp.GetRequiredService<ContentGeneratorService>();
-        var postPublisher = sp.GetRequiredService<PostPublisherService>();
-
-        return new VideoCreationPipeline(
-            logger,
-            freepikService,
-            sunoService,
-            videoProcessor,
-            audioProcessor,
-            contentGenerator,
-            postPublisher);
-    }
-    catch { }
-    return null;
+    return new VideoCreationPipeline(
+        logger,
+        freepikService,
+        sunoService,
+        videoProcessor,
+        audioProcessor,
+        contentGenerator,
+        postPublisher);
 });
 
 // Content Workflow Services
@@ -204,21 +242,11 @@ builder.Services.AddSingleton<ClaudeCodeIntegrationService>();
 // AI Code Generator Service (for dynamic JS code generation)
 builder.Services.AddSingleton<AICodeGeneratorService>();
 
-// Dynamic Code Executor (optional - requires WebView)
-// Note: DynamicCodeExecutor requires BrowserController which needs UI context
-// It will be null in API-only mode
-builder.Services.AddSingleton<DynamicCodeExecutor?>(sp =>
+// Dynamic Code Executor (uses BrowserController for JS execution)
+builder.Services.AddSingleton<DynamicCodeExecutor>(sp =>
 {
-    try
-    {
-        var browserController = sp.GetService<BrowserController>();
-        if (browserController != null)
-        {
-            return new DynamicCodeExecutor(browserController);
-        }
-    }
-    catch { }
-    return null;
+    var browserController = sp.GetRequiredService<BrowserController>();
+    return new DynamicCodeExecutor(browserController);
 });
 
 // Self-Healing Worker Factory
@@ -226,6 +254,30 @@ builder.Services.AddSingleton<SelfHealingWorker>();
 
 // GPU Pool Service (Distributed GPU Worker Management)
 builder.Services.AddSingleton<GpuPoolService>();
+
+// GPU Node Monitor Service (Advanced monitoring with quota, prestart, failover)
+builder.Services.AddSingleton<GpuNodeMonitorService>();
+
+// HuggingFace Model Service (Model Download and Management)
+builder.Services.AddSingleton<HuggingFaceModelService>();
+
+// Local GPU Service (GPU Detection and Monitoring)
+builder.Services.AddSingleton<LocalGpuService>();
+
+// ComfyUI Service (optional - for ComfyUI backend)
+builder.Services.AddSingleton<ComfyUIService>();
+
+// Unified Generation Engine (combines all image/video generation providers)
+// Now includes GpuPoolService for distributed generation across multiple GPUs
+builder.Services.AddSingleton<UnifiedGenerationEngine>(sp =>
+{
+    var modelService = sp.GetRequiredService<HuggingFaceModelService>();
+    var gpuService = sp.GetRequiredService<LocalGpuService>();
+    var comfyService = sp.GetRequiredService<ComfyUIService>();
+    var gpuPoolService = sp.GetRequiredService<GpuPoolService>();
+    var logger = sp.GetRequiredService<ILogger<UnifiedGenerationEngine>>();
+    return new UnifiedGenerationEngine(modelService, gpuService, comfyService, gpuPoolService, logger);
+});
 
 var app = builder.Build();
 

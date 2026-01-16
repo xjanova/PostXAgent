@@ -295,7 +295,7 @@ public partial class WorkflowEditorPage : Page
         Dispatcher.Invoke(() => AppendLog(message));
     }
 
-    private void OnWorkflowCompleted(Core.NodeEditor.WorkflowExecutionResult result)
+    private void OnWorkflowCompleted(Core.NodeEditor.NodeWorkflowExecutionResult result)
     {
         Dispatcher.Invoke(() =>
         {

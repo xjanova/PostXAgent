@@ -105,7 +105,7 @@
                                 <!-- Search Buttons -->
                                 <Button Style="{StaticResource MaterialDesignRaisedButton}"
                                         Command="{Binding SearchCommand}"
-                                        IsEnabled="{Binding IsSearching, Converter={StaticResource InverseBooleanConverter}}"
+                                        IsEnabled="{Binding IsSearching, Converter={StaticResource InverseBoolConverter}}"
                                         Margin="0,0,0,10">
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="Magnify" VerticalAlignment="Center"/>
@@ -357,7 +357,7 @@
                                                         <TextBlock Text="โพสต์" Margin="8,0,0,0"/>
                                                     </StackPanel>
                                                 </Button>
-                                                <Button Style="{StaticResource MaterialDesignOutlinedSecondaryButton}"
+                                                <Button Style="{StaticResource MaterialDesignOutlinedButton}"
                                                         Command="{Binding DataContext.LeaveGroupCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                                         CommandParameter="{Binding}">
                                                     <StackPanel Orientation="Horizontal">

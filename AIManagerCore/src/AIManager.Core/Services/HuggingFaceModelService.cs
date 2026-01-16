@@ -47,14 +47,11 @@ public class HuggingFaceModelService : IDisposable
         _modelsDirectory = Path.Combine(baseDir, "models");
         _configFile = Path.Combine(baseDir, "hf_config.json");
 
-        Directory.CreateDirectory(_modelsDirectory);
-        Directory.CreateDirectory(Path.Combine(_modelsDirectory, "checkpoints"));
-        Directory.CreateDirectory(Path.Combine(_modelsDirectory, "loras"));
-        Directory.CreateDirectory(Path.Combine(_modelsDirectory, "vae"));
-        Directory.CreateDirectory(Path.Combine(_modelsDirectory, "controlnet"));
-        Directory.CreateDirectory(Path.Combine(_modelsDirectory, "embeddings"));
-
+        // Load config first to get custom models directory if set
         _config = LoadConfig();
+
+        // Ensure the model directory structure exists (either default or custom)
+        EnsureModelDirectoryStructure(ModelsDirectory);
         _logger?.LogInformation("HuggingFace Model Service initialized. Models directory: {Dir}", _modelsDirectory);
     }
 
@@ -78,13 +75,65 @@ public class HuggingFaceModelService : IDisposable
     }
 
     /// <summary>
-    /// Sets the models directory
+    /// Sets the models directory and creates the folder structure
     /// </summary>
     public void SetModelsDirectory(string path)
     {
         _config.ModelsDirectory = path;
         SaveConfig();
+
+        // Create the same folder structure as the default directory
+        EnsureModelDirectoryStructure(path);
+
         _logger?.LogInformation("Models directory changed to: {Path}", path);
+    }
+
+    /// <summary>
+    /// Ensures the model directory has the correct folder structure
+    /// Creates subdirectories for checkpoints, loras, vae, controlnet, embeddings, and metadata
+    /// </summary>
+    public void EnsureModelDirectoryStructure(string? basePath = null)
+    {
+        var targetPath = basePath ?? ModelsDirectory;
+
+        try
+        {
+            Directory.CreateDirectory(targetPath);
+            Directory.CreateDirectory(Path.Combine(targetPath, "checkpoints"));
+            Directory.CreateDirectory(Path.Combine(targetPath, "loras"));
+            Directory.CreateDirectory(Path.Combine(targetPath, "vae"));
+            Directory.CreateDirectory(Path.Combine(targetPath, "controlnet"));
+            Directory.CreateDirectory(Path.Combine(targetPath, "embeddings"));
+            Directory.CreateDirectory(Path.Combine(targetPath, ".metadata"));
+
+            _logger?.LogInformation("Model directory structure ensured at: {Path}", targetPath);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to create model directory structure at: {Path}", targetPath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Validates if the model directory has the correct folder structure
+    /// </summary>
+    public bool ValidateModelDirectoryStructure(string? basePath = null)
+    {
+        var targetPath = basePath ?? ModelsDirectory;
+
+        var requiredSubDirs = new[] { "checkpoints", "loras", "vae", "controlnet", "embeddings" };
+
+        foreach (var subDir in requiredSubDirs)
+        {
+            var subDirPath = Path.Combine(targetPath, subDir);
+            if (!Directory.Exists(subDirPath))
+            {
+                return false;
+            }
+        }
+
+        return Directory.Exists(targetPath);
     }
 
     /// <summary>
@@ -259,29 +308,72 @@ public class HuggingFaceModelService : IDisposable
             },
             [ModelType.TextToVideo] = new()
             {
+                // Consumer GPU (8-12GB VRAM)
+                new RecommendedModel
+                {
+                    Id = "THUDM/CogVideoX-2b",
+                    Name = "CogVideoX-2B",
+                    Description = "Best for 8GB GPU - High quality text-to-video",
+                    RequiredVramGb = 8,
+                    SizeGb = 4.5
+                },
+                new RecommendedModel
+                {
+                    Id = "Lightricks/LTX-Video",
+                    Name = "LTX-Video",
+                    Description = "Fastest video generation - 30fps real-time",
+                    RequiredVramGb = 12,
+                    SizeGb = 5.0
+                },
+                new RecommendedModel
+                {
+                    Id = "Wan-AI/Wan2.1-T2V-1.3B",
+                    Name = "Wan 2.1 (1.3B)",
+                    Description = "Lightweight Wan model for consumer GPUs",
+                    RequiredVramGb = 8,
+                    SizeGb = 3.0
+                },
+                new RecommendedModel
+                {
+                    Id = "guoyww/animatediff-motion-adapter-v1-5-3",
+                    Name = "AnimateDiff v1.5.3",
+                    Description = "Text to video animation with SD1.5",
+                    RequiredVramGb = 6,
+                    SizeGb = 1.5
+                },
+                // Mid-range GPU (16-24GB VRAM)
+                new RecommendedModel
+                {
+                    Id = "THUDM/CogVideoX-5b",
+                    Name = "CogVideoX-5B",
+                    Description = "High quality text-to-video for 24GB GPU",
+                    RequiredVramGb = 24,
+                    SizeGb = 12.0
+                },
                 new RecommendedModel
                 {
                     Id = "stabilityai/stable-video-diffusion-img2vid-xt",
                     Name = "SVD-XT",
-                    Description = "Image to video generation",
+                    Description = "Image to video - 25 frames generation",
                     RequiredVramGb = 16,
                     SizeGb = 9.0
                 },
-                new RecommendedModel
-                {
-                    Id = "guoyww/animatediff-motion-adapter-v1-5-2",
-                    Name = "AnimateDiff v1.5.2",
-                    Description = "Text to video animation",
-                    RequiredVramGb = 8,
-                    SizeGb = 1.5
-                },
+                // High-end GPU (40GB+ VRAM)
                 new RecommendedModel
                 {
                     Id = "Wan-AI/Wan2.1-T2V-14B",
-                    Name = "Wan2.1 T2V",
-                    Description = "Latest text-to-video model",
-                    RequiredVramGb = 24,
+                    Name = "Wan 2.1 (14B)",
+                    Description = "Best quality - requires 40GB+ VRAM",
+                    RequiredVramGb = 40,
                     SizeGb = 28.0
+                },
+                new RecommendedModel
+                {
+                    Id = "tencent/HunyuanVideo",
+                    Name = "HunyuanVideo",
+                    Description = "Cinema quality - requires 40GB+ VRAM",
+                    RequiredVramGb = 40,
+                    SizeGb = 26.0
                 }
             },
             [ModelType.LoRA] = new()
@@ -407,7 +499,7 @@ public class HuggingFaceModelService : IDisposable
                     downloaded =>
                     {
                         progress.DownloadedBytes = downloadedBytes + downloaded;
-                        progress.Speed = CalculateSpeed(progress);
+                        progress.SpeedBytesPerSecond = CalculateSpeed(progress);
                         DownloadProgressChanged?.Invoke(this, new ModelDownloadProgressEventArgs(progress));
                     }, ct);
 
@@ -507,8 +599,25 @@ public class HuggingFaceModelService : IDisposable
 
     private double CalculateSpeed(DownloadProgress progress)
     {
-        // Simple speed calculation (would be more accurate with time tracking)
-        return progress.DownloadedBytes / 1024.0 / 1024.0; // MB
+        var now = DateTime.UtcNow;
+        var elapsed = (now - progress.LastUpdateTime).TotalSeconds;
+
+        if (elapsed < 0.1) return progress.SpeedBytesPerSecond; // Too short, keep previous
+
+        var bytesDownloaded = progress.DownloadedBytes - progress.LastDownloadedBytes;
+        var speed = bytesDownloaded / elapsed;
+
+        // Update tracking values
+        progress.LastUpdateTime = now;
+        progress.LastDownloadedBytes = progress.DownloadedBytes;
+
+        // Smooth the speed with exponential moving average
+        if (progress.SpeedBytesPerSecond > 0)
+        {
+            speed = progress.SpeedBytesPerSecond * 0.7 + speed * 0.3;
+        }
+
+        return speed;
     }
 
     /// <summary>
@@ -690,8 +799,9 @@ public class HuggingFaceModelService : IDisposable
     }
 
     /// <summary>
-    /// Get thumbnail URL for a model from HuggingFace
+    /// Get thumbnail URL for a model from HuggingFace and alternative sources
     /// Tries common image file patterns used in model repositories
+    /// Falls back to web image search if no thumbnail is found
     /// </summary>
     public async Task<string?> GetModelThumbnailUrlAsync(string modelId, CancellationToken ct = default)
     {
@@ -705,13 +815,19 @@ public class HuggingFaceModelService : IDisposable
             "preview.jpg",
             "sample.png",
             "sample.jpg",
+            "sample_0.png",
+            "sample_1.png",
             "example.png",
             "example.jpg",
             "cover.png",
             "cover.jpg",
             "images/thumbnail.png",
             "images/preview.png",
-            "images/sample.png"
+            "images/sample.png",
+            "samples/sample_0.png",
+            "samples/00.png",
+            "output.png",
+            "output/sample.png"
         };
 
         try
@@ -758,6 +874,29 @@ public class HuggingFaceModelService : IDisposable
                 }
             }
 
+            // Try HuggingFace card thumbnail (used for model cards)
+            var cardThumbUrl = $"https://thumbnails.huggingface.co/social-thumbnails/models/{modelId}.png";
+            try
+            {
+                var cardResponse = await _httpClient.SendAsync(
+                    new HttpRequestMessage(HttpMethod.Head, cardThumbUrl), ct);
+                if (cardResponse.IsSuccessStatusCode)
+                {
+                    return cardThumbUrl;
+                }
+            }
+            catch
+            {
+                // Continue
+            }
+
+            // Fallback: Search for model thumbnail from web sources
+            var webThumbnail = await SearchWebThumbnailAsync(modelId, ct);
+            if (!string.IsNullOrEmpty(webThumbnail))
+            {
+                return webThumbnail;
+            }
+
             return null;
         }
         catch (Exception ex)
@@ -765,6 +904,179 @@ public class HuggingFaceModelService : IDisposable
             _logger?.LogDebug(ex, "Failed to get thumbnail for model: {ModelId}", modelId);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Search for model thumbnail from alternative web sources
+    /// Uses CivitAI, GitHub, and other model hosting platforms
+    /// </summary>
+    private async Task<string?> SearchWebThumbnailAsync(string modelId, CancellationToken ct = default)
+    {
+        try
+        {
+            var modelName = modelId.Split('/').LastOrDefault() ?? modelId;
+            var authorName = modelId.Contains('/') ? modelId.Split('/').First() : null;
+
+            // Try CivitAI (popular model hosting platform)
+            var civitaiUrl = await TryCivitAIThumbnailAsync(modelName, ct);
+            if (!string.IsNullOrEmpty(civitaiUrl))
+            {
+                return civitaiUrl;
+            }
+
+            // Try GitHub user avatar as fallback for author
+            if (!string.IsNullOrEmpty(authorName))
+            {
+                var githubUrl = $"https://github.com/{authorName}.png?size=200";
+                try
+                {
+                    var ghResponse = await _httpClient.SendAsync(
+                        new HttpRequestMessage(HttpMethod.Head, githubUrl), ct);
+                    if (ghResponse.IsSuccessStatusCode)
+                    {
+                        return githubUrl;
+                    }
+                }
+                catch
+                {
+                    // Continue
+                }
+            }
+
+            // Try known model sample image URLs for popular models
+            var knownThumbnail = GetKnownModelThumbnail(modelId);
+            if (!string.IsNullOrEmpty(knownThumbnail))
+            {
+                return knownThumbnail;
+            }
+
+            // Generate placeholder URL based on model type
+            return GetPlaceholderThumbnailUrl(modelId);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to search web thumbnail for model: {ModelId}", modelId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Try to find thumbnail from CivitAI for the model
+    /// </summary>
+    private async Task<string?> TryCivitAIThumbnailAsync(string modelName, CancellationToken ct)
+    {
+        try
+        {
+            // CivitAI API search
+            var searchUrl = $"https://civitai.com/api/v1/models?query={Uri.EscapeDataString(modelName)}&limit=1";
+            var response = await _httpClient.GetAsync(searchUrl, ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(content);
+
+                if (doc.RootElement.TryGetProperty("items", out var items) && items.GetArrayLength() > 0)
+                {
+                    var firstItem = items[0];
+                    if (firstItem.TryGetProperty("modelVersions", out var versions) && versions.GetArrayLength() > 0)
+                    {
+                        var firstVersion = versions[0];
+                        if (firstVersion.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
+                        {
+                            var firstImage = images[0];
+                            if (firstImage.TryGetProperty("url", out var urlElement))
+                            {
+                                return urlElement.GetString();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // CivitAI search failed, continue to other sources
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Get known thumbnail URLs for popular models
+    /// </summary>
+    private static string? GetKnownModelThumbnail(string modelId)
+    {
+        // Dictionary of known model thumbnails that may not be available from HuggingFace
+        var knownThumbnails = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Stable Diffusion variants
+            ["CompVis/stable-diffusion-v1-4"] = "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/txt2img/merged-0005.png",
+            ["runwayml/stable-diffusion-v1-5"] = "https://raw.githubusercontent.com/runwayml/stable-diffusion/main/assets/stable-samples/txt2img/merged-0005.png",
+
+            // FLUX models
+            ["black-forest-labs/FLUX.1-schnell"] = "https://cdn-uploads.huggingface.co/production/uploads/6435ddfe1479cf89bd4a8c6e/eWblS4u1jvKlgT8tpqU6i.png",
+            ["black-forest-labs/FLUX.1-dev"] = "https://cdn-uploads.huggingface.co/production/uploads/6435ddfe1479cf89bd4a8c6e/eWblS4u1jvKlgT8tpqU6i.png",
+
+            // Popular checkpoints
+            ["Lykon/dreamshaper-8"] = "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/bb3ee20b-1f5a-4e4c-9fc2-8c8ec4c7afe6/width=450/00176-4251613958.jpeg",
+            ["SG161222/Realistic_Vision_V5.1_noVAE"] = "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/a4b82f53-48cd-4b0e-9e5c-7cf93a9aec60/width=450/123456.jpeg",
+
+            // AnimateDiff
+            ["guoyww/animatediff-motion-adapter-v1-5-2"] = "https://raw.githubusercontent.com/guoyww/AnimateDiff/main/assets/animations/model_02/01.gif",
+
+            // ControlNet
+            ["lllyasviel/control_v11p_sd15_canny"] = "https://huggingface.co/lllyasviel/control_v11p_sd15_canny/resolve/main/images/control.png",
+            ["lllyasviel/control_v11f1p_sd15_depth"] = "https://huggingface.co/lllyasviel/control_v11f1p_sd15_depth/resolve/main/images/control.png"
+        };
+
+        return knownThumbnails.TryGetValue(modelId, out var url) ? url : null;
+    }
+
+    /// <summary>
+    /// Get a placeholder thumbnail URL based on model type
+    /// Uses DiceBear avatars or UI Avatars as fallback
+    /// </summary>
+    private static string? GetPlaceholderThumbnailUrl(string modelId)
+    {
+        var modelName = modelId.Split('/').LastOrDefault() ?? modelId;
+        var cleanName = Uri.EscapeDataString(modelName);
+
+        // Determine model type from name
+        var lowerName = modelName.ToLowerInvariant();
+        var category = lowerName switch
+        {
+            var n when n.Contains("lora") => "lora",
+            var n when n.Contains("controlnet") || n.Contains("control") => "controlnet",
+            var n when n.Contains("vae") => "vae",
+            var n when n.Contains("video") || n.Contains("animate") || n.Contains("svd") => "video",
+            var n when n.Contains("embed") || n.Contains("textual") => "embed",
+            _ => "image"
+        };
+
+        // Use UI Avatars for a clean text-based placeholder
+        var bgColor = category switch
+        {
+            "lora" => "F59E0B",      // Orange
+            "controlnet" => "10B981", // Green
+            "vae" => "E91E63",        // Pink
+            "video" => "06B6D4",      // Cyan
+            "embed" => "8B5CF6",      // Purple
+            _ => "7C4DFF"             // Default purple
+        };
+
+        // Get first letter(s) for avatar
+        var initials = string.Join("", modelName
+            .Split(new[] { '-', '_', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .Select(s => s.FirstOrDefault().ToString().ToUpperInvariant()));
+
+        if (string.IsNullOrEmpty(initials))
+        {
+            initials = modelName.Length > 0 ? modelName[0].ToString().ToUpperInvariant() : "M";
+        }
+
+        return $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(initials)}&background={bgColor}&color=fff&size=200&bold=true&format=png";
     }
 
     private static bool IsImageFile(string path)
@@ -1041,10 +1353,58 @@ public class DownloadProgress
     public long TotalBytes { get; set; }
     public long DownloadedBytes { get; set; }
     public string? CurrentFile { get; set; }
-    public double Speed { get; set; }
+    public double SpeedBytesPerSecond { get; set; }
     public string? Error { get; set; }
 
+    // For speed calculation
+    public DateTime StartTime { get; set; } = DateTime.UtcNow;
+    public DateTime LastUpdateTime { get; set; } = DateTime.UtcNow;
+    public long LastDownloadedBytes { get; set; }
+
     public double Percentage => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100 : 0;
+
+    /// <summary>
+    /// Format downloaded size (e.g., "1.5 GB / 3.2 GB")
+    /// </summary>
+    public string DownloadedDisplay => $"{FormatBytes(DownloadedBytes)} / {FormatBytes(TotalBytes)}";
+
+    /// <summary>
+    /// Format speed (e.g., "15.2 MB/s")
+    /// </summary>
+    public string SpeedDisplay
+    {
+        get
+        {
+            if (SpeedBytesPerSecond <= 0) return "--";
+            if (SpeedBytesPerSecond < 1024) return $"{SpeedBytesPerSecond:F0} B/s";
+            if (SpeedBytesPerSecond < 1024 * 1024) return $"{SpeedBytesPerSecond / 1024.0:F1} KB/s";
+            return $"{SpeedBytesPerSecond / 1024.0 / 1024.0:F1} MB/s";
+        }
+    }
+
+    /// <summary>
+    /// Estimated time remaining
+    /// </summary>
+    public string EtaDisplay
+    {
+        get
+        {
+            if (SpeedBytesPerSecond <= 0) return "--";
+            var remainingBytes = TotalBytes - DownloadedBytes;
+            var seconds = remainingBytes / SpeedBytesPerSecond;
+            if (seconds < 60) return $"{seconds:F0}s";
+            if (seconds < 3600) return $"{seconds / 60:F0}m {seconds % 60:F0}s";
+            return $"{seconds / 3600:F0}h {(seconds % 3600) / 60:F0}m";
+        }
+    }
+
+    private static string FormatBytes(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        < 1024 * 1024 * 1024 => $"{bytes / 1024.0 / 1024.0:F1} MB",
+        _ => $"{bytes / 1024.0 / 1024.0 / 1024.0:F2} GB"
+    };
 }
 
 /// <summary>

@@ -65,7 +65,7 @@
                 <StackPanel Grid.Row="0" Margin="15">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="MonitorEye" Width="24" Height="24"
-                                                 Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                                 Foreground="#C084FC" VerticalAlignment="Center"/>
                         <TextBlock Text="Worker View" FontSize="18" FontWeight="Bold"
                                    Margin="10,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -226,7 +226,7 @@
                         <!-- Assist Button -->
                         <Button x:Name="BtnAssist" Click="BtnAssist_Click"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
-                                Background="#8B5CF6" Height="36" Margin="5,0" IsEnabled="False">
+                                Background="#C084FC" Height="36" Margin="5,0" IsEnabled="False">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="HandBackRight" VerticalAlignment="Center"/>
                                 <TextBlock Text="Assist" Margin="8,0,0,0"/>
@@ -331,7 +331,7 @@
                                             <TextBlock Text="{Binding StepNumber, StringFormat={}{0}.}"
                                                        FontSize="11" Foreground="#606060" Width="25"/>
                                             <TextBlock Text="{Binding ActionType}" FontSize="11"
-                                                       Foreground="#8B5CF6" Width="60"/>
+                                                       Foreground="#C084FC" Width="60"/>
                                             <TextBlock Text="{Binding Description}" FontSize="11"
                                                        Foreground="#A0A0A0" TextTrimming="CharacterEllipsis" MaxWidth="400"/>
                                         </StackPanel>
