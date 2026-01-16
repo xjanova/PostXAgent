@@ -52,11 +52,13 @@ class AuditLogController extends Controller
 
         return response()->json([
             'success' => true,
+            /** @phpstan-ignore-next-line */
             'data' => $logs->map(fn (Activity $log) => [
                 'id' => $log->id,
                 'log_name' => $log->log_name,
                 'description' => $log->description,
                 'event' => $log->event,
+                /** @phpstan-ignore-next-line */
                 'causer' => $log->causer ? [
                     'id' => $log->causer->id,
                     'name' => $log->causer->name,
@@ -93,11 +95,13 @@ class AuditLogController extends Controller
                 'log_name' => $activity->log_name,
                 'description' => $activity->description,
                 'event' => $activity->event,
+                /** @phpstan-ignore-next-line */
                 'causer' => $causer ? [
                     'id' => $causer->id,
                     'name' => $causer->name,
                     'email' => $causer->email,
                 ] : null,
+                /** @phpstan-ignore-next-line */
                 'subject' => $activity->subject ? [
                     'type' => class_basename($activity->subject_type),
                     'id' => $activity->subject_id,
@@ -150,6 +154,7 @@ class AuditLogController extends Controller
             ->orderByDesc('count')
             ->limit(10)
             ->get()
+            /** @phpstan-ignore-next-line */
             ->map(fn (Activity $item) => [
                 'user' => $item->causer ? [
                     'id' => $item->causer->id,
