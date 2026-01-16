@@ -778,6 +778,49 @@ public class DiffusersGenerationEngine : IDisposable
     }
 
     /// <summary>
+    /// Generate an image from another image (img2img)
+    /// </summary>
+    public async Task<DiffusersResult> GenerateImg2ImgAsync(
+        DiffusersImg2ImgRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new DiffusersResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, "Generating img2img..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/img2img", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<DiffusersResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Img2img generation complete"));
+
+            return result ?? new DiffusersResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new DiffusersResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Img2img generation failed");
+            return new DiffusersResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
     /// Generate a video
     /// </summary>
     public async Task<DiffusersResult> GenerateVideoAsync(
@@ -817,6 +860,96 @@ public class DiffusersGenerationEngine : IDisposable
         {
             _logger?.LogError(ex, "Video generation failed");
             return new DiffusersResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    #endregion
+
+    #region LoRA Management
+
+    /// <summary>
+    /// Load a LoRA adapter
+    /// </summary>
+    public async Task<LoraLoadResult> LoadLoraAsync(string loraPath, double weight = 1.0, string? adapterName = null, CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new LoraLoadResult { Success = false, Error = "Engine not running" };
+        }
+
+        try
+        {
+            var request = new LoraLoadRequest
+            {
+                Path = loraPath,
+                Weight = weight,
+                Name = adapterName
+            };
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/lora/load", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<LoraLoadResult>(ct);
+            _logger?.LogInformation("LoRA loaded: {Path}, weight: {Weight}", loraPath, weight);
+
+            return result ?? new LoraLoadResult { Success = false, Error = "Empty response" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load LoRA: {Path}", loraPath);
+            return new LoraLoadResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Unload all LoRA adapters
+    /// </summary>
+    public async Task<bool> UnloadLorasAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return false;
+
+        try
+        {
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/lora/unload", null, ct);
+            response.EnsureSuccessStatusCode();
+            _logger?.LogInformation("All LoRAs unloaded");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to unload LoRAs");
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Scheduler Management
+
+    /// <summary>
+    /// Get available schedulers from the server
+    /// </summary>
+    public async Task<List<string>> GetAvailableSchedulersAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return new List<string>();
+
+        try
+        {
+            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/schedulers", ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<SchedulersResponse>(ct);
+            return result?.Schedulers ?? new List<string>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get schedulers");
+            return new List<string>();
         }
     }
 
@@ -1198,6 +1331,57 @@ public class DiffusersImageRequest
 
     [JsonPropertyName("scheduler")]
     public string? Scheduler { get; set; }
+
+    [JsonPropertyName("clip_skip")]
+    public int ClipSkip { get; set; } = 1;
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
+}
+
+/// <summary>
+/// Diffusers img2img generation request
+/// </summary>
+public class DiffusersImg2ImgRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; set; } = "";
+
+    [JsonPropertyName("negative_prompt")]
+    public string? NegativePrompt { get; set; }
+
+    [JsonPropertyName("image")]
+    public string Image { get; set; } = "";  // Base64 encoded image
+
+    [JsonPropertyName("strength")]
+    public double Strength { get; set; } = 0.75;
+
+    [JsonPropertyName("width")]
+    public int Width { get; set; } = 1024;
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; } = 1024;
+
+    [JsonPropertyName("steps")]
+    public int Steps { get; set; } = 30;
+
+    [JsonPropertyName("guidance_scale")]
+    public double GuidanceScale { get; set; } = 7.5;
+
+    [JsonPropertyName("seed")]
+    public long Seed { get; set; } = -1;
+
+    [JsonPropertyName("batch_size")]
+    public int BatchSize { get; set; } = 1;
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    [JsonPropertyName("clip_skip")]
+    public int ClipSkip { get; set; } = 1;
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
 }
 
 /// <summary>
@@ -1217,8 +1401,68 @@ public class DiffusersVideoRequest
     [JsonPropertyName("fps")]
     public int Fps { get; set; } = 7;
 
+    [JsonPropertyName("motion_bucket_id")]
+    public int MotionBucketId { get; set; } = 127;
+
+    [JsonPropertyName("noise_aug_strength")]
+    public double NoiseAugStrength { get; set; } = 0.02;
+
     [JsonPropertyName("seed")]
     public int Seed { get; set; } = -1;
+}
+
+/// <summary>
+/// LoRA model info for generation requests
+/// </summary>
+public class LoraModelInfo
+{
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = "";
+
+    [JsonPropertyName("weight")]
+    public double Weight { get; set; } = 1.0;
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+}
+
+/// <summary>
+/// LoRA load request
+/// </summary>
+public class LoraLoadRequest
+{
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = "";
+
+    [JsonPropertyName("weight")]
+    public double Weight { get; set; } = 1.0;
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+}
+
+/// <summary>
+/// LoRA load result
+/// </summary>
+public class LoraLoadResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("loaded_loras")]
+    public List<string>? LoadedLoras { get; set; }
+}
+
+/// <summary>
+/// Schedulers response
+/// </summary>
+public class SchedulersResponse
+{
+    [JsonPropertyName("schedulers")]
+    public List<string> Schedulers { get; set; } = new();
 }
 
 /// <summary>

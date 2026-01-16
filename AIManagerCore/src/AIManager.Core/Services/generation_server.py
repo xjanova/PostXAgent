@@ -433,6 +433,7 @@ class DiffusersEngine:
             return {"success": False, "error": "No model loaded"}
 
         with self._lock:
+            orig_clip_layers = None
             try:
                 # Reset progress
                 self._generation_progress = 0
@@ -486,8 +487,9 @@ class DiffusersEngine:
                 if request.clip_skip > 1 and hasattr(self.pipeline, "text_encoder"):
                     try:
                         if hasattr(self.pipeline.text_encoder.config, "num_hidden_layers"):
-                            orig_layers = self.pipeline.text_encoder.config.num_hidden_layers
-                            self.pipeline.text_encoder.config.num_hidden_layers = orig_layers - (request.clip_skip - 1)
+                            orig_clip_layers = self.pipeline.text_encoder.config.num_hidden_layers
+                            self.pipeline.text_encoder.config.num_hidden_layers = orig_clip_layers - (request.clip_skip - 1)
+                            print(f"[Engine] CLIP skip set to: {request.clip_skip}")
                     except Exception as e:
                         print(f"[Engine] CLIP skip not supported: {e}")
 
@@ -522,6 +524,13 @@ class DiffusersEngine:
             except Exception as e:
                 traceback.print_exc()
                 return {"success": False, "error": str(e)}
+            finally:
+                # Reset CLIP skip to original value
+                if orig_clip_layers is not None and hasattr(self.pipeline, "text_encoder"):
+                    try:
+                        self.pipeline.text_encoder.config.num_hidden_layers = orig_clip_layers
+                    except Exception:
+                        pass
 
     def generate_img2img(self, request: Img2ImgRequest) -> Dict[str, Any]:
         """Generate image from image + prompt."""
@@ -529,7 +538,25 @@ class DiffusersEngine:
             return {"success": False, "error": "No model loaded"}
 
         with self._lock:
+            orig_clip_layers = None
             try:
+                # Reset progress
+                self._generation_progress = 0
+                self._generation_step = 0
+                # Calculate effective steps (strength affects actual step count)
+                effective_steps = int(request.steps * request.strength)
+                self._generation_total_steps = max(1, effective_steps)
+
+                # Set scheduler if specified
+                if request.scheduler:
+                    self._set_scheduler(request.scheduler)
+
+                # Load LoRAs if specified
+                if request.lora_models:
+                    self.unload_loras()
+                    for lora in request.lora_models:
+                        self.load_lora(lora.get("path"), lora.get("weight", 1.0), lora.get("name"))
+
                 # Decode input image
                 image_data = request.image
                 if image_data.startswith("data:"):
@@ -537,7 +564,20 @@ class DiffusersEngine:
 
                 input_image = Image.open(io.BytesIO(base64.b64decode(image_data)))
                 input_image = input_image.convert("RGB")
-                input_image = input_image.resize((request.width, request.height))
+
+                # Preserve aspect ratio if dimensions differ significantly
+                orig_w, orig_h = input_image.size
+                target_w, target_h = request.width, request.height
+                orig_ratio = orig_w / orig_h
+                target_ratio = target_w / target_h
+
+                # Only resize if aspect ratios are similar (within 10%)
+                if abs(orig_ratio - target_ratio) / max(orig_ratio, target_ratio) < 0.1:
+                    input_image = input_image.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                else:
+                    # Fit within target dimensions while preserving aspect ratio
+                    input_image.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+                    print(f"[Engine] Preserved aspect ratio: {input_image.size[0]}x{input_image.size[1]}")
 
                 # Generate seed
                 if request.seed >= 0:
@@ -550,9 +590,20 @@ class DiffusersEngine:
                 print(f"[Engine] Generating img2img:")
                 print(f"  Prompt: {request.prompt[:100]}...")
                 print(f"  Strength: {request.strength}")
+                print(f"  Steps: {request.steps} (effective: {effective_steps})")
                 print(f"  Seed: {seed}")
 
                 start_time = time.time()
+
+                # CLIP skip (only for SD 1.x pipelines)
+                if request.clip_skip > 1 and hasattr(self.pipeline, "text_encoder"):
+                    try:
+                        if hasattr(self.pipeline.text_encoder.config, "num_hidden_layers"):
+                            orig_clip_layers = self.pipeline.text_encoder.config.num_hidden_layers
+                            self.pipeline.text_encoder.config.num_hidden_layers = orig_clip_layers - (request.clip_skip - 1)
+                            print(f"[Engine] CLIP skip set to: {request.clip_skip}")
+                    except Exception as e:
+                        print(f"[Engine] CLIP skip not supported: {e}")
 
                 gen_kwargs = {
                     "prompt": request.prompt,
@@ -562,6 +613,8 @@ class DiffusersEngine:
                     "guidance_scale": request.guidance_scale,
                     "num_images_per_prompt": request.batch_size,
                     "generator": generator,
+                    "callback": self._progress_callback,
+                    "callback_steps": 1,
                 }
 
                 if request.negative_prompt:
@@ -578,16 +631,38 @@ class DiffusersEngine:
                     b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
                     images.append(f"data:image/png;base64,{b64}")
 
+                # Get VRAM usage
+                vram_used = 0
+                if self.device == "cuda":
+                    vram_used = torch.cuda.memory_allocated() / 1024**3
+
+                print(f"[Engine] Img2img generation complete in {gen_time:.1f}s")
+
                 return {
                     "success": True,
                     "images": images,
                     "seed": seed,
                     "generation_time": gen_time,
+                    "vram_used_gb": vram_used,
                 }
 
             except Exception as e:
                 traceback.print_exc()
                 return {"success": False, "error": str(e)}
+            finally:
+                # Reset CLIP skip to original value
+                if orig_clip_layers is not None and hasattr(self.pipeline, "text_encoder"):
+                    try:
+                        self.pipeline.text_encoder.config.num_hidden_layers = orig_clip_layers
+                    except Exception:
+                        pass
+
+    def _video_progress_callback(self, step: int, timestep: int, latents: torch.Tensor):
+        """Callback for video generation progress."""
+        self._generation_step = step
+        if self._generation_total_steps > 0:
+            self._generation_progress = int((step / self._generation_total_steps) * 100)
+        print(f"Video step {step}/{self._generation_total_steps}")
 
     def generate_video(self, request: VideoGenerationRequest) -> Dict[str, Any]:
         """Generate video from image."""
@@ -599,6 +674,11 @@ class DiffusersEngine:
 
         with self._lock:
             try:
+                # Reset progress - SVD default is 25 inference steps
+                self._generation_progress = 0
+                self._generation_step = 0
+                self._generation_total_steps = 25  # SVD default steps
+
                 # Decode input image
                 image_data = request.image
                 if image_data.startswith("data:"):
@@ -606,7 +686,18 @@ class DiffusersEngine:
 
                 input_image = Image.open(io.BytesIO(base64.b64decode(image_data)))
                 input_image = input_image.convert("RGB")
-                input_image = input_image.resize((1024, 576))  # SVD requires this size
+
+                # SVD requires 1024x576 (16:9 landscape) or 576x1024 (portrait)
+                orig_w, orig_h = input_image.size
+                if orig_w >= orig_h:
+                    # Landscape or square - use 1024x576
+                    target_size = (1024, 576)
+                else:
+                    # Portrait - use 576x1024
+                    target_size = (576, 1024)
+
+                input_image = input_image.resize(target_size, Image.Resampling.LANCZOS)
+                print(f"[Engine] Resized input image to: {target_size[0]}x{target_size[1]}")
 
                 # Generate seed
                 if request.seed >= 0:
@@ -619,6 +710,7 @@ class DiffusersEngine:
                 print(f"[Engine] Generating video:")
                 print(f"  Frames: {request.num_frames}")
                 print(f"  FPS: {request.fps}")
+                print(f"  Motion bucket: {request.motion_bucket_id}")
                 print(f"  Seed: {seed}")
 
                 start_time = time.time()
@@ -629,19 +721,33 @@ class DiffusersEngine:
                     motion_bucket_id=request.motion_bucket_id,
                     noise_aug_strength=request.noise_aug_strength,
                     generator=generator,
+                    callback=self._video_progress_callback,
+                    callback_steps=1,
                 )
 
                 gen_time = time.time() - start_time
 
-                # Encode frames to base64
+                # Encode frames to base64 with validation
                 frames = []
-                for frame in result.frames[0]:
-                    buffer = io.BytesIO()
-                    frame.save(buffer, format="PNG", optimize=True)
-                    b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                    frames.append(f"data:image/png;base64,{b64}")
+                # Handle different result structures
+                frame_list = result.frames[0] if isinstance(result.frames, list) and len(result.frames) > 0 else result.frames
+                if hasattr(frame_list, '__iter__'):
+                    for frame in frame_list:
+                        buffer = io.BytesIO()
+                        if hasattr(frame, 'save'):
+                            frame.save(buffer, format="PNG", optimize=True)
+                        else:
+                            # Convert numpy array to PIL Image if needed
+                            Image.fromarray(frame).save(buffer, format="PNG", optimize=True)
+                        b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                        frames.append(f"data:image/png;base64,{b64}")
 
-                print(f"[Engine] Video generation complete in {gen_time:.1f}s")
+                # Get VRAM usage
+                vram_used = 0
+                if self.device == "cuda":
+                    vram_used = torch.cuda.memory_allocated() / 1024**3
+
+                print(f"[Engine] Video generation complete in {gen_time:.1f}s ({len(frames)} frames)")
 
                 return {
                     "success": True,
@@ -649,6 +755,8 @@ class DiffusersEngine:
                     "fps": request.fps,
                     "seed": seed,
                     "generation_time": gen_time,
+                    "vram_used_gb": vram_used,
+                    "frame_count": len(frames),
                 }
 
             except Exception as e:
