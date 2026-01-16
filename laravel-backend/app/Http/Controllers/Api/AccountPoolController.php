@@ -40,7 +40,9 @@ class AccountPoolController extends Controller
         }
 
         $pools = $query->get()->map(function (AccountPool $pool): array {
-            return array_merge($pool->toArray(), [
+            /** @var array<string, mixed> $poolArray */
+            $poolArray = $pool->toArray();
+            return array_merge($poolArray, [
                 'statistics' => $this->rotationService->getPoolStatistics($pool),
             ]);
         })->values();
