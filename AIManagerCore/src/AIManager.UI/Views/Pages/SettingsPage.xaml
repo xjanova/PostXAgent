@@ -34,7 +34,7 @@
                                      Checked="AccentColor_Changed" Margin="0,0,8,0">
                             <RadioButton.Template>
                                 <ControlTemplate>
-                                    <Border Width="32" Height="32" CornerRadius="16" Background="#8B5CF6" Cursor="Hand"
+                                    <Border Width="32" Height="32" CornerRadius="16" Background="#C084FC" Cursor="Hand"
                                             BorderThickness="3" BorderBrush="{TemplateBinding Tag}">
                                         <Border.Style>
                                             <Style TargetType="Border">

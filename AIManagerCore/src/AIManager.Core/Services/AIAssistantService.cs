@@ -32,6 +32,7 @@ public class AIAssistantService : IDisposable
     public int ActiveWorkers { get; set; }
     public int PendingTasks { get; set; }
     public bool IsOllamaOnline { get; set; }
+    public bool IsDiffusersOnline { get; set; }
     public bool IsComfyUIOnline { get; set; }
     public bool IsBackendOnline { get; set; }
     public string? CurrentModel { get; set; }
@@ -216,7 +217,7 @@ public class AIAssistantService : IDisposable
             };
         }
 
-        if (!IsOllamaOnline && !IsComfyUIOnline)
+        if (!IsOllamaOnline && !IsDiffusersOnline && !IsComfyUIOnline)
         {
             return new AIMessage
             {
@@ -249,6 +250,7 @@ public class AIAssistantService : IDisposable
 
         // Service status
         if (IsOllamaOnline) parts.Add("Ollama OK");
+        if (IsDiffusersOnline) parts.Add("Diffusers OK");
         if (IsComfyUIOnline) parts.Add("ComfyUI OK");
         if (IsBackendOnline) parts.Add("Backend OK");
 

@@ -478,7 +478,7 @@ public partial class ClaudeChatWindow : Window
         {
             case "claude":
                 border.Style = (Style)FindResource("ClaudeMessageBorder");
-                iconBorder.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // Purple
+                iconBorder.Background = new SolidColorBrush(Color.FromRgb(167, 139, 250)); // Purple
                 icon.Kind = PackIconKind.CodeBraces;
                 nameText.Text = "Claude Code";
                 nameText.Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250));

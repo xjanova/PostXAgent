@@ -25,13 +25,15 @@ public partial class StatusBar : UserControl
     private readonly AIAssistantService _aiAssistant;
     private int _alertCount = 0;
 
-    // Status colors
+    // Status colors with neon effects
     private static readonly SolidColorBrush GreenBrush = new(Color.FromRgb(76, 175, 80));
     private static readonly SolidColorBrush YellowBrush = new(Color.FromRgb(255, 193, 7));
     private static readonly SolidColorBrush RedBrush = new(Color.FromRgb(244, 67, 54));
     private static readonly SolidColorBrush GrayBrush = new(Color.FromRgb(158, 158, 158));
-    private static readonly SolidColorBrush CyanBrush = new(Color.FromRgb(0, 188, 212));
+    private static readonly SolidColorBrush CyanBrush = new(Color.FromRgb(6, 182, 212));
     private static readonly SolidColorBrush BlueBrush = new(Color.FromRgb(33, 150, 243));
+    private static readonly SolidColorBrush PurpleBrush = new(Color.FromRgb(167, 139, 250));
+    private static readonly SolidColorBrush OrangeBrush = new(Color.FromRgb(255, 87, 34));
 
     // Service URLs
     private readonly string _ollamaUrl = "http://localhost:11434";
@@ -44,6 +46,7 @@ public partial class StatusBar : UserControl
 
     // Events
     public event EventHandler? OllamaClicked;
+    public event EventHandler? DiffusersClicked;
     public event EventHandler? ComfyClicked;
     public event EventHandler? HuggingFaceClicked;
     public event EventHandler? GpuClicked;
@@ -104,8 +107,8 @@ public partial class StatusBar : UserControl
         {
             if (_coreDb == null) return;
 
-            // Update SQLite indicator
-            SqliteIndicator.Fill = _coreDb.SqliteStatus switch
+            // Update SQLite indicator with glow
+            var sqliteBrush = _coreDb.SqliteStatus switch
             {
                 Core.Services.DatabaseStatus.Connected => GreenBrush,
                 Core.Services.DatabaseStatus.Connecting => YellowBrush,
@@ -113,6 +116,9 @@ public partial class StatusBar : UserControl
                 Core.Services.DatabaseStatus.Error => RedBrush,
                 _ => GrayBrush
             };
+            SqliteIndicator.Fill = sqliteBrush;
+            SqliteGlow.Fill = sqliteBrush;
+            SqliteGlow.Opacity = _coreDb.SqliteStatus == Core.Services.DatabaseStatus.Connected ? 0.5 : 0.3;
 
             // Update MySQL indicator
             if (_coreDb.MysqlEnabled)
@@ -208,6 +214,7 @@ public partial class StatusBar : UserControl
         var process = System.Diagnostics.Process.GetCurrentProcess();
         _aiAssistant.MemoryUsageMB = process.WorkingSet64 / (1024 * 1024);
         _aiAssistant.IsOllamaOnline = OllamaIndicator.Fill == GreenBrush;
+        _aiAssistant.IsDiffusersOnline = DiffusersIndicator.Fill == GreenBrush;
         _aiAssistant.IsComfyUIOnline = ComfyIndicator.Fill == GreenBrush;
         _aiAssistant.IsBackendOnline = BackendIndicator.Fill == GreenBrush;
     }
@@ -226,6 +233,7 @@ public partial class StatusBar : UserControl
     {
         await Task.WhenAll(
             CheckOllamaAsync(),
+            CheckDiffusersAsync(),
             CheckComfyUIAsync(),
             CheckHuggingFaceAsync(),
             CheckGpuProviderAsync(),
@@ -241,8 +249,11 @@ public partial class StatusBar : UserControl
             var response = await _httpClient.GetAsync($"{_ollamaUrl}/api/tags");
             Dispatcher.Invoke(() =>
             {
-                OllamaIndicator.Fill = response.IsSuccessStatusCode ? GreenBrush : RedBrush;
-                OllamaStatus.ToolTip = response.IsSuccessStatusCode ? "Ollama: Running" : "Ollama: Offline";
+                var isOnline = response.IsSuccessStatusCode;
+                OllamaIndicator.Fill = isOnline ? GreenBrush : RedBrush;
+                OllamaGlow.Fill = isOnline ? GreenBrush : RedBrush;
+                OllamaGlow.Opacity = isOnline ? 0.5 : 0.2;
+                OllamaStatus.ToolTip = isOnline ? "Ollama: Running" : "Ollama: Offline";
             });
         }
         catch
@@ -250,9 +261,61 @@ public partial class StatusBar : UserControl
             Dispatcher.Invoke(() =>
             {
                 OllamaIndicator.Fill = RedBrush;
+                OllamaGlow.Fill = RedBrush;
+                OllamaGlow.Opacity = 0.2;
                 OllamaStatus.ToolTip = "Ollama: Offline";
             });
         }
+    }
+
+    private Task CheckDiffusersAsync()
+    {
+        // Check Diffusers Engine status from singleton manager
+        var manager = DiffusersEngineManager.Instance;
+        var isRunning = manager.IsReady;
+        var currentModel = manager.CurrentModel;
+
+        Dispatcher.Invoke(() =>
+        {
+            if (isRunning)
+            {
+                // Engine is running
+                DiffusersIndicator.Fill = GreenBrush;
+                DiffusersGlow.Fill = new SolidColorBrush(Color.FromRgb(168, 85, 247)); // Purple
+                DiffusersGlow.Opacity = 0.5;
+
+                if (!string.IsNullOrEmpty(currentModel))
+                {
+                    // Model is loaded - show model name
+                    var modelName = currentModel.Split('/').LastOrDefault() ?? currentModel;
+                    if (modelName.Length > 12) modelName = modelName.Substring(0, 10) + "..";
+
+                    DiffusersModelBadge.Visibility = Visibility.Visible;
+                    TxtDiffusersModel.Text = modelName;
+                    TxtDiffusersEngineStatus.Text = "Diffusers";
+                    DiffusersStatus.ToolTip = $"Diffusers Engine: Running\nModel: {currentModel}\nReady for fast generation";
+                }
+                else
+                {
+                    // Running but no model loaded
+                    DiffusersModelBadge.Visibility = Visibility.Collapsed;
+                    TxtDiffusersEngineStatus.Text = "Diffusers";
+                    DiffusersStatus.ToolTip = "Diffusers Engine: Running\nNo model loaded\nSelect a model to start generating";
+                }
+            }
+            else
+            {
+                // Engine not running
+                DiffusersIndicator.Fill = GrayBrush;
+                DiffusersGlow.Fill = GrayBrush;
+                DiffusersGlow.Opacity = 0.2;
+                DiffusersModelBadge.Visibility = Visibility.Collapsed;
+                TxtDiffusersEngineStatus.Text = "Diffusers";
+                DiffusersStatus.ToolTip = "Diffusers Engine: Stopped\nWill start automatically when needed";
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     private async Task CheckComfyUIAsync()
@@ -262,7 +325,9 @@ public partial class StatusBar : UserControl
             var isAvailable = await _comfyService.IsAvailableAsync();
             Dispatcher.Invoke(() =>
             {
-                ComfyIndicator.Fill = isAvailable ? GreenBrush : GrayBrush;
+                ComfyIndicator.Fill = isAvailable ? CyanBrush : GrayBrush;
+                ComfyGlow.Fill = isAvailable ? CyanBrush : GrayBrush;
+                ComfyGlow.Opacity = isAvailable ? 0.5 : 0.2;
                 ComfyStatus.ToolTip = isAvailable ? "ComfyUI: Running" : "ComfyUI: Not running";
             });
         }
@@ -271,6 +336,8 @@ public partial class StatusBar : UserControl
             Dispatcher.Invoke(() =>
             {
                 ComfyIndicator.Fill = GrayBrush;
+                ComfyGlow.Fill = GrayBrush;
+                ComfyGlow.Opacity = 0.2;
                 ComfyStatus.ToolTip = "ComfyUI: Not running";
             });
         }
@@ -283,6 +350,8 @@ public partial class StatusBar : UserControl
             Dispatcher.Invoke(() =>
             {
                 HFIndicator.Fill = GrayBrush;
+                HFGlow.Fill = GrayBrush;
+                HFGlow.Opacity = 0.2;
                 TxtHFStatus.Text = "HF";
                 HFStatus.ToolTip = "HuggingFace: Not configured";
             });
@@ -298,13 +367,17 @@ public partial class StatusBar : UserControl
                 {
                     if (status.IsValid)
                     {
-                        HFIndicator.Fill = GreenBrush;
+                        HFIndicator.Fill = YellowBrush;
+                        HFGlow.Fill = YellowBrush;
+                        HFGlow.Opacity = 0.5;
                         TxtHFStatus.Text = status.Username ?? "HF";
                         HFStatus.ToolTip = $"HuggingFace: {status.Message}";
                     }
                     else
                     {
-                        HFIndicator.Fill = YellowBrush;
+                        HFIndicator.Fill = OrangeBrush;
+                        HFGlow.Fill = OrangeBrush;
+                        HFGlow.Opacity = 0.4;
                         TxtHFStatus.Text = "HF (!)";
                         HFStatus.ToolTip = $"HuggingFace: {status.Message}";
                     }
@@ -315,6 +388,8 @@ public partial class StatusBar : UserControl
                 Dispatcher.Invoke(() =>
                 {
                     HFIndicator.Fill = GrayBrush;
+                    HFGlow.Fill = GrayBrush;
+                    HFGlow.Opacity = 0.2;
                     TxtHFStatus.Text = "HF";
                     HFStatus.ToolTip = "HuggingFace: No token (click to configure)";
                 });
@@ -325,6 +400,8 @@ public partial class StatusBar : UserControl
             Dispatcher.Invoke(() =>
             {
                 HFIndicator.Fill = RedBrush;
+                HFGlow.Fill = RedBrush;
+                HFGlow.Opacity = 0.4;
                 TxtHFStatus.Text = "HF (!)";
                 HFStatus.ToolTip = "HuggingFace: Error";
             });
@@ -370,10 +447,13 @@ public partial class StatusBar : UserControl
         try
         {
             var response = await _httpClient.GetAsync($"{_backendUrl}/api/health");
+            var isOnline = response.IsSuccessStatusCode;
             Dispatcher.Invoke(() =>
             {
-                BackendIndicator.Fill = response.IsSuccessStatusCode ? GreenBrush : RedBrush;
-                BackendStatus.ToolTip = response.IsSuccessStatusCode ? "Laravel Backend: Running" : "Laravel Backend: Error";
+                BackendIndicator.Fill = isOnline ? GreenBrush : RedBrush;
+                BackendGlow.Fill = isOnline ? GreenBrush : OrangeBrush;
+                BackendGlow.Opacity = isOnline ? 0.5 : 0.3;
+                BackendStatus.ToolTip = isOnline ? "Laravel Backend: Running" : "Laravel Backend: Error";
             });
         }
         catch
@@ -381,6 +461,8 @@ public partial class StatusBar : UserControl
             Dispatcher.Invoke(() =>
             {
                 BackendIndicator.Fill = GrayBrush;
+                BackendGlow.Fill = GrayBrush;
+                BackendGlow.Opacity = 0.2;
                 BackendStatus.ToolTip = "Laravel Backend: Offline";
             });
         }
@@ -470,6 +552,8 @@ public partial class StatusBar : UserControl
                 {
                     // CLI installed and active session
                     ClaudeIndicator.Fill = GreenBrush;
+                    ClaudeGlow.Fill = PurpleBrush;
+                    ClaudeGlow.Opacity = 0.6;
                     TxtClaudeStatus.Text = "Claude";
                     TokenBadge.Visibility = Visibility.Visible;
                     TxtTokenUsage.Text = "Active";
@@ -481,6 +565,8 @@ public partial class StatusBar : UserControl
                 {
                     // CLI installed but no active session
                     ClaudeIndicator.Fill = YellowBrush;
+                    ClaudeGlow.Fill = PurpleBrush;
+                    ClaudeGlow.Opacity = 0.4;
                     TxtClaudeStatus.Text = "Claude";
                     TokenBadge.Visibility = Visibility.Visible;
                     TxtTokenUsage.Text = "Idle";
@@ -492,6 +578,8 @@ public partial class StatusBar : UserControl
                 {
                     // CLI not installed
                     ClaudeIndicator.Fill = GrayBrush;
+                    ClaudeGlow.Fill = GrayBrush;
+                    ClaudeGlow.Opacity = 0.2;
                     TxtClaudeStatus.Text = "Claude";
                     TokenBadge.Visibility = Visibility.Visible;
                     TxtTokenUsage.Text = "Not Installed";
@@ -507,6 +595,8 @@ public partial class StatusBar : UserControl
             Dispatcher.Invoke(() =>
             {
                 ClaudeIndicator.Fill = GrayBrush;
+                ClaudeGlow.Fill = GrayBrush;
+                ClaudeGlow.Opacity = 0.2;
                 TxtClaudeStatus.Text = "Claude";
                 TokenBadge.Visibility = Visibility.Collapsed;
                 ClaudeStatus.ToolTip = $"Claude: Error - {ex.Message}";
@@ -621,6 +711,11 @@ public partial class StatusBar : UserControl
     private void OllamaStatus_Click(object sender, MouseButtonEventArgs e)
     {
         OllamaClicked?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void DiffusersStatus_Click(object sender, MouseButtonEventArgs e)
+    {
+        DiffusersClicked?.Invoke(this, EventArgs.Empty);
     }
 
     private void ComfyStatus_Click(object sender, MouseButtonEventArgs e)

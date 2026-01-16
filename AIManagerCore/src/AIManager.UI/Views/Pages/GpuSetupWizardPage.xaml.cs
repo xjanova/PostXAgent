@@ -216,7 +216,7 @@ public partial class GpuSetupWizardPage : Page
                 Title = step.Title,
                 IsCompleted = isCompleted,
                 IsCurrent = isCurrent,
-                Background = isCompleted ? Brushes.Green : (isCurrent ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7C3AED")) : Brushes.Gray),
+                Background = isCompleted ? Brushes.Green : (isCurrent ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C084FC")) : Brushes.Gray),
                 BorderBrush = isCurrent ? Brushes.White : Brushes.Transparent,
                 Foreground = isCurrent || isCompleted ? Brushes.White : new SolidColorBrush(Colors.Gray)
             });
@@ -475,7 +475,7 @@ public partial class GpuSetupWizardPage : Page
         else
         {
             GuidanceIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.InformationOutline;
-            GuidanceIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7C3AED"));
+            GuidanceIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C084FC"));
         }
 
         CurrentGuidanceCard.Visibility = Visibility.Visible;
@@ -505,7 +505,7 @@ public partial class GpuSetupWizardPage : Page
                 SetupGuidanceType.Success => (MaterialDesignThemes.Wpf.PackIconKind.CheckCircle, Brushes.Green),
                 SetupGuidanceType.Warning => (MaterialDesignThemes.Wpf.PackIconKind.AlertCircle, Brushes.Orange),
                 SetupGuidanceType.Error => (MaterialDesignThemes.Wpf.PackIconKind.CloseCircle, Brushes.Red),
-                _ => (MaterialDesignThemes.Wpf.PackIconKind.InformationOutline, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7C3AED")))
+                _ => (MaterialDesignThemes.Wpf.PackIconKind.InformationOutline, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C084FC")))
             };
 
             CurrentGuidanceCard.Visibility = Visibility.Visible;

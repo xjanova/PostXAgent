@@ -83,6 +83,36 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Public method for external navigation (from other pages)
+    /// Updates the sidebar menu selection to match the navigated page
+    /// </summary>
+    public void NavigateToPage(string pageName)
+    {
+        // Update sidebar menu selection
+        UpdateMenuSelection(pageName);
+        NavigateTo(pageName);
+    }
+
+    /// <summary>
+    /// Update the NavigationMenu selection to match the current page
+    /// </summary>
+    private void UpdateMenuSelection(string pageName)
+    {
+        // Find the ListBoxItem with matching Tag
+        foreach (var item in NavigationMenu.Items)
+        {
+            if (item is ListBoxItem listBoxItem && listBoxItem.Tag is string tag && tag == pageName)
+            {
+                // Temporarily disable selection event to avoid recursive navigation
+                NavigationMenu.SelectionChanged -= NavigationMenu_SelectionChanged;
+                NavigationMenu.SelectedItem = listBoxItem;
+                NavigationMenu.SelectionChanged += NavigationMenu_SelectionChanged;
+                break;
+            }
+        }
+    }
+
     private void NavigateTo(string pageName)
     {
         var pageUri = pageName switch

@@ -20,12 +20,24 @@
             </Setter>
         </Style>
 
+        <!-- Processing Indicator Animation (Pulsing Glow) -->
+        <Storyboard x:Key="PulsingGlow" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.Opacity)"
+                             From="0.3" To="1.0" Duration="0:0:0.6" AutoReverse="True"/>
+        </Storyboard>
+
+        <!-- Running Light Animation for Connector Lines -->
+        <Storyboard x:Key="RunningLight" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                             From="-60" To="80" Duration="0:0:1.2"/>
+        </Storyboard>
+
         <!-- Connector Line Style -->
         <Style x:Key="ConnectorLine" TargetType="Border">
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#8B5CF6" Offset="0"/>
+                        <GradientStop Color="#C084FC" Offset="0"/>
                         <GradientStop Color="#EC4899" Offset="1"/>
                     </LinearGradientBrush>
                 </Setter.Value>
@@ -51,8 +63,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#8B5CF6"/>
-                                <Setter TargetName="border" Property="Background" Value="#308B5CF6"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#C084FC"/>
+                                <Setter TargetName="border" Property="Background" Value="#30C084FC"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#20FFFFFF"/>
@@ -69,7 +81,168 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- SETUP PROGRESS OVERLAY                                          -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Border x:Name="SetupOverlay" Grid.RowSpan="3"
+                Background="#E0000000" Visibility="Collapsed"
+                Panel.ZIndex="100" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+            <Border Background="#1A1A2E" CornerRadius="20"
+                    MaxWidth="500" MaxHeight="500"
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Padding="32">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="40" ShadowDepth="0" Opacity="0.5"/>
+                </Border.Effect>
+                <StackPanel>
+                    <!-- Header -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,24">
+                        <materialDesign:PackIcon Kind="Download" Width="32" Height="32" Foreground="#C084FC" VerticalAlignment="Center"/>
+                        <TextBlock Text="Auto Setup" FontSize="24" FontWeight="Bold" Foreground="White" Margin="12,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- Phase Icon & Text -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <materialDesign:PackIcon x:Name="SetupPhaseIcon" Kind="CloudDownload"
+                                                  Width="20" Height="20" Foreground="#10B981" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="SetupPhaseText" Text="Preparing..."
+                                   FontSize="14" Foreground="#10B981" FontWeight="SemiBold" Margin="8,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- Animated Progress Bar with Running Light Effect -->
+                    <Grid Margin="0,0,0,8" x:Name="ProgressBarContainer">
+                        <!-- Background track -->
+                        <Border Height="12" Background="#2D2D4A" CornerRadius="6"/>
+
+                        <!-- Progress bar fill -->
+                        <ProgressBar x:Name="SetupProgressBar" Value="0" Maximum="100" Height="12"
+                                     Background="Transparent">
+                            <ProgressBar.Foreground>
+                                <LinearGradientBrush x:Name="SetupProgressGradient" StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop x:Name="GradStop1" Color="#C084FC" Offset="0"/>
+                                    <GradientStop x:Name="GradStop2" Color="#EC4899" Offset="0.5"/>
+                                    <GradientStop x:Name="GradStop3" Color="#C084FC" Offset="1"/>
+                                </LinearGradientBrush>
+                            </ProgressBar.Foreground>
+                            <ProgressBar.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                            </ProgressBar.Resources>
+                        </ProgressBar>
+
+                        <!-- Running light effect (moves inside the progress bar) -->
+                        <Border x:Name="RunningLightBorder" Height="12" CornerRadius="6"
+                                HorizontalAlignment="Left" Width="60" Opacity="0.8"
+                                ClipToBounds="True">
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="RunningLightTransform" X="0"/>
+                            </Border.RenderTransform>
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="Transparent" Offset="0"/>
+                                    <GradientStop Color="#FFFFFF" Offset="0.5"/>
+                                    <GradientStop Color="Transparent" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <BlurEffect Radius="6"/>
+                            </Border.Effect>
+                        </Border>
+
+                        <!-- Outer glow effect -->
+                        <Border x:Name="ProgressGlowBorder" Height="12" CornerRadius="6" Opacity="0.4"
+                                HorizontalAlignment="Left" Width="0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#C084FC" Offset="0"/>
+                                    <GradientStop Color="#EC4899" Offset="0.5"/>
+                                    <GradientStop Color="#10B981" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <BlurEffect Radius="10"/>
+                            </Border.Effect>
+                        </Border>
+                    </Grid>
+
+                    <!-- Progress Percentage -->
+                    <TextBlock x:Name="SetupProgressPercent" Text="0%" FontSize="12"
+                               Foreground="#80FFFFFF" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+
+                    <!-- Status Message -->
+                    <TextBlock x:Name="SetupStatusText" Text="Installing Python and AI packages..."
+                               FontSize="13" Foreground="#AAFFFFFF" TextWrapping="Wrap"
+                               TextAlignment="Center" Margin="0,0,0,16"/>
+
+                    <!-- Detailed Steps -->
+                    <Border Background="#15FFFFFF" CornerRadius="12" Padding="16" Margin="0,8,0,0">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="Step1Icon" Kind="CheckCircle" Width="18" Height="18" Foreground="#6B6B8A"/>
+                                <TextBlock Text="Python 3.11" Grid.Column="1" Foreground="White" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="Step1Status" Grid.Column="2" Text="Pending" Foreground="#6B6B8A" FontSize="10"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="Step2Icon" Kind="CheckCircle" Width="18" Height="18" Foreground="#6B6B8A"/>
+                                <TextBlock Text="PyTorch + CUDA" Grid.Column="1" Foreground="White" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="Step2Status" Grid.Column="2" Text="Pending" Foreground="#6B6B8A" FontSize="10"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="Step3Icon" Kind="CheckCircle" Width="18" Height="18" Foreground="#6B6B8A"/>
+                                <TextBlock Text="Diffusers &amp; Transformers" Grid.Column="1" Foreground="White" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="Step3Status" Grid.Column="2" Text="Pending" Foreground="#6B6B8A" FontSize="10"/>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <materialDesign:PackIcon x:Name="Step4Icon" Kind="CheckCircle" Width="18" Height="18" Foreground="#6B6B8A"/>
+                                <TextBlock Text="Verification" Grid.Column="1" Foreground="White" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="Step4Status" Grid.Column="2" Text="Pending" Foreground="#6B6B8A" FontSize="10"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tip Text & Cancel Button -->
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="กรุณารอสักครู่ การติดตั้งครั้งแรกใช้เวลา 5-15 นาที..."
+                                   FontSize="11" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                        <Button x:Name="BtnCancelSetup" Grid.Column="1" Click="CancelSetup_Click"
+                                Content="Cancel" Cursor="Hand" Padding="16,8">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+                                    <Setter Property="Foreground" Value="#EF4444"/>
+                                    <Setter Property="BorderBrush" Value="#EF4444"/>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- HEADER                                                          -->
@@ -77,7 +250,7 @@
         <Border Grid.Row="0" Padding="20,15" Margin="0,0,0,20">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#308B5CF6" Offset="0"/>
+                    <GradientStop Color="#30C084FC" Offset="0"/>
                     <GradientStop Color="#30EC4899" Offset="0.5"/>
                     <GradientStop Color="#3010B981" Offset="1"/>
                 </LinearGradientBrush>
@@ -87,14 +260,15 @@
             </Border.Effect>
 
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel VerticalAlignment="Center">
+                <!-- Title Row -->
+                <StackPanel Grid.Row="0" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <materialDesign:PackIcon Kind="Pipe" Width="28" Height="28" Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                        <materialDesign:PackIcon Kind="Pipe" Width="28" Height="28" Foreground="#C084FC" VerticalAlignment="Center"/>
                         <TextBlock Text="Generation Pipeline" FontSize="24" FontWeight="Bold" Foreground="White" Margin="12,0,0,0"/>
                         <Border Background="#20FFFFFF" CornerRadius="4" Padding="10,4" Margin="15,0,0,0" VerticalAlignment="Center">
                             <TextBlock x:Name="TxtPipelineMode" Text="AUTO MODE" Foreground="#10B981" FontSize="10" FontWeight="Bold"/>
@@ -104,21 +278,42 @@
                                Foreground="#AAFFFFFF" Margin="40,5,0,0" FontSize="13"/>
                 </StackPanel>
 
-                <!-- Quick Stats -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Border Background="#2010B981" CornerRadius="8" Padding="12,8" Margin="0,0,10,0">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Gpu" Foreground="#10B981" Width="18" Height="18" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="TxtOnlineGpus" Text="0 GPUs" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#208B5CF6" CornerRadius="8" Padding="12,8">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Memory" Foreground="#8B5CF6" Width="18" Height="18" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="TxtTotalVram" Text="0 GB" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                <!-- Quick Stats Row - Always visible with horizontal scroll if needed -->
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                              Margin="0,12,0,0" Padding="0">
+                    <StackPanel Orientation="Horizontal">
+                        <!-- Python Status Indicator - PreviewMouseLeftButtonUp bypasses ScrollViewer -->
+                        <Border x:Name="PythonStatusBorder" Background="#20EF4444" CornerRadius="8" Padding="12,8" Margin="0,0,10,0" Cursor="Hand"
+                                PreviewMouseLeftButtonUp="PythonStatus_Click" ToolTip="Click to setup Python environment">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon x:Name="PythonStatusIcon" Kind="LanguagePython" Foreground="#EF4444" Width="18" Height="18" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtPythonStatus" Text="Not Installed" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Model Status Indicator - PreviewMouseLeftButtonUp bypasses ScrollViewer -->
+                        <Border x:Name="ModelStatusBorder" Background="#20EF4444" CornerRadius="8" Padding="12,8" Margin="0,0,10,0" Cursor="Hand"
+                                PreviewMouseLeftButtonUp="ModelStatus_Click" ToolTip="คลิกเพื่อเลือกโมเดล">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon x:Name="ModelStatusIcon" Kind="Creation" Foreground="#EF4444" Width="18" Height="18" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtModelStatus" Text="ไม่มีโมเดล" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- GPU/VRAM Status Indicator -->
+                        <Border x:Name="GpuStatusBorder" Background="#20EF4444" CornerRadius="8" Padding="12,8" Margin="0,0,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon x:Name="GpuStatusIcon" Kind="Gpu" Foreground="#EF4444" Width="18" Height="18" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtGpuStatus" Text="ไม่พบ GPU" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- VRAM Usage -->
+                        <Border x:Name="VramStatusBorder" Background="#206B7280" CornerRadius="8" Padding="12,8">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Memory" Foreground="#6B7280" Width="18" Height="18" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtVramStatus" Text="-- GB" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
         </Border>
 
@@ -149,15 +344,15 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Border Width="44" Height="44" CornerRadius="12" Background="#308B5CF6">
-                                <materialDesign:PackIcon Kind="TextBox" Width="24" Height="24" Foreground="#8B5CF6"
+                            <Border Width="44" Height="44" CornerRadius="12" Background="#30C084FC">
+                                <materialDesign:PackIcon Kind="TextBox" Width="24" Height="24" Foreground="#C084FC"
                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                 <TextBlock Text="INPUT" FontWeight="Bold" FontSize="14" Foreground="White"/>
                                 <TextBlock Text="Prompt &amp; Settings" FontSize="11" Foreground="#80FFFFFF"/>
                             </StackPanel>
-                            <Ellipse Grid.Column="2" Style="{StaticResource StatusDot}" Fill="#10B981"/>
+                            <Ellipse x:Name="InputStatusDot" Grid.Column="2" Style="{StaticResource StatusDot}" Fill="#6B7280"/>
                         </Grid>
 
                         <!-- Generation Type -->
@@ -178,7 +373,7 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
+                                                <Setter TargetName="border" Property="Background" Value="#C084FC"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -235,7 +430,7 @@
                 <!-- ═══════════════════════════════════════════════════════════════ -->
                 <!-- NODE 2: PROCESSOR (Main Node)                                   -->
                 <!-- ═══════════════════════════════════════════════════════════════ -->
-                <Border Grid.Column="2" Style="{StaticResource NodeCard}" BorderBrush="#8B5CF6" BorderThickness="2">
+                <Border Grid.Column="2" Style="{StaticResource NodeCard}" BorderBrush="#C084FC" BorderThickness="2">
                     <StackPanel>
                         <!-- Node Header -->
                         <Grid Margin="0,0,0,16">
@@ -247,7 +442,7 @@
                             <Border Width="44" Height="44" CornerRadius="12">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#308B5CF6" Offset="0"/>
+                                        <GradientStop Color="#30C084FC" Offset="0"/>
                                         <GradientStop Color="#30EC4899" Offset="1"/>
                                     </LinearGradientBrush>
                                 </Border.Background>
@@ -322,11 +517,17 @@
                                     <TextBlock x:Name="TxtDiffusersStatus" Text="HuggingFace Models" FontSize="11" Foreground="#80FFFFFF"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                    <Ellipse x:Name="DiffusersStatusDot" Style="{StaticResource StatusDot}" Fill="#10B981"/>
-                                    <Button Style="{StaticResource MaterialDesignIconButton}" Click="ConfigureDiffusers_Click"
-                                            ToolTip="Model Manager" Width="24" Height="24" Margin="0,4,0,0">
-                                        <materialDesign:PackIcon Kind="Cog" Width="14" Height="14" Foreground="#6B6B8A"/>
-                                    </Button>
+                                    <Ellipse x:Name="DiffusersStatusDot" Style="{StaticResource StatusDot}" Fill="#6B7280"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Button Style="{StaticResource MaterialDesignIconButton}" Click="OpenAdvancedModelSettings_Click"
+                                                ToolTip="Advanced Model Settings (LoRA, VAE, Sampler)" Width="24" Height="24" Margin="0,0,4,0">
+                                            <materialDesign:PackIcon Kind="TuneVariant" Width="14" Height="14" Foreground="#C084FC"/>
+                                        </Button>
+                                        <Button Style="{StaticResource MaterialDesignIconButton}" Click="ConfigureDiffusers_Click"
+                                                ToolTip="Model Manager" Width="24" Height="24">
+                                            <materialDesign:PackIcon Kind="Cog" Width="14" Height="14" Foreground="#6B6B8A"/>
+                                        </Button>
+                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
                         </RadioButton>
@@ -448,7 +649,13 @@
                                 <TextBlock Text="DISTRIBUTOR" FontWeight="Bold" FontSize="14" Foreground="White"/>
                                 <TextBlock Text="Task allocation" FontSize="11" Foreground="#80FFFFFF"/>
                             </StackPanel>
-                            <Ellipse Grid.Column="2" x:Name="DistributorStatusDot" Style="{StaticResource StatusDot}" Fill="#10B981"/>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                <Ellipse x:Name="DistributorStatusDot" Style="{StaticResource StatusDot}" Fill="#6B7280"/>
+                                <Button Style="{StaticResource MaterialDesignIconButton}" Click="GpuSetup_Click"
+                                        ToolTip="GPU Setup Wizard" Width="24" Height="24" Margin="0,4,0,0">
+                                    <materialDesign:PackIcon Kind="Chip" Width="14" Height="14" Foreground="#F59E0B"/>
+                                </Button>
+                            </StackPanel>
                         </Grid>
 
                         <!-- Distribution Mode -->
@@ -579,10 +786,13 @@
                                 <TextBlock Text="OUTPUT" FontWeight="Bold" FontSize="14" Foreground="White"/>
                                 <TextBlock x:Name="TxtOutputType" Text="Image Result" FontSize="11" Foreground="#80FFFFFF"/>
                             </StackPanel>
-                            <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}" Click="OpenOutputFolder_Click"
-                                    ToolTip="Open Output Folder" Width="32" Height="32">
-                                <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Foreground="#80FFFFFF"/>
-                            </Button>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                <Ellipse x:Name="OutputStatusDot" Style="{StaticResource StatusDot}" Fill="#6B7280"/>
+                                <Button Style="{StaticResource MaterialDesignIconButton}" Click="OpenOutputFolder_Click"
+                                        ToolTip="Open Output Folder" Width="24" Height="24" Margin="0,4,0,0">
+                                    <materialDesign:PackIcon Kind="FolderOpen" Width="14" Height="14" Foreground="#80FFFFFF"/>
+                                </Button>
+                            </StackPanel>
                         </Grid>
 
                         <!-- Preview Area -->
@@ -614,7 +824,7 @@
                                     <TextBlock Text="Completed" FontSize="10" Foreground="#6B6B8A"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock x:Name="TxtAvgTime" Text="0s" FontSize="20" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                    <TextBlock x:Name="TxtAvgTime" Text="0s" FontSize="20" FontWeight="Bold" Foreground="#C084FC"/>
                                     <TextBlock Text="Avg Time" FontSize="10" Foreground="#6B6B8A"/>
                                 </StackPanel>
                             </Grid>
@@ -740,12 +950,12 @@
                         <Border x:Name="border" CornerRadius="12" Padding="32,16" MinWidth="200">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#8B5CF6" Offset="0"/>
+                                    <GradientStop Color="#C084FC" Offset="0"/>
                                     <GradientStop Color="#EC4899" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
                             <Border.Effect>
-                                <DropShadowEffect Color="#8B5CF6" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
+                                <DropShadowEffect Color="#C084FC" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
                             </Border.Effect>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <materialDesign:PackIcon x:Name="GenIcon" Kind="Creation" Width="24" Height="24" Foreground="White" VerticalAlignment="Center"/>
@@ -764,5 +974,133 @@
                 </Button.Template>
             </Button>
         </Grid>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- GENERATION LOG PANEL                                            -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Border x:Name="LogPanel" Grid.Row="3" Background="#1A1A2E" CornerRadius="12"
+                Padding="16" Margin="0,16,0,0" Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="120"/>
+                </Grid.RowDefinitions>
+
+                <!-- Log Header with Progress Steps -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Console" Width="20" Height="20" Foreground="#C084FC" VerticalAlignment="Center"/>
+                        <TextBlock Text="Generation Progress" FontWeight="Bold" FontSize="14" Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Current Step Indicator -->
+                    <Border Grid.Column="1" Background="#20C084FC" CornerRadius="8" Padding="12,6" Margin="16,0" HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon x:Name="CurrentStepIcon" Kind="Loading" Width="16" Height="16" Foreground="#C084FC" VerticalAlignment="Center">
+                                <materialDesign:PackIcon.RenderTransform>
+                                    <RotateTransform x:Name="SpinnerRotation" CenterX="8" CenterY="8"/>
+                                </materialDesign:PackIcon.RenderTransform>
+                            </materialDesign:PackIcon>
+                            <TextBlock x:Name="TxtCurrentStep" Text="เตรียมพร้อม..." FontSize="12" Foreground="#C084FC" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Elapsed Time -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Timer" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtElapsedTime" Text="0:00" FontSize="12" Foreground="#6B6B8A" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Progress Steps Bar -->
+                <Grid Grid.Row="1" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Step 1: INPUT -->
+                    <Border x:Name="LogStep1" Background="#252540" CornerRadius="8" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse x:Name="LogStep1Dot" Width="8" Height="8" Fill="#6B6B8A" VerticalAlignment="Center"/>
+                            <TextBlock Text="Input" FontSize="11" Foreground="#9090A8" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Arrow 1 -->
+                    <materialDesign:PackIcon Grid.Column="1" Kind="ChevronRight" Width="20" Height="20"
+                                              Foreground="#4D4D6A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <!-- Step 2: PROCESSOR -->
+                    <Border x:Name="LogStep2" Grid.Column="2" Background="#252540" CornerRadius="8" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse x:Name="LogStep2Dot" Width="8" Height="8" Fill="#6B6B8A" VerticalAlignment="Center"/>
+                            <TextBlock Text="Processing" FontSize="11" Foreground="#9090A8" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Arrow 2 -->
+                    <materialDesign:PackIcon Grid.Column="3" Kind="ChevronRight" Width="20" Height="20"
+                                              Foreground="#4D4D6A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <!-- Step 3: DISTRIBUTOR -->
+                    <Border x:Name="LogStep3" Grid.Column="4" Background="#252540" CornerRadius="8" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse x:Name="LogStep3Dot" Width="8" Height="8" Fill="#6B6B8A" VerticalAlignment="Center"/>
+                            <TextBlock Text="Generating" FontSize="11" Foreground="#9090A8" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Arrow 3 -->
+                    <materialDesign:PackIcon Grid.Column="5" Kind="ChevronRight" Width="20" Height="20"
+                                              Foreground="#4D4D6A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <!-- Step 4: OUTPUT -->
+                    <Border x:Name="LogStep4" Grid.Column="6" Background="#252540" CornerRadius="8" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Ellipse x:Name="LogStep4Dot" Width="8" Height="8" Fill="#6B6B8A" VerticalAlignment="Center"/>
+                            <TextBlock Text="Output" FontSize="11" Foreground="#9090A8" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Log Messages ScrollViewer -->
+                <Border Grid.Row="2" Background="#12121A" CornerRadius="8" Padding="12">
+                    <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="LogMessages">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="60"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Time}" FontSize="10" Foreground="#4D4D6A" FontFamily="Consolas"/>
+                                        <Border Grid.Column="1" CornerRadius="4" Padding="6,2" Margin="8,0"
+                                                Background="{Binding TypeBackground}">
+                                            <TextBlock Text="{Binding Type}" FontSize="9" Foreground="{Binding TypeColor}" FontWeight="SemiBold"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{Binding Message}" FontSize="11" Foreground="#E0E0E0" TextWrapping="Wrap"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Border>
     </Grid>
 </Page>
