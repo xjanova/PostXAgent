@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using AIManager.Core.Models;
 using AIManager.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,12 +21,16 @@ public partial class ImageGeneratorPage : Page, INotifyPropertyChanged
 {
     private readonly ComfyUIService _comfyService;
     private readonly GpuPoolService? _gpuPoolService;
+    private readonly HuggingFaceModelService _modelService;
+    private readonly AutoSetupService _autoSetupService;
+    private readonly LocalGpuService _localGpuService;
     private readonly ILogger<ImageGeneratorPage>? _logger;
     private readonly HttpClient _httpClient;
     private CancellationTokenSource? _generateCts;
     private string? _currentOutputPath;
     private bool _isVideoMode;
     private bool _isParallelMode = true;
+    private bool _isPipelineReady;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -69,6 +74,9 @@ public partial class ImageGeneratorPage : Page, INotifyPropertyChanged
         _comfyService = new ComfyUIService();
         _comfyService.ProgressChanged += ComfyService_OnProgress;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(300) };
+        _modelService = new HuggingFaceModelService();
+        _localGpuService = new LocalGpuService();
+        _autoSetupService = new AutoSetupService(_localGpuService);
 
         // Get services from DI
         try
@@ -155,35 +163,219 @@ public partial class ImageGeneratorPage : Page, INotifyPropertyChanged
 
     private async Task InitializeAsync()
     {
-        LoadDefaultModels();
+        await LoadDownloadedModelsAsync();
         UpdatePoolStats();
         await CheckConnectionAsync();
+        await CheckPipelineStatusAsync();
     }
 
-    private void LoadDefaultModels()
+    /// <summary>
+    /// Check if the generation pipeline is ready (Python installed, model available)
+    /// </summary>
+    private async Task CheckPipelineStatusAsync()
+    {
+        try
+        {
+            var hasPython = _autoSetupService.IsPythonInstalled;
+            var hasModel = !string.IsNullOrEmpty(ModelManagerPage.ActiveModelId);
+
+            // Quick check if Python is installed by checking files
+            if (hasPython)
+            {
+                var pythonDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "PostXAgent", "python");
+                var hasPyTorch = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "torch", "__init__.py"));
+                var hasDiffusers = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "diffusers", "__init__.py"));
+
+                _isPipelineReady = hasPython && hasPyTorch && hasDiffusers && hasModel;
+            }
+            else
+            {
+                _isPipelineReady = false;
+            }
+
+            UpdatePipelineStatusUI();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to check pipeline status");
+            _isPipelineReady = false;
+            UpdatePipelineStatusUI();
+        }
+    }
+
+    private void UpdatePipelineStatusUI()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (_isPipelineReady)
+            {
+                // Ready - Green
+                PipelineStatusColor.Color = Color.FromRgb(16, 185, 129); // #10B981
+                PipelineStatusText.Text = "พร้อมใช้งาน";
+                PipelineStatusText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                PipelineStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0x10, 0xB9, 0x81));
+                PipelineStatusBorder.ToolTip = "Pipeline พร้อมสร้างภาพ/วิดีโอ";
+            }
+            else
+            {
+                // Check what's missing
+                var hasPython = _autoSetupService.IsPythonInstalled;
+                var hasModel = !string.IsNullOrEmpty(ModelManagerPage.ActiveModelId);
+
+                if (!hasPython)
+                {
+                    // Need setup - Red
+                    PipelineStatusColor.Color = Color.FromRgb(239, 68, 68); // #EF4444
+                    PipelineStatusText.Text = "ต้องติดตั้ง";
+                    PipelineStatusText.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                    PipelineStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0xEF, 0x44, 0x44));
+                    PipelineStatusBorder.ToolTip = "คลิกเพื่อติดตั้ง Python และ AI packages";
+                }
+                else if (!hasModel)
+                {
+                    // Need model - Orange
+                    PipelineStatusColor.Color = Color.FromRgb(245, 158, 11); // #F59E0B
+                    PipelineStatusText.Text = "ไม่มีโมเดล";
+                    PipelineStatusText.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+                    PipelineStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0xF5, 0x9E, 0x0B));
+                    PipelineStatusBorder.ToolTip = "กรุณาเลือกโมเดลที่ Model Manager";
+                }
+                else
+                {
+                    // Partial setup - Orange
+                    PipelineStatusColor.Color = Color.FromRgb(245, 158, 11);
+                    PipelineStatusText.Text = "ไม่สมบูรณ์";
+                    PipelineStatusText.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+                    PipelineStatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x20, 0xF5, 0x9E, 0x0B));
+                    PipelineStatusBorder.ToolTip = "คลิกเพื่อติดตั้ง packages ที่ขาด";
+                }
+            }
+        });
+    }
+
+    private void PipelineStatus_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Navigate to GenerationPipelinePage for setup
+        if (!_isPipelineReady)
+        {
+            // Find main window and navigate
+            if (Application.Current.MainWindow is MainWindow mainWindow)
+            {
+                // Navigate to Generation Pipeline page
+                mainWindow.NavigateToPage("GenerationPipeline");
+            }
+        }
+        else
+        {
+            // Show status info
+            MessageBox.Show(
+                "Pipeline พร้อมสร้างภาพ/วิดีโอแล้ว!\n\n" +
+                $"โมเดลที่ใช้งาน: {ModelManagerPage.ActiveModelId ?? "ไม่มี"}\n" +
+                $"Python: ติดตั้งแล้ว\n" +
+                $"PyTorch: ติดตั้งแล้ว\n" +
+                $"Diffusers: ติดตั้งแล้ว",
+                "สถานะ Pipeline",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+    }
+
+    private async Task LoadDownloadedModelsAsync()
     {
         CboModel.Items.Clear();
-        CboModel.Items.Add(new ComboBoxItem { Content = "SDXL 1.0", Tag = "stabilityai/stable-diffusion-xl-base-1.0" });
-        CboModel.Items.Add(new ComboBoxItem { Content = "SDXL Turbo", Tag = "stabilityai/sdxl-turbo" });
-        CboModel.Items.Add(new ComboBoxItem { Content = "SD 1.5", Tag = "runwayml/stable-diffusion-v1-5" });
-        CboModel.Items.Add(new ComboBoxItem { Content = "FLUX Schnell", Tag = "black-forest-labs/FLUX.1-schnell" });
-        CboModel.Items.Add(new ComboBoxItem { Content = "Realistic Vision", Tag = "SG161222/Realistic_Vision_V5.1_noVAE" });
-        CboModel.SelectedIndex = 0;
+
+        try
+        {
+            // Load only downloaded models from HuggingFaceModelService
+            var downloadedModels = await _modelService.GetDownloadedModelsAsync();
+
+            // Filter for image generation models (TextToImage, ImageToImage)
+            var imageModels = downloadedModels
+                .Where(m => m.Type == ModelType.TextToImage ||
+                           m.Type == ModelType.ImageToImage)
+                .ToList();
+
+            if (imageModels.Count == 0)
+            {
+                // Show placeholder message if no models downloaded
+                CboModel.Items.Add(new ComboBoxItem
+                {
+                    Content = "No models downloaded - Go to Model Manager",
+                    Tag = "",
+                    IsEnabled = false,
+                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175))
+                });
+                TxtModelInfo.Text = "Please download a model from Model Manager first";
+            }
+            else
+            {
+                foreach (var model in imageModels)
+                {
+                    CboModel.Items.Add(new ComboBoxItem
+                    {
+                        Content = model.Name,
+                        Tag = model.Id,
+                        Foreground = new SolidColorBrush(Colors.White)
+                    });
+                }
+                CboModel.SelectedIndex = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load downloaded models");
+            CboModel.Items.Add(new ComboBoxItem
+            {
+                Content = "Error loading models",
+                Tag = "",
+                IsEnabled = false,
+                Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68))
+            });
+        }
+
         UpdateModelInfo();
     }
 
     private void UpdateModelInfo()
     {
         var modelTag = (CboModel.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
-        var vramMap = new Dictionary<string, string>
+
+        if (string.IsNullOrEmpty(modelTag))
         {
-            { "stabilityai/stable-diffusion-xl-base-1.0", "SDXL 1.0 - 8GB VRAM" },
-            { "stabilityai/sdxl-turbo", "SDXL Turbo - 8GB VRAM (Fast)" },
-            { "runwayml/stable-diffusion-v1-5", "SD 1.5 - 4GB VRAM" },
-            { "black-forest-labs/FLUX.1-schnell", "FLUX Schnell - 12GB VRAM" },
-            { "SG161222/Realistic_Vision_V5.1_noVAE", "Realistic Vision - 4GB VRAM" },
-        };
-        TxtModelInfo.Text = vramMap.GetValueOrDefault(modelTag, "Select a model");
+            TxtModelInfo.Text = "Select a model";
+            return;
+        }
+
+        // Get model info from downloaded models
+        Task.Run(async () =>
+        {
+            try
+            {
+                var models = await _modelService.GetDownloadedModelsAsync();
+                var model = models.FirstOrDefault(m => m.Id == modelTag);
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (model != null)
+                    {
+                        var sizeInfo = model.SizeBytes > 0
+                            ? $" - {model.SizeBytes / (1024.0 * 1024.0 * 1024.0):F1} GB"
+                            : "";
+                        TxtModelInfo.Text = $"{model.Name} ({model.Type}){sizeInfo}";
+                    }
+                    else
+                    {
+                        TxtModelInfo.Text = modelTag;
+                    }
+                });
+            }
+            catch
+            {
+                Dispatcher.Invoke(() => TxtModelInfo.Text = modelTag);
+            }
+        });
     }
 
     private void UpdatePoolStats()
@@ -353,7 +545,13 @@ public partial class ImageGeneratorPage : Page, INotifyPropertyChanged
 
         try
         {
-            var selectedModel = (CboModel.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "stabilityai/stable-diffusion-xl-base-1.0";
+            var selectedModel = (CboModel.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
+            if (string.IsNullOrEmpty(selectedModel))
+            {
+                MessageBox.Show("Please select a model first.\n\nGo to Model Manager to download a model.",
+                    "No Model Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
             var negativePrompt = TxtNegativePrompt.Text.Trim();
             var (width, height) = GetDimensionsFromRatio();
             var steps = (int)SliderSteps.Value;

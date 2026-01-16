@@ -672,7 +672,7 @@ public class EventViewModel
         GpuNodeEventType.TaskCompleted or GpuNodeEventType.Connected =>
             new SolidColorBrush(Color.FromRgb(16, 185, 129)),
         GpuNodeEventType.EmergencyActivated =>
-            new SolidColorBrush(Color.FromRgb(139, 92, 246)),
+            new SolidColorBrush(Color.FromRgb(167, 139, 250)),
         _ => new SolidColorBrush(Color.FromRgb(156, 163, 175))
     };
 }

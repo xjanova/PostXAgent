@@ -24,7 +24,7 @@ public partial class ColabGpuPage : Page
     private static readonly SolidColorBrush YellowBrush = new(Color.FromRgb(245, 158, 11));
     private static readonly SolidColorBrush RedBrush = new(Color.FromRgb(239, 68, 68));
     private static readonly SolidColorBrush GrayBrush = new(Color.FromRgb(156, 163, 175));
-    private static readonly SolidColorBrush PurpleBrush = new(Color.FromRgb(139, 92, 246));
+    private static readonly SolidColorBrush PurpleBrush = new(Color.FromRgb(167, 139, 250));
     private static readonly SolidColorBrush CyanBrush = new(Color.FromRgb(6, 182, 212));
 
     public ColabGpuPage()
@@ -689,7 +689,7 @@ public class AddColabAccountDialog : Window
         {
             Content = "บันทึก",
             Width = 80,
-            Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)),
+            Background = new SolidColorBrush(Color.FromRgb(167, 139, 250)),
             Foreground = Brushes.White
         };
         saveBtn.Click += SaveBtn_Click;

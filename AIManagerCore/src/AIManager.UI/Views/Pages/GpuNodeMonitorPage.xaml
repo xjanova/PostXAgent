@@ -70,7 +70,7 @@
                     <Border Background="#20FFFFFF" CornerRadius="12" Padding="16" Margin="0,0,8,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <md:PackIcon Kind="Server" Width="20" Height="20" Foreground="#8B5CF6"/>
+                                <md:PackIcon Kind="Server" Width="20" Height="20" Foreground="#C084FC"/>
                                 <TextBlock x:Name="TxtTotalNodes" Text="8" FontSize="24" FontWeight="Bold"
                                            Foreground="White" Margin="8,0,0,0"/>
                             </StackPanel>
@@ -425,7 +425,7 @@
                                                        Foreground="White"/>
                                             <Border Background="#20FFFFFF" CornerRadius="4" Padding="6,2"
                                                     Margin="8,0,0,0" Visibility="{Binding EmergencyVisibility}">
-                                                <TextBlock Text="EMERGENCY" FontSize="9" Foreground="#8B5CF6"
+                                                <TextBlock Text="EMERGENCY" FontSize="9" Foreground="#C084FC"
                                                            FontWeight="Bold"/>
                                             </Border>
                                             <Border CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
@@ -526,7 +526,7 @@
                 <Border Background="#101F2937" CornerRadius="12" Padding="16" Margin="0,20,0,0">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                            <md:PackIcon Kind="History" Width="20" Height="20" Foreground="#8B5CF6"/>
+                            <md:PackIcon Kind="History" Width="20" Height="20" Foreground="#C084FC"/>
                             <TextBlock Text="Recent Events" FontSize="16" FontWeight="SemiBold"
                                        Foreground="White" Margin="8,0,0,0"/>
                         </StackPanel>

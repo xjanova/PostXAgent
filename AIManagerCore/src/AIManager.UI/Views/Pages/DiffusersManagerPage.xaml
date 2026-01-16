@@ -1,0 +1,779 @@
+<Page x:Class="AIManager.UI.Views.Pages.DiffusersManagerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+      xmlns:nodeEditor="clr-namespace:AIManager.UI.Controls.NodeEditor"
+      Title="Diffusers Engine Manager">
+
+    <Page.Resources>
+        <!-- Converters -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- Log Entry Style -->
+        <Style x:Key="LogEntryStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+
+        <!-- Tab Item Style -->
+        <Style x:Key="EngineTabItem" TargetType="TabItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8888AA"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="#30FFFFFF" BorderThickness="0,0,0,2" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#A855F7"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#C084FC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Expander Style -->
+        <Style x:Key="ConfigExpander" TargetType="Expander">
+            <Setter Property="Background" Value="#15151F"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+
+        <!-- Section Header Style -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <!-- Field Label Style -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#8888AA"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <!-- Input TextBox Style -->
+        <Style x:Key="ConfigTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#1E1E2E"/>
+            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <!-- ComboBox Style -->
+        <Style x:Key="ConfigComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1E1E2E"/>
+            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <!-- Radio Button Style for Module Selection -->
+        <Style x:Key="ModuleRadio" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="0,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="border" Background="#15151F" BorderBrush="#25FFFFFF"
+                                BorderThickness="1" CornerRadius="8" Padding="16,12" Cursor="Hand">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Ellipse x:Name="dot" Width="18" Height="18" Stroke="#6B7280" StrokeThickness="2"
+                                         Fill="Transparent" Margin="0,0,12,0"/>
+                                <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                                <ContentPresenter Grid.Column="2" ContentSource="Tag"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#A855F7"/>
+                                <Setter TargetName="border" Property="Background" Value="#20A855F7"/>
+                                <Setter TargetName="dot" Property="Fill" Value="#A855F7"/>
+                                <Setter TargetName="dot" Property="Stroke" Value="#A855F7"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#20FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Grid Background="#0D0D14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Padding="24,20">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#1a1a2e" Offset="0"/>
+                    <GradientStop Color="#16162a" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <StackPanel Orientation="Horizontal">
+                        <!-- Back Button -->
+                        <Button x:Name="BtnBack" Click="BtnBack_Click" Cursor="Hand"
+                                ToolTip="กลับ" Width="40" Height="40" Margin="0,0,12,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#25FFFFFF" CornerRadius="10"
+                                            BorderBrush="#30FFFFFF" BorderThickness="1">
+                                        <materialDesign:PackIcon Kind="ArrowLeft" Width="22" Height="22"
+                                                                Foreground="#A855F7" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#35FFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#A855F7" Offset="0"/>
+                                    <GradientStop Color="#EC4899" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <materialDesign:PackIcon Kind="Cog" Width="28" Height="28" Foreground="White"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Diffusers Engine Manager" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Control, configure, and create workflows for AI image/video generation"
+                                       FontSize="13" Foreground="#8888AA" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Status Badge -->
+                <Border x:Name="StatusBadge" Grid.Column="1" CornerRadius="12" Padding="16,10" VerticalAlignment="Center"
+                        Background="#20808080">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="StatusDot" Width="12" Height="12" Fill="#6B7280" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="TxtStatus" Text="Stopped" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Main Content with Tabs -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem" BasedOn="{StaticResource EngineTabItem}"/>
+            </TabControl.ItemContainerStyle>
+
+            <!-- Tab 1: Control Panel -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Play" Width="18" Height="18" Margin="0,0,8,0"/>
+                        <TextBlock Text="Control"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24">
+                    <StackPanel>
+                        <!-- Start/Stop and Engine Info -->
+                        <Border Background="#12121A" CornerRadius="12" Padding="20" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Start/Stop Button -->
+                                <Button x:Name="BtnStartStop" Click="BtnStartStop_Click" Grid.Column="0"
+                                        Width="180" Height="50" Cursor="Hand">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" CornerRadius="10" Padding="20,12">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="#10B981" Offset="0"/>
+                                                        <GradientStop Color="#059669" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <materialDesign:PackIcon x:Name="BtnIcon" Kind="Play" Width="24" Height="24"
+                                                                            Foreground="White" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="BtnText" Text="Start Engine" FontSize="14" FontWeight="Bold"
+                                                               Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                                </Trigger>
+                                                <Trigger Property="Tag" Value="Running">
+                                                    <Setter TargetName="BtnIcon" Property="Kind" Value="Stop"/>
+                                                    <Setter TargetName="BtnText" Property="Text" Value="Stop Engine"/>
+                                                    <Setter TargetName="border" Property="Background">
+                                                        <Setter.Value>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                                <GradientStop Color="#EF4444" Offset="0"/>
+                                                                <GradientStop Color="#DC2626" Offset="1"/>
+                                                            </LinearGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+
+                                <!-- Engine Info Badges -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="24,0" VerticalAlignment="Center">
+                                    <Border Background="#1E1E2E" CornerRadius="8" Padding="12,8" Margin="0,0,12,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Server" Foreground="#6B7280" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Port:" Foreground="#8888AA" FontSize="12" Margin="8,0,4,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="TxtPort" Text="5050" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#1E1E2E" CornerRadius="8" Padding="12,8" Margin="0,0,12,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Identifier" Foreground="#6B7280" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <TextBlock Text="PID:" Foreground="#8888AA" FontSize="12" Margin="8,0,4,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="TxtPid" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#1E1E2E" CornerRadius="8" Padding="12,8">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Clock" Foreground="#6B7280" Width="16" Height="16" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Uptime:" Foreground="#8888AA" FontSize="12" Margin="8,0,4,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="TxtUptime" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Model Info -->
+                                <Border Grid.Column="2" Background="#1E1E2E" CornerRadius="8" Padding="16,8" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Brain" Foreground="#A855F7" Width="20" Height="20" VerticalAlignment="Center"/>
+                                        <StackPanel Margin="10,0,0,0">
+                                            <TextBlock Text="Loaded Model" Foreground="#8888AA" FontSize="10"/>
+                                            <TextBlock x:Name="TxtLoadedModel" Text="None" Foreground="White" FontWeight="SemiBold" FontSize="12"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- System Stats -->
+                        <Border Background="#12121A" CornerRadius="12" Padding="20">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Memory" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="10,0,0,0">
+                                        <TextBlock Text="VRAM" Foreground="#8888AA" FontSize="10"/>
+                                        <TextBlock x:Name="TxtVram" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Gpu" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="10,0,0,0">
+                                        <TextBlock Text="GPU" Foreground="#8888AA" FontSize="10"/>
+                                        <TextBlock x:Name="TxtGpu" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="LanguagePython" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="10,0,0,0">
+                                        <TextBlock Text="Python" Foreground="#8888AA" FontSize="10"/>
+                                        <TextBlock x:Name="TxtPython" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Counter" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="10,0,0,0">
+                                        <TextBlock Text="Requests" Foreground="#8888AA" FontSize="10"/>
+                                        <TextBlock x:Name="TxtRequests" Text="0" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Configuration -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Tune" Width="18" Height="18" Margin="0,0,8,0"/>
+                        <TextBlock Text="Configuration"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Processing Module Selection -->
+                    <Border Grid.Column="0" Background="#12121A" Padding="16">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="PROCESSING MODULE" Style="{StaticResource SectionHeader}"/>
+
+                                <!-- Diffusers (Local) -->
+                                <RadioButton x:Name="RbDiffusers" Style="{StaticResource ModuleRadio}" GroupName="ProcessingModule"
+                                             IsChecked="True" Checked="ProcessingModule_Changed">
+                                    <StackPanel>
+                                        <TextBlock Text="Diffusers (Local)" FontWeight="SemiBold" Foreground="White"/>
+                                        <TextBlock Text="Uses local GPU with HuggingFace Diffusers" FontSize="11" Foreground="#8888AA"/>
+                                    </StackPanel>
+                                    <RadioButton.Tag>
+                                        <StackPanel>
+                                            <Ellipse x:Name="DiffusersStatusDot" Width="10" Height="10" Fill="#6B7280"/>
+                                        </StackPanel>
+                                    </RadioButton.Tag>
+                                </RadioButton>
+
+                                <!-- ComfyUI (External) -->
+                                <RadioButton x:Name="RbComfyUI" Style="{StaticResource ModuleRadio}" GroupName="ProcessingModule"
+                                             Checked="ProcessingModule_Changed">
+                                    <StackPanel>
+                                        <TextBlock Text="ComfyUI (External)" FontWeight="SemiBold" Foreground="White"/>
+                                        <TextBlock Text="Uses external ComfyUI server" FontSize="11" Foreground="#8888AA"/>
+                                    </StackPanel>
+                                    <RadioButton.Tag>
+                                        <StackPanel>
+                                            <Ellipse x:Name="ComfyStatusDot" Width="10" Height="10" Fill="#6B7280"/>
+                                        </StackPanel>
+                                    </RadioButton.Tag>
+                                </RadioButton>
+
+                                <!-- Cloud GPU Pool -->
+                                <RadioButton x:Name="RbCloudGpu" Style="{StaticResource ModuleRadio}" GroupName="ProcessingModule"
+                                             Checked="ProcessingModule_Changed">
+                                    <StackPanel>
+                                        <TextBlock Text="Cloud GPU Pool" FontWeight="SemiBold" Foreground="White"/>
+                                        <TextBlock Text="Uses remote GPU workers" FontSize="11" Foreground="#8888AA"/>
+                                    </StackPanel>
+                                    <RadioButton.Tag>
+                                        <StackPanel>
+                                            <Ellipse x:Name="CloudStatusDot" Width="10" Height="10" Fill="#6B7280"/>
+                                        </StackPanel>
+                                    </RadioButton.Tag>
+                                </RadioButton>
+
+                                <!-- Module Status Info -->
+                                <Border Background="#1E1E2E" CornerRadius="8" Padding="12" Margin="0,16,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Module Status" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,8"/>
+                                        <TextBlock x:Name="TxtModuleStatus" Text="Diffusers: Ready" Foreground="#10B981" FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- Right: Configuration Blocks -->
+                    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="16">
+                        <StackPanel>
+                            <!-- Block 1: Input Configuration -->
+                            <Expander Style="{StaticResource ConfigExpander}" IsExpanded="True">
+                                <Expander.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="TextBox" Foreground="#10B981" Width="18" Height="18" Margin="0,0,10,0"/>
+                                        <TextBlock Text="1. Input Configuration" FontWeight="SemiBold" Foreground="White"/>
+                                    </StackPanel>
+                                </Expander.Header>
+                                <StackPanel Margin="8,12,8,0">
+                                    <TextBlock Text="Default Negative Prompt" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtDefaultNegative" Style="{StaticResource ConfigTextBox}"
+                                             Text="blurry, bad quality, watermark, nsfw" TextWrapping="Wrap" MinHeight="60"/>
+
+                                    <CheckBox x:Name="ChkClipSkip" Content="Use CLIP Skip" Foreground="White" Margin="0,0,0,8"/>
+                                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=ChkClipSkip, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Skip Layers:" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="TxtClipSkip" Style="{StaticResource ConfigTextBox}" Width="80" Margin="10,0,0,0" Text="1"/>
+                                    </StackPanel>
+
+                                    <CheckBox x:Name="ChkPromptWeighting" Content="Enable Prompt Weighting (e.g., (word:1.2))"
+                                              Foreground="White" IsChecked="True"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Block 2: Model Configuration -->
+                            <Expander Style="{StaticResource ConfigExpander}">
+                                <Expander.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Brain" Foreground="#A855F7" Width="18" Height="18" Margin="0,0,10,0"/>
+                                        <TextBlock Text="2. Model Configuration" FontWeight="SemiBold" Foreground="White"/>
+                                    </StackPanel>
+                                </Expander.Header>
+                                <StackPanel Margin="8,12,8,0">
+                                    <TextBlock Text="Model Precision" Style="{StaticResource FieldLabel}"/>
+                                    <ComboBox x:Name="CmbPrecision" Style="{StaticResource ConfigComboBox}">
+                                        <ComboBoxItem Content="FP16 (Recommended)" IsSelected="True"/>
+                                        <ComboBoxItem Content="FP32 (High Quality)"/>
+                                        <ComboBoxItem Content="BF16 (RTX 30/40)"/>
+                                        <ComboBoxItem Content="INT8 (Low VRAM)"/>
+                                    </ComboBox>
+
+                                    <CheckBox x:Name="ChkCustomVae" Content="Use Custom VAE" Foreground="White" Margin="0,0,0,8"/>
+                                    <CheckBox x:Name="ChkTiledVae" Content="Enable Tiled VAE (Low VRAM Mode)" Foreground="White" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="LoRA Models" Style="{StaticResource FieldLabel}" Margin="0,8,0,4"/>
+                                    <Border Background="#1E1E2E" CornerRadius="8" Padding="12" MinHeight="60">
+                                        <StackPanel>
+                                            <TextBlock x:Name="TxtLoraInfo" Text="No LoRA loaded" Foreground="#6B7280" FontSize="12"/>
+                                            <Button Content="Manage LoRAs" Margin="0,8,0,0" Click="ManageLoRAs_Click"
+                                                    Background="#25FFFFFF" Foreground="White" BorderThickness="0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Block 3: Sampler Configuration -->
+                            <Expander Style="{StaticResource ConfigExpander}">
+                                <Expander.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Shuffle" Foreground="#3B82F6" Width="18" Height="18" Margin="0,0,10,0"/>
+                                        <TextBlock Text="3. Sampler &amp; Scheduler" FontWeight="SemiBold" Foreground="White"/>
+                                    </StackPanel>
+                                </Expander.Header>
+                                <StackPanel Margin="8,12,8,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Sampler" Style="{StaticResource FieldLabel}"/>
+                                            <ComboBox x:Name="CmbSampler" Style="{StaticResource ConfigComboBox}">
+                                                <ComboBoxItem Content="DPM++ 2M Karras" IsSelected="True"/>
+                                                <ComboBoxItem Content="DPM++ SDE Karras"/>
+                                                <ComboBoxItem Content="Euler A"/>
+                                                <ComboBoxItem Content="Euler"/>
+                                                <ComboBoxItem Content="Heun"/>
+                                                <ComboBoxItem Content="DDIM"/>
+                                                <ComboBoxItem Content="UniPC"/>
+                                                <ComboBoxItem Content="LCM"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Scheduler" Style="{StaticResource FieldLabel}"/>
+                                            <ComboBox x:Name="CmbScheduler" Style="{StaticResource ConfigComboBox}">
+                                                <ComboBoxItem Content="Normal" IsSelected="True"/>
+                                                <ComboBoxItem Content="Karras"/>
+                                                <ComboBoxItem Content="Exponential"/>
+                                                <ComboBoxItem Content="SGM Uniform"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Steps" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox x:Name="TxtSteps" Style="{StaticResource ConfigTextBox}" Text="30"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="CFG Scale" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox x:Name="TxtCfgScale" Style="{StaticResource ConfigTextBox}" Text="7.5"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <TextBlock Text="Default Seed (-1 = random)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtSeed" Style="{StaticResource ConfigTextBox}" Text="-1"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Block 4: Processor Configuration -->
+                            <Expander Style="{StaticResource ConfigExpander}">
+                                <Expander.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Gpu" Foreground="#F59E0B" Width="18" Height="18" Margin="0,0,10,0"/>
+                                        <TextBlock Text="4. Processor Settings" FontWeight="SemiBold" Foreground="White"/>
+                                    </StackPanel>
+                                </Expander.Header>
+                                <StackPanel Margin="8,12,8,0">
+                                    <CheckBox x:Name="ChkAttentionSlicing" Content="Enable Attention Slicing (Saves VRAM)"
+                                              Foreground="White" IsChecked="True" Margin="0,0,0,8"/>
+                                    <CheckBox x:Name="ChkVaeSlicing" Content="Enable VAE Slicing (Saves VRAM)"
+                                              Foreground="White" IsChecked="True" Margin="0,0,0,8"/>
+                                    <CheckBox x:Name="ChkXformers" Content="Use xFormers (Faster on NVIDIA)"
+                                              Foreground="White" IsChecked="True" Margin="0,0,0,8"/>
+                                    <CheckBox x:Name="ChkSafetensors" Content="Prefer Safetensors Format"
+                                              Foreground="White" IsChecked="True" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Timeout (seconds)" Style="{StaticResource FieldLabel}" Margin="0,8,0,4"/>
+                                    <TextBox x:Name="TxtTimeout" Style="{StaticResource ConfigTextBox}" Text="300"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Block 5: Post-Processing -->
+                            <Expander Style="{StaticResource ConfigExpander}">
+                                <Expander.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="ImageEdit" Foreground="#EC4899" Width="18" Height="18" Margin="0,0,10,0"/>
+                                        <TextBlock Text="5. Post-Processing" FontWeight="SemiBold" Foreground="White"/>
+                                    </StackPanel>
+                                </Expander.Header>
+                                <StackPanel Margin="8,12,8,0">
+                                    <CheckBox x:Name="ChkUpscale" Content="Enable Upscaling" Foreground="White" Margin="0,0,0,8"/>
+                                    <StackPanel Visibility="{Binding IsChecked, ElementName=ChkUpscale, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Upscaler" Style="{StaticResource FieldLabel}"/>
+                                        <ComboBox x:Name="CmbUpscaler" Style="{StaticResource ConfigComboBox}">
+                                            <ComboBoxItem Content="RealESRGAN 4x" IsSelected="True"/>
+                                            <ComboBoxItem Content="RealESRGAN 4x+"/>
+                                            <ComboBoxItem Content="Latent"/>
+                                            <ComboBoxItem Content="ESPCN 4x"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <CheckBox x:Name="ChkFaceRestore" Content="Enable Face Restoration" Foreground="White" Margin="0,0,0,8"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Block 6: Output Configuration -->
+                            <Expander Style="{StaticResource ConfigExpander}">
+                                <Expander.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="FolderDownload" Foreground="#06B6D4" Width="18" Height="18" Margin="0,0,10,0"/>
+                                        <TextBlock Text="6. Output Settings" FontWeight="SemiBold" Foreground="White"/>
+                                    </StackPanel>
+                                </Expander.Header>
+                                <StackPanel Margin="8,12,8,0">
+                                    <TextBlock Text="Output Directory" Style="{StaticResource FieldLabel}"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TxtOutputDir" Style="{StaticResource ConfigTextBox}" Margin="0,0,8,0"/>
+                                        <Button Grid.Column="1" Content="Browse" Click="BrowseOutput_Click"
+                                                Background="#25FFFFFF" Foreground="White" BorderThickness="0" Padding="16,8"/>
+                                    </Grid>
+
+                                    <TextBlock Text="Filename Pattern" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox x:Name="TxtFilenamePattern" Style="{StaticResource ConfigTextBox}"
+                                             Text="postx_{date}_{time}_{seed}"/>
+
+                                    <TextBlock Text="Image Format" Style="{StaticResource FieldLabel}"/>
+                                    <ComboBox x:Name="CmbImageFormat" Style="{StaticResource ConfigComboBox}">
+                                        <ComboBoxItem Content="PNG" IsSelected="True"/>
+                                        <ComboBoxItem Content="JPEG"/>
+                                        <ComboBoxItem Content="WebP"/>
+                                    </ComboBox>
+
+                                    <CheckBox x:Name="ChkSaveMetadata" Content="Save Generation Metadata"
+                                              Foreground="White" IsChecked="True"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Save Button -->
+                            <Button x:Name="BtnSaveConfig" Content="Save Configuration" Click="SaveConfig_Click"
+                                    Margin="0,16,0,0" Height="45" Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border CornerRadius="8" Padding="20,12">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#A855F7" Offset="0"/>
+                                                    <GradientStop Color="#EC4899" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <TextBlock Text="Save Configuration" FontWeight="Bold" Foreground="White"
+                                                       HorizontalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 3: Workflow Editor -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Sitemap" Width="18" Height="18" Margin="0,0,8,0"/>
+                        <TextBlock Text="Workflow"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="250"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Node Palette -->
+                    <Border Grid.Column="0" Background="#12121A" BorderBrush="#25FFFFFF" BorderThickness="0,0,1,0">
+                        <nodeEditor:NodePalette x:Name="WorkflowPalette"/>
+                    </Border>
+
+                    <!-- Workflow Canvas -->
+                    <Grid Grid.Column="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Workflow Toolbar -->
+                        <Border Grid.Row="0" Background="#15151F" Padding="12,8">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="BtnNewWorkflow" Click="NewWorkflow_Click" ToolTip="New Workflow"
+                                        Background="#25FFFFFF" BorderThickness="0" Padding="8" Margin="0,0,8,0">
+                                    <materialDesign:PackIcon Kind="File" Width="18" Height="18" Foreground="White"/>
+                                </Button>
+                                <Button x:Name="BtnOpenWorkflow" Click="OpenWorkflow_Click" ToolTip="Open Workflow"
+                                        Background="#25FFFFFF" BorderThickness="0" Padding="8" Margin="0,0,8,0">
+                                    <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Foreground="White"/>
+                                </Button>
+                                <Button x:Name="BtnSaveWorkflow" Click="SaveWorkflow_Click" ToolTip="Save Workflow"
+                                        Background="#25FFFFFF" BorderThickness="0" Padding="8" Margin="0,0,8,0">
+                                    <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Foreground="White"/>
+                                </Button>
+                                <Border Width="1" Background="#30FFFFFF" Margin="8,0"/>
+                                <Button x:Name="BtnRunWorkflow" Click="RunWorkflow_Click" ToolTip="Run Workflow"
+                                        Background="#2010B981" BorderThickness="0" Padding="8" Margin="8,0,8,0">
+                                    <materialDesign:PackIcon Kind="Play" Width="18" Height="18" Foreground="#10B981"/>
+                                </Button>
+                                <Button x:Name="BtnStopWorkflow" Click="StopWorkflow_Click" ToolTip="Stop Workflow"
+                                        Background="#20EF4444" BorderThickness="0" Padding="8" Margin="0,0,8,0">
+                                    <materialDesign:PackIcon Kind="Stop" Width="18" Height="18" Foreground="#EF4444"/>
+                                </Button>
+                                <Border Width="1" Background="#30FFFFFF" Margin="8,0"/>
+                                <Button x:Name="BtnZoomIn" Click="ZoomIn_Click" ToolTip="Zoom In"
+                                        Background="#25FFFFFF" BorderThickness="0" Padding="8" Margin="8,0,0,0">
+                                    <materialDesign:PackIcon Kind="MagnifyPlus" Width="18" Height="18" Foreground="White"/>
+                                </Button>
+                                <Button x:Name="BtnZoomOut" Click="ZoomOut_Click" ToolTip="Zoom Out"
+                                        Background="#25FFFFFF" BorderThickness="0" Padding="8" Margin="0,0,0,0">
+                                    <materialDesign:PackIcon Kind="MagnifyMinus" Width="18" Height="18" Foreground="White"/>
+                                </Button>
+                                <Button x:Name="BtnZoomReset" Click="ZoomReset_Click" ToolTip="Reset Zoom"
+                                        Background="#25FFFFFF" BorderThickness="0" Padding="8" Margin="0,0,0,0">
+                                    <materialDesign:PackIcon Kind="MagnifyRemoveOutline" Width="18" Height="18" Foreground="White"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Canvas -->
+                        <nodeEditor:NodeEditorCanvas x:Name="WorkflowCanvas" Grid.Row="1"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 4: Logs -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Console" Width="18" Height="18" Margin="0,0,8,0"/>
+                        <TextBlock Text="Logs"/>
+                        <TextBlock x:Name="TxtLogCount" Text="(0)" Foreground="#6B7280" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Border Background="#0A0A10" Margin="16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Log Header -->
+                        <Border Grid.Row="0" Background="#15151F" Padding="16,10">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Console" Foreground="#A855F7" Width="18" Height="18" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Engine Output" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <Button x:Name="BtnClearLog" Click="BtnClearLog_Click" HorizontalAlignment="Right"
+                                        ToolTip="Clear log" Cursor="Hand">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#25FFFFFF" CornerRadius="6" Padding="8,4">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Delete" Width="14" Height="14" Foreground="#6B7280"/>
+                                                    <TextBlock Text="Clear" FontSize="11" Foreground="#8888AA" Margin="4,0,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#35FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Log Content -->
+                        <ScrollViewer x:Name="LogScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto" Padding="16">
+                            <ItemsControl x:Name="LogItems">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Style="{StaticResource LogEntryStyle}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Page>

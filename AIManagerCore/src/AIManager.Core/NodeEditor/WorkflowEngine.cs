@@ -16,35 +16,58 @@ public class WorkflowEngine
     private readonly NodeRegistry _nodeRegistry;
     private readonly ContentGeneratorService _contentGenerator;
     private readonly ImageGeneratorService _imageGenerator;
+    private DiffusersGenerationEngine? _diffusersEngine;
 
     // Events for UI updates
     public event Action<string, NodeExecutionState>? NodeStateChanged;
     public event Action<string, double>? NodeProgressUpdated;
     public event Action<string, string>? NodeOutputReady;
-    public event Action<WorkflowExecutionResult>? WorkflowCompleted;
+    public event Action<NodeWorkflowExecutionResult>? WorkflowCompleted;
     public event Action<string>? LogMessage;
 
     public WorkflowEngine(
         ILogger<WorkflowEngine> logger,
         NodeRegistry nodeRegistry,
         ContentGeneratorService contentGenerator,
-        ImageGeneratorService imageGenerator)
+        ImageGeneratorService imageGenerator,
+        DiffusersGenerationEngine? diffusersEngine = null)
     {
         _logger = logger;
         _nodeRegistry = nodeRegistry;
         _contentGenerator = contentGenerator;
         _imageGenerator = imageGenerator;
+        _diffusersEngine = diffusersEngine;
+
+        // Share the diffusers engine with image generator
+        if (_diffusersEngine != null)
+        {
+            _imageGenerator.SetDiffusersEngine(_diffusersEngine);
+        }
     }
+
+    /// <summary>
+    /// Set or update the DiffusersGenerationEngine
+    /// </summary>
+    public void SetDiffusersEngine(DiffusersGenerationEngine engine)
+    {
+        _diffusersEngine = engine;
+        _imageGenerator.SetDiffusersEngine(engine);
+    }
+
+    /// <summary>
+    /// Gets whether DiffusersEngine is running
+    /// </summary>
+    public bool IsDiffusersEngineRunning => _diffusersEngine?.IsRunning == true;
 
     /// <summary>
     /// Execute a complete workflow
     /// </summary>
-    public async Task<WorkflowExecutionResult> ExecuteAsync(
+    public async Task<NodeWorkflowExecutionResult> ExecuteAsync(
         WorkflowGraph workflow,
         Dictionary<string, object>? inputVariables = null,
         CancellationToken ct = default)
     {
-        var result = new WorkflowExecutionResult
+        var result = new NodeWorkflowExecutionResult
         {
             WorkflowId = workflow.Id,
             StartedAt = DateTime.UtcNow
@@ -261,6 +284,22 @@ public class WorkflowEngine
                 "util.group" => new Dictionary<string, object?>(),
                 "util.loop" => await ExecuteLoopAsync(node, context, ct),
                 "util.delay" => await ExecuteDelayAsync(node, context, ct),
+
+                // Diffusers nodes
+                "diffusers.load_model" => await ExecuteDiffusersLoadModelAsync(node, context, ct),
+                "diffusers.generate_image" => await ExecuteDiffusersGenerateImageAsync(node, context, ct),
+                "diffusers.generate_video" => await ExecuteDiffusersGenerateVideoAsync(node, context, ct),
+                "diffusers.lora" => ExecuteDiffusersLoRA(node, context),
+                "diffusers.controlnet" => ExecuteDiffusersControlNet(node, context),
+                "diffusers.preprocessor" => await ExecuteDiffusersPreprocessorAsync(node, context, ct),
+                "diffusers.upscale" => await ExecuteDiffusersUpscaleAsync(node, context, ct),
+                "diffusers.vae" => ExecuteDiffusersVAE(node, context),
+
+                // Pipeline Template nodes (all-in-one macro nodes)
+                "pipeline.image_generation" => await ExecutePipelineImageGenerationAsync(node, context, ct),
+                "pipeline.video_generation" => await ExecutePipelineVideoGenerationAsync(node, context, ct),
+                "pipeline.img2img" => await ExecutePipelineImg2ImgAsync(node, context, ct),
+                "pipeline.inpaint" => await ExecutePipelineInpaintAsync(node, context, ct),
 
                 _ => throw new NotSupportedException($"Node type '{node.NodeType}' not supported")
             };
@@ -615,6 +654,477 @@ public class WorkflowEngine
         _logger.LogInformation(message);
         LogMessage?.Invoke($"[{DateTime.Now:HH:mm:ss}] {message}");
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DIFFUSERS NODE EXECUTORS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private async Task<Dictionary<string, object?>> ExecuteDiffusersLoadModelAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var modelPath = node.Properties.GetValueOrDefault("model_path")?.Value?.ToString() ?? "";
+        var modelType = node.Properties.GetValueOrDefault("model_type")?.Value?.ToString() ?? "stable_diffusion";
+        var precision = node.Properties.GetValueOrDefault("precision")?.Value?.ToString() ?? "fp16";
+        var device = node.Properties.GetValueOrDefault("device")?.Value?.ToString() ?? "cuda:0";
+
+        context.Log?.Invoke($"Loading model: {modelPath} ({modelType}, {precision})");
+
+        // TODO: Integrate with actual DiffusersGenerationEngine
+        await Task.Delay(500, ct); // Simulate loading
+
+        return new Dictionary<string, object?>
+        {
+            ["model"] = new { Path = modelPath, Type = modelType, Precision = precision, Device = device },
+            ["model_path"] = modelPath,
+            ["model_type"] = modelType
+        };
+    }
+
+    private async Task<Dictionary<string, object?>> ExecuteDiffusersGenerateImageAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var model = context.InputValues.GetValueOrDefault("model");
+        var positivePrompt = context.InputValues.GetValueOrDefault("positive_prompt")?.ToString() ?? "";
+        var negativePrompt = context.InputValues.GetValueOrDefault("negative_prompt")?.ToString() ?? "";
+        var latent = context.InputValues.GetValueOrDefault("latent");
+        var conditioning = context.InputValues.GetValueOrDefault("conditioning");
+
+        var steps = Convert.ToInt32(node.Properties.GetValueOrDefault("steps")?.Value ?? 20);
+        var cfgScale = Convert.ToDouble(node.Properties.GetValueOrDefault("cfg_scale")?.Value ?? 7.0);
+        var width = Convert.ToInt32(node.Properties.GetValueOrDefault("width")?.Value ?? 1024);
+        var height = Convert.ToInt32(node.Properties.GetValueOrDefault("height")?.Value ?? 1024);
+        var sampler = node.Properties.GetValueOrDefault("sampler")?.Value?.ToString() ?? "euler";
+        var scheduler = node.Properties.GetValueOrDefault("scheduler")?.Value?.ToString() ?? "normal";
+        var seed = Convert.ToInt64(context.InputValues.GetValueOrDefault("seed") ?? -1);
+
+        if (seed < 0) seed = Random.Shared.NextInt64();
+
+        context.Log?.Invoke($"Generating image: {width}x{height}, Steps: {steps}, CFG: {cfgScale}");
+        context.Log?.Invoke($"Prompt: {positivePrompt.Substring(0, Math.Min(50, positivePrompt.Length))}...");
+
+        // Prefer direct DiffusersEngine if available
+        if (_diffusersEngine?.IsRunning == true)
+        {
+            context.Log?.Invoke("Using local Diffusers Engine directly");
+            var request = new DiffusersImageRequest
+            {
+                Prompt = positivePrompt,
+                NegativePrompt = negativePrompt,
+                Width = width,
+                Height = height,
+                Steps = steps,
+                GuidanceScale = cfgScale,
+                Seed = seed,
+                Sampler = sampler,
+                Scheduler = scheduler
+            };
+
+            var engineResult = await _diffusersEngine.GenerateImageAsync(request, ct);
+
+            if (engineResult.Success && engineResult.Images?.Count > 0)
+            {
+                var imageData = engineResult.Images[0];
+                // Extract base64 from data URI if needed
+                if (imageData.StartsWith("data:image/"))
+                {
+                    imageData = imageData.Substring(imageData.IndexOf(",") + 1);
+                }
+
+                context.Log?.Invoke($"Generation completed! Seed: {engineResult.Seed}, Time: {engineResult.GenerationTime:F1}s");
+
+                return new Dictionary<string, object?>
+                {
+                    ["image"] = imageData,
+                    ["seed"] = engineResult.Seed
+                };
+            }
+            else
+            {
+                context.Log?.Invoke($"Direct engine generation failed: {engineResult.Error}. Falling back to ImageGeneratorService.");
+            }
+        }
+
+        // Fallback to image generator service (tries diffusers provider first, then others)
+        context.Log?.Invoke("Using ImageGeneratorService with 'auto' provider");
+        var result = await _imageGenerator.GenerateAsync(
+            positivePrompt,
+            new ImageGenerationOptions
+            {
+                Width = width,
+                Height = height,
+                Provider = "auto", // Will try diffusers first if available
+                Style = "default"
+            },
+            ct);
+
+        return new Dictionary<string, object?>
+        {
+            ["image"] = result?.Base64Data ?? "",
+            ["seed"] = seed
+        };
+    }
+
+    private async Task<Dictionary<string, object?>> ExecuteDiffusersGenerateVideoAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var model = context.InputValues.GetValueOrDefault("model");
+        var image = context.InputValues.GetValueOrDefault("image")?.ToString();
+        var positivePrompt = context.InputValues.GetValueOrDefault("positive_prompt")?.ToString() ?? "";
+        var negativePrompt = context.InputValues.GetValueOrDefault("negative_prompt")?.ToString() ?? "";
+
+        var frames = Convert.ToInt32(node.Properties.GetValueOrDefault("frames")?.Value ?? 24);
+        var fps = Convert.ToInt32(node.Properties.GetValueOrDefault("fps")?.Value ?? 8);
+        var motionStrength = Convert.ToDouble(node.Properties.GetValueOrDefault("motion_strength")?.Value ?? 0.5);
+        var seed = Convert.ToInt64(context.InputValues.GetValueOrDefault("seed") ?? -1);
+
+        if (seed < 0) seed = Random.Shared.NextInt64();
+
+        context.Log?.Invoke($"Generating video: {frames} frames @ {fps} fps");
+        context.Log?.Invoke($"Prompt: {positivePrompt.Substring(0, Math.Min(50, positivePrompt.Length))}...");
+
+        // TODO: Integrate with actual video generation service
+        await Task.Delay(2000, ct); // Simulate generation
+
+        return new Dictionary<string, object?>
+        {
+            ["video"] = "", // Base64 video or path
+            ["seed"] = seed,
+            ["frames"] = frames,
+            ["fps"] = fps
+        };
+    }
+
+    private Dictionary<string, object?> ExecuteDiffusersLoRA(WorkflowNode node, NodeExecutionContext context)
+    {
+        var model = context.InputValues.GetValueOrDefault("model");
+        var loraPath = node.Properties.GetValueOrDefault("lora_path")?.Value?.ToString() ?? "";
+        var strength = Convert.ToDouble(node.Properties.GetValueOrDefault("strength")?.Value ?? 1.0);
+
+        context.Log?.Invoke($"Applying LoRA: {loraPath} (strength: {strength})");
+
+        return new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["lora_applied"] = new { Path = loraPath, Strength = strength }
+        };
+    }
+
+    private Dictionary<string, object?> ExecuteDiffusersControlNet(WorkflowNode node, NodeExecutionContext context)
+    {
+        var model = context.InputValues.GetValueOrDefault("model");
+        var conditionImage = context.InputValues.GetValueOrDefault("condition_image")?.ToString();
+        var controlnetPath = node.Properties.GetValueOrDefault("controlnet_path")?.Value?.ToString() ?? "";
+        var strength = Convert.ToDouble(node.Properties.GetValueOrDefault("strength")?.Value ?? 1.0);
+        var controlType = node.Properties.GetValueOrDefault("control_type")?.Value?.ToString() ?? "canny";
+
+        context.Log?.Invoke($"Applying ControlNet: {controlType} (strength: {strength})");
+
+        return new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["conditioning"] = new { Type = controlType, Image = conditionImage, Strength = strength }
+        };
+    }
+
+    private async Task<Dictionary<string, object?>> ExecuteDiffusersPreprocessorAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var image = context.InputValues.GetValueOrDefault("image")?.ToString();
+        var preprocessorType = node.Properties.GetValueOrDefault("preprocessor_type")?.Value?.ToString() ?? "canny";
+        var resolution = Convert.ToInt32(node.Properties.GetValueOrDefault("resolution")?.Value ?? 512);
+
+        context.Log?.Invoke($"Running preprocessor: {preprocessorType} @ {resolution}px");
+
+        // TODO: Integrate with actual preprocessor
+        await Task.Delay(500, ct);
+
+        return new Dictionary<string, object?>
+        {
+            ["processed_image"] = image, // Pass through for now
+            ["preprocessor_type"] = preprocessorType
+        };
+    }
+
+    private async Task<Dictionary<string, object?>> ExecuteDiffusersUpscaleAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var image = context.InputValues.GetValueOrDefault("image")?.ToString();
+        var upscaleModel = node.Properties.GetValueOrDefault("upscale_model")?.Value?.ToString() ?? "RealESRGAN_x4plus";
+        var scaleFactor = Convert.ToInt32(node.Properties.GetValueOrDefault("scale_factor")?.Value ?? 2);
+
+        context.Log?.Invoke($"Upscaling image: {upscaleModel} x{scaleFactor}");
+
+        // TODO: Integrate with actual upscaler
+        await Task.Delay(1000, ct);
+
+        return new Dictionary<string, object?>
+        {
+            ["image"] = image, // Pass through for now
+            ["scale_factor"] = scaleFactor
+        };
+    }
+
+    private Dictionary<string, object?> ExecuteDiffusersVAE(WorkflowNode node, NodeExecutionContext context)
+    {
+        var model = context.InputValues.GetValueOrDefault("model");
+        var vaePath = node.Properties.GetValueOrDefault("vae_path")?.Value?.ToString() ?? "";
+
+        context.Log?.Invoke($"Applying VAE: {vaePath}");
+
+        return new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["vae_applied"] = vaePath
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // PIPELINE TEMPLATE NODE EXECUTORS (All-in-One Macro Nodes)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private async Task<Dictionary<string, object?>> ExecutePipelineImageGenerationAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        // Get prompts from inputs or properties
+        var positivePrompt = context.InputValues.GetValueOrDefault("positive_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("positive_prompt")?.Value?.ToString() ?? "";
+        var negativePrompt = context.InputValues.GetValueOrDefault("negative_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("negative_prompt")?.Value?.ToString() ?? "";
+
+        // Model Block settings
+        var checkpoint = node.Properties.GetValueOrDefault("checkpoint")?.Value?.ToString() ?? "";
+        var precision = node.Properties.GetValueOrDefault("precision")?.Value?.ToString() ?? "fp16";
+
+        // Sampler Block settings
+        var sampler = node.Properties.GetValueOrDefault("sampler")?.Value?.ToString() ?? "euler";
+        var scheduler = node.Properties.GetValueOrDefault("scheduler")?.Value?.ToString() ?? "normal";
+        var steps = Convert.ToInt32(node.Properties.GetValueOrDefault("steps")?.Value ?? 20);
+        var cfgScale = Convert.ToDouble(node.Properties.GetValueOrDefault("cfg_scale")?.Value ?? 7.0);
+        var width = Convert.ToInt32(node.Properties.GetValueOrDefault("width")?.Value ?? 1024);
+        var height = Convert.ToInt32(node.Properties.GetValueOrDefault("height")?.Value ?? 1024);
+        var seed = Convert.ToInt64(context.InputValues.GetValueOrDefault("seed")
+            ?? node.Properties.GetValueOrDefault("seed")?.Value ?? -1);
+
+        if (seed < 0) seed = Random.Shared.NextInt64();
+
+        // Post-Process Block
+        var enableUpscale = Convert.ToBoolean(node.Properties.GetValueOrDefault("enable_upscale")?.Value ?? false);
+        var upscaleModel = node.Properties.GetValueOrDefault("upscale_model")?.Value?.ToString() ?? "RealESRGAN_x4plus";
+
+        // Output Block
+        var outputDir = node.Properties.GetValueOrDefault("output_directory")?.Value?.ToString() ?? "outputs";
+        var filenamePrefix = node.Properties.GetValueOrDefault("filename_prefix")?.Value?.ToString() ?? "img";
+        var outputFormat = node.Properties.GetValueOrDefault("output_format")?.Value?.ToString() ?? "png";
+
+        context.Log?.Invoke($"=== Image Generation Pipeline ===");
+        context.Log?.Invoke($"Model: {checkpoint} ({precision})");
+        context.Log?.Invoke($"Size: {width}x{height}, Steps: {steps}, CFG: {cfgScale}");
+        context.Log?.Invoke($"Sampler: {sampler}, Scheduler: {scheduler}");
+        context.Log?.Invoke($"Prompt: {positivePrompt.Substring(0, Math.Min(60, positivePrompt.Length))}...");
+
+        string imageData = "";
+
+        // Prefer direct DiffusersEngine if available
+        if (_diffusersEngine?.IsRunning == true)
+        {
+            context.Log?.Invoke("Using local Diffusers Engine");
+            var request = new DiffusersImageRequest
+            {
+                Prompt = $"masterpiece, best quality, {positivePrompt}",
+                NegativePrompt = string.IsNullOrEmpty(negativePrompt)
+                    ? "blurry, low quality, distorted, watermark"
+                    : negativePrompt,
+                Width = width,
+                Height = height,
+                Steps = steps,
+                GuidanceScale = cfgScale,
+                Seed = seed,
+                Sampler = sampler,
+                Scheduler = scheduler
+            };
+
+            var engineResult = await _diffusersEngine.GenerateImageAsync(request, ct);
+
+            if (engineResult.Success && engineResult.Images?.Count > 0)
+            {
+                imageData = engineResult.Images[0];
+                if (imageData.StartsWith("data:image/"))
+                {
+                    imageData = imageData.Substring(imageData.IndexOf(",") + 1);
+                }
+                seed = engineResult.Seed;
+                context.Log?.Invoke($"Generation completed! Seed: {seed}, Time: {engineResult.GenerationTime:F1}s");
+            }
+            else
+            {
+                context.Log?.Invoke($"Engine failed: {engineResult.Error}. Trying ImageGeneratorService...");
+            }
+        }
+
+        // Fallback if direct engine failed or not available
+        if (string.IsNullOrEmpty(imageData))
+        {
+            context.Log?.Invoke("Using ImageGeneratorService with auto provider");
+            var result = await _imageGenerator.GenerateAsync(
+                positivePrompt,
+                new ImageGenerationOptions
+                {
+                    Width = width,
+                    Height = height,
+                    Provider = "auto",
+                    Style = "default"
+                },
+                ct);
+
+            imageData = result?.Base64Data ?? "";
+        }
+
+        // Optional upscale
+        if (enableUpscale && !string.IsNullOrEmpty(imageData))
+        {
+            context.Log?.Invoke($"Upscaling with {upscaleModel}...");
+            // TODO: Actual upscale integration
+        }
+
+        // Save output
+        string? savedPath = null;
+        if (!string.IsNullOrEmpty(imageData) && !string.IsNullOrEmpty(outputDir))
+        {
+            Directory.CreateDirectory(outputDir);
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var filename = $"{filenamePrefix}_{timestamp}_{seed}.{outputFormat}";
+            savedPath = Path.Combine(outputDir, filename);
+
+            var bytes = Convert.FromBase64String(imageData);
+            await File.WriteAllBytesAsync(savedPath, bytes, ct);
+            context.Log?.Invoke($"Saved: {savedPath}");
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["image"] = imageData,
+            ["seed"] = seed,
+            ["path"] = savedPath
+        };
+    }
+
+    private async Task<Dictionary<string, object?>> ExecutePipelineVideoGenerationAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var positivePrompt = context.InputValues.GetValueOrDefault("positive_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("positive_prompt")?.Value?.ToString() ?? "";
+        var negativePrompt = context.InputValues.GetValueOrDefault("negative_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("negative_prompt")?.Value?.ToString() ?? "";
+        var sourceImage = context.InputValues.GetValueOrDefault("source_image")?.ToString();
+
+        // Video settings
+        var videoModel = node.Properties.GetValueOrDefault("video_model")?.Value?.ToString() ?? "animatediff";
+        var frames = Convert.ToInt32(node.Properties.GetValueOrDefault("frames")?.Value ?? 24);
+        var fps = Convert.ToInt32(node.Properties.GetValueOrDefault("fps")?.Value ?? 8);
+        var motionStrength = Convert.ToDouble(node.Properties.GetValueOrDefault("motion_strength")?.Value ?? 0.5);
+        var seed = Convert.ToInt64(context.InputValues.GetValueOrDefault("seed")
+            ?? node.Properties.GetValueOrDefault("seed")?.Value ?? -1);
+
+        if (seed < 0) seed = Random.Shared.NextInt64();
+
+        // Output settings
+        var outputDir = node.Properties.GetValueOrDefault("output_directory")?.Value?.ToString() ?? "outputs/videos";
+        var filenamePrefix = node.Properties.GetValueOrDefault("filename_prefix")?.Value?.ToString() ?? "video";
+        var outputFormat = node.Properties.GetValueOrDefault("output_format")?.Value?.ToString() ?? "mp4";
+
+        context.Log?.Invoke($"=== Video Generation Pipeline ===");
+        context.Log?.Invoke($"Model: {videoModel}");
+        context.Log?.Invoke($"Frames: {frames} @ {fps} fps");
+        context.Log?.Invoke($"Motion: {motionStrength}");
+
+        // TODO: Integrate with actual video generation service
+        await Task.Delay(3000, ct); // Simulate generation
+
+        return new Dictionary<string, object?>
+        {
+            ["video"] = "",
+            ["seed"] = seed,
+            ["frames"] = frames,
+            ["fps"] = fps,
+            ["path"] = null
+        };
+    }
+
+    private async Task<Dictionary<string, object?>> ExecutePipelineImg2ImgAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var sourceImage = context.InputValues.GetValueOrDefault("source_image")?.ToString();
+        var positivePrompt = context.InputValues.GetValueOrDefault("positive_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("positive_prompt")?.Value?.ToString() ?? "";
+        var negativePrompt = context.InputValues.GetValueOrDefault("negative_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("negative_prompt")?.Value?.ToString() ?? "";
+
+        var denoise = Convert.ToDouble(node.Properties.GetValueOrDefault("denoise_strength")?.Value ?? 0.75);
+        var steps = Convert.ToInt32(node.Properties.GetValueOrDefault("steps")?.Value ?? 20);
+        var cfgScale = Convert.ToDouble(node.Properties.GetValueOrDefault("cfg_scale")?.Value ?? 7.0);
+        var seed = Convert.ToInt64(context.InputValues.GetValueOrDefault("seed")
+            ?? node.Properties.GetValueOrDefault("seed")?.Value ?? -1);
+
+        if (seed < 0) seed = Random.Shared.NextInt64();
+
+        context.Log?.Invoke($"=== Img2Img Pipeline ===");
+        context.Log?.Invoke($"Denoise: {denoise}, Steps: {steps}, CFG: {cfgScale}");
+
+        if (string.IsNullOrEmpty(sourceImage))
+        {
+            throw new InvalidOperationException("Source image is required for img2img");
+        }
+
+        // TODO: Integrate with actual img2img service
+        await Task.Delay(2000, ct);
+
+        return new Dictionary<string, object?>
+        {
+            ["image"] = sourceImage, // Pass through for now
+            ["seed"] = seed
+        };
+    }
+
+    private async Task<Dictionary<string, object?>> ExecutePipelineInpaintAsync(
+        WorkflowNode node, NodeExecutionContext context, CancellationToken ct)
+    {
+        var sourceImage = context.InputValues.GetValueOrDefault("source_image")?.ToString();
+        var maskImage = context.InputValues.GetValueOrDefault("mask")?.ToString();
+        var positivePrompt = context.InputValues.GetValueOrDefault("positive_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("positive_prompt")?.Value?.ToString() ?? "";
+        var negativePrompt = context.InputValues.GetValueOrDefault("negative_prompt")?.ToString()
+            ?? node.Properties.GetValueOrDefault("negative_prompt")?.Value?.ToString() ?? "";
+
+        var denoise = Convert.ToDouble(node.Properties.GetValueOrDefault("denoise_strength")?.Value ?? 1.0);
+        var maskBlur = Convert.ToInt32(node.Properties.GetValueOrDefault("mask_blur")?.Value ?? 4);
+        var steps = Convert.ToInt32(node.Properties.GetValueOrDefault("steps")?.Value ?? 20);
+        var seed = Convert.ToInt64(context.InputValues.GetValueOrDefault("seed")
+            ?? node.Properties.GetValueOrDefault("seed")?.Value ?? -1);
+
+        if (seed < 0) seed = Random.Shared.NextInt64();
+
+        context.Log?.Invoke($"=== Inpaint Pipeline ===");
+        context.Log?.Invoke($"Denoise: {denoise}, Mask Blur: {maskBlur}, Steps: {steps}");
+
+        if (string.IsNullOrEmpty(sourceImage))
+        {
+            throw new InvalidOperationException("Source image is required for inpainting");
+        }
+
+        if (string.IsNullOrEmpty(maskImage))
+        {
+            throw new InvalidOperationException("Mask image is required for inpainting");
+        }
+
+        // TODO: Integrate with actual inpaint service
+        await Task.Delay(2000, ct);
+
+        return new Dictionary<string, object?>
+        {
+            ["image"] = sourceImage, // Pass through for now
+            ["seed"] = seed
+        };
+    }
 }
 
 /// <summary>
@@ -631,9 +1141,9 @@ public enum NodeExecutionState
 }
 
 /// <summary>
-/// Workflow execution result
+/// Node-based workflow execution result (different from WebAutomation workflow)
 /// </summary>
-public class WorkflowExecutionResult
+public class NodeWorkflowExecutionResult
 {
     public string WorkflowId { get; set; } = "";
     public bool Success { get; set; }

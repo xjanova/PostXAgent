@@ -496,7 +496,7 @@ public partial class NodeControl : UserControl
     }
 
     /// <summary>
-    /// Get port position relative to canvas
+    /// Get port position relative to canvas (NodeLayer)
     /// </summary>
     public Point GetPortPosition(string portId, bool isOutput)
     {
@@ -505,10 +505,42 @@ public partial class NodeControl : UserControl
         if (!portElements.TryGetValue(portId, out var ellipse))
             return new Point(0, 0);
 
-        var transform = ellipse.TransformToAncestor(Parent as Visual ?? this);
-        var center = transform.Transform(new Point(ellipse.Width / 2, ellipse.Height / 2));
+        try
+        {
+            // Get node's position on the canvas
+            var nodeLeft = Canvas.GetLeft(this);
+            var nodeTop = Canvas.GetTop(this);
+            if (double.IsNaN(nodeLeft)) nodeLeft = 0;
+            if (double.IsNaN(nodeTop)) nodeTop = 0;
 
-        return center;
+            // Get ellipse position relative to this node control
+            var transform = ellipse.TransformToAncestor(this);
+
+            // Calculate center of ellipse
+            var centerX = ellipse.ActualWidth > 0 ? ellipse.ActualWidth / 2 : ellipse.Width / 2;
+            var centerY = ellipse.ActualHeight > 0 ? ellipse.ActualHeight / 2 : ellipse.Height / 2;
+
+            // Get the ellipse center relative to node control
+            var relativePos = transform.Transform(new Point(centerX, centerY));
+
+            // Add node's canvas position to get absolute canvas position
+            return new Point(nodeLeft + relativePos.X, nodeTop + relativePos.Y);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"GetPortPosition error: {ex.Message}");
+            // Fallback: use node position plus rough estimate
+            var nodeLeft = Canvas.GetLeft(this);
+            var nodeTop = Canvas.GetTop(this);
+            if (double.IsNaN(nodeLeft)) nodeLeft = 0;
+            if (double.IsNaN(nodeTop)) nodeTop = 0;
+
+            // Rough estimate: outputs on right, inputs on left
+            var x = isOutput ? nodeLeft + Width - 7 : nodeLeft + 7;
+            var y = nodeTop + 50; // Approximate vertical position
+
+            return new Point(x, y);
+        }
     }
 
     private void UpdateExecutionIndicator()

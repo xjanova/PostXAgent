@@ -50,6 +50,22 @@ public class NodeRegistry
         RegisterNode("Utility", () => new GroupNode());
         RegisterNode("Utility", () => new LoopNode());
         RegisterNode("Utility", () => new DelayNode());
+
+        // Diffusers nodes
+        RegisterNode("Diffusers", () => new DiffusersLoadModelNode());
+        RegisterNode("Diffusers", () => new DiffusersGenerateImageNode());
+        RegisterNode("Diffusers", () => new DiffusersGenerateVideoNode());
+        RegisterNode("Diffusers", () => new DiffusersLoRANode());
+        RegisterNode("Diffusers", () => new DiffusersControlNetNode());
+        RegisterNode("Diffusers", () => new DiffusersPreprocessorNode());
+        RegisterNode("Diffusers", () => new DiffusersUpscaleNode());
+        RegisterNode("Diffusers", () => new DiffusersVAENode());
+
+        // Pipeline Template nodes (All-in-One macro nodes for quick generation)
+        RegisterNode("Pipeline", () => new ImageGenerationPipelineNode());
+        RegisterNode("Pipeline", () => new VideoGenerationPipelineNode());
+        RegisterNode("Pipeline", () => new Img2ImgPipelineNode());
+        RegisterNode("Pipeline", () => new InpaintPipelineNode());
     }
 
     /// <summary>

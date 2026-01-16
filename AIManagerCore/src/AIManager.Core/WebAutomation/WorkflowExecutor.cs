@@ -380,34 +380,8 @@ public class WorkflowExecutor
         var screenshot = await _browser.TakeScreenshotAsync(ct);
         return screenshot != null;
     }
+
+    public string ExecutorType => "Playwright";
 }
 
-/// <summary>
-/// ผลการรัน Workflow
-/// </summary>
-public class WorkflowExecutionResult
-{
-    public string WorkflowId { get; set; } = "";
-    public bool Success { get; set; }
-    public int? FailedAtStep { get; set; }
-    public string? Error { get; set; }
-    public DateTime StartedAt { get; set; }
-    public DateTime CompletedAt { get; set; }
-    public List<StepExecutionResult> StepResults { get; set; } = new();
-
-    public TimeSpan Duration => CompletedAt - StartedAt;
-}
-
-/// <summary>
-/// ผลการรัน Step
-/// </summary>
-public class StepExecutionResult
-{
-    public string StepId { get; set; } = "";
-    public string Action { get; set; } = "";
-    public bool Success { get; set; }
-    public string? Error { get; set; }
-    public DateTime StartedAt { get; set; }
-    public DateTime CompletedAt { get; set; }
-    public string? Screenshot { get; set; }
-}
+// Note: WorkflowExecutionResult and StepExecutionResult are now in Models/WorkflowExecutionModels.cs

@@ -607,6 +607,134 @@ laravel-backend/
 5. **Protected main** - ห้าม push ตรงเข้า main
 6. **Worktrees** - อาจมีหลาย worktree branches ที่กำลังใช้งาน
 
+### Diffusers Generation Server (Production - Jan 2025)
+
+**ระบบ Image/Video Generation แบบ production-ready เหมือน ComfyUI**
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   C# DiffusersGenerationEngine               │
+│                      (AIManager.Core)                        │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ HTTP REST API
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Python FastAPI Generation Server                │
+│                   (generation_server.py)                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │  Diffusers  │  │   LoRA      │  │  Scheduler  │         │
+│  │   Pipeline  │  │   Adapter   │  │   Manager   │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│                          │                                   │
+│              ┌───────────┴───────────┐                      │
+│              │   CUDA / GPU Engine   │                      │
+│              │  (VRAM Optimization)  │                      │
+│              └───────────────────────┘                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Key Files
+
+| File | Location | Description |
+|------|----------|-------------|
+| `generation_server.py` | `AIManager.Core/Services/` | FastAPI Python server (~880 lines) |
+| `DiffusersGenerationEngine.cs` | `AIManager.Core/Services/` | C# wrapper ที่เรียก Python server |
+| `DiffusersEngineManager.cs` | `AIManager.Core/Services/` | จัดการ engine lifecycle |
+| `AutoSetupService.cs` | `AIManager.Core/Services/` | ติดตั้ง Python packages |
+
+#### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/info` | GET | Engine info (model, GPU, VRAM) |
+| `/vram` | GET | VRAM usage details |
+| `/load-model` | POST | Load diffusion model |
+| `/unload-model` | POST | Unload model & clear VRAM |
+| `/generate/image` | POST | Text-to-Image generation |
+| `/generate/img2img` | POST | Image-to-Image generation |
+| `/generate/video` | POST | Video generation (SVD) |
+| `/lora/load` | POST | Load LoRA adapter |
+| `/lora/unload` | POST | Unload LoRAs |
+| `/schedulers` | GET | List available schedulers |
+| `/shutdown` | POST | Graceful shutdown |
+
+#### Supported Schedulers (16+)
+
+```
+ddim, ddpm, pndm, euler, euler_a, euler_ancestral,
+dpm++_2m, dpm++_2m_karras, dpm++_2s, dpm++_sde, dpm++_sde_karras,
+heun, kdpm2, kdpm2_a, lms, unipc
+```
+
+#### Supported Models
+
+- Stable Diffusion 1.5, 2.1
+- SDXL (Stable Diffusion XL)
+- Stable Video Diffusion (SVD)
+- FLUX
+- Local models + HuggingFace download
+
+#### VRAM Optimizations
+
+- Attention slicing
+- VAE slicing
+- VAE tiling
+- Sequential CPU offload
+- Model CPU offload
+
+#### How to Run Server Manually
+
+```bash
+# Run server
+python generation_server.py --port 5050 --models-dir C:/Models
+
+# With low VRAM mode
+python generation_server.py --port 5050 --models-dir C:/Models --low-vram
+
+# Test health
+curl http://localhost:5050/health
+
+# Load model
+curl -X POST http://localhost:5050/load-model \
+  -H "Content-Type: application/json" \
+  -d '{"model_id": "stabilityai/stable-diffusion-xl-base-1.0"}'
+
+# Generate image
+curl -X POST http://localhost:5050/generate/image \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A beautiful sunset", "width": 1024, "height": 1024}'
+```
+
+#### Python Dependencies (Installed by AutoSetupService)
+
+```
+torch torchvision torchaudio (with CUDA)
+diffusers transformers accelerate safetensors
+fastapi uvicorn pydantic
+pillow
+```
+
+#### C# Script Loading (DiffusersGenerationEngine.cs)
+
+```csharp
+// Load priority:
+// 1. Embedded resource (AIManager.Core.Services.generation_server.py)
+// 2. External file in output directory (generation_server.py)
+// 3. Fallback minimal script (GenerateMinimalScript())
+```
+
+#### Important Notes
+
+1. **Python script ถูก copy ไป output directory** - ตั้งค่าใน `.csproj`
+2. **ต้องมี CUDA** - ถ้าไม่มี GPU จะใช้ CPU (ช้ามาก)
+3. **LoRA support** - Load/Unload ได้หลายตัว, ตั้ง weight ได้
+4. **Progress callback** - รายงาน progress ระหว่าง generation
+
+---
+
 ### Useful Commands
 
 ```bash
@@ -628,4 +756,8 @@ git push -u origin claude/<description>-<session-id>
 
 # List worktrees
 git worktree list
+
+# Test Diffusers Server
+cd AIManagerCore/src/AIManager.Core/bin/Release/net8.0
+python generation_server.py --port 5050 --models-dir C:/Models
 ```

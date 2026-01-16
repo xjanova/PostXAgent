@@ -52,7 +52,7 @@ class AuditLogController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $logs->map(fn ($log) => [
+            'data' => $logs->map(fn (Activity $log) => [
                 'id' => $log->id,
                 'log_name' => $log->log_name,
                 'description' => $log->description,
@@ -101,7 +101,7 @@ class AuditLogController extends Controller
                 'subject' => $activity->subject ? [
                     'type' => class_basename($activity->subject_type),
                     'id' => $activity->subject_id,
-                    'data' => $activity->subject->toArray(),
+                    'data' => method_exists($activity->subject, 'toArray') ? $activity->subject->toArray() : [],
                 ] : null,
                 'properties' => $activity->properties,
                 'created_at' => $activity->created_at->toIso8601String(),
@@ -118,12 +118,14 @@ class AuditLogController extends Controller
         $startDate = now()->subDays($days);
 
         // Get activity by log name
+        /** @phpstan-ignore-next-line */
         $byLogName = Activity::where('created_at', '>=', $startDate)
             ->selectRaw('log_name, COUNT(*) as count')
             ->groupBy('log_name')
             ->pluck('count', 'log_name');
 
         // Get activity by event type
+        /** @phpstan-ignore-next-line */
         $byEvent = Activity::where('created_at', '>=', $startDate)
             ->whereNotNull('event')
             ->selectRaw('event, COUNT(*) as count')
@@ -131,6 +133,7 @@ class AuditLogController extends Controller
             ->pluck('count', 'event');
 
         // Get daily activity
+        /** @phpstan-ignore-next-line */
         $dailyActivity = Activity::where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
             ->groupBy('date')
@@ -138,6 +141,7 @@ class AuditLogController extends Controller
             ->pluck('count', 'date');
 
         // Get top causers
+        /** @phpstan-ignore-next-line */
         $topCausers = Activity::where('created_at', '>=', $startDate)
             ->whereNotNull('causer_id')
             ->with('causer:id,name,email')
@@ -146,7 +150,7 @@ class AuditLogController extends Controller
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn ($item) => [
+            ->map(fn (Activity $item) => [
                 'user' => $item->causer ? [
                     'id' => $item->causer->id,
                     'name' => $item->causer->name,
@@ -162,6 +166,7 @@ class AuditLogController extends Controller
                     'to' => now()->toDateString(),
                     'days' => $days,
                 ],
+                /** @phpstan-ignore-next-line */
                 'total_activities' => Activity::where('created_at', '>=', $startDate)->count(),
                 'by_log_name' => $byLogName,
                 'by_event' => $byEvent,
@@ -184,7 +189,7 @@ class AuditLogController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $logs->map(fn ($log) => [
+            'data' => $logs->map(fn (Activity $log) => [
                 'id' => $log->id,
                 'description' => $log->description,
                 'event' => $log->event,
