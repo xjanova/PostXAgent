@@ -61,13 +61,36 @@ PostXAgent is an AI-powered Brand Promotion Manager system that automates social
 // Use strict types
 declare(strict_types=1);
 
-// Use type hints
+// Use type hints everywhere
 public function processTask(TaskItem $task): TaskResult
 
 // Use Laravel conventions
 // Controllers: PascalCase + Controller suffix
 // Models: PascalCase singular
 // Tables: snake_case plural
+
+// PHPDoc annotations สำหรับ properties ใน Models
+/**
+ * @property int $id
+ * @property string $name
+ * @property \Illuminate\Support\Carbon|null $created_at
+ */
+class User extends Authenticatable
+
+// Type hints ใน closures (arrow functions)
+->map(fn(Activity $log) => [...])
+->map(fn(Campaign $c): array => [...])
+->groupBy(fn(Post $p): string => $p->published_at->toDateString())
+
+// Null-safe operator เมื่อมี nullable
+$p->published_at?->toDateString() ?? ''
+
+// PHPStan type annotations เมื่อจำเป็น
+/** @var array<string, mixed> $poolArray */
+$poolArray = $pool->toArray();
+
+// PHPStan ignore comments เมื่อไม่สามารถแก้ได้
+/** @phpstan-ignore-next-line */
 ```
 
 #### C#/.NET
@@ -360,7 +383,7 @@ php artisan make:migration create_xyz_table
 
 ---
 
-## Session Handoff Notes (Updated: 16 Dec 2025)
+## Session Handoff Notes (Updated: 16 Jan 2026)
 
 ### Repository Paths
 
@@ -373,7 +396,17 @@ php artisan make:migration create_xyz_table
 
 ### Current Project State
 
-โปรเจคนี้อยู่ในสถานะ **พร้อมใช้งาน** - CI ผ่านทั้งหมดแล้ว (Version 1.0.0)
+โปรเจคนี้อยู่ในสถานะ **พร้อมใช้งาน** - CI ผ่านทั้งหมดแล้ว (Version 1.3.0)
+
+### Recent Features Added (Jan 2026)
+
+| Feature | Description | PR/Commit |
+|---------|-------------|-----------|
+| Diffusers img2img Support | เพิ่ม img2img generation พร้อม progress callback, LoRA, scheduler | f7eaa31f |
+| LoRA Management | C# API สำหรับ load/unload LoRA adapters | f7eaa31f |
+| Video Progress Callback | เพิ่ม progress tracking สำหรับ SVD video generation | f7eaa31f |
+| Scheduler Query API | C# API สำหรับ query available schedulers | f7eaa31f |
+| CLIP Skip Fix | แก้ไข CLIP skip mutation ให้ reset หลัง generation | f7eaa31f |
 
 ### Recent Features Added (Dec 2025)
 
