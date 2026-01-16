@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\AIManagerClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Artisan;
 
 class AIManagerController extends Controller
 {
@@ -158,7 +159,7 @@ class AIManagerController extends Controller
         file_put_contents($envPath, $envContent);
 
         // Clear config cache
-        \Artisan::call('config:clear');
+        Artisan::call('config:clear');
 
         return response()->json([
             'success' => true,

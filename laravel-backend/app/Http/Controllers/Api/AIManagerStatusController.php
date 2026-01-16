@@ -7,6 +7,7 @@ use App\Services\AIManagerConnectionStatus;
 use App\Services\AIManagerClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Http;
 
 class AIManagerStatusController extends Controller
 {
@@ -211,7 +212,7 @@ class AIManagerStatusController extends Controller
         try {
             $url = "http://{$validated['host']}:{$validated['port']}/api/status/health";
 
-            $response = \Http::timeout(5)->get($url);
+            $response = Http::timeout(5)->get($url);
             $latency = round((microtime(true) - $startTime) * 1000, 2);
 
             if ($response->successful()) {

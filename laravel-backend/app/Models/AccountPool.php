@@ -9,6 +9,30 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+/**
+ * @property int $id
+ * @property int $brand_id
+ * @property string $platform
+ * @property string $name
+ * @property string|null $description
+ * @property string $rotation_strategy
+ * @property int $cooldown_minutes
+ * @property int $max_posts_per_day
+ * @property bool $auto_failover
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool first($columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool active()
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool forPlatform(string $platform)
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountPool forBrand(int $brandId)
+ */
 class AccountPool extends Model
 {
     use HasFactory, SoftDeletes;

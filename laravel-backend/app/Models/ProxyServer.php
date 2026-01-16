@@ -7,6 +7,36 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @property int $id
+ * @property string $host
+ * @property int $port
+ * @property string $type
+ * @property string|null $username
+ * @property string|null $password_encrypted
+ * @property string $provider
+ * @property string|null $country_code
+ * @property string|null $city
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property \Illuminate\Support\Carbon|null $last_checked_at
+ * @property int|null $response_time_ms
+ * @property int $success_count
+ * @property int $failure_count
+ * @property array|null $banned_platforms
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ *
+ * @property-write string $password
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer active()
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer forCountry(string $countryCode)
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer notBannedFor(string $platform)
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer fastest()
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer leastUsed()
+ */
 class ProxyServer extends Model
 {
     use HasFactory, SoftDeletes;

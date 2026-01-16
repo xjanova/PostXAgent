@@ -155,7 +155,7 @@ jobs:
         working-directory: laravel-backend
         run: |
           composer install --no-dev --optimize-autoloader
-          npm ci
+          npm install
           npm run build
 
       - name: Update version

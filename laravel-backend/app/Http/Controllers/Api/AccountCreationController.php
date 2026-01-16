@@ -48,28 +48,38 @@ class AccountCreationController extends Controller
         }
 
         // Check ownership
-        $brand = Brand::findOrFail($request->brand_id);
+        /** @var int $brandId */
+        $brandId = $request->input('brand_id');
+        $brand = Brand::findOrFail($brandId);
         $this->authorize('update', $brand);
 
+        /** @var string $platform */
+        $platform = $request->input('platform');
+
         // Check if we can create
-        if (!$this->creationService->canCreateAccount($request->platform)) {
+        if (!$this->creationService->canCreateAccount($platform)) {
             return response()->json([
                 'success' => false,
                 'message' => 'ไม่มีทรัพยากรเพียงพอสำหรับสร้างบัญชี กรุณาเพิ่มเบอร์โทร/อีเมลก่อน',
-                'resource_status' => $this->creationService->checkResourceAvailability($request->platform),
+                'resource_status' => $this->creationService->checkResourceAvailability($platform),
             ], 400);
         }
 
-        $pool = $request->account_pool_id
-            ? AccountPool::findOrFail($request->account_pool_id)
+        /** @var int|null $accountPoolId */
+        $accountPoolId = $request->input('account_pool_id');
+        $pool = $accountPoolId
+            ? AccountPool::findOrFail($accountPoolId)
             : null;
+
+        /** @var array<string, mixed>|null $profileData */
+        $profileData = $request->input('profile_data');
 
         $task = $this->creationService->createTask(
             $request->user(),
             $brand,
-            $request->platform,
+            $platform,
             $pool,
-            $request->profile_data
+            $profileData
         );
 
         return response()->json([
@@ -98,18 +108,27 @@ class AccountCreationController extends Controller
             ], 422);
         }
 
-        $brand = Brand::findOrFail($request->brand_id);
+        /** @var int $brandId */
+        $brandId = $request->input('brand_id');
+        $brand = Brand::findOrFail($brandId);
         $this->authorize('update', $brand);
 
-        $pool = $request->account_pool_id
-            ? AccountPool::findOrFail($request->account_pool_id)
+        /** @var int|null $accountPoolId */
+        $accountPoolId = $request->input('account_pool_id');
+        $pool = $accountPoolId
+            ? AccountPool::findOrFail($accountPoolId)
             : null;
+
+        /** @var string $platform */
+        $platform = $request->input('platform');
+        /** @var int $count */
+        $count = $request->input('count');
 
         $tasks = $this->creationService->createBulkTasks(
             $request->user(),
             $brand,
-            $request->platform,
-            $request->count,
+            $platform,
+            $count,
             $pool
         );
 
@@ -143,15 +162,15 @@ class AccountCreationController extends Controller
             ->with(['brand', 'accountPool', 'resultSocialAccount']);
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         if ($request->has('platform')) {
-            $query->where('platform', $request->platform);
+            $query->where('platform', $request->input('platform'));
         }
 
         if ($request->has('brand_id')) {
-            $query->where('brand_id', $request->brand_id);
+            $query->where('brand_id', $request->input('brand_id'));
         }
 
         $tasks = $query->orderBy('created_at', 'desc')
@@ -240,7 +259,9 @@ class AccountCreationController extends Controller
             ], 422);
         }
 
-        $status = $this->creationService->checkResourceAvailability($request->platform);
+        /** @var string $platformInput */
+        $platformInput = $request->input('platform');
+        $status = $this->creationService->checkResourceAvailability($platformInput);
 
         return response()->json([
             'success' => true,
@@ -258,7 +279,7 @@ class AccountCreationController extends Controller
         $query = PhoneNumber::query();
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         $phones = $query->orderBy('created_at', 'desc')
@@ -288,10 +309,14 @@ class AccountCreationController extends Controller
             ], 422);
         }
 
+        /** @var string $phoneNumber */
+        $phoneNumber = $request->input('phone_number');
+        /** @var string $countryCode */
+        $countryCode = $request->input('country_code');
         $phone = PhoneNumber::create([
-            'phone_number' => $request->phone_number,
-            'country_code' => strtoupper($request->country_code),
-            'provider' => $request->provider ?? PhoneNumber::PROVIDER_MANUAL,
+            'phone_number' => $phoneNumber,
+            'country_code' => strtoupper($countryCode),
+            'provider' => $request->input('provider') ?? PhoneNumber::PROVIDER_MANUAL,
             'status' => PhoneNumber::STATUS_AVAILABLE,
         ]);
 
@@ -332,7 +357,7 @@ class AccountCreationController extends Controller
         $query = EmailAccount::query();
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         $emails = $query->orderBy('created_at', 'desc')
@@ -364,14 +389,18 @@ class AccountCreationController extends Controller
             ], 422);
         }
 
+        /** @var string $emailInput */
+        $emailInput = $request->input('email');
+        /** @var string $passwordInput */
+        $passwordInput = $request->input('password');
         $email = new EmailAccount([
-            'email' => $request->email,
-            'provider' => $request->provider ?? $this->detectEmailProvider($request->email),
-            'recovery_email' => $request->recovery_email,
-            'recovery_phone' => $request->recovery_phone,
+            'email' => $emailInput,
+            'provider' => $request->input('provider') ?? $this->detectEmailProvider($emailInput),
+            'recovery_email' => $request->input('recovery_email'),
+            'recovery_phone' => $request->input('recovery_phone'),
             'status' => EmailAccount::STATUS_AVAILABLE,
         ]);
-        $email->password = $request->password;
+        $email->password = $passwordInput;
         $email->save();
 
         return response()->json([
@@ -411,11 +440,11 @@ class AccountCreationController extends Controller
         $query = ProxyServer::query();
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         if ($request->has('country_code')) {
-            $query->where('country_code', $request->country_code);
+            $query->where('country_code', $request->input('country_code'));
         }
 
         $proxies = $query->orderBy('response_time_ms', 'asc')
@@ -456,18 +485,26 @@ class AccountCreationController extends Controller
             ], 422);
         }
 
+        /** @var string $hostInput */
+        $hostInput = $request->input('host');
+        /** @var int $portInput */
+        $portInput = $request->input('port');
+        /** @var string|null $countryCodeInput */
+        $countryCodeInput = $request->input('country_code');
         $proxy = new ProxyServer([
-            'host' => $request->host,
-            'port' => $request->port,
-            'type' => $request->type ?? ProxyServer::TYPE_HTTP,
-            'username' => $request->username,
-            'provider' => $request->provider ?? ProxyServer::PROVIDER_CUSTOM,
-            'country_code' => $request->country_code ? strtoupper($request->country_code) : null,
+            'host' => $hostInput,
+            'port' => $portInput,
+            'type' => $request->input('type') ?? ProxyServer::TYPE_HTTP,
+            'username' => $request->input('username'),
+            'provider' => $request->input('provider') ?? ProxyServer::PROVIDER_CUSTOM,
+            'country_code' => $countryCodeInput ? strtoupper($countryCodeInput) : null,
             'status' => ProxyServer::STATUS_ACTIVE,
         ]);
 
-        if ($request->password) {
-            $proxy->password = $request->password;
+        /** @var string|null $passwordInput */
+        $passwordInput = $request->input('password');
+        if ($passwordInput) {
+            $proxy->password = $passwordInput;
         }
 
         $proxy->save();

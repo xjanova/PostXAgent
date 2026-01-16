@@ -6,6 +6,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $brand_id
+ * @property string $name
+ * @property string|null $description
+ * @property string $type
+ * @property string|null $goal
+ * @property array|null $target_platforms
+ * @property array|null $content_themes
+ * @property array|null $posting_schedule
+ * @property array|null $ai_settings
+ * @property float|null $budget
+ * @property \Illuminate\Support\Carbon|null $start_date
+ * @property \Illuminate\Support\Carbon|null $end_date
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read int|null $total_posts
+ * @property-read int|null $published_posts
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Campaign where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|Campaign create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Campaign find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Campaign findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Campaign first($columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Campaign withCount($relations)
+ */
 class Campaign extends Model
 {
     use HasFactory, SoftDeletes;

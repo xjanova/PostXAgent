@@ -1,0 +1,70 @@
+# Labels based on file paths changed
+
+# Component labels
+laravel:
+  - changed-files:
+      - any-glob-to-any-file: 'laravel-backend/**'
+
+dotnet:
+  - changed-files:
+      - any-glob-to-any-file: 'AIManagerCore/**'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '*.md'
+          - '!CHANGELOG.md'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: '.github/**'
+
+# Type labels based on common patterns
+feature:
+  - head-branch: ['^feature/', '^feat/']
+
+bugfix:
+  - head-branch: ['^fix/', '^bugfix/', '^hotfix/']
+
+refactor:
+  - head-branch: ['^refactor/']
+
+# AI-related changes
+ai:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/AI*.cs'
+          - '**/ContentGenerator*.cs'
+          - '**/ImageGenerator*.cs'
+          - 'laravel-backend/app/Services/AI*'
+
+# Social platform changes
+social-platforms:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/Workers/**'
+          - '**/Platform*.cs'
+
+# Frontend changes
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'laravel-backend/resources/js/**'
+          - 'laravel-backend/resources/css/**'
+          - '**/*.vue'
+
+# Database changes
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'laravel-backend/database/**'
+          - '**/migrations/**'
+
+# Tests
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/tests/**'
+          - '**/*Test.php'
+          - '**/*Tests.cs'

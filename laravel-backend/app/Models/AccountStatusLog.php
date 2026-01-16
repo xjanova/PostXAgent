@@ -6,6 +6,31 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $social_account_id
+ * @property int|null $account_pool_id
+ * @property int|null $post_id
+ * @property string $event_type
+ * @property string|null $old_status
+ * @property string|null $new_status
+ * @property string|null $message
+ * @property array|null $metadata
+ * @property string $triggered_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog first($columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog forAccount(int $accountId)
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog forPool(int $poolId)
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog ofType(string $eventType)
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog recent(int $hours = 24)
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountStatusLog failures()
+ */
 class AccountStatusLog extends Model
 {
     use HasFactory;
