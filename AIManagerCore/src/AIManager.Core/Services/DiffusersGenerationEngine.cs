@@ -17,6 +17,7 @@ public class DiffusersGenerationEngine : IDisposable
     private readonly ILogger<DiffusersGenerationEngine>? _logger;
     private readonly HuggingFaceModelService _modelService;
     private readonly LocalGpuService _gpuService;
+    private readonly AutoSetupService _autoSetup;
     private readonly string _scriptsDir;
     private Process? _serverProcess;
     private HttpClient? _httpClient;
@@ -52,9 +53,19 @@ public class DiffusersGenerationEngine : IDisposable
     public event EventHandler<DiffusersProgressEventArgs>? ProgressChanged;
 
     /// <summary>
+    /// Event raised when model loading progress updates
+    /// </summary>
+    public event EventHandler<ModelLoadProgressEventArgs>? ModelLoadProgressChanged;
+
+    /// <summary>
     /// Event raised when GPU status changes
     /// </summary>
     public event EventHandler<LocalGpuStatusEventArgs>? GpuStatusChanged;
+
+    /// <summary>
+    /// Event raised when auto-setup progress changes
+    /// </summary>
+    public event EventHandler<SetupProgressEventArgs>? SetupProgressChanged;
 
     /// <summary>
     /// Gets whether the engine is running
@@ -81,14 +92,24 @@ public class DiffusersGenerationEngine : IDisposable
     /// </summary>
     public PythonEnvironmentInfo? PythonEnvironment => _cachedPythonEnv;
 
+    /// <summary>
+    /// Gets the server process ID (if running)
+    /// </summary>
+    public int? ServerProcessId => _serverProcess?.HasExited == false ? _serverProcess.Id : null;
+
     public DiffusersGenerationEngine(
         HuggingFaceModelService modelService,
         LocalGpuService? gpuService = null,
+        AutoSetupService? autoSetup = null,
         ILogger<DiffusersGenerationEngine>? logger = null)
     {
         _modelService = modelService;
         _gpuService = gpuService ?? new LocalGpuService();
+        _autoSetup = autoSetup ?? new AutoSetupService(_gpuService);
         _logger = logger;
+
+        // Subscribe to auto-setup progress events
+        _autoSetup.ProgressChanged += (s, e) => SetupProgressChanged?.Invoke(this, e);
 
         // Setup scripts directory
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -96,12 +117,23 @@ public class DiffusersGenerationEngine : IDisposable
         Directory.CreateDirectory(_scriptsDir);
     }
 
+    /// <summary>
+    /// Gets whether the auto-setup has been completed
+    /// </summary>
+    public bool IsSetupComplete => _autoSetup.IsPythonInstalled;
+
+    /// <summary>
+    /// Gets the AutoSetupService instance for manual control
+    /// </summary>
+    public AutoSetupService AutoSetup => _autoSetup;
+
     #region Engine Lifecycle
 
     /// <summary>
     /// Perform pre-flight checks before starting the engine
+    /// If autoInstall is true, automatically installs missing dependencies
     /// </summary>
-    public async Task<PreflightCheckResult> PerformPreflightChecksAsync(CancellationToken ct = default)
+    public async Task<PreflightCheckResult> PerformPreflightChecksAsync(bool autoInstall = true, CancellationToken ct = default)
     {
         var result = new PreflightCheckResult();
 
@@ -115,12 +147,77 @@ public class DiffusersGenerationEngine : IDisposable
 
             GpuStatusChanged?.Invoke(this, new LocalGpuStatusEventArgs(_cachedGpuInfo));
 
-            // Check Python environment
+            // Check if we have embedded Python from auto-setup
+            if (_autoSetup.IsPythonInstalled)
+            {
+                // Verify embedded Python installation
+                StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Verifying embedded Python..."));
+                var verification = await _autoSetup.VerifyInstallationAsync(ct);
+
+                if (verification.IsValid)
+                {
+                    result.HasPython = true;
+                    result.PythonReady = true;
+                    _cachedPythonEnv = new PythonEnvironmentInfo
+                    {
+                        IsAvailable = true,
+                        IsReady = true,
+                        PythonPath = _autoSetup.PythonPath,
+                        PythonVersion = verification.PythonVersion,
+                        HasCudaSupport = verification.HasCuda,
+                        InstalledPackages = new List<string> { "PyTorch", "Diffusers", "Transformers", "Accelerate" }
+                    };
+                    result.PythonEnv = _cachedPythonEnv;
+                    result.IsReady = true;
+
+                    _logger?.LogInformation("Embedded Python ready: {Version}, CUDA: {Cuda}",
+                        verification.PythonVersion, verification.HasCuda);
+                    return result;
+                }
+            }
+
+            // Check system Python environment
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Checking Python environment..."));
             _cachedPythonEnv = await _gpuService.CheckPythonEnvironmentAsync(ct);
             result.PythonEnv = _cachedPythonEnv;
             result.HasPython = _cachedPythonEnv.IsAvailable;
             result.PythonReady = _cachedPythonEnv.IsReady;
+
+            // Auto-install if enabled and not ready
+            if (autoInstall && (!result.HasPython || !result.PythonReady))
+            {
+                _logger?.LogInformation("Python not ready, starting automatic installation...");
+                StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Installing Python and dependencies automatically..."));
+
+                var setupResult = await _autoSetup.PerformFullSetupAsync(ct);
+
+                if (setupResult.Success && setupResult.VerificationResult?.IsValid == true)
+                {
+                    result.HasPython = true;
+                    result.PythonReady = true;
+                    result.AutoInstalled = true;
+                    _cachedPythonEnv = new PythonEnvironmentInfo
+                    {
+                        IsAvailable = true,
+                        IsReady = true,
+                        PythonPath = _autoSetup.PythonPath,
+                        PythonVersion = setupResult.VerificationResult.PythonVersion,
+                        HasCudaSupport = setupResult.VerificationResult.HasCuda,
+                        InstalledPackages = new List<string> { "PyTorch", "Diffusers", "Transformers", "Accelerate" }
+                    };
+                    result.PythonEnv = _cachedPythonEnv;
+
+                    _logger?.LogInformation("Automatic installation completed successfully");
+                }
+                else
+                {
+                    result.Errors.Add($"Automatic installation failed: {setupResult.Message}");
+                    if (setupResult.VerificationResult?.Errors.Count > 0)
+                    {
+                        result.Errors.AddRange(setupResult.VerificationResult.Errors);
+                    }
+                }
+            }
 
             // Set overall readiness
             result.IsReady = result.HasPython && result.PythonReady;
@@ -135,27 +232,27 @@ public class DiffusersGenerationEngine : IDisposable
                 result.Warnings.Add($"Low VRAM ({_cachedGpuInfo.TotalVramGb:F1}GB). Only small models supported.");
             }
 
-            if (!result.HasPython)
+            if (!result.IsReady && !autoInstall)
             {
-                result.Errors.Add("Python 3.10+ not found. Please install Python.");
-            }
-            else if (!result.PythonReady)
-            {
-                var installCmd = _gpuService.GetInstallCommand(_cachedPythonEnv, _cachedGpuInfo);
-                result.Errors.Add($"Missing packages: {string.Join(", ", _cachedPythonEnv.MissingPackages)}");
-                result.InstallCommand = installCmd;
+                if (!result.HasPython)
+                {
+                    result.Errors.Add("Python 3.10+ not found. Please install Python.");
+                }
+                else if (!result.PythonReady)
+                {
+                    var installCmd = _gpuService.GetInstallCommand(_cachedPythonEnv, _cachedGpuInfo);
+                    result.Errors.Add($"Missing packages: {string.Join(", ", _cachedPythonEnv.MissingPackages)}");
+                    result.InstallCommand = installCmd;
+                }
             }
 
-            if (!_cachedPythonEnv.HasCudaSupport && result.HasGpu && _cachedGpuInfo.Vendor == GpuVendor.Nvidia)
+            if (_cachedPythonEnv != null && !_cachedPythonEnv.HasCudaSupport && result.HasGpu && _cachedGpuInfo.Vendor == GpuVendor.Nvidia)
             {
                 result.Warnings.Add("PyTorch doesn't have CUDA support. GPU acceleration unavailable.");
-                result.InstallCommand = _gpuService.GetInstallCommand(
-                    new PythonEnvironmentInfo { MissingPackages = new List<string> { "PyTorch" } },
-                    _cachedGpuInfo);
             }
 
-            _logger?.LogInformation("Preflight check complete. Ready: {Ready}, GPU: {Gpu}, Python: {Python}",
-                result.IsReady, result.HasGpu, result.PythonReady);
+            _logger?.LogInformation("Preflight check complete. Ready: {Ready}, GPU: {Gpu}, Python: {Python}, AutoInstalled: {AutoInstalled}",
+                result.IsReady, result.HasGpu, result.PythonReady, result.AutoInstalled);
 
             return result;
         }
@@ -192,7 +289,7 @@ public class DiffusersGenerationEngine : IDisposable
             // Perform pre-flight checks
             if (!skipPreflightChecks)
             {
-                var preflightResult = await PerformPreflightChecksAsync(ct);
+                var preflightResult = await PerformPreflightChecksAsync(autoInstall: true, ct: ct);
                 if (!preflightResult.IsReady)
                 {
                     StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Error, "Pre-flight checks failed"));
@@ -210,7 +307,21 @@ public class DiffusersGenerationEngine : IDisposable
 
             // Start Python process
             var scriptPath = Path.Combine(_scriptsDir, "generation_server.py");
-            var pythonPath = _cachedPythonEnv?.PythonPath ?? "python";
+
+            // Determine Python path - prefer embedded Python from auto-setup
+            string pythonPath;
+            var useEmbeddedPython = _autoSetup.IsPythonInstalled;
+
+            if (useEmbeddedPython)
+            {
+                pythonPath = _autoSetup.PythonPath;
+                _logger?.LogInformation("Using embedded Python: {Path}", pythonPath);
+            }
+            else
+            {
+                pythonPath = _cachedPythonEnv?.PythonPath ?? "python";
+                _logger?.LogInformation("Using system Python: {Path}", pythonPath);
+            }
 
             var psi = new ProcessStartInfo
             {
@@ -222,6 +333,19 @@ public class DiffusersGenerationEngine : IDisposable
                 CreateNoWindow = true,
                 WorkingDirectory = _scriptsDir
             };
+
+            // Set environment for embedded Python
+            if (useEmbeddedPython)
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var pythonDir = Path.Combine(appData, "PostXAgent", "python");
+                var scriptsDir = Path.Combine(pythonDir, "Scripts");
+                var libDir = Path.Combine(pythonDir, "Lib", "site-packages");
+
+                psi.EnvironmentVariables["PYTHONHOME"] = pythonDir;
+                psi.EnvironmentVariables["PYTHONPATH"] = libDir;
+                psi.EnvironmentVariables["PATH"] = $"{pythonDir};{scriptsDir};{Environment.GetEnvironmentVariable("PATH")}";
+            }
 
             // Set environment variables for CUDA
             if (_cachedGpuInfo?.Vendor == GpuVendor.Nvidia)
@@ -487,6 +611,15 @@ public class DiffusersGenerationEngine : IDisposable
 
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Loading, $"Loading {modelId}..."));
 
+            // Fire progress: Starting
+            ModelLoadProgressChanged?.Invoke(this, new ModelLoadProgressEventArgs
+            {
+                ModelId = modelId,
+                Stage = "Starting",
+                Progress = 10,
+                Message = "กำลังเตรียมโหลด Model..."
+            });
+
             var request = new LoadModelRequest
             {
                 ModelId = modelId,
@@ -496,7 +629,25 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            // Fire progress: Sending request
+            ModelLoadProgressChanged?.Invoke(this, new ModelLoadProgressEventArgs
+            {
+                ModelId = modelId,
+                Stage = "Loading",
+                Progress = 30,
+                Message = "กำลังโหลด Model เข้า VRAM..."
+            });
+
             var response = await _httpClient!.PostAsync($"http://localhost:{Port}/load-model", content, ct);
+
+            // Fire progress: Processing response
+            ModelLoadProgressChanged?.Invoke(this, new ModelLoadProgressEventArgs
+            {
+                ModelId = modelId,
+                Stage = "Processing",
+                Progress = 70,
+                Message = "กำลังประมวลผล..."
+            });
 
             if (!response.IsSuccessStatusCode)
             {
@@ -520,6 +671,15 @@ public class DiffusersGenerationEngine : IDisposable
 
             // Update VRAM status after loading
             var vramUsage = await _gpuService.GetVramUsageAsync(ct);
+
+            // Fire progress: Complete
+            ModelLoadProgressChanged?.Invoke(this, new ModelLoadProgressEventArgs
+            {
+                ModelId = modelId,
+                Stage = "Complete",
+                Progress = 100,
+                Message = "โหลด Model สำเร็จ!"
+            });
 
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, $"Loaded: {modelId}"));
             _logger?.LogInformation("Model loaded: {ModelId}, VRAM used: {VramMb}MB", modelId, vramUsage.UsedMb);
@@ -618,6 +778,49 @@ public class DiffusersGenerationEngine : IDisposable
     }
 
     /// <summary>
+    /// Generate an image from another image (img2img)
+    /// </summary>
+    public async Task<DiffusersResult> GenerateImg2ImgAsync(
+        DiffusersImg2ImgRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new DiffusersResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, "Generating img2img..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/img2img", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<DiffusersResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Img2img generation complete"));
+
+            return result ?? new DiffusersResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new DiffusersResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Img2img generation failed");
+            return new DiffusersResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
     /// Generate a video
     /// </summary>
     public async Task<DiffusersResult> GenerateVideoAsync(
@@ -657,6 +860,96 @@ public class DiffusersGenerationEngine : IDisposable
         {
             _logger?.LogError(ex, "Video generation failed");
             return new DiffusersResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    #endregion
+
+    #region LoRA Management
+
+    /// <summary>
+    /// Load a LoRA adapter
+    /// </summary>
+    public async Task<LoraLoadResult> LoadLoraAsync(string loraPath, double weight = 1.0, string? adapterName = null, CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new LoraLoadResult { Success = false, Error = "Engine not running" };
+        }
+
+        try
+        {
+            var request = new LoraLoadRequest
+            {
+                Path = loraPath,
+                Weight = weight,
+                Name = adapterName
+            };
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/lora/load", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<LoraLoadResult>(ct);
+            _logger?.LogInformation("LoRA loaded: {Path}, weight: {Weight}", loraPath, weight);
+
+            return result ?? new LoraLoadResult { Success = false, Error = "Empty response" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load LoRA: {Path}", loraPath);
+            return new LoraLoadResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Unload all LoRA adapters
+    /// </summary>
+    public async Task<bool> UnloadLorasAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return false;
+
+        try
+        {
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/lora/unload", null, ct);
+            response.EnsureSuccessStatusCode();
+            _logger?.LogInformation("All LoRAs unloaded");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to unload LoRAs");
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Scheduler Management
+
+    /// <summary>
+    /// Get available schedulers from the server
+    /// </summary>
+    public async Task<List<string>> GetAvailableSchedulersAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return new List<string>();
+
+        try
+        {
+            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/schedulers", ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<SchedulersResponse>(ct);
+            return result?.Schedulers ?? new List<string>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get schedulers");
+            return new List<string>();
         }
     }
 
@@ -743,287 +1036,160 @@ public class DiffusersGenerationEngine : IDisposable
 
     #region Python Script
 
-    private static string GetGenerationServerScript() => """
-#!/usr/bin/env python3
-"""
-+ "\"\"\"" + """
-PostXAgent Diffusers Generation Server
-A lightweight HTTP server for image/video generation using HuggingFace Diffusers
-""" + "\"\"\"" + """
+    private static string GetGenerationServerScript()
+    {
+        // Try to load from embedded resource file first
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var resourceName = "AIManager.Core.Services.generation_server.py";
 
-import argparse
-import base64
-import gc
-import io
-import json
-import os
-import sys
-import threading
-import time
-import traceback
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
-# Try to import torch and diffusers
-try:
-    import torch
-    from diffusers import (
-        StableDiffusionXLPipeline,
-        StableDiffusionPipeline,
-        DiffusionPipeline,
-        StableVideoDiffusionPipeline,
-        AutoPipelineForText2Image,
-    )
-    HAS_DIFFUSERS = True
-except ImportError:
-    HAS_DIFFUSERS = False
-    print("WARNING: diffusers not installed. Run: pip install diffusers transformers accelerate")
-
-try:
-    from PIL import Image
-    HAS_PIL = True
-except ImportError:
-    HAS_PIL = False
-
-
-class GenerationServer:
-    def __init__(self, models_dir: str):
-        self.models_dir = models_dir
-        self.current_model = None
-        self.pipeline = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.dtype = torch.float16 if self.device == "cuda" else torch.float32
-
-        print(f"Device: {self.device}")
-        print(f"Models directory: {models_dir}")
-
-        if self.device == "cuda":
-            print(f"GPU: {torch.cuda.get_device_name(0)}")
-            print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
-
-    def load_model(self, model_id: str, model_type: str) -> dict:
-        try:
-            self.unload_model()
-            print(f"Loading model: {model_id}")
-
-            local_path = os.path.join(self.models_dir, "checkpoints", model_id.replace("/", "--"))
-            use_local = os.path.exists(local_path)
-            model_path = local_path if use_local else model_id
-
-            if model_type in ["TextToImage", "ImageToImage"]:
-                if "xl" in model_id.lower() or "sdxl" in model_id.lower():
-                    self.pipeline = StableDiffusionXLPipeline.from_pretrained(
-                        model_path, torch_dtype=self.dtype, use_safetensors=True, local_files_only=use_local)
-                elif "flux" in model_id.lower():
-                    self.pipeline = DiffusionPipeline.from_pretrained(
-                        model_path, torch_dtype=self.dtype, local_files_only=use_local)
-                else:
-                    self.pipeline = AutoPipelineForText2Image.from_pretrained(
-                        model_path, torch_dtype=self.dtype, use_safetensors=True, local_files_only=use_local)
-            elif model_type in ["TextToVideo", "ImageToVideo"]:
-                self.pipeline = StableVideoDiffusionPipeline.from_pretrained(
-                    model_path, torch_dtype=self.dtype, local_files_only=use_local)
-            else:
-                self.pipeline = AutoPipelineForText2Image.from_pretrained(
-                    model_path, torch_dtype=self.dtype, local_files_only=use_local)
-
-            self.pipeline = self.pipeline.to(self.device)
-            if hasattr(self.pipeline, "enable_attention_slicing"):
-                self.pipeline.enable_attention_slicing()
-            if hasattr(self.pipeline, "enable_vae_slicing"):
-                self.pipeline.enable_vae_slicing()
-
-            self.current_model = model_id
-            print(f"Model loaded: {model_id}")
-            return {"success": True, "model": model_id}
-        except Exception as e:
-            traceback.print_exc()
-            return {"success": False, "error": str(e)}
-
-    def unload_model(self):
-        if self.pipeline is not None:
-            del self.pipeline
-            self.pipeline = None
-            self.current_model = None
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            print("Model unloaded")
-
-    def generate_image(self, params: dict) -> dict:
-        if self.pipeline is None:
-            return {"success": False, "error": "No model loaded"}
-        try:
-            prompt = params.get("prompt", "")
-            negative_prompt = params.get("negative_prompt", "")
-            width = params.get("width", 1024)
-            height = params.get("height", 1024)
-            steps = params.get("steps", 30)
-            guidance = params.get("guidance_scale", 7.5)
-            seed = params.get("seed", -1)
-            batch_size = params.get("batch_size", 1)
-
-            if seed >= 0:
-                generator = torch.Generator(device=self.device).manual_seed(seed)
-            else:
-                seed = torch.randint(0, 2**32, (1,)).item()
-                generator = torch.Generator(device=self.device).manual_seed(seed)
-
-            start_time = time.time()
-            result = self.pipeline(
-                prompt=prompt,
-                negative_prompt=negative_prompt if negative_prompt else None,
-                width=width, height=height, num_inference_steps=steps,
-                guidance_scale=guidance, num_images_per_prompt=batch_size, generator=generator)
-
-            gen_time = time.time() - start_time
-            images = []
-            for img in result.images:
-                buffer = io.BytesIO()
-                img.save(buffer, format="PNG")
-                b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                images.append(f"data:image/png;base64,{b64}")
-
-            return {"success": True, "images": images, "seed": seed, "generation_time": gen_time}
-        except Exception as e:
-            traceback.print_exc()
-            return {"success": False, "error": str(e)}
-
-    def generate_video(self, params: dict) -> dict:
-        if self.pipeline is None:
-            return {"success": False, "error": "No model loaded"}
-        try:
-            image_b64 = params.get("image")
-            num_frames = params.get("num_frames", 25)
-            fps = params.get("fps", 7)
-            seed = params.get("seed", -1)
-
-            if seed >= 0:
-                generator = torch.Generator(device=self.device).manual_seed(seed)
-            else:
-                seed = torch.randint(0, 2**32, (1,)).item()
-                generator = torch.Generator(device=self.device).manual_seed(seed)
-
-            start_time = time.time()
-            input_image = None
-            if image_b64:
-                if image_b64.startswith("data:"):
-                    image_b64 = image_b64.split(",")[1]
-                image_data = base64.b64decode(image_b64)
-                input_image = Image.open(io.BytesIO(image_data))
-                input_image = input_image.resize((1024, 576))
-
-            if input_image:
-                frames = self.pipeline(input_image, num_frames=num_frames, generator=generator).frames[0]
-            else:
-                return {"success": False, "error": "Text-to-video not supported yet"}
-
-            gen_time = time.time() - start_time
-            frame_images = []
-            for frame in frames:
-                buffer = io.BytesIO()
-                frame.save(buffer, format="PNG")
-                b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                frame_images.append(f"data:image/png;base64,{b64}")
-
-            return {"success": True, "frames": frame_images, "fps": fps, "seed": seed, "generation_time": gen_time}
-        except Exception as e:
-            traceback.print_exc()
-            return {"success": False, "error": str(e)}
-
-    def get_info(self) -> dict:
-        gpu_info = {}
-        if torch.cuda.is_available():
-            gpu_info = {
-                "name": torch.cuda.get_device_name(0),
-                "total_memory_gb": torch.cuda.get_device_properties(0).total_memory / 1024**3,
-                "free_memory_gb": (torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated(0)) / 1024**3,
+        try
+        {
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream != null)
+            {
+                using var reader = new StreamReader(stream);
+                return reader.ReadToEnd();
             }
-        return {"status": "ready", "device": self.device, "current_model": self.current_model, "gpu": gpu_info, "has_diffusers": HAS_DIFFUSERS}
+        }
+        catch
+        {
+            // Fall back to inline script
+        }
 
+        // Try to load from external Python file
+        var scriptPath = Path.Combine(
+            Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "",
+            "generation_server.py");
 
-class RequestHandler(BaseHTTPRequestHandler):
-    server_instance = None
+        if (File.Exists(scriptPath))
+        {
+            return File.ReadAllText(scriptPath);
+        }
 
-    def log_message(self, format, *args):
-        print(f"[HTTP] {args[0]}")
+        // Fallback: Generate minimal script inline
+        return GenerateMinimalScript();
+    }
 
-    def send_json(self, data: dict, status: int = 200):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode("utf-8"))
-
-    def do_GET(self):
-        if self.path == "/health":
-            self.send_json({"status": "ok"})
-        elif self.path == "/info":
-            self.send_json(self.server_instance.engine.get_info())
-        else:
-            self.send_json({"error": "Not found"}, 404)
-
-    def do_POST(self):
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
-        try:
-            data = json.loads(body) if body else {}
-        except:
-            data = {}
-
-        if self.path == "/load-model":
-            result = self.server_instance.engine.load_model(data.get("model_id", ""), data.get("model_type", "TextToImage"))
-            self.send_json(result)
-        elif self.path == "/unload-model":
-            self.server_instance.engine.unload_model()
-            self.send_json({"success": True})
-        elif self.path == "/generate/image":
-            self.send_json(self.server_instance.engine.generate_image(data))
-        elif self.path == "/generate/video":
-            self.send_json(self.server_instance.engine.generate_video(data))
-        elif self.path == "/shutdown":
-            self.send_json({"status": "shutting down"})
-            threading.Thread(target=self.server_instance.shutdown).start()
-        else:
-            self.send_json({"error": "Not found"}, 404)
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-
-
-class GenerationHTTPServer(HTTPServer):
-    def __init__(self, port: int, models_dir: str):
-        self.engine = GenerationServer(models_dir)
-        RequestHandler.server_instance = self
-        super().__init__(("0.0.0.0", port), RequestHandler)
-
-
-def main():
-    parser = argparse.ArgumentParser(description="PostXAgent Diffusers Generation Server")
-    parser.add_argument("--port", type=int, default=5050, help="Server port")
-    parser.add_argument("--models-dir", type=str, required=True, help="Models directory")
-    args = parser.parse_args()
-
-    if not HAS_DIFFUSERS:
-        print("ERROR: diffusers is required. Install with: pip install diffusers transformers accelerate")
-        sys.exit(1)
-
-    print(f"Starting generation server on port {args.port}...")
-    server = GenerationHTTPServer(args.port, args.models_dir)
-
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("Shutting down...")
-        server.shutdown()
-
-
-if __name__ == "__main__":
-    main()
-""";
+    private static string GenerateMinimalScript()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("#!/usr/bin/env python3");
+        sb.AppendLine("import argparse, base64, gc, io, json, os, sys, time, traceback, threading");
+        sb.AppendLine("from http.server import HTTPServer, BaseHTTPRequestHandler");
+        sb.AppendLine();
+        sb.AppendLine("try:");
+        sb.AppendLine("    import torch");
+        sb.AppendLine("    from PIL import Image");
+        sb.AppendLine("    from diffusers import AutoPipelineForText2Image, StableDiffusionXLPipeline");
+        sb.AppendLine("    HAS_DIFFUSERS = True");
+        sb.AppendLine("except ImportError:");
+        sb.AppendLine("    HAS_DIFFUSERS = False");
+        sb.AppendLine("    print('Missing packages: pip install torch diffusers transformers accelerate Pillow')");
+        sb.AppendLine("    sys.exit(1)");
+        sb.AppendLine();
+        sb.AppendLine("class GenerationServer:");
+        sb.AppendLine("    def __init__(self, models_dir):");
+        sb.AppendLine("        self.models_dir = models_dir");
+        sb.AppendLine("        self.pipeline = None");
+        sb.AppendLine("        self.current_model = None");
+        sb.AppendLine("        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'");
+        sb.AppendLine("        self.dtype = torch.float16 if self.device == 'cuda' else torch.float32");
+        sb.AppendLine("        print(f'[Engine] Device: {self.device}')");
+        sb.AppendLine();
+        sb.AppendLine("    def load_model(self, model_id, model_type='TextToImage'):");
+        sb.AppendLine("        self.unload_model()");
+        sb.AppendLine("        try:");
+        sb.AppendLine("            local_path = os.path.join(self.models_dir, 'checkpoints', model_id.replace('/', '--'))");
+        sb.AppendLine("            use_local = os.path.exists(local_path)");
+        sb.AppendLine("            path = local_path if use_local else model_id");
+        sb.AppendLine("            if 'xl' in model_id.lower() or 'sdxl' in model_id.lower():");
+        sb.AppendLine("                self.pipeline = StableDiffusionXLPipeline.from_pretrained(path, torch_dtype=self.dtype, use_safetensors=True, local_files_only=use_local)");
+        sb.AppendLine("            else:");
+        sb.AppendLine("                self.pipeline = AutoPipelineForText2Image.from_pretrained(path, torch_dtype=self.dtype, use_safetensors=True, local_files_only=use_local)");
+        sb.AppendLine("            self.pipeline = self.pipeline.to(self.device)");
+        sb.AppendLine("            if hasattr(self.pipeline, 'enable_attention_slicing'): self.pipeline.enable_attention_slicing()");
+        sb.AppendLine("            self.current_model = model_id");
+        sb.AppendLine("            return {'success': True, 'model': model_id}");
+        sb.AppendLine("        except Exception as e:");
+        sb.AppendLine("            traceback.print_exc()");
+        sb.AppendLine("            return {'success': False, 'error': str(e)}");
+        sb.AppendLine();
+        sb.AppendLine("    def unload_model(self):");
+        sb.AppendLine("        if self.pipeline: del self.pipeline");
+        sb.AppendLine("        self.pipeline = None");
+        sb.AppendLine("        self.current_model = None");
+        sb.AppendLine("        gc.collect()");
+        sb.AppendLine("        if torch.cuda.is_available(): torch.cuda.empty_cache()");
+        sb.AppendLine();
+        sb.AppendLine("    def generate_image(self, params):");
+        sb.AppendLine("        if not self.pipeline: return {'success': False, 'error': 'No model loaded'}");
+        sb.AppendLine("        try:");
+        sb.AppendLine("            seed = params.get('seed', -1)");
+        sb.AppendLine("            if seed < 0: seed = int(torch.randint(0, 2**32, (1,)).item())");
+        sb.AppendLine("            gen = torch.Generator(device=self.device).manual_seed(seed)");
+        sb.AppendLine("            result = self.pipeline(prompt=params.get('prompt', ''), negative_prompt=params.get('negative_prompt'),");
+        sb.AppendLine("                width=params.get('width', 1024), height=params.get('height', 1024),");
+        sb.AppendLine("                num_inference_steps=params.get('steps', 30), guidance_scale=params.get('guidance_scale', 7.5), generator=gen)");
+        sb.AppendLine("            images = []");
+        sb.AppendLine("            for img in result.images:");
+        sb.AppendLine("                buf = io.BytesIO()");
+        sb.AppendLine("                img.save(buf, format='PNG')");
+        sb.AppendLine("                images.append('data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode())");
+        sb.AppendLine("            return {'success': True, 'images': images, 'seed': seed}");
+        sb.AppendLine("        except Exception as e:");
+        sb.AppendLine("            traceback.print_exc()");
+        sb.AppendLine("            return {'success': False, 'error': str(e)}");
+        sb.AppendLine();
+        sb.AppendLine("    def get_info(self):");
+        sb.AppendLine("        gpu_info = {}");
+        sb.AppendLine("        if torch.cuda.is_available():");
+        sb.AppendLine("            gpu_info = {'name': torch.cuda.get_device_name(0), 'total_memory_gb': torch.cuda.get_device_properties(0).total_memory / 1024**3}");
+        sb.AppendLine("        return {'status': 'ready', 'device': self.device, 'current_model': self.current_model, 'gpu': gpu_info}");
+        sb.AppendLine();
+        sb.AppendLine("class RequestHandler(BaseHTTPRequestHandler):");
+        sb.AppendLine("    server_instance = None");
+        sb.AppendLine("    def log_message(self, fmt, *args): print(f'[HTTP] {args[0]}')");
+        sb.AppendLine("    def send_json(self, data, status=200):");
+        sb.AppendLine("        self.send_response(status)");
+        sb.AppendLine("        self.send_header('Content-Type', 'application/json')");
+        sb.AppendLine("        self.send_header('Access-Control-Allow-Origin', '*')");
+        sb.AppendLine("        self.end_headers()");
+        sb.AppendLine("        self.wfile.write(json.dumps(data).encode())");
+        sb.AppendLine("    def do_GET(self):");
+        sb.AppendLine("        if self.path == '/health': self.send_json({'status': 'ok'})");
+        sb.AppendLine("        elif self.path == '/info': self.send_json(self.server_instance.engine.get_info())");
+        sb.AppendLine("        else: self.send_json({'error': 'Not found'}, 404)");
+        sb.AppendLine("    def do_POST(self):");
+        sb.AppendLine("        length = int(self.headers.get('Content-Length', 0))");
+        sb.AppendLine("        data = json.loads(self.rfile.read(length).decode()) if length > 0 else {}");
+        sb.AppendLine("        if self.path == '/load-model': self.send_json(self.server_instance.engine.load_model(data.get('model_id', ''), data.get('model_type', 'TextToImage')))");
+        sb.AppendLine("        elif self.path == '/unload-model': self.server_instance.engine.unload_model(); self.send_json({'success': True})");
+        sb.AppendLine("        elif self.path == '/generate/image': self.send_json(self.server_instance.engine.generate_image(data))");
+        sb.AppendLine("        elif self.path == '/shutdown': self.send_json({'status': 'shutting down'}); threading.Thread(target=self.server_instance.shutdown).start()");
+        sb.AppendLine("        else: self.send_json({'error': 'Not found'}, 404)");
+        sb.AppendLine("    def do_OPTIONS(self):");
+        sb.AppendLine("        self.send_response(200)");
+        sb.AppendLine("        self.send_header('Access-Control-Allow-Origin', '*')");
+        sb.AppendLine("        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')");
+        sb.AppendLine("        self.send_header('Access-Control-Allow-Headers', 'Content-Type')");
+        sb.AppendLine("        self.end_headers()");
+        sb.AppendLine();
+        sb.AppendLine("class GenerationHTTPServer(HTTPServer):");
+        sb.AppendLine("    def __init__(self, port, models_dir):");
+        sb.AppendLine("        self.engine = GenerationServer(models_dir)");
+        sb.AppendLine("        RequestHandler.server_instance = self");
+        sb.AppendLine("        super().__init__(('0.0.0.0', port), RequestHandler)");
+        sb.AppendLine();
+        sb.AppendLine("if __name__ == '__main__':");
+        sb.AppendLine("    parser = argparse.ArgumentParser()");
+        sb.AppendLine("    parser.add_argument('--port', type=int, default=5050)");
+        sb.AppendLine("    parser.add_argument('--models-dir', required=True)");
+        sb.AppendLine("    args = parser.parse_args()");
+        sb.AppendLine("    print(f'Starting server on port {args.port}...')");
+        sb.AppendLine("    server = GenerationHTTPServer(args.port, args.models_dir)");
+        sb.AppendLine("    server.serve_forever()");
+        return sb.ToString();
+    }
 
     #endregion
 
@@ -1073,6 +1239,17 @@ public class DiffusersProgressEventArgs : EventArgs
     public int Step { get; set; }
     public int TotalSteps { get; set; }
     public double Progress => TotalSteps > 0 ? (double)Step / TotalSteps * 100 : 0;
+}
+
+/// <summary>
+/// Model loading progress event args
+/// </summary>
+public class ModelLoadProgressEventArgs : EventArgs
+{
+    public string ModelId { get; set; } = "";
+    public string Stage { get; set; } = "";
+    public int Progress { get; set; }
+    public string Message { get; set; } = "";
 }
 
 /// <summary>
@@ -1144,10 +1321,67 @@ public class DiffusersImageRequest
     public double GuidanceScale { get; set; } = 7.5;
 
     [JsonPropertyName("seed")]
-    public int Seed { get; set; } = -1;
+    public long Seed { get; set; } = -1;
 
     [JsonPropertyName("batch_size")]
     public int BatchSize { get; set; } = 1;
+
+    [JsonPropertyName("sampler")]
+    public string? Sampler { get; set; }
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    [JsonPropertyName("clip_skip")]
+    public int ClipSkip { get; set; } = 1;
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
+}
+
+/// <summary>
+/// Diffusers img2img generation request
+/// </summary>
+public class DiffusersImg2ImgRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; set; } = "";
+
+    [JsonPropertyName("negative_prompt")]
+    public string? NegativePrompt { get; set; }
+
+    [JsonPropertyName("image")]
+    public string Image { get; set; } = "";  // Base64 encoded image
+
+    [JsonPropertyName("strength")]
+    public double Strength { get; set; } = 0.75;
+
+    [JsonPropertyName("width")]
+    public int Width { get; set; } = 1024;
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; } = 1024;
+
+    [JsonPropertyName("steps")]
+    public int Steps { get; set; } = 30;
+
+    [JsonPropertyName("guidance_scale")]
+    public double GuidanceScale { get; set; } = 7.5;
+
+    [JsonPropertyName("seed")]
+    public long Seed { get; set; } = -1;
+
+    [JsonPropertyName("batch_size")]
+    public int BatchSize { get; set; } = 1;
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    [JsonPropertyName("clip_skip")]
+    public int ClipSkip { get; set; } = 1;
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
 }
 
 /// <summary>
@@ -1167,8 +1401,68 @@ public class DiffusersVideoRequest
     [JsonPropertyName("fps")]
     public int Fps { get; set; } = 7;
 
+    [JsonPropertyName("motion_bucket_id")]
+    public int MotionBucketId { get; set; } = 127;
+
+    [JsonPropertyName("noise_aug_strength")]
+    public double NoiseAugStrength { get; set; } = 0.02;
+
     [JsonPropertyName("seed")]
     public int Seed { get; set; } = -1;
+}
+
+/// <summary>
+/// LoRA model info for generation requests
+/// </summary>
+public class LoraModelInfo
+{
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = "";
+
+    [JsonPropertyName("weight")]
+    public double Weight { get; set; } = 1.0;
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+}
+
+/// <summary>
+/// LoRA load request
+/// </summary>
+public class LoraLoadRequest
+{
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = "";
+
+    [JsonPropertyName("weight")]
+    public double Weight { get; set; } = 1.0;
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+}
+
+/// <summary>
+/// LoRA load result
+/// </summary>
+public class LoraLoadResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("loaded_loras")]
+    public List<string>? LoadedLoras { get; set; }
+}
+
+/// <summary>
+/// Schedulers response
+/// </summary>
+public class SchedulersResponse
+{
+    [JsonPropertyName("schedulers")]
+    public List<string> Schedulers { get; set; } = new();
 }
 
 /// <summary>
@@ -1207,6 +1501,7 @@ public class PreflightCheckResult
     public bool HasGpu { get; set; }
     public bool HasPython { get; set; }
     public bool PythonReady { get; set; }
+    public bool AutoInstalled { get; set; }
     public GpuInfo? GpuInfo { get; set; }
     public PythonEnvironmentInfo? PythonEnv { get; set; }
     public List<string> Errors { get; set; } = new();

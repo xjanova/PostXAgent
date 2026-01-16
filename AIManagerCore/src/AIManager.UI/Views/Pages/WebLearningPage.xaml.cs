@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Windows;
@@ -8,9 +9,11 @@ using System.Windows.Media;
 using AIManager.Core.AI;
 using AIManager.Core.WebAutomation;
 using AIManager.Core.WebAutomation.Models;
+using AIManager.UI.Services;
 using AIManager.UI.Views.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 
 namespace AIManager.UI.Views.Pages;
@@ -559,7 +562,7 @@ Answer:";
 
     #region Workflow Save/Test
 
-    private void TestWorkflowButton_Click(object sender, RoutedEventArgs e)
+    private async void TestWorkflowButton_Click(object sender, RoutedEventArgs e)
     {
         if (_recordedSteps.Count == 0)
         {
@@ -567,9 +570,85 @@ Answer:";
             return;
         }
 
-        MessageBox.Show("Test Workflow feature will replay recorded steps in the browser.\n\n" +
-            "Coming in full version with Playwright integration.",
-            "Test Workflow", MessageBoxButton.OK, MessageBoxImage.Information);
+        // Build workflow for testing
+        var workflow = BuildCurrentWorkflow();
+        if (workflow == null || workflow.Steps.Count == 0)
+        {
+            MessageBox.Show("Failed to build workflow", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // Open browser if not open
+        if (_webViewWindow == null || !_webViewWindow.IsLoaded)
+        {
+            OpenOrFocusWebViewWindow();
+            await Task.Delay(1500); // Wait for window to load
+        }
+
+        if (_webViewWindow != null)
+        {
+            try
+            {
+                _logger?.LogInformation("Testing workflow with {Count} steps", workflow.Steps.Count);
+
+                // Execute workflow in WebView
+                var result = await _webViewWindow.ExecuteWorkflowAsync(workflow);
+
+                if (result.Success)
+                {
+                    MessageBox.Show($"Workflow test completed successfully!\n\n" +
+                        $"Steps executed: {result.StepResults.Count}\n" +
+                        $"Duration: {result.Duration.TotalSeconds:F1}s",
+                        "Test Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"Workflow test failed at step {result.FailedAtStep + 1}.\n\n" +
+                        $"Error: {result.Error}",
+                        "Test Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Workflow test failed");
+                MessageBox.Show($"Test error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private LearnedWorkflow? BuildCurrentWorkflow()
+    {
+        var platform = (PlatformComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
+        var taskType = (TaskTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "custom";
+        var workflowName = WorkflowNameTextBox.Text.Trim();
+
+        if (string.IsNullOrEmpty(workflowName))
+        {
+            workflowName = $"Test_{platform}_{DateTime.Now:HHmmss}";
+        }
+
+        var workflow = new LearnedWorkflow
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = workflowName,
+            Platform = platform,
+            TaskType = taskType,
+            Description = WorkflowDescriptionTextBox.Text.Trim(),
+            IsHumanTrained = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var order = 0;
+        foreach (var recordedStep in _recordedSteps)
+        {
+            var step = ConvertToWorkflowStep(recordedStep, order++);
+            if (step != null)
+            {
+                workflow.Steps.Add(step);
+            }
+        }
+
+        return workflow;
     }
 
     private async void SaveWorkflowButton_Click(object sender, RoutedEventArgs e)
@@ -672,6 +751,133 @@ Answer:";
         };
 
         return step;
+    }
+
+    #endregion
+
+    #region Export/Import Workflow
+
+    public async Task ExportWorkflowAsync()
+    {
+        if (_recordedSteps.Count == 0)
+        {
+            MessageBox.Show("No steps recorded to export", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var workflow = BuildCurrentWorkflow();
+        if (workflow == null)
+        {
+            MessageBox.Show("Failed to build workflow", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var saveDialog = new SaveFileDialog
+        {
+            Title = "Export Workflow",
+            Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+            FileName = $"workflow_{workflow.Platform}_{DateTime.Now:yyyyMMdd_HHmmss}.json",
+            DefaultExt = ".json"
+        };
+
+        if (saveDialog.ShowDialog() == true)
+        {
+            try
+            {
+                var json = JsonConvert.SerializeObject(workflow, Formatting.Indented);
+                await File.WriteAllTextAsync(saveDialog.FileName, json);
+
+                _logger?.LogInformation("Workflow exported to {Path}", saveDialog.FileName);
+                MessageBox.Show($"Workflow exported successfully!\n\nFile: {saveDialog.FileName}",
+                    "Export Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Export failed");
+                MessageBox.Show($"Export failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    public async Task ImportWorkflowAsync()
+    {
+        var openDialog = new OpenFileDialog
+        {
+            Title = "Import Workflow",
+            Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+            DefaultExt = ".json"
+        };
+
+        if (openDialog.ShowDialog() == true)
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(openDialog.FileName);
+                var workflow = JsonConvert.DeserializeObject<LearnedWorkflow>(json);
+
+                if (workflow == null || workflow.Steps.Count == 0)
+                {
+                    MessageBox.Show("Invalid workflow file", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Convert to recorded steps for editing
+                SaveStateForUndo();
+                _recordedSteps.Clear();
+
+                foreach (var step in workflow.Steps)
+                {
+                    var recordedStep = new RecordedStepViewModel
+                    {
+                        Index = _recordedSteps.Count,
+                        StepNumber = (_recordedSteps.Count + 1).ToString(),
+                        Action = step.Action.ToString().ToLower(),
+                        ActionText = GetActionText(step.Action.ToString().ToLower()),
+                        ActionColor = GetActionColor(step.Action.ToString().ToLower()),
+                        ElementDescription = step.Description ?? step.Selector?.Value ?? "Unknown",
+                        Value = step.InputValue,
+                        ValueText = !string.IsNullOrEmpty(step.InputValue) ? $"Value: {step.InputValue}" : null,
+                        HasValue = !string.IsNullOrEmpty(step.InputValue),
+                        Confidence = step.Selector?.Confidence ?? 0.7,
+                        Selector = step.Selector?.Value,
+                        TagName = step.Selector?.Type.ToString()
+                    };
+
+                    _recordedSteps.Add(recordedStep);
+                }
+
+                // Populate workflow info
+                WorkflowNameTextBox.Text = workflow.Name;
+                WorkflowDescriptionTextBox.Text = workflow.Description ?? "";
+                SelectPlatformInComboBox(workflow.Platform);
+
+                UpdateStepCount();
+                _logger?.LogInformation("Workflow imported: {Name} with {Count} steps",
+                    workflow.Name, workflow.Steps.Count);
+
+                MessageBox.Show($"Workflow imported successfully!\n\n" +
+                    $"Name: {workflow.Name}\n" +
+                    $"Steps: {workflow.Steps.Count}",
+                    "Import Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Import failed");
+                MessageBox.Show($"Import failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    // Export button click handler (to be added in XAML)
+    public void ExportButton_Click(object sender, RoutedEventArgs e)
+    {
+        _ = ExportWorkflowAsync();
+    }
+
+    // Import button click handler (to be added in XAML)
+    public void ImportButton_Click(object sender, RoutedEventArgs e)
+    {
+        _ = ImportWorkflowAsync();
     }
 
     #endregion

@@ -38,7 +38,7 @@
                     <TextBlock Text="{Binding PageOverview}" FontSize="14" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
 
-                <Button Grid.Column="1" Height="44" Padding="20,0" Cursor="Hand">
+                <Button Grid.Column="1" Height="44" Padding="20,0" Cursor="Hand" Click="CreatePostButton_Click">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="border" CornerRadius="22" Padding="{TemplateBinding Padding}">
@@ -238,7 +238,8 @@
             <StackPanel Grid.Row="2" Margin="0,0,0,24">
                 <TextBlock Text="{Binding TitleQuickActions}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
                 <UniformGrid Columns="4">
-                    <Border Margin="0,0,12,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
+                    <Border Margin="0,0,12,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E"
+                            MouseLeftButtonDown="AIContentCard_MouseLeftButtonDown">
                         <StackPanel HorizontalAlignment="Center">
                             <Border Width="56" Height="56" CornerRadius="16" HorizontalAlignment="Center">
                                 <Border.Background>
@@ -253,7 +254,8 @@
                             <TextBlock Text="{Binding ActionAIContentDesc}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
-                    <Border Margin="6,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
+                    <Border Margin="6,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E"
+                            MouseLeftButtonDown="VideoEditorCard_MouseLeftButtonDown">
                         <StackPanel HorizontalAlignment="Center">
                             <Border Width="56" Height="56" CornerRadius="16" HorizontalAlignment="Center">
                                 <Border.Background>
@@ -268,7 +270,8 @@
                             <TextBlock Text="{Binding ActionVideoEditorDesc}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
-                    <Border Margin="6,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
+                    <Border Margin="6,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E"
+                            MouseLeftButtonDown="AddAccountCard_MouseLeftButtonDown">
                         <StackPanel HorizontalAlignment="Center">
                             <Border Width="56" Height="56" CornerRadius="16" HorizontalAlignment="Center">
                                 <Border.Background>
@@ -283,7 +286,8 @@
                             <TextBlock Text="{Binding ActionAddAccountDesc}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
-                    <Border Margin="12,0,0,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E">
+                    <Border Margin="12,0,0,0" CornerRadius="16" Padding="20" Cursor="Hand" Background="#1E1B2E"
+                            MouseLeftButtonDown="ImportFlowCard_MouseLeftButtonDown">
                         <StackPanel HorizontalAlignment="Center">
                             <Border Width="56" Height="56" CornerRadius="16" HorizontalAlignment="Center">
                                 <Border.Background>

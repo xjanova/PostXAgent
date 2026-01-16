@@ -17,9 +17,15 @@
 
             <!-- Converters -->
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <converters:InverseBoolConverter x:Key="InverseBooleanConverter" />
             <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+            <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter" />
+            <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter" />
+            <converters:InverseStringToVisibilityConverter x:Key="InverseStringToVisibilityConverter" />
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+            <converters:BoolToPlayPauseIconConverter x:Key="BoolToPlayPauseIconConverter" />
 
             <!-- Global Styles -->
             <Style TargetType="Window" x:Key="BaseWindowStyle">

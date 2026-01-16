@@ -268,29 +268,6 @@ public partial class WorkersPage : Page
         await RefreshWorkersAsync();
     }
 
-    private void BtnAddWorker_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new AddWorkerDialog();
-        if (dialog.ShowDialog() == true)
-        {
-            _ = AddWorkerAsync(dialog.WorkerName, dialog.WorkerUrl);
-        }
-    }
-
-    private async Task AddWorkerAsync(string name, string url)
-    {
-        if (_gpuPoolService != null)
-        {
-            var worker = await _gpuPoolService.AddWorkerAsync(name, url);
-            if (worker != null)
-            {
-                SyncWorkersFromService();
-                RefreshStats();
-                _logger?.LogInformation("Worker added: {Name} at {Url}", name, url);
-            }
-        }
-    }
-
     private void BtnRemoveWorker_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string workerId)
@@ -308,15 +285,6 @@ public partial class WorkersPage : Page
                 RefreshStats();
             }
         }
-    }
-
-    private void BtnOpenColab_Click(object sender, RoutedEventArgs e)
-    {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "https://colab.research.google.com",
-            UseShellExecute = true
-        });
     }
 
     private void DistributionMode_Changed(object sender, RoutedEventArgs e)
