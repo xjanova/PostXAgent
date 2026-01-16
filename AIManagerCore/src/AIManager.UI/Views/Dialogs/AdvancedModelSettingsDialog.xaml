@@ -37,20 +37,30 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
+        <!-- Dropdown item style - Black text on white background for readability -->
+        <Style x:Key="SettingComboItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#1A1A2E"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#E0E0FF"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#C084FC"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="SettingCombo" TargetType="ComboBox">
             <Setter Property="Background" Value="#2D2D4A"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="FontSize" Value="12"/>
-            <Style.Resources>
-                <!-- Fix text color visibility in dropdown popup -->
-                <SolidColorBrush x:Key="MaterialDesignBody" Color="White"/>
-            </Style.Resources>
-        </Style>
-
-        <Style x:Key="SettingComboItem" TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource SettingComboItem}"/>
         </Style>
     </Window.Resources>
 
@@ -65,7 +75,7 @@
         <Border Grid.Row="0" Padding="20,16">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#30A78BFA" Offset="0"/>
+                    <GradientStop Color="#30C084FC" Offset="0"/>
                     <GradientStop Color="#30EC4899" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
@@ -76,8 +86,8 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Width="48" Height="48" CornerRadius="12" Background="#30A78BFA">
-                    <materialDesign:PackIcon Kind="TuneVertical" Width="28" Height="28" Foreground="#A78BFA"
+                <Border Width="48" Height="48" CornerRadius="12" Background="#30C084FC">
+                    <materialDesign:PackIcon Kind="TuneVertical" Width="28" Height="28" Foreground="#C084FC"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
 
@@ -111,7 +121,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <materialDesign:PackIcon Kind="CubeOutline" Width="20" Height="20" Foreground="#A78BFA" VerticalAlignment="Center"/>
+                            <materialDesign:PackIcon Kind="CubeOutline" Width="20" Height="20" Foreground="#C084FC" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="1" Text="Checkpoint / Base Model" Style="{StaticResource SectionHeader}" Margin="10,0,0,0"/>
                             <Ellipse x:Name="ModelStatusDot" Grid.Column="2" Width="10" Height="10" Fill="#EF4444"/>
                         </Grid>
@@ -139,10 +149,10 @@
                             <StackPanel Margin="0,0,8,0">
                                 <TextBlock Text="Precision" Style="{StaticResource SettingLabel}"/>
                                 <ComboBox x:Name="CmbPrecision" Style="{StaticResource SettingCombo}">
-                                    <ComboBoxItem Content="FP16 (Recommended)" IsSelected="True" Foreground="White"/>
-                                    <ComboBoxItem Content="FP32 (High VRAM)" Foreground="White"/>
-                                    <ComboBoxItem Content="BF16 (RTX 30/40)" Foreground="White"/>
-                                    <ComboBoxItem Content="INT8 (Quantized)" Foreground="White"/>
+                                    <ComboBoxItem Content="FP16 (Recommended)" IsSelected="True" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="FP32 (High VRAM)" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="BF16 (RTX 30/40)" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="INT8 (Quantized)" Style="{StaticResource SettingComboItem}"/>
                                 </ComboBox>
                             </StackPanel>
 
@@ -272,27 +282,27 @@
                             <StackPanel Margin="0,0,8,0">
                                 <TextBlock Text="Sampler" Style="{StaticResource SettingLabel}"/>
                                 <ComboBox x:Name="CmbSampler" Style="{StaticResource SettingCombo}">
-                                    <ComboBoxItem Content="DPM++ 2M Karras" IsSelected="True" Foreground="White"/>
-                                    <ComboBoxItem Content="DPM++ SDE Karras" Foreground="White"/>
-                                    <ComboBoxItem Content="Euler a" Foreground="White"/>
-                                    <ComboBoxItem Content="Euler" Foreground="White"/>
-                                    <ComboBoxItem Content="Heun" Foreground="White"/>
-                                    <ComboBoxItem Content="LMS" Foreground="White"/>
-                                    <ComboBoxItem Content="DDIM" Foreground="White"/>
-                                    <ComboBoxItem Content="UniPC" Foreground="White"/>
-                                    <ComboBoxItem Content="LCM" Foreground="White"/>
+                                    <ComboBoxItem Content="DPM++ 2M Karras" IsSelected="True" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="DPM++ SDE Karras" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Euler a" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Euler" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Heun" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="LMS" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="DDIM" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="UniPC" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="LCM" Style="{StaticResource SettingComboItem}"/>
                                 </ComboBox>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                 <TextBlock Text="Scheduler" Style="{StaticResource SettingLabel}"/>
                                 <ComboBox x:Name="CmbScheduler" Style="{StaticResource SettingCombo}">
-                                    <ComboBoxItem Content="Normal" IsSelected="True" Foreground="White"/>
-                                    <ComboBoxItem Content="Karras" Foreground="White"/>
-                                    <ComboBoxItem Content="Exponential" Foreground="White"/>
-                                    <ComboBoxItem Content="SGM Uniform" Foreground="White"/>
-                                    <ComboBoxItem Content="Simple" Foreground="White"/>
-                                    <ComboBoxItem Content="DDIM Uniform" Foreground="White"/>
+                                    <ComboBoxItem Content="Normal" IsSelected="True" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Karras" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Exponential" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="SGM Uniform" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Simple" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="DDIM Uniform" Style="{StaticResource SettingComboItem}"/>
                                 </ComboBox>
                             </StackPanel>
                         </Grid>
@@ -421,9 +431,9 @@
                             <StackPanel Grid.Column="3" Margin="8,0,0,0">
                                 <TextBlock Text="Upscaler" Style="{StaticResource SettingLabel}"/>
                                 <ComboBox x:Name="CmbHiResUpscaler" Style="{StaticResource SettingCombo}">
-                                    <ComboBoxItem Content="Latent" IsSelected="True" Foreground="White"/>
-                                    <ComboBoxItem Content="Real-ESRGAN 4x" Foreground="White"/>
-                                    <ComboBoxItem Content="Lanczos" Foreground="White"/>
+                                    <ComboBoxItem Content="Latent" IsSelected="True" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Real-ESRGAN 4x" Style="{StaticResource SettingComboItem}"/>
+                                    <ComboBoxItem Content="Lanczos" Style="{StaticResource SettingComboItem}"/>
                                 </ComboBox>
                             </StackPanel>
                         </Grid>
@@ -488,7 +498,7 @@
                         Padding="24,10" BorderThickness="0">
                     <Button.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#A78BFA" Offset="0"/>
+                            <GradientStop Color="#C084FC" Offset="0"/>
                             <GradientStop Color="#EC4899" Offset="1"/>
                         </LinearGradientBrush>
                     </Button.Background>

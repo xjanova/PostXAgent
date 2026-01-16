@@ -221,7 +221,15 @@
       "Bash(gh pr list:*)",
       "Bash(wc:*)",
       "Bash(dotnet msbuild:*)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Bash(timeout 10 dotnet run:*)",
+      "Bash(timeout 15 dotnet run:*)",
+      "Bash(ls -la \"D:\\\\Code\\\\PostXAgent\\\\AIManagerCore\\\\src\\\\AIManager.UI\\\\Views\\\\Pages\"\" 2>/dev/null | grep -E \"Learning)",
+      "Bash(Workflow\" || echo \"Checking directory structure... \")",
+      "Bash(start \"\" \"D:\\\\Code\\\\PostXAgent\\\\AIManagerCore\\\\AIManagerCore.sln\")",
+      "Bash(python -m py_compile:*)",
+      "Bash(C:/Users/xman/AppData/Local/Microsoft/WindowsApps/python3.exe -m py_compile \"D:/Code/PostXAgent/AIManagerCore/src/AIManager.Core/Services/generation_server.py\")",
+      "Bash(cmd.exe /c \"where python\")"
     ],
     "deny": [],
     "ask": []

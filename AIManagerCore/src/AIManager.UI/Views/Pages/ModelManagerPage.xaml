@@ -58,7 +58,7 @@
                         <Border x:Name="border" CornerRadius="8" Padding="16,8">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                                    <GradientStop Color="#C084FC" Offset="0"/>
                                     <GradientStop Color="#6366F1" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
@@ -71,7 +71,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect Color="#7C4DFF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                                        <DropShadowEffect Color="#C084FC" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
@@ -105,10 +105,30 @@
 
                 <StackPanel Grid.Column="0">
                     <StackPanel Orientation="Horizontal">
+                        <!-- Back Button -->
+                        <Button x:Name="BtnBack" Click="BtnBack_Click" Cursor="Hand"
+                                ToolTip="กลับไปหน้า Generation Pipeline"
+                                Width="40" Height="40" Margin="0,0,12,0"
+                                Style="{StaticResource MaterialDesignIconButton}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="#25FFFFFF" CornerRadius="10"
+                                            BorderBrush="#30FFFFFF" BorderThickness="1">
+                                        <materialDesign:PackIcon Kind="ArrowLeft" Width="22" Height="22"
+                                                                Foreground="#C084FC" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#35FFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
                         <Border Width="48" Height="48" CornerRadius="12" Margin="0,0,16,0">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                                    <GradientStop Color="#C084FC" Offset="0"/>
                                     <GradientStop Color="#F472B6" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
@@ -154,7 +174,7 @@
                                             Margin="0,6,0,0" Width="180">
                                     <ProgressBar.Foreground>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                            <GradientStop Color="#7C4DFF" Offset="0"/>
+                                            <GradientStop Color="#C084FC" Offset="0"/>
                                             <GradientStop Color="#F472B6" Offset="1"/>
                                         </LinearGradientBrush>
                                     </ProgressBar.Foreground>
@@ -249,7 +269,7 @@
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="Download" Width="18" Height="18" Foreground="#9090A8" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="text" Text="Downloaded" FontSize="13" FontWeight="SemiBold" Foreground="#9090A8" VerticalAlignment="Center"/>
-                                        <Border x:Name="countBadge" Background="#7C4DFF" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" Visibility="Collapsed">
+                                        <Border x:Name="countBadge" Background="#C084FC" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" Visibility="Collapsed">
                                             <TextBlock x:Name="countText" Text="0" FontSize="11" FontWeight="Bold" Foreground="White"/>
                                         </Border>
                                     </StackPanel>
@@ -318,7 +338,7 @@
                     <Button Click="GotoBrowse_Click" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="#7C4DFF" CornerRadius="8" Padding="14,8">
+                                <Border x:Name="border" Background="#C084FC" CornerRadius="8" Padding="14,8">
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Foreground="White" Margin="0,0,6,0"/>
                                         <TextBlock Text="Download New" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
@@ -328,7 +348,7 @@
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter TargetName="border" Property="Effect">
                                             <Setter.Value>
-                                                <DropShadowEffect Color="#7C4DFF" BlurRadius="12" ShadowDepth="0" Opacity="0.5"/>
+                                                <DropShadowEffect Color="#C084FC" BlurRadius="12" ShadowDepth="0" Opacity="0.5"/>
                                             </Setter.Value>
                                         </Setter>
                                     </Trigger>
@@ -421,7 +441,7 @@
                                             <Setter Property="BorderThickness" Value="1"/>
                                             <Style.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="BorderBrush" Value="#7C4DFF"/>
+                                                    <Setter Property="BorderBrush" Value="#C084FC"/>
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -450,7 +470,7 @@
                                                             <ProgressBar IsIndeterminate="True"
                                                                          Style="{StaticResource MaterialDesignCircularProgressBar}"
                                                                          Width="24" Height="24"
-                                                                         Foreground="#7C4DFF"/>
+                                                                         Foreground="#C084FC"/>
                                                         </Border>
                                                         <!-- Async loaded image -->
                                                         <Image helpers:AsyncImageLoader.SourceUrl="{Binding ThumbnailUrl}"
@@ -558,7 +578,7 @@
                                     <Border CornerRadius="10" Padding="24,14">
                                         <Border.Background>
                                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#7C4DFF" Offset="0"/>
+                                                <GradientStop Color="#C084FC" Offset="0"/>
                                                 <GradientStop Color="#6366F1" Offset="1"/>
                                             </LinearGradientBrush>
                                         </Border.Background>
@@ -590,7 +610,7 @@
                             <Border Width="48" Height="48" CornerRadius="12">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#7C4DFF" Offset="0"/>
+                                        <GradientStop Color="#C084FC" Offset="0"/>
                                         <GradientStop Color="#6366F1" Offset="1"/>
                                     </LinearGradientBrush>
                                 </Border.Background>
@@ -652,7 +672,7 @@
                                                 MinWidth="{TemplateBinding MinWidth}" Height="{TemplateBinding Height}">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#7C4DFF" Offset="0"/>
+                                                    <GradientStop Color="#C084FC" Offset="0"/>
                                                     <GradientStop Color="#6366F1" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
@@ -665,7 +685,7 @@
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter TargetName="border" Property="Effect">
                                                     <Setter.Value>
-                                                        <DropShadowEffect Color="#7C4DFF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                                                        <DropShadowEffect Color="#C084FC" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
                                                     </Setter.Value>
                                                 </Setter>
                                             </Trigger>
@@ -693,8 +713,8 @@
                             <Border x:Name="FilterAll" Background="#307C4DFF" CornerRadius="8" Padding="14,8" Margin="0,0,8,0"
                                     Cursor="Hand" MouseLeftButtonDown="FilterCategory_Click" Tag="all">
                                 <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="SelectAll" Width="16" Height="16" Foreground="#7C4DFF" VerticalAlignment="Center"/>
-                                    <TextBlock Text="ทั้งหมด" FontSize="12" FontWeight="SemiBold" Foreground="#7C4DFF" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    <materialDesign:PackIcon Kind="SelectAll" Width="16" Height="16" Foreground="#C084FC" VerticalAlignment="Center"/>
+                                    <TextBlock Text="ทั้งหมด" FontSize="12" FontWeight="SemiBold" Foreground="#C084FC" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
@@ -753,7 +773,7 @@
                             <!-- Grid View -->
                             <Border x:Name="ViewGridBtn" Background="#307C4DFF" CornerRadius="8,0,0,8" Padding="10,8"
                                     Cursor="Hand" MouseLeftButtonDown="ViewToggle_Click" Tag="grid">
-                                <materialDesign:PackIcon Kind="ViewGrid" Width="18" Height="18" Foreground="#7C4DFF"/>
+                                <materialDesign:PackIcon Kind="ViewGrid" Width="18" Height="18" Foreground="#C084FC"/>
                             </Border>
 
                             <!-- List View -->
@@ -820,7 +840,7 @@
                                                 <Border Background="#C0000000" CornerRadius="6" Padding="8,4"
                                                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0">
                                                     <TextBlock Text="{Binding ModelTypeDisplay, FallbackValue=Model}" FontSize="10"
-                                                               FontWeight="SemiBold" Foreground="#A78BFA"/>
+                                                               FontWeight="SemiBold" Foreground="#C084FC"/>
                                                 </Border>
                                             </Grid>
                                         </Border>
@@ -861,8 +881,8 @@
                                                 <Border Background="#1A7C4DFF" CornerRadius="6" Padding="8,4"
                                                         Visibility="{Binding HasSize, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <materialDesign:PackIcon Kind="Harddisk" Width="12" Height="12" Foreground="#7C4DFF" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding SizeFormatted}" FontSize="10" Foreground="#7C4DFF" Margin="4,0,0,0"/>
+                                                        <materialDesign:PackIcon Kind="Harddisk" Width="12" Height="12" Foreground="#C084FC" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding SizeFormatted}" FontSize="10" Foreground="#C084FC" Margin="4,0,0,0"/>
                                                     </StackPanel>
                                                 </Border>
                                             </StackPanel>
@@ -993,15 +1013,15 @@
                                                 <TextBlock Text="{Binding DownloadsFormatted}" FontSize="10" Foreground="#10B981" Margin="4,0,16,0"/>
                                                 <materialDesign:PackIcon Kind="Heart" Width="12" Height="12" Foreground="#F472B6"/>
                                                 <TextBlock Text="{Binding LikesFormatted}" FontSize="10" Foreground="#F472B6" Margin="4,0,16,0"/>
-                                                <materialDesign:PackIcon Kind="Tag" Width="12" Height="12" Foreground="#7C4DFF"/>
-                                                <TextBlock Text="{Binding ModelTypeDisplay, FallbackValue=Model}" FontSize="10" Foreground="#7C4DFF" Margin="4,0,0,0"/>
+                                                <materialDesign:PackIcon Kind="Tag" Width="12" Height="12" Foreground="#C084FC"/>
+                                                <TextBlock Text="{Binding ModelTypeDisplay, FallbackValue=Model}" FontSize="10" Foreground="#C084FC" Margin="4,0,0,0"/>
                                             </StackPanel>
                                         </StackPanel>
 
                                         <!-- Size Info -->
                                         <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,16,0"
                                                     Visibility="{Binding HasSize, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
-                                            <TextBlock Text="{Binding SizeFormatted}" FontSize="14" FontWeight="SemiBold" Foreground="#7C4DFF"/>
+                                            <TextBlock Text="{Binding SizeFormatted}" FontSize="14" FontWeight="SemiBold" Foreground="#C084FC"/>
                                             <TextBlock Text="ขนาดไฟล์" FontSize="10" Foreground="#6B6B8A"/>
                                         </StackPanel>
 
@@ -1064,7 +1084,7 @@
                     <StackPanel HorizontalAlignment="Center">
                         <ProgressBar IsIndeterminate="True" Width="60" Height="60"
                                     Style="{StaticResource MaterialDesignCircularProgressBar}"
-                                    Foreground="#7C4DFF"/>
+                                    Foreground="#C084FC"/>
                         <TextBlock Text="กำลังค้นหา..." FontSize="14" Foreground="#9090A8"
                                    Margin="0,20,0,0" HorizontalAlignment="Center"/>
                     </StackPanel>
@@ -1079,7 +1099,7 @@
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                 <Border Width="40" Height="40" CornerRadius="10" Background="#307C4DFF">
-                                    <materialDesign:PackIcon Kind="Image" Width="22" Height="22" Foreground="#7C4DFF"
+                                    <materialDesign:PackIcon Kind="Image" Width="22" Height="22" Foreground="#C084FC"
                                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
@@ -1164,7 +1184,7 @@
                             <Border Width="56" Height="56" CornerRadius="14">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#7C4DFF" Offset="0"/>
+                                        <GradientStop Color="#C084FC" Offset="0"/>
                                         <GradientStop Color="#6366F1" Offset="1"/>
                                     </LinearGradientBrush>
                                 </Border.Background>
@@ -1196,8 +1216,8 @@
                                          Background="Transparent" BorderThickness="0">
                                 <ProgressBar.Foreground>
                                     <LinearGradientBrush x:Name="DownloadProgressGradient" StartPoint="0,0" EndPoint="1,0">
-                                        <GradientStop x:Name="DownloadGradStop1" Color="#7C4DFF" Offset="0"/>
-                                        <GradientStop x:Name="DownloadGradStop2" Color="#A78BFA" Offset="0.5"/>
+                                        <GradientStop x:Name="DownloadGradStop1" Color="#C084FC" Offset="0"/>
+                                        <GradientStop x:Name="DownloadGradStop2" Color="#C084FC" Offset="0.5"/>
                                         <GradientStop x:Name="DownloadGradStop3" Color="#10B981" Offset="1"/>
                                     </LinearGradientBrush>
                                 </ProgressBar.Foreground>
@@ -1230,8 +1250,8 @@
                                     HorizontalAlignment="Left" Width="0">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                        <GradientStop Color="#7C4DFF" Offset="0"/>
-                                        <GradientStop Color="#A78BFA" Offset="0.5"/>
+                                        <GradientStop Color="#C084FC" Offset="0"/>
+                                        <GradientStop Color="#C084FC" Offset="0.5"/>
                                         <GradientStop Color="#10B981" Offset="1"/>
                                     </LinearGradientBrush>
                                 </Border.Background>

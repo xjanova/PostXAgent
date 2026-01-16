@@ -236,7 +236,13 @@ public enum PortDataType
     Conditioning,
     Mask,
     Embedding,
-    Workflow
+    Workflow,
+    // Diffusers-specific types
+    LoRA,
+    ControlNet,
+    VAE,
+    Scheduler,
+    Sampler
 }
 
 /// <summary>

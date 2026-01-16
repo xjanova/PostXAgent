@@ -208,17 +208,33 @@ public partial class AdvancedModelSettingsDialog : Window
 
     private void ValidateAll()
     {
-        var result = BuildConfiguration().Validate();
+        var config = BuildConfiguration();
 
-        if (result.IsValid)
+        // Only validate Model and Sampler blocks (Advanced Settings doesn't set Input/Processor/Output)
+        var errors = new List<string>();
+        var warnings = new List<string>();
+
+        // Validate Model block
+        var modelResult = config.Model.Validate();
+        errors.AddRange(modelResult.Errors);
+        warnings.AddRange(modelResult.Warnings);
+
+        // Validate Sampler block
+        var samplerResult = config.Sampler.Validate();
+        errors.AddRange(samplerResult.Errors);
+        warnings.AddRange(samplerResult.Warnings);
+
+        bool isValid = errors.Count == 0;
+
+        if (isValid)
         {
             ValidationIcon.Kind = MaterialDesignThemes.Wpf.PackIconKind.CheckCircle;
             ValidationIcon.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
             ValidationText.Text = "Ready";
             ValidationText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-            TxtValidationMessage.Text = result.Warnings.Count > 0
-                ? $"{result.Warnings.Count} warning(s)"
-                : "";
+            TxtValidationMessage.Text = warnings.Count > 0
+                ? string.Join(" | ", warnings.Take(2))
+                : "ตั้งค่าพร้อมใช้งาน";
             BtnApply.IsEnabled = true;
             ModelStatusDot.Fill = new SolidColorBrush(Color.FromRgb(16, 185, 129));
         }
@@ -228,7 +244,8 @@ public partial class AdvancedModelSettingsDialog : Window
             ValidationIcon.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
             ValidationText.Text = "Invalid";
             ValidationText.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-            TxtValidationMessage.Text = result.Errors.FirstOrDefault() ?? "Configuration is invalid";
+            // Show first error with more detail
+            TxtValidationMessage.Text = errors.FirstOrDefault() ?? "Configuration is invalid";
             BtnApply.IsEnabled = false;
             ModelStatusDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
         }

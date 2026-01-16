@@ -14,7 +14,7 @@
             <StackPanel Margin="20">
                 <!-- Header -->
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                    <materialDesign:PackIcon Kind="Creation" Width="28" Height="28" VerticalAlignment="Center" Foreground="#A78BFA"/>
+                    <materialDesign:PackIcon Kind="Creation" Width="28" Height="28" VerticalAlignment="Center" Foreground="#C084FC"/>
                     <StackPanel Margin="10,0,0,0">
                         <TextBlock Text="Content Creator" FontSize="20" FontWeight="Bold" Foreground="White"/>
                         <TextBlock Text="สร้างเนื้อหาด้วย AI สำหรับ Social Media" FontSize="12" Foreground="#B8B8D0"/>
@@ -184,7 +184,7 @@
                 <!-- Generate Button -->
                 <Button x:Name="BtnGenerate" Content="Generate Content" Click="Generate_Click"
                         Style="{StaticResource MaterialDesignRaisedButton}"
-                        Background="#A78BFA" Foreground="White" Height="45" FontSize="16">
+                        Background="#C084FC" Foreground="White" Height="45" FontSize="16">
                     <Button.ContentTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">

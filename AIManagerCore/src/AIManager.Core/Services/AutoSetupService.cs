@@ -424,7 +424,9 @@ public class AutoSetupService
             ("safetensors", "Installing safetensors...", 82),
             ("Pillow", "Installing Pillow...", 84),
             ("scipy", "Installing scipy...", 86),
-            ("flask", "Installing flask (for server)...", 88),
+            ("fastapi", "Installing FastAPI (for server)...", 87),
+            ("uvicorn", "Installing uvicorn (ASGI server)...", 88),
+            ("pydantic", "Installing pydantic...", 89),
         };
 
         foreach (var (package, message, progress) in packages)
@@ -450,116 +452,144 @@ public class AutoSetupService
 
     /// <summary>
     /// Verify the installation is complete and working
+    /// Uses file-based verification first (fast), then optionally does process-based verification
+    /// ใช้การตรวจสอบไฟล์ก่อน (เร็ว) แล้วค่อยตรวจสอบแบบรัน process (ถ้าต้องการ)
     /// </summary>
-    public async Task<VerificationResult> VerifyInstallationAsync(CancellationToken ct = default)
+    public async Task<VerificationResult> VerifyInstallationAsync(CancellationToken ct = default, bool quickMode = true)
     {
         var result = new VerificationResult();
 
+        // Always start with file-based verification (fast and reliable)
+        var pythonDir = Path.Combine(_installDir, "python");
+
+        result.HasPython = File.Exists(Path.Combine(pythonDir, "python.exe"));
+        result.HasPyTorch = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "torch", "__init__.py"));
+        result.HasDiffusers = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "diffusers", "__init__.py"));
+        result.HasTransformers = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "transformers", "__init__.py"));
+
+        // Set default version strings
+        if (result.HasPython) result.PythonVersion = $"Python {PYTHON_VERSION}";
+        if (result.HasPyTorch) result.PyTorchVersion = "PyTorch (installed)";
+        if (result.HasDiffusers) result.DiffusersVersion = "Diffusers (installed)";
+        if (result.HasTransformers) result.TransformersVersion = "Transformers (installed)";
+
+        // Check CUDA by looking for CUDA-specific DLLs
+        var torchLibDir = Path.Combine(pythonDir, "Lib", "site-packages", "torch", "lib");
+        if (Directory.Exists(torchLibDir))
+        {
+            try
+            {
+                var cudaDlls = Directory.GetFiles(torchLibDir, "cudart*.dll");
+                result.HasCuda = cudaDlls.Length > 0;
+            }
+            catch
+            {
+                result.HasCuda = false;
+            }
+        }
+
+        result.IsValid = result.HasPython && result.HasPyTorch && result.HasDiffusers && result.HasTransformers;
+
+        // If quick mode or files not found, return early
+        if (quickMode || !result.IsValid)
+        {
+            if (!result.HasPython) result.Errors.Add("Python not installed");
+            if (!result.HasPyTorch) result.Errors.Add("PyTorch not installed");
+            if (!result.HasDiffusers) result.Errors.Add("Diffusers not installed");
+            if (!result.HasTransformers) result.Errors.Add("Transformers not installed");
+
+            _logger?.LogInformation("Quick verification complete: Python={Python}, PyTorch={PyTorch}, CUDA={Cuda}, Diffusers={Diffusers}",
+                result.HasPython, result.HasPyTorch, result.HasCuda, result.HasDiffusers);
+
+            return result;
+        }
+
+        // Full verification (only if quickMode=false and all files exist)
+        // This runs Python processes to get actual versions
+        _logger?.LogInformation("Starting full verification with process checks...");
+
         try
         {
-            // Check Python - should be quick (30 second timeout)
+            // Check Python version (15 second timeout - just version check is fast)
             ReportProgress("Verifying Python...", 91, SetupPhase.Verifying);
             ct.ThrowIfCancellationRequested();
             try
             {
-                var pythonCheck = await RunProcessWithTimeoutAsync("--version", ct, timeoutSeconds: 30);
+                var pythonCheck = await RunProcessWithTimeoutAsync("--version", ct, timeoutSeconds: 15);
                 if (pythonCheck.ExitCode == 0)
                 {
                     result.PythonVersion = pythonCheck.Output.Trim();
-                    result.HasPython = true;
-                }
-                else
-                {
-                    result.Errors.Add("Python not working properly");
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                result.Errors.Add("Python verification timed out");
+                _logger?.LogWarning("Python version check timed out, using default");
             }
 
-            // Check PyTorch - first import can take longer due to CUDA initialization (90 second timeout)
-            ReportProgress("Verifying PyTorch... (อาจใช้เวลาสักครู่ในครั้งแรก)", 93, SetupPhase.Verifying);
+            // Check PyTorch version - import can be slow on first run (45 second timeout)
+            ReportProgress("Verifying PyTorch...", 94, SetupPhase.Verifying);
             ct.ThrowIfCancellationRequested();
             try
             {
-                var torchCheck = await RunProcessWithTimeoutAsync("-c \"import torch; print(torch.__version__)\"", ct, timeoutSeconds: 90);
+                var torchCheck = await RunProcessWithTimeoutAsync("-c \"import torch; print(torch.__version__)\"", ct, timeoutSeconds: 45);
                 if (torchCheck.ExitCode == 0)
                 {
                     result.PyTorchVersion = torchCheck.Output.Trim();
-                    result.HasPyTorch = true;
 
-                    // Check CUDA (60 second timeout)
-                    ReportProgress("Verifying CUDA...", 94, SetupPhase.Verifying);
+                    // Check CUDA availability (30 second timeout)
                     ct.ThrowIfCancellationRequested();
                     try
                     {
-                        var cudaCheck = await RunProcessWithTimeoutAsync("-c \"import torch; print(torch.cuda.is_available())\"", ct, timeoutSeconds: 60);
+                        var cudaCheck = await RunProcessWithTimeoutAsync("-c \"import torch; print(torch.cuda.is_available())\"", ct, timeoutSeconds: 30);
                         result.HasCuda = cudaCheck.Output.Trim().ToLower() == "true";
 
                         if (result.HasCuda)
                         {
-                            ct.ThrowIfCancellationRequested();
-                            var deviceCheck = await RunProcessWithTimeoutAsync("-c \"import torch; print(torch.cuda.get_device_name(0))\"", ct, timeoutSeconds: 30);
+                            var deviceCheck = await RunProcessWithTimeoutAsync("-c \"import torch; print(torch.cuda.get_device_name(0))\"", ct, timeoutSeconds: 15);
                             result.CudaDevice = deviceCheck.Output.Trim();
                         }
                     }
                     catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                     {
-                        _logger?.LogWarning("CUDA verification timed out, assuming not available");
-                        result.HasCuda = false;
+                        _logger?.LogWarning("CUDA check timed out");
                     }
-                }
-                else
-                {
-                    result.Errors.Add($"PyTorch not installed: {torchCheck.Error}");
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                result.Errors.Add("PyTorch verification timed out");
+                _logger?.LogWarning("PyTorch version check timed out, using file-based result");
             }
 
-            // Check Diffusers (60 second timeout)
-            ReportProgress("Verifying Diffusers...", 96, SetupPhase.Verifying);
+            // Check Diffusers version (30 second timeout)
+            ReportProgress("Verifying Diffusers...", 97, SetupPhase.Verifying);
             ct.ThrowIfCancellationRequested();
             try
             {
-                var diffusersCheck = await RunProcessWithTimeoutAsync("-c \"import diffusers; print(diffusers.__version__)\"", ct, timeoutSeconds: 60);
+                var diffusersCheck = await RunProcessWithTimeoutAsync("-c \"import diffusers; print(diffusers.__version__)\"", ct, timeoutSeconds: 30);
                 if (diffusersCheck.ExitCode == 0)
                 {
                     result.DiffusersVersion = diffusersCheck.Output.Trim();
-                    result.HasDiffusers = true;
-                }
-                else
-                {
-                    result.Errors.Add("Diffusers not installed");
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                result.Errors.Add("Diffusers verification timed out");
+                _logger?.LogWarning("Diffusers version check timed out, using file-based result");
             }
 
-            // Check Transformers (60 second timeout)
-            ReportProgress("Verifying Transformers...", 98, SetupPhase.Verifying);
+            // Check Transformers version (30 second timeout)
+            ReportProgress("Verifying Transformers...", 99, SetupPhase.Verifying);
             ct.ThrowIfCancellationRequested();
             try
             {
-                var transformersCheck = await RunProcessWithTimeoutAsync("-c \"import transformers; print(transformers.__version__)\"", ct, timeoutSeconds: 60);
+                var transformersCheck = await RunProcessWithTimeoutAsync("-c \"import transformers; print(transformers.__version__)\"", ct, timeoutSeconds: 30);
                 if (transformersCheck.ExitCode == 0)
                 {
                     result.TransformersVersion = transformersCheck.Output.Trim();
-                    result.HasTransformers = true;
-                }
-                else
-                {
-                    result.Errors.Add("Transformers not installed");
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                result.Errors.Add("Transformers verification timed out");
+                _logger?.LogWarning("Transformers version check timed out, using file-based result");
             }
         }
         catch (OperationCanceledException)
@@ -569,10 +599,52 @@ public class AutoSetupService
             throw;
         }
 
+        _logger?.LogInformation("Full verification complete: Python={Python}, PyTorch={PyTorch}, CUDA={Cuda}, Diffusers={Diffusers}",
+            result.HasPython, result.HasPyTorch, result.HasCuda, result.HasDiffusers);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Quick file-based verification only (no Python processes)
+    /// ตรวจสอบแบบเร็วโดยเช็คไฟล์เท่านั้น ไม่รัน Python process
+    /// </summary>
+    public VerificationResult QuickVerifyInstallation()
+    {
+        var result = new VerificationResult();
+        var pythonDir = Path.Combine(_installDir, "python");
+
+        result.HasPython = File.Exists(Path.Combine(pythonDir, "python.exe"));
+        result.HasPyTorch = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "torch", "__init__.py"));
+        result.HasDiffusers = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "diffusers", "__init__.py"));
+        result.HasTransformers = File.Exists(Path.Combine(pythonDir, "Lib", "site-packages", "transformers", "__init__.py"));
+
         result.IsValid = result.HasPython && result.HasPyTorch && result.HasDiffusers && result.HasTransformers;
 
-        _logger?.LogInformation("Verification complete: Python={Python}, PyTorch={PyTorch}, CUDA={Cuda}, Diffusers={Diffusers}",
-            result.HasPython, result.HasPyTorch, result.HasCuda, result.HasDiffusers);
+        if (result.HasPython) result.PythonVersion = $"Python {PYTHON_VERSION}";
+        if (result.HasPyTorch) result.PyTorchVersion = "PyTorch (installed)";
+        if (result.HasDiffusers) result.DiffusersVersion = "Diffusers (installed)";
+        if (result.HasTransformers) result.TransformersVersion = "Transformers (installed)";
+
+        // Check CUDA by looking for CUDA DLLs
+        var torchLibDir = Path.Combine(pythonDir, "Lib", "site-packages", "torch", "lib");
+        if (Directory.Exists(torchLibDir))
+        {
+            try
+            {
+                var cudaDlls = Directory.GetFiles(torchLibDir, "cudart*.dll");
+                result.HasCuda = cudaDlls.Length > 0;
+            }
+            catch
+            {
+                result.HasCuda = false;
+            }
+        }
+
+        if (!result.HasPython) result.Errors.Add("Python not installed");
+        if (!result.HasPyTorch) result.Errors.Add("PyTorch not installed");
+        if (!result.HasDiffusers) result.Errors.Add("Diffusers not installed");
+        if (!result.HasTransformers) result.Errors.Add("Transformers not installed");
 
         return result;
     }

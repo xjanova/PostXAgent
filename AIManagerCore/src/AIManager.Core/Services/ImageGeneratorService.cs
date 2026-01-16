@@ -65,15 +65,36 @@ public class ImageGeneratorService
             RequiresInstall = false,
             RequiresApiKey = true,
             ApiKeyEnvVar = "FAL_KEY"
+        },
+        new ImageProviderInfo
+        {
+            Id = "diffusers",
+            Name = "Local Diffusers Engine",
+            Description = "รันบน local GPU ด้วย HuggingFace Diffusers - ฟรี 100%",
+            DefaultUrl = "http://localhost:5050",
+            IsFree = true,
+            RequiresInstall = false,
+            RequiresApiKey = false
         }
     };
 
-    public ImageGeneratorService(ILogger<ImageGeneratorService>? logger = null)
+    private DiffusersGenerationEngine? _diffusersEngine;
+
+    public ImageGeneratorService(ILogger<ImageGeneratorService>? logger = null, DiffusersGenerationEngine? diffusersEngine = null)
     {
         _httpClient = new HttpClient();
         _httpClient.Timeout = TimeSpan.FromMinutes(5); // Image generation can take time
         _config = AIConfig.Load();
         _logger = logger;
+        _diffusersEngine = diffusersEngine;
+    }
+
+    /// <summary>
+    /// Set the DiffusersGenerationEngine for local diffusers generation
+    /// </summary>
+    public void SetDiffusersEngine(DiffusersGenerationEngine engine)
+    {
+        _diffusersEngine = engine;
     }
 
     public async Task<GeneratedImageResult> GenerateAsync(
@@ -95,50 +116,61 @@ public class ImageGeneratorService
     {
         _logger?.LogInformation("Generating image with provider: {Provider}", provider);
 
-        // Auto-select provider - ลองฟรีก่อน
+        // Auto-select provider - ลอง local ฟรีก่อน
         if (provider == "auto")
         {
-            // 1. Try local Stable Diffusion WebUI
-            var result = await GenerateWithStableDiffusionAsync(prompt, style, size, ct);
-            if (result != null)
+            // 1. Try Local Diffusers Engine first (if running)
+            if (_diffusersEngine?.IsRunning == true)
+            {
+                var result = await GenerateWithDiffusersEngineAsync(prompt, style, size, ct);
+                if (result != null)
+                {
+                    _logger?.LogInformation("Generated with Local Diffusers Engine");
+                    return result;
+                }
+            }
+
+            // 2. Try local Stable Diffusion WebUI
+            var sdResult = await GenerateWithStableDiffusionAsync(prompt, style, size, ct);
+            if (sdResult != null)
             {
                 _logger?.LogInformation("Generated with Stable Diffusion WebUI");
-                return result;
+                return sdResult;
             }
 
-            // 2. Try ComfyUI
-            result = await GenerateWithComfyUIAsync(prompt, style, size, ct);
-            if (result != null)
+            // 3. Try ComfyUI
+            sdResult = await GenerateWithComfyUIAsync(prompt, style, size, ct);
+            if (sdResult != null)
             {
                 _logger?.LogInformation("Generated with ComfyUI");
-                return result;
+                return sdResult;
             }
 
-            // 3. Try Hugging Face free API
-            result = await GenerateWithHuggingFaceAsync(prompt, style, size, ct);
-            if (result != null)
+            // 4. Try Hugging Face free API
+            sdResult = await GenerateWithHuggingFaceAsync(prompt, style, size, ct);
+            if (sdResult != null)
             {
                 _logger?.LogInformation("Generated with Hugging Face Inference");
-                return result;
+                return sdResult;
             }
 
-            // 4. Try fal.ai
-            result = await GenerateWithFalAiAsync(prompt, style, size, ct);
-            if (result != null)
+            // 5. Try fal.ai
+            sdResult = await GenerateWithFalAiAsync(prompt, style, size, ct);
+            if (sdResult != null)
             {
                 _logger?.LogInformation("Generated with fal.ai");
-                return result;
+                return sdResult;
             }
 
-            // 5. Fallback to DALL-E (paid)
-            result = await GenerateWithDallEAsync(prompt, style, size, ct);
-            if (result != null)
+            // 6. Fallback to DALL-E (paid)
+            sdResult = await GenerateWithDallEAsync(prompt, style, size, ct);
+            if (sdResult != null)
             {
                 _logger?.LogInformation("Generated with DALL-E (paid)");
-                return result;
+                return sdResult;
             }
 
-            throw new Exception("No image generator available. Please install Stable Diffusion WebUI or set HF_TOKEN for Hugging Face.");
+            throw new Exception("No image generator available. Please start Diffusers Engine, install Stable Diffusion WebUI, or set HF_TOKEN for Hugging Face.");
         }
 
         return provider switch
@@ -153,6 +185,8 @@ public class ImageGeneratorService
                                                        ?? throw new Exception("Hugging Face generation failed"),
             "fal" or "fal_ai" => await GenerateWithFalAiAsync(prompt, style, size, ct)
                                  ?? throw new Exception("fal.ai generation failed"),
+            "diffusers" or "local_diffusers" => await GenerateWithDiffusersEngineAsync(prompt, style, size, ct)
+                                                ?? throw new Exception("Local Diffusers generation failed. Make sure DiffusersGenerationEngine is running."),
             _ => throw new ArgumentException($"Unknown provider: {provider}")
         };
     }
@@ -232,6 +266,18 @@ public class ImageGeneratorService
             IsAvailable = !string.IsNullOrEmpty(_config.OpenAIApiKey),
             IsFree = false,
             Note = string.IsNullOrEmpty(_config.OpenAIApiKey) ? "Set OPENAI_API_KEY" : "Ready (Paid)"
+        });
+
+        // Check Local Diffusers Engine
+        results.Add(new AvailableProvider
+        {
+            Id = "diffusers",
+            Name = "Local Diffusers Engine",
+            IsAvailable = _diffusersEngine?.IsRunning == true,
+            IsFree = true,
+            Note = _diffusersEngine?.IsRunning == true
+                ? $"Running on port {_diffusersEngine.Port}"
+                : "Engine not started. Start from Diffusers Manager page."
         });
 
         return results;
@@ -542,6 +588,66 @@ public class ImageGeneratorService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Hugging Face Inference failed");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// สร้างรูปด้วย DiffusersGenerationEngine (LOCAL - uses Python diffusers directly)
+    /// </summary>
+    private async Task<GeneratedImageResult?> GenerateWithDiffusersEngineAsync(
+        string prompt, string style, string size, CancellationToken ct)
+    {
+        if (_diffusersEngine == null || !_diffusersEngine.IsRunning)
+        {
+            _logger?.LogWarning("DiffusersGenerationEngine is not available or not running");
+            return null;
+        }
+
+        var (width, height) = ParseSize(size);
+        var fullPrompt = $"masterpiece, best quality, {prompt}, {style} style";
+
+        try
+        {
+            _logger?.LogInformation("Generating image with local Diffusers engine...");
+
+            var request = new DiffusersImageRequest
+            {
+                Prompt = fullPrompt,
+                NegativePrompt = "blurry, low quality, distorted, watermark",
+                Width = width,
+                Height = height,
+                Steps = 30,
+                GuidanceScale = 7.5,
+                Seed = -1 // Random seed
+            };
+
+            var result = await _diffusersEngine.GenerateImageAsync(request, ct);
+
+            if (!result.Success || result.Images == null || result.Images.Count == 0)
+            {
+                _logger?.LogWarning("Diffusers generation failed: {Error}", result.Error);
+                return null;
+            }
+
+            // Extract base64 data from data URI
+            var imageData = result.Images[0];
+            if (imageData.StartsWith("data:image/"))
+            {
+                imageData = imageData.Substring(imageData.IndexOf(",") + 1);
+            }
+
+            return new GeneratedImageResult
+            {
+                Base64Data = imageData,
+                Provider = "diffusers",
+                Width = width,
+                Height = height
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "DiffusersEngine generation failed");
             return null;
         }
     }

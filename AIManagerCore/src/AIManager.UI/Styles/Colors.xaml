@@ -2,16 +2,16 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Primary Colors - Bright Purple for Dark Theme -->
-    <Color x:Key="PrimaryPurple">#A78BFA</Color>
-    <Color x:Key="PrimaryPurpleLight">#C4B5FD</Color>
-    <Color x:Key="PrimaryPurpleDark">#8B5CF6</Color>
+    <Color x:Key="PrimaryPurple">#C084FC</Color>
+    <Color x:Key="PrimaryPurpleLight">#E9D5FF</Color>
+    <Color x:Key="PrimaryPurpleDark">#A855F7</Color>
     <Color x:Key="PrimaryPink">#F472B6</Color>
     <Color x:Key="PrimaryGreen">#34D399</Color>
     <Color x:Key="PrimaryOrange">#FBBF24</Color>
     <Color x:Key="PrimaryCyan">#22D3EE</Color>
 
-    <SolidColorBrush x:Key="PrimaryColor" Color="#A78BFA"/>
-    <SolidColorBrush x:Key="PrimaryColorLight" Color="#C4B5FD"/>
+    <SolidColorBrush x:Key="PrimaryColor" Color="#C084FC"/>
+    <SolidColorBrush x:Key="PrimaryColorLight" Color="#E9D5FF"/>
     <SolidColorBrush x:Key="SecondaryColor" Color="#22D3EE"/>
     <SolidColorBrush x:Key="AccentColor" Color="#F472B6"/>
 

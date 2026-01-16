@@ -11,7 +11,7 @@
     <SolidColorBrush x:Key="GlassBackgroundDark" Color="#30000000"/>
 
     <!-- Neon Colors -->
-    <SolidColorBrush x:Key="NeonPurple" Color="#A78BFA"/>
+    <SolidColorBrush x:Key="NeonPurple" Color="#C084FC"/>
     <SolidColorBrush x:Key="NeonPink" Color="#EC4899"/>
     <SolidColorBrush x:Key="NeonCyan" Color="#06B6D4"/>
     <SolidColorBrush x:Key="NeonGreen" Color="#10B981"/>
@@ -20,7 +20,7 @@
 
     <!-- Gradient Brushes -->
     <LinearGradientBrush x:Key="PurplePinkGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#A78BFA" Offset="0"/>
+        <GradientStop Color="#C084FC" Offset="0"/>
         <GradientStop Color="#EC4899" Offset="1"/>
     </LinearGradientBrush>
 
@@ -101,21 +101,21 @@
                             CornerRadius="8"
                             Padding="{TemplateBinding Padding}">
                         <Border.Effect>
-                            <DropShadowEffect Color="#A78BFA" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                            <DropShadowEffect Color="#C084FC" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
                         </Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#30A78BFA"/>
+                            <Setter TargetName="border" Property="Background" Value="#30C084FC"/>
                             <Setter TargetName="border" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect Color="#A78BFA" BlurRadius="25" ShadowDepth="0" Opacity="0.8"/>
+                                    <DropShadowEffect Color="#C084FC" BlurRadius="25" ShadowDepth="0" Opacity="0.8"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="border" Property="Background" Value="#50A78BFA"/>
+                            <Setter TargetName="border" Property="Background" Value="#50C084FC"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -221,12 +221,12 @@
                     <Border x:Name="border" CornerRadius="8" Padding="{TemplateBinding Padding}">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#A78BFA" Offset="0"/>
+                                <GradientStop Color="#C084FC" Offset="0"/>
                                 <GradientStop Color="#EC4899" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
                         <Border.Effect>
-                            <DropShadowEffect Color="#A78BFA" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
+                            <DropShadowEffect Color="#C084FC" BlurRadius="20" ShadowDepth="0" Opacity="0.4"/>
                         </Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -284,7 +284,7 @@
                     <Border x:Name="border" CornerRadius="10" Padding="{TemplateBinding Padding}">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#40A78BFA" Offset="0"/>
+                                <GradientStop Color="#40C084FC" Offset="0"/>
                                 <GradientStop Color="#20EC4899" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
@@ -326,7 +326,7 @@
                             <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource NeonPurple}"/>
                             <Setter TargetName="border" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect Color="#A78BFA" BlurRadius="10" ShadowDepth="0" Opacity="0.3"/>
+                                    <DropShadowEffect Color="#C084FC" BlurRadius="10" ShadowDepth="0" Opacity="0.3"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
@@ -343,7 +343,7 @@
         <Setter Property="BorderBrush">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#60A78BFA" Offset="0"/>
+                    <GradientStop Color="#60C084FC" Offset="0"/>
                     <GradientStop Color="#30EC4899" Offset="1"/>
                 </LinearGradientBrush>
             </Setter.Value>
@@ -426,7 +426,7 @@
         <Setter Property="Foreground">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#A78BFA" Offset="0"/>
+                    <GradientStop Color="#C084FC" Offset="0"/>
                     <GradientStop Color="#EC4899" Offset="0.5"/>
                     <GradientStop Color="#06B6D4" Offset="1"/>
                 </LinearGradientBrush>
@@ -450,7 +450,7 @@
                         <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="4">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#A78BFA" Offset="0"/>
+                                    <GradientStop Color="#C084FC" Offset="0"/>
                                     <GradientStop Color="#EC4899" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
@@ -540,14 +540,14 @@
         <Setter Property="Background">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#A78BFA" Offset="0"/>
+                    <GradientStop Color="#C084FC" Offset="0"/>
                     <GradientStop Color="#EC4899" Offset="1"/>
                 </LinearGradientBrush>
             </Setter.Value>
         </Setter>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect Color="#A78BFA" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+                <DropShadowEffect Color="#C084FC" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
             </Setter.Value>
         </Setter>
     </Style>
@@ -558,7 +558,7 @@
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                     <GradientStop Color="#3B82F6" Offset="0"/>
-                    <GradientStop Color="#6366F1" Offset="1"/>
+                    <GradientStop Color="#C084FC" Offset="1"/>
                 </LinearGradientBrush>
             </Setter.Value>
         </Setter>
@@ -574,7 +574,7 @@
         <Setter Property="Background">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#A855F7" Offset="0"/>
+                    <GradientStop Color="#D8B4FE" Offset="0"/>
                     <GradientStop Color="#F472B6" Offset="0.5"/>
                     <GradientStop Color="#38BDF8" Offset="1"/>
                 </LinearGradientBrush>
@@ -582,7 +582,7 @@
         </Setter>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect Color="#A855F7" BlurRadius="15" ShadowDepth="0" Opacity="0.7"/>
+                <DropShadowEffect Color="#D8B4FE" BlurRadius="15" ShadowDepth="0" Opacity="0.7"/>
             </Setter.Value>
         </Setter>
     </Style>
@@ -609,14 +609,14 @@
         <Setter Property="Background">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#9C27B0" Offset="0"/>
+                    <GradientStop Color="#C084FC" Offset="0"/>
                     <GradientStop Color="#E91E63" Offset="1"/>
                 </LinearGradientBrush>
             </Setter.Value>
         </Setter>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect Color="#9C27B0" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+                <DropShadowEffect Color="#C084FC" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
             </Setter.Value>
         </Setter>
     </Style>

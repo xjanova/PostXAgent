@@ -103,7 +103,7 @@
                     <TextBlock Text="WORKERS" Foreground="#6B6B8A" FontSize="10" FontWeight="Bold"
                                HorizontalAlignment="Center" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <materialDesign:PackIcon Kind="Server" Foreground="#A78BFA" Width="24" Height="24"/>
+                        <materialDesign:PackIcon Kind="Server" Foreground="#C084FC" Width="24" Height="24"/>
                         <TextBlock x:Name="TxtTotalWorkers" Text="0" FontSize="28" FontWeight="Bold"
                                    Foreground="White" Margin="8,0,0,0"/>
                     </StackPanel>
@@ -255,7 +255,7 @@
                                     <Border Background="#1E1E3F" CornerRadius="4" Padding="8,4"
                                             Visibility="{Binding CurrentTaskVisibility}">
                                         <TextBlock Text="{Binding CurrentTaskShort}" FontSize="11"
-                                                   Foreground="#A78BFA" MaxWidth="180" TextTrimming="CharacterEllipsis"/>
+                                                   Foreground="#C084FC" MaxWidth="180" TextTrimming="CharacterEllipsis"/>
                                     </Border>
                                 </StackPanel>
 
@@ -282,7 +282,7 @@
                                 <StackPanel Grid.Row="3" Margin="0,0,0,12"
                                             Visibility="{Binding CurrentModelVisibility}">
                                     <TextBlock Text="Current Model" FontSize="10" Foreground="#6B6B8A" Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding CurrentModel}" FontSize="12" Foreground="#A78BFA"
+                                    <TextBlock Text="{Binding CurrentModel}" FontSize="12" Foreground="#C084FC"
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
 
@@ -335,7 +335,7 @@
                 <TextBlock Text="ระบบจะตรวจจับ GPU ในเครื่องโดยอัตโนมัติเมื่อสร้างภาพ"
                            FontSize="12" Foreground="#4B4B6A" HorizontalAlignment="Center"/>
                 <Button Style="{StaticResource MaterialDesignRaisedButton}"
-                        Background="#A78BFA" Foreground="White"
+                        Background="#C084FC" Foreground="White"
                         Click="BtnRefresh_Click" Margin="0,20,0,0">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="Refresh" VerticalAlignment="Center"/>
@@ -357,7 +357,7 @@
                                            Foreground="#6B6B8A" Width="70"/>
                                 <materialDesign:PackIcon Kind="{Binding Icon}" Foreground="{Binding IconColor}"
                                                          Width="16" Height="16" Margin="0,0,8,0"/>
-                                <TextBlock Text="{Binding WorkerName}" Foreground="#A78BFA" Width="100"/>
+                                <TextBlock Text="{Binding WorkerName}" Foreground="#C084FC" Width="100"/>
                                 <TextBlock Text="{Binding Message}" Foreground="#B8B8D0"/>
                             </StackPanel>
                         </DataTemplate>

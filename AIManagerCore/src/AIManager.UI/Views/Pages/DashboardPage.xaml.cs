@@ -39,7 +39,7 @@ public partial class DashboardPage : Page
         { SocialPlatform.LinkedIn, "#0A66C2" },
         { SocialPlatform.Pinterest, "#E60023" },
         { SocialPlatform.Freepik, "#00C7B7" },
-        { SocialPlatform.Runway, "#A78BFA" },
+        { SocialPlatform.Runway, "#C084FC" },
         { SocialPlatform.PikaLabs, "#F59E0B" },
         { SocialPlatform.LumaAI, "#10B981" },
         { SocialPlatform.SunoAI, "#EC4899" }
@@ -133,8 +133,8 @@ public partial class DashboardPage : Page
             {
                 Name = "CPU %",
                 Values = _cpuValues,
-                Fill = new SolidColorPaint(SKColor.Parse("#307C4DFF")),
-                Stroke = new SolidColorPaint(SKColor.Parse("#7C4DFF")) { StrokeThickness = 2 },
+                Fill = new SolidColorPaint(SKColor.Parse("#30C084FC")),
+                Stroke = new SolidColorPaint(SKColor.Parse("#C084FC")) { StrokeThickness = 2 },
                 GeometryFill = null,
                 GeometryStroke = null,
                 LineSmoothness = 0.5

@@ -48,7 +48,7 @@
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                     <GradientStop Color="#30FF6B6B" Offset="0"/>
                     <GradientStop Color="#304ECDC4" Offset="0.5"/>
-                    <GradientStop Color="#30A78BFA" Offset="1"/>
+                    <GradientStop Color="#30C084FC" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
             <Border.Effect>
@@ -141,7 +141,7 @@
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                                 <materialDesign:PackIcon Kind="Cog" Width="22" Height="22"
-                                                          Foreground="#A78BFA" VerticalAlignment="Center"/>
+                                                          Foreground="#C084FC" VerticalAlignment="Center"/>
                                 <TextBlock Text="Settings" FontWeight="Bold" FontSize="16"
                                            Foreground="White" Margin="10,0,0,0"/>
                             </StackPanel>
@@ -198,7 +198,7 @@
 
                                 <StackPanel Orientation="Horizontal">
                                     <materialDesign:PackIcon Kind="Brain" Width="22" Height="22"
-                                                              Foreground="#A78BFA" VerticalAlignment="Center"/>
+                                                              Foreground="#C084FC" VerticalAlignment="Center"/>
                                     <TextBlock Text="AI Command" FontWeight="Bold" FontSize="16"
                                                Foreground="White" Margin="10,0,0,0"/>
                                 </StackPanel>
@@ -236,7 +236,7 @@
                             </Grid>
 
                             <!-- AI Response -->
-                            <Border x:Name="AiResponsePanel" Background="#20A78BFA" CornerRadius="8" Padding="12"
+                            <Border x:Name="AiResponsePanel" Background="#20C084FC" CornerRadius="8" Padding="12"
                                     Margin="0,12,0,0" Visibility="Collapsed">
                                 <StackPanel>
                                     <Grid>
@@ -246,8 +246,8 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <materialDesign:PackIcon Kind="RobotOutline" Width="16" Height="16"
-                                                                  Foreground="#A78BFA" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="AI Response" Foreground="#A78BFA"
+                                                                  Foreground="#C084FC" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="AI Response" Foreground="#C084FC"
                                                    FontWeight="SemiBold" FontSize="11" Margin="6,0,0,0"/>
                                         <Button Grid.Column="2" Style="{StaticResource MaterialDesignIconButton}"
                                                 Click="DismissAiResponseButton_Click" Width="20" Height="20">
@@ -369,7 +369,7 @@
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="ListStatus" Width="22" Height="22"
-                                                          Foreground="#A78BFA" VerticalAlignment="Center"/>
+                                                          Foreground="#C084FC" VerticalAlignment="Center"/>
                                 <TextBlock Text="Recorded Steps" FontWeight="Bold" FontSize="16"
                                            Foreground="White" Margin="8,0,0,0"/>
                             </StackPanel>
@@ -378,6 +378,16 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <!-- Import/Export buttons -->
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Click="ImportButton_Click" ToolTip="Import Workflow" Width="32" Height="32">
+                                <materialDesign:PackIcon Kind="Import" Width="18" Height="18" Foreground="#06B6D4"/>
+                            </Button>
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Click="ExportButton_Click" ToolTip="Export Workflow" Width="32" Height="32">
+                                <materialDesign:PackIcon Kind="Export" Width="18" Height="18" Foreground="#10B981"/>
+                            </Button>
+                            <Border Width="1" Background="#30FFFFFF" Margin="4,4"/>
                             <Button Style="{StaticResource MaterialDesignIconButton}"
                                     x:Name="UndoButton" Click="UndoButton_Click"
                                     ToolTip="Undo" IsEnabled="False" Width="32" Height="32">

@@ -49,6 +49,15 @@ public partial class ModelManagerPage : Page
         Loaded += ModelManagerPage_Loaded;
     }
 
+    private void BtnBack_Click(object sender, RoutedEventArgs e)
+    {
+        // Navigate back to Generation Pipeline
+        if (Window.GetWindow(this) is MainWindow mainWindow)
+        {
+            mainWindow.NavigateToPage("GenerationPipeline");
+        }
+    }
+
     private async void ModelManagerPage_Loaded(object sender, RoutedEventArgs e)
     {
         await LoadDownloadedModelsAsync();
@@ -1672,7 +1681,7 @@ public partial class ModelManagerPage : Page
 
     private static string GetTypeColor(ModelType type) => type switch
     {
-        ModelType.TextToImage => "#7C4DFF",
+        ModelType.TextToImage => "#C084FC",
         ModelType.TextToVideo => "#06B6D4",
         ModelType.LoRA => "#F59E0B",
         ModelType.ControlNet => "#10B981",

@@ -89,7 +89,7 @@
                     <Border Width="40" Height="40" CornerRadius="20" Margin="0,0,12,0">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#A78BFA" Offset="0"/>
+                                <GradientStop Color="#C084FC" Offset="0"/>
                                 <GradientStop Color="#EC4899" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
@@ -139,11 +139,11 @@
                     <Border Style="{StaticResource ClaudeMessageBorder}">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <Border Width="24" Height="24" CornerRadius="12" Background="#A78BFA" Margin="0,0,8,0">
+                                <Border Width="24" Height="24" CornerRadius="12" Background="#C084FC" Margin="0,0,8,0">
                                     <materialDesign:PackIcon Kind="CodeBraces" Width="14" Height="14"
                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
-                                <TextBlock Text="Claude Code" FontWeight="Bold" FontSize="12" Foreground="#A78BFA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Claude Code" FontWeight="Bold" FontSize="12" Foreground="#C084FC" VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBlock TextWrapping="Wrap" FontSize="13">
                                 สวัสดีครับ! ผมคือ Claude Code พร้อมช่วยเหลือในการแก้ไขโค้ดและปัญหาต่างๆ
@@ -208,7 +208,7 @@
                                     <Setter Property="Background">
                                         <Setter.Value>
                                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#A78BFA" Offset="0"/>
+                                                <GradientStop Color="#C084FC" Offset="0"/>
                                                 <GradientStop Color="#EC4899" Offset="1"/>
                                             </LinearGradientBrush>
                                         </Setter.Value>
@@ -241,7 +241,7 @@
                         <Border Width="50" Height="50" CornerRadius="25">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#A78BFA" Offset="0"/>
+                                    <GradientStop Color="#C084FC" Offset="0"/>
                                     <GradientStop Color="#EC4899" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
@@ -381,7 +381,7 @@
                                     <Setter Property="Background">
                                         <Setter.Value>
                                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#A78BFA" Offset="0"/>
+                                                <GradientStop Color="#C084FC" Offset="0"/>
                                                 <GradientStop Color="#EC4899" Offset="1"/>
                                             </LinearGradientBrush>
                                         </Setter.Value>

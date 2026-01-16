@@ -20,6 +20,7 @@ public partial class NodePalette : UserControl
     {
         InitializeComponent();
         _nodeRegistry = new NodeRegistry();
+        System.Diagnostics.Debug.WriteLine($"[NodePalette] Initializing with {_nodeRegistry.GetAllNodes().Count()} nodes");
         PopulateCategories();
     }
 
@@ -67,6 +68,8 @@ public partial class NodePalette : UserControl
             "Output" => PackIconKind.Export,
             "Social Media" => PackIconKind.ShareVariant,
             "Utility" => PackIconKind.Tools,
+            "Diffusers" => PackIconKind.ImageFilterDrama,
+            "Pipeline" => PackIconKind.Pipe,
             _ => PackIconKind.Circle
         };
 
@@ -194,8 +197,12 @@ public partial class NodePalette : UserControl
         {
             if (e.LeftButton == MouseButtonState.Pressed)
             {
+                System.Diagnostics.Debug.WriteLine($"[NodePalette] Starting drag for: {node.NodeType}");
                 NodeDragStarted?.Invoke(node.NodeType);
-                DragDrop.DoDragDrop(border, node.NodeType, DragDropEffects.Copy);
+                // Use DataObject with StringFormat for proper drag & drop
+                var dataObject = new DataObject(DataFormats.StringFormat, node.NodeType);
+                var result = DragDrop.DoDragDrop(border, dataObject, DragDropEffects.Copy);
+                System.Diagnostics.Debug.WriteLine($"[NodePalette] Drag ended with effect: {result}");
             }
         };
 

@@ -190,7 +190,7 @@ public class ModelBlockConfig : IBlockConfig
 
         if (string.IsNullOrWhiteSpace(CheckpointId) && string.IsNullOrWhiteSpace(CheckpointPath))
         {
-            result.Errors.Add("No model selected. Please select a checkpoint model.");
+            result.Errors.Add("ยังไม่ได้เลือก Model - กรุณาเลือก Model จาก Model Manager / No model selected. Please select a checkpoint model from Model Manager.");
             result.Status = BlockStatus.Invalid;
             return result;
         }

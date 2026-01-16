@@ -17,14 +17,14 @@
             <Setter Property="Stroke">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#A78BFA" Offset="0"/>
+                        <GradientStop Color="#C084FC" Offset="0"/>
                         <GradientStop Color="#EC4899" Offset="1"/>
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="#A78BFA" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
+                    <DropShadowEffect Color="#C084FC" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -67,9 +67,10 @@
                 MouseMove="Canvas_MouseMove"
                 AllowDrop="True"
                 Drop="Canvas_Drop"
-                DragOver="Canvas_DragOver">
+                DragOver="Canvas_DragOver"
+                Background="Transparent">
 
-            <Canvas x:Name="NodeCanvas">
+            <Canvas x:Name="NodeCanvas" Background="Transparent">
                 <Canvas.RenderTransform>
                     <TransformGroup>
                         <ScaleTransform x:Name="CanvasScale" ScaleX="1" ScaleY="1"/>
@@ -87,8 +88,8 @@
 
                 <!-- Selection Rectangle -->
                 <Border x:Name="SelectionRect"
-                        Background="#20A78BFA"
-                        BorderBrush="#A78BFA"
+                        Background="#20C084FC"
+                        BorderBrush="#C084FC"
                         BorderThickness="1"
                         CornerRadius="3"
                         Visibility="Collapsed"/>
@@ -158,8 +159,8 @@
                 CornerRadius="10" Margin="10" Visibility="Visible">
             <Grid>
                 <Canvas x:Name="MinimapCanvas" ClipToBounds="True"/>
-                <Border x:Name="MinimapViewport" Background="#20A78BFA"
-                        BorderBrush="#A78BFA" BorderThickness="1"/>
+                <Border x:Name="MinimapViewport" Background="#20C084FC"
+                        BorderBrush="#C084FC" BorderThickness="1"/>
             </Grid>
         </Border>
 

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MyPostXAgent.Core.Services.Data;
 using MyPostXAgent.Core.Services.License;
+using MyPostXAgent.Core.Services.AI;
 
 namespace MyPostXAgent.UI;
 
@@ -46,6 +47,10 @@ public partial class App : Application
             System.Diagnostics.Debug.WriteLine("App: Initializing database...");
             var dbService = Services.GetRequiredService<DatabaseService>();
             await dbService.InitializeAsync();
+
+            // Check and setup Ollama if needed
+            System.Diagnostics.Debug.WriteLine("App: Checking Ollama...");
+            await Helpers.OllamaStartupHelper.EnsureOllamaReadyAsync(Services);
 
             // Initialize AI providers
             System.Diagnostics.Debug.WriteLine("App: Initializing AI providers...");

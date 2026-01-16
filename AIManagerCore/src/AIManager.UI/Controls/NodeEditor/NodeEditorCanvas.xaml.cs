@@ -85,17 +85,22 @@ public partial class NodeEditorCanvas : UserControl
     /// </summary>
     public void AddNode(WorkflowNode node, Point? position = null)
     {
+        System.Diagnostics.Debug.WriteLine($"[NodeEditorCanvas] AddNode called: {node.Name} ({node.NodeType})");
+
         SaveUndoState();
 
         if (position.HasValue)
         {
             node.Position = new NodePosition(position.Value.X, position.Value.Y);
+            System.Diagnostics.Debug.WriteLine($"[NodeEditorCanvas] Position set to: {position.Value.X}, {position.Value.Y}");
         }
 
         _workflow.AddNode(node);
         CreateNodeControl(node);
         UpdateStatus();
         WorkflowChanged?.Invoke(_workflow);
+
+        System.Diagnostics.Debug.WriteLine($"[NodeEditorCanvas] Node added. Total nodes: {_workflow.Nodes.Count}");
     }
 
     /// <summary>
@@ -174,6 +179,8 @@ public partial class NodeEditorCanvas : UserControl
 
     private void CreateNodeControl(WorkflowNode node)
     {
+        System.Diagnostics.Debug.WriteLine($"[NodeEditorCanvas] CreateNodeControl: {node.Name} at ({node.Position.X}, {node.Position.Y})");
+
         var nodeControl = new NodeControl(node);
 
         // Set position
@@ -191,6 +198,8 @@ public partial class NodeEditorCanvas : UserControl
 
         NodeLayer.Children.Add(nodeControl);
         _nodeControls[node.Id] = nodeControl;
+
+        System.Diagnostics.Debug.WriteLine($"[NodeEditorCanvas] NodeLayer now has {NodeLayer.Children.Count} children");
     }
 
     private void CreateConnectionPath(NodeConnection connection)
@@ -586,24 +595,66 @@ public partial class NodeEditorCanvas : UserControl
 
     private void Canvas_Drop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(typeof(string)))
+        System.Diagnostics.Debug.WriteLine("Canvas_Drop triggered");
+
+        // Try multiple data formats - DragDrop can use different formats
+        string? nodeType = null;
+
+        if (e.Data.GetDataPresent(DataFormats.StringFormat))
         {
-            var nodeType = (string)e.Data.GetData(typeof(string));
+            nodeType = (string?)e.Data.GetData(DataFormats.StringFormat);
+            System.Diagnostics.Debug.WriteLine($"Got StringFormat: {nodeType}");
+        }
+        else if (e.Data.GetDataPresent(DataFormats.Text))
+        {
+            nodeType = (string?)e.Data.GetData(DataFormats.Text);
+            System.Diagnostics.Debug.WriteLine($"Got Text: {nodeType}");
+        }
+        else if (e.Data.GetDataPresent(typeof(string)))
+        {
+            nodeType = (string?)e.Data.GetData(typeof(string));
+            System.Diagnostics.Debug.WriteLine($"Got typeof(string): {nodeType}");
+        }
+
+        if (!string.IsNullOrEmpty(nodeType))
+        {
             var node = _nodeRegistry.CreateNode(nodeType);
+            System.Diagnostics.Debug.WriteLine($"Created node: {node?.Name ?? "null"}");
 
             if (node != null)
             {
+                // Get position relative to canvas, accounting for transforms
                 var pos = e.GetPosition(NodeCanvas);
-                AddNode(node, pos);
+
+                // Adjust for zoom and pan
+                var adjustedX = (pos.X - _panOffset.X) / _zoom;
+                var adjustedY = (pos.Y - _panOffset.Y) / _zoom;
+
+                System.Diagnostics.Debug.WriteLine($"Drop position: {adjustedX}, {adjustedY}");
+                AddNode(node, new Point(adjustedX, adjustedY));
             }
         }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine("nodeType is null or empty");
+            // Log available formats for debugging
+            foreach (var format in e.Data.GetFormats())
+            {
+                System.Diagnostics.Debug.WriteLine($"Available format: {format}");
+            }
+        }
+
+        e.Handled = true;
     }
 
     private void Canvas_DragOver(object sender, DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(typeof(string))
-            ? DragDropEffects.Copy
-            : DragDropEffects.None;
+        // Accept multiple data formats
+        bool hasData = e.Data.GetDataPresent(DataFormats.StringFormat) ||
+                       e.Data.GetDataPresent(DataFormats.Text) ||
+                       e.Data.GetDataPresent(typeof(string));
+
+        e.Effects = hasData ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
 
@@ -784,6 +835,14 @@ public partial class NodeEditorCanvas : UserControl
     }
 
     /// <summary>
+    /// Update node execution state (alias for SetNodeState)
+    /// </summary>
+    public void UpdateNodeState(string nodeId, NodeExecutionState state)
+    {
+        SetNodeState(nodeId, state);
+    }
+
+    /// <summary>
     /// Enable/disable execution buttons
     /// </summary>
     public void SetExecutionMode(bool isRunning)
@@ -794,6 +853,77 @@ public partial class NodeEditorCanvas : UserControl
             BtnStop.IsEnabled = isRunning;
             StatusText.Text = isRunning ? "Running..." : "Ready";
         });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WORKFLOW MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Clear the current workflow
+    /// </summary>
+    public void ClearWorkflow()
+    {
+        ClearCanvas();
+    }
+
+    /// <summary>
+    /// Load a workflow into the canvas
+    /// </summary>
+    public void LoadWorkflow(WorkflowGraph workflow)
+    {
+        _workflow = workflow;
+        RefreshCanvas();
+    }
+
+    /// <summary>
+    /// Get the current workflow
+    /// </summary>
+    public WorkflowGraph GetWorkflow()
+    {
+        return _workflow;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ZOOM CONTROLS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Zoom in
+    /// </summary>
+    public void ZoomIn()
+    {
+        _zoom = Math.Min(3.0, _zoom + 0.1);
+        ApplyZoom();
+    }
+
+    /// <summary>
+    /// Zoom out
+    /// </summary>
+    public void ZoomOut()
+    {
+        _zoom = Math.Max(0.1, _zoom - 0.1);
+        ApplyZoom();
+    }
+
+    /// <summary>
+    /// Reset zoom to 100%
+    /// </summary>
+    public void ResetZoom()
+    {
+        _zoom = 1.0;
+        _panOffset = new Point(0, 0);
+        ApplyZoom();
+    }
+
+    private void ApplyZoom()
+    {
+        var transform = new TransformGroup();
+        transform.Children.Add(new ScaleTransform(_zoom, _zoom));
+        transform.Children.Add(new TranslateTransform(_panOffset.X, _panOffset.Y));
+        NodeLayer.RenderTransform = transform;
+        ConnectionLayer.RenderTransform = transform;
+        UpdateZoomDisplay();
     }
 }
 

@@ -1,7 +1,12 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
+using AIManager.Core.WebAutomation.Models;
+using AIManager.UI.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 
 namespace AIManager.UI.Views.Windows;
@@ -14,6 +19,11 @@ public partial class WebViewWindow : Window
     private bool _isRecording;
     private readonly DispatcherTimer _recordingTimer;
     private DateTime _recordingStartTime;
+    private readonly ILogger<WebViewWindow>? _logger;
+
+    // Workflow Executor
+    private WebView2WorkflowExecutor? _workflowExecutor;
+    private CancellationTokenSource? _executionCts;
 
     // Events for communication with parent page
     public event EventHandler<string>? NavigationCompleted;
@@ -21,6 +31,9 @@ public partial class WebViewWindow : Window
     public event EventHandler? RecordingStarted;
     public event EventHandler? RecordingStopped;
     public event EventHandler? WindowClosing;
+    public event EventHandler<WorkflowStepEventArgs>? WorkflowStepStarted;
+    public event EventHandler<WorkflowStepEventArgs>? WorkflowStepCompleted;
+    public event EventHandler<WorkflowCompletedEventArgs>? WorkflowExecutionCompleted;
 
     // Recording Script
     private const string RecordingScript = @"
@@ -97,6 +110,13 @@ public partial class WebViewWindow : Window
             Interval = TimeSpan.FromSeconds(1)
         };
         _recordingTimer.Tick += RecordingTimer_Tick;
+
+        // Try to get logger from DI
+        try
+        {
+            _logger = App.Services?.GetService<ILogger<WebViewWindow>>();
+        }
+        catch { }
 
         InitializeWebView();
     }
@@ -254,6 +274,109 @@ public partial class WebViewWindow : Window
     }
 
     public bool IsRecording => _isRecording;
+
+    #endregion
+
+    #region Workflow Execution
+
+    /// <summary>
+    /// Execute workflow in browser
+    /// </summary>
+    public async Task<WorkflowExecutionResult> ExecuteWorkflowAsync(
+        LearnedWorkflow workflow,
+        Dictionary<string, string>? variables = null,
+        CancellationToken ct = default)
+    {
+        if (WebBrowser.CoreWebView2 == null)
+        {
+            return new WorkflowExecutionResult
+            {
+                Success = false,
+                Error = "WebView2 not initialized"
+            };
+        }
+
+        // Initialize executor if needed
+        if (_workflowExecutor == null)
+        {
+            var executorLogger = App.Services?.GetService<ILogger<WebView2WorkflowExecutor>>();
+            _workflowExecutor = new WebView2WorkflowExecutor(executorLogger);
+            _workflowExecutor.SetWebView(WebBrowser);
+
+            // Wire up events
+            _workflowExecutor.StepStarted += (s, e) =>
+            {
+                Dispatcher.Invoke(() => WorkflowStepStarted?.Invoke(this, e));
+            };
+            _workflowExecutor.StepCompleted += (s, e) =>
+            {
+                Dispatcher.Invoke(() => WorkflowStepCompleted?.Invoke(this, e));
+            };
+            _workflowExecutor.WorkflowCompleted += (s, e) =>
+            {
+                Dispatcher.Invoke(() => WorkflowExecutionCompleted?.Invoke(this, e));
+            };
+        }
+
+        _executionCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        // Show execution overlay
+        ShowExecutionOverlay(workflow.Name);
+
+        try
+        {
+            var result = await _workflowExecutor.ExecuteAsync(workflow, variables, _executionCts.Token);
+
+            _logger?.LogInformation("Workflow {Id} execution completed: {Success}",
+                workflow.Id, result.Success);
+
+            return result;
+        }
+        finally
+        {
+            HideExecutionOverlay();
+            _executionCts.Dispose();
+            _executionCts = null;
+        }
+    }
+
+    /// <summary>
+    /// Test replay workflow (quick test)
+    /// </summary>
+    public async Task<bool> TestWorkflowAsync(LearnedWorkflow workflow)
+    {
+        var result = await ExecuteWorkflowAsync(workflow);
+        return result.Success;
+    }
+
+    /// <summary>
+    /// Stop current workflow execution
+    /// </summary>
+    public void StopWorkflowExecution()
+    {
+        _executionCts?.Cancel();
+        _workflowExecutor?.Stop();
+        HideExecutionOverlay();
+    }
+
+    public bool IsExecutingWorkflow => _workflowExecutor?.IsExecuting ?? false;
+
+    private void ShowExecutionOverlay(string workflowName)
+    {
+        RecordingStatusBorder.Visibility = Visibility.Visible;
+        TxtRecordingTime.Text = workflowName;
+
+        // Change color to blue for execution
+        RecordingDot.Fill = new SolidColorBrush(Color.FromRgb(59, 130, 246));
+    }
+
+    private void HideExecutionOverlay()
+    {
+        RecordingStatusBorder.Visibility = Visibility.Collapsed;
+
+        // Reset to recording red
+        RecordingDot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+    }
 
     #endregion
 
