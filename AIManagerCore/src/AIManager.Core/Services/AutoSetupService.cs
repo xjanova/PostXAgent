@@ -416,17 +416,30 @@ public class AutoSetupService
     /// </summary>
     private async Task InstallAIPackagesAsync(CancellationToken ct)
     {
+        // Core packages + production requirements for full ComfyUI-like functionality
         var packages = new[]
         {
-            ("diffusers", "Installing diffusers...", 72),
-            ("transformers", "Installing transformers...", 76),
-            ("accelerate", "Installing accelerate...", 80),
-            ("safetensors", "Installing safetensors...", 82),
-            ("Pillow", "Installing Pillow...", 84),
-            ("scipy", "Installing scipy...", 86),
-            ("fastapi", "Installing FastAPI (for server)...", 87),
-            ("uvicorn", "Installing uvicorn (ASGI server)...", 88),
-            ("pydantic", "Installing pydantic...", 89),
+            // Core diffusion packages
+            ("diffusers", "Installing diffusers...", 70),
+            ("transformers", "Installing transformers...", 73),
+            ("accelerate", "Installing accelerate...", 75),
+            ("safetensors", "Installing safetensors...", 76),
+            ("Pillow", "Installing Pillow...", 77),
+            ("scipy", "Installing scipy...", 78),
+            // Server packages
+            ("fastapi", "Installing FastAPI (for server)...", 79),
+            ("uvicorn[standard]", "Installing uvicorn (ASGI server)...", 80),
+            ("pydantic", "Installing pydantic...", 81),
+            // ControlNet preprocessing
+            ("controlnet_aux", "Installing ControlNet preprocessors...", 82),
+            ("opencv-python", "Installing OpenCV...", 83),
+            // Upscaling (Real-ESRGAN)
+            ("realesrgan", "Installing Real-ESRGAN upscaler...", 85),
+            ("basicsr", "Installing BasicSR...", 86),
+            // Additional utilities
+            ("omegaconf", "Installing OmegaConf...", 87),
+            ("einops", "Installing einops...", 88),
+            ("xformers", "Installing xformers (memory optimization)...", 89),
         };
 
         foreach (var (package, message, progress) in packages)

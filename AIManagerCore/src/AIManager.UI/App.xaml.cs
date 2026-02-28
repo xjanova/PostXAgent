@@ -53,7 +53,7 @@ public partial class App : Application
 
     private async Task InitializeWithProgressAsync()
     {
-        var totalSteps = 8;
+        var totalSteps = 6;
         var currentStep = 0;
 
         void ReportProgress(string message)
@@ -85,47 +85,21 @@ public partial class App : Application
         var loggingService = Services.GetService<LoggingService>();
         await Task.Delay(100);
 
-        // Step 5: Initialize Ollama service manager
-        ReportProgress("Initializing AI service manager...");
-        _ollamaService = Services.GetRequiredService<OllamaServiceManager>();
-        _ollamaService.StatusChanged += (s, status) =>
-        {
-            _logger.LogDebug("Ollama", $"Status changed: {status}");
-        };
-        await Task.Delay(100);
-
-        // Step 6: Start Ollama service
-        ReportProgress("Starting Ollama AI service...");
-        try
-        {
-            _logger.LogInfo("Ollama", "Starting Ollama service...");
-            var started = await _ollamaService.StartAsync();
-            if (started)
-            {
-                _logger.LogInfo("Ollama", "Started successfully");
-            }
-            else
-            {
-                _logger.LogWarning("Ollama", "Failed to start - check if installed");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError("Ollama", "Error starting Ollama", ex);
-            // Continue anyway - Ollama is optional
-        }
-
-        // Note: Diffusers Engine is NOT auto-started
-        // User can start it manually from the Diffusers Manager page (click status bar)
-        _logger.LogInfo("Diffusers", "Diffusers Engine available - start manually from status bar");
-
-        // Step 7: Initialize content generators
+        // Step 5: Initialize content generators
         ReportProgress("Initializing content generators...");
         var contentGenerator = Services.GetService<ContentGeneratorService>();
         var imageGenerator = Services.GetService<ImageGeneratorService>();
         await Task.Delay(100);
 
-        // Step 8: Loading main window
+        // Note: Ollama will be started AFTER main window is loaded (in background)
+        // This speeds up the initial load time
+        _logger.LogInfo("Ollama", "Ollama service will be started after main window loads");
+
+        // Note: Diffusers Engine is NOT auto-started
+        // User can start it manually from the Diffusers Manager page (click status bar)
+        _logger.LogInfo("Diffusers", "Diffusers Engine available - start manually from status bar");
+
+        // Step 6: Loading main window
         ReportProgress("Loading main window...");
         await Task.Delay(200);
 
@@ -185,6 +159,39 @@ public partial class App : Application
         {
             Shutdown();
         };
+
+        // Start Ollama service in background AFTER main window is loaded
+        // This way the UI is responsive immediately
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Small delay to ensure main window is fully rendered
+                await Task.Delay(500);
+
+                _ollamaService = Services.GetRequiredService<OllamaServiceManager>();
+                _ollamaService.StatusChanged += (s, status) =>
+                {
+                    _logger.LogDebug("Ollama", $"Status changed: {status}");
+                };
+
+                _logger.LogInfo("Ollama", "Starting Ollama service (background)...");
+                var started = await _ollamaService.StartAsync();
+                if (started)
+                {
+                    _logger.LogInfo("Ollama", "Started successfully");
+                }
+                else
+                {
+                    _logger.LogWarning("Ollama", "Failed to start - check if installed");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Ollama", "Error starting Ollama", ex);
+                // Continue anyway - Ollama is optional
+            }
+        });
     }
 
     private void SetupExceptionHandlers()

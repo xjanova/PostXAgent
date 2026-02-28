@@ -338,6 +338,7 @@ public partial class MainWindow : Window
             "SunoOptions" => new SunoOptionsPage(),
             "ModelManager" => _modelManagerPage ??= new ModelManagerPage(),
             "DiffusersManager" => _diffusersManagerPage ??= new DiffusersManagerPage(),
+            "GpuPoolManager" => new GpuPoolManagerPage(),
             "ColabGpu" => new ColabGpuPage(),
             "GpuNodeMonitor" => new GpuNodeMonitorPage(),
             "GpuSetupWizard" => new GpuSetupWizardPage(),

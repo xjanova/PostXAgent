@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -11,17 +12,137 @@ using Newtonsoft.Json;
 
 namespace AIManager.UI.Views.Pages;
 
+/// <summary>
+/// Log entry with color and icon support
+/// </summary>
+public class LogEntry
+{
+    public string Timestamp { get; set; } = "";
+    public string Message { get; set; } = "";
+    public LogLevel Level { get; set; } = LogLevel.Info;
+    public string Icon { get; set; } = "InformationOutline";
+    public string IconColor { get; set; } = "#3B82F6";
+    public string TextColor { get; set; } = "#E0E0E0";
+
+    public enum LogLevel
+    {
+        Debug,
+        Info,
+        Success,
+        Warning,
+        Error,
+        Step
+    }
+
+    public static LogEntry Create(string message)
+    {
+        var entry = new LogEntry
+        {
+            Timestamp = DateTime.Now.ToString("HH:mm:ss"),
+            Message = message
+        };
+
+        // Detect log level from message content
+        var msgLower = message.ToLowerInvariant();
+
+        // Check for step indicators [1/7], [Step 1], etc.
+        if (System.Text.RegularExpressions.Regex.IsMatch(message, @"\[\d+/\d+\]"))
+        {
+            entry.Level = LogLevel.Step;
+            entry.Icon = "CircleOutline";
+            entry.IconColor = "#8B5CF6";  // Purple
+            entry.TextColor = "#C4B5FD";  // Light purple
+        }
+        // Success indicators
+        else if (msgLower.Contains("success") || msgLower.Contains("completed") ||
+                 msgLower.Contains("ready") || msgLower.Contains("[ok]"))
+        {
+            entry.Level = LogLevel.Success;
+            entry.Icon = "CheckCircle";
+            entry.IconColor = "#10B981";  // Green
+            entry.TextColor = "#34D399";  // Light green
+        }
+        // Error indicators
+        else if (msgLower.Contains("error") || msgLower.Contains("fail") ||
+                 msgLower.Contains("exception") || msgLower.Contains("[x]"))
+        {
+            entry.Level = LogLevel.Error;
+            entry.Icon = "AlertCircle";
+            entry.IconColor = "#EF4444";  // Red
+            entry.TextColor = "#F87171";  // Light red
+        }
+        // Warning indicators
+        else if (msgLower.Contains("warning") || msgLower.Contains("warn") ||
+                 msgLower.Contains("caution") || msgLower.Contains("[warn]") ||
+                 msgLower.Contains("[!]"))
+        {
+            entry.Level = LogLevel.Warning;
+            entry.Icon = "AlertOutline";
+            entry.IconColor = "#F59E0B";  // Yellow/Orange
+            entry.TextColor = "#FBBF24";  // Light yellow
+        }
+        // Starting/Loading indicators
+        else if (msgLower.Contains("starting") || msgLower.Contains("loading") ||
+                 msgLower.Contains("connecting") || msgLower.Contains("initializing") ||
+                 msgLower.Contains("..."))
+        {
+            entry.Level = LogLevel.Info;
+            entry.Icon = "Loading";
+            entry.IconColor = "#3B82F6";  // Blue
+            entry.TextColor = "#60A5FA";  // Light blue
+        }
+        // Validation section headers
+        else if (message.StartsWith("[Validation]"))
+        {
+            entry.Level = LogLevel.Info;
+            entry.Icon = "ShieldCheck";
+            entry.IconColor = "#06B6D4";  // Cyan
+            entry.TextColor = "#22D3EE";  // Light cyan
+        }
+        // Separator lines
+        else if (message.StartsWith("─"))
+        {
+            entry.Level = LogLevel.Debug;
+            entry.Icon = "Minus";
+            entry.IconColor = "#4B5563";  // Gray
+            entry.TextColor = "#6B7280";  // Light gray
+        }
+        // Debug/verbose
+        else if (msgLower.Contains("debug") || msgLower.Contains("verbose"))
+        {
+            entry.Level = LogLevel.Debug;
+            entry.Icon = "BugOutline";
+            entry.IconColor = "#6B7280";  // Gray
+            entry.TextColor = "#9CA3AF";  // Light gray
+        }
+        // Default info
+        else
+        {
+            entry.Level = LogLevel.Info;
+            entry.Icon = "InformationOutline";
+            entry.IconColor = "#3B82F6";  // Blue
+            entry.TextColor = "#E0E0E0";  // White/gray
+        }
+
+        return entry;
+    }
+
+    public string DisplayText => $"[{Timestamp}] {Message}";
+}
+
 public partial class DiffusersManagerPage : Page
 {
     private readonly DiffusersEngineManager? _manager;
     private readonly LocalGpuService _gpuService;
     private readonly ComfyUIService _comfyService;
     private readonly WorkflowEngine? _workflowEngine;
-    private readonly ObservableCollection<string> _logEntries = new();
+    private readonly ObservableCollection<LogEntry> _logEntries = new();
     private readonly DispatcherTimer _updateTimer;
     private DateTime? _startTime;
     private int _requestCount;
     private CancellationTokenSource? _workflowCts;
+    private CancellationTokenSource? _engineStartCts;
+    private bool _isEngineStarting;
 
     // Colors
     private static readonly SolidColorBrush GreenBrush = new(Color.FromRgb(16, 185, 129));
@@ -81,6 +202,7 @@ public partial class DiffusersManagerPage : Page
         {
             _manager.StatusChanged += Manager_StatusChanged;
             _manager.LogMessage += Manager_LogMessage;
+            _manager.HuggingFaceTokenChanged += Manager_HuggingFaceTokenChanged;
         }
 
         // Update timer for uptime and stats
@@ -100,6 +222,7 @@ public partial class DiffusersManagerPage : Page
         await UpdateStatusAsync();
         await LoadSystemInfoAsync();
         await UpdateModuleStatusAsync();
+        UpdateHfTokenStatus();
         AddLogEntry("Diffusers Manager page loaded");
     }
 
@@ -110,6 +233,7 @@ public partial class DiffusersManagerPage : Page
         {
             _manager.StatusChanged -= Manager_StatusChanged;
             _manager.LogMessage -= Manager_LogMessage;
+            _manager.HuggingFaceTokenChanged -= Manager_HuggingFaceTokenChanged;
         }
         _workflowCts?.Cancel();
     }
@@ -144,6 +268,11 @@ public partial class DiffusersManagerPage : Page
         Dispatcher.Invoke(() => AddLogEntry(message));
     }
 
+    private void Manager_HuggingFaceTokenChanged(object? sender, bool hasToken)
+    {
+        Dispatcher.Invoke(() => UpdateHfTokenStatus());
+    }
+
     private async Task UpdateStatusAsync()
     {
         var isRunning = _manager?.IsReady ?? false;
@@ -155,17 +284,14 @@ public partial class DiffusersManagerPage : Page
             _startTime = DateTime.Now.AddSeconds(-10);
         }
 
-        // Update loaded model
-        var currentModel = _manager?.CurrentModel;
-        if (!string.IsNullOrEmpty(currentModel))
-        {
-            var modelName = currentModel.Split('/').LastOrDefault() ?? currentModel;
-            TxtLoadedModel.Text = modelName;
-        }
-        else
-        {
-            TxtLoadedModel.Text = "None";
-        }
+        // Update loaded model - use DisplayModel which shows default model even before engine starts
+        var displayModel = _manager?.DisplayModel;
+        // Always have a model to display (defaults to SDXL)
+        var modelToShow = !string.IsNullOrEmpty(displayModel) ? displayModel : RecommendedModels.DefaultModel;
+        var modelName = modelToShow.Split('/').LastOrDefault() ?? modelToShow;
+        // Show status: (loaded) if actually in VRAM, (default) if just configured
+        var isActuallyLoaded = !string.IsNullOrEmpty(_manager?.CurrentModel);
+        TxtLoadedModel.Text = isActuallyLoaded ? modelName : $"{modelName} (default)";
 
         await Task.CompletedTask;
     }
@@ -186,13 +312,16 @@ public partial class DiffusersManagerPage : Page
                 StatusDot.Fill = YellowBrush;
                 TxtStatus.Text = "Starting...";
                 StatusBadge.Background = new SolidColorBrush(Color.FromArgb(0x30, 0xF5, 0x9E, 0x0B));
-                BtnStartStop.IsEnabled = false;
+                // Keep button enabled and change to "Stop" so user can cancel
+                BtnStartStop.Tag = "Starting";
+                BtnStartStop.IsEnabled = true;
                 break;
 
             case DiffusersEngineStatus.Stopping:
                 StatusDot.Fill = YellowBrush;
                 TxtStatus.Text = "Stopping...";
                 StatusBadge.Background = new SolidColorBrush(Color.FromArgb(0x30, 0xF5, 0x9E, 0x0B));
+                BtnStartStop.Tag = "Stopping";
                 BtnStartStop.IsEnabled = false;
                 break;
 
@@ -290,6 +419,16 @@ public partial class DiffusersManagerPage : Page
             return;
         }
 
+        // Handle cancel during starting
+        if (_isEngineStarting)
+        {
+            AddLogEntry("Cancelling engine startup...");
+            _engineStartCts?.Cancel();
+            _isEngineStarting = false;
+            UpdateStatusUI(DiffusersEngineStatus.Stopped);
+            return;
+        }
+
         if (_manager.IsReady)
         {
             // Stop engine
@@ -312,6 +451,8 @@ public partial class DiffusersManagerPage : Page
         else
         {
             // Start engine
+            _isEngineStarting = true;
+            _engineStartCts = new CancellationTokenSource();
             AddLogEntry("Starting engine...");
             UpdateStatusUI(DiffusersEngineStatus.Starting);
 
@@ -319,7 +460,7 @@ public partial class DiffusersManagerPage : Page
             {
                 // First do preflight checks to show detailed status
                 AddLogEntry("Running pre-flight checks...");
-                var preflightResult = await _manager.Engine.PerformPreflightChecksAsync(autoInstall: false);
+                var preflightResult = await _manager.Engine.PerformPreflightChecksAsync(autoInstall: false, ct: _engineStartCts.Token);
 
                 if (preflightResult.HasGpu)
                 {
@@ -370,12 +511,15 @@ public partial class DiffusersManagerPage : Page
                 }
 
                 // Now try to initialize (which will auto-install if needed)
-                var success = await _manager.InitializeAsync();
+                var success = await _manager.InitializeAsync(ct: _engineStartCts.Token);
                 if (success)
                 {
                     AddLogEntry("Engine started successfully");
                     _startTime = DateTime.Now;
                     UpdateStatusUI(DiffusersEngineStatus.Running);
+
+                    // Check startup validation status
+                    await CheckStartupValidationAsync();
 
                     // Update WorkflowEngine with the running engine
                     if (_workflowEngine != null && _manager.Engine != null)
@@ -393,8 +537,8 @@ public partial class DiffusersManagerPage : Page
 
                     // Offer to open GPU Setup Wizard
                     var result = MessageBox.Show(
-                        "ไม่สามารถเริ่ม Engine ได้\n\n" +
-                        "ต้องการไปที่ GPU Setup Wizard เพื่อติดตั้ง Python และ dependencies หรือไม่?",
+                        "Cannot start Engine.\n\n" +
+                        "Would you like to go to GPU Setup Wizard to install Python and dependencies?",
                         "Engine Start Failed",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
@@ -408,10 +552,21 @@ public partial class DiffusersManagerPage : Page
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                AddLogEntry("Engine startup cancelled by user");
+                UpdateStatusUI(DiffusersEngineStatus.Stopped);
+            }
             catch (Exception ex)
             {
                 AddLogEntry($"Error starting engine: {ex.Message}");
                 UpdateStatusUI(DiffusersEngineStatus.Error);
+            }
+            finally
+            {
+                _isEngineStarting = false;
+                _engineStartCts?.Dispose();
+                _engineStartCts = null;
             }
         }
 
@@ -424,11 +579,170 @@ public partial class DiffusersManagerPage : Page
         AddLogEntry("Log cleared");
     }
 
+    private void BtnCopyLog_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_logEntries.Count == 0)
+            {
+                MessageBox.Show("No log entries to copy.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var logText = string.Join(Environment.NewLine, _logEntries.Select(e => e.DisplayText));
+            Clipboard.SetText(logText);
+            AddLogEntry("Log copied to clipboard");
+            MessageBox.Show($"Copied {_logEntries.Count} log entries to clipboard.", "Log Copied",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to copy log: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void BtnBack_Click(object sender, RoutedEventArgs e)
     {
         if (Window.GetWindow(this) is MainWindow mainWindow)
         {
             mainWindow.NavigateToPage("GenerationPipeline");
+        }
+    }
+
+    private void BtnHfToken_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null)
+        {
+            MessageBox.Show("Manager not available", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var dialog = new Views.Dialogs.HuggingFaceTokenDialog(_manager.HasHuggingFaceToken);
+        dialog.Owner = Window.GetWindow(this);
+
+        if (dialog.ShowDialog() == true)
+        {
+            var token = dialog.Token;
+            _manager.SetHuggingFaceToken(string.IsNullOrWhiteSpace(token) ? null : token);
+            UpdateHfTokenStatus();
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                AddLogEntry("[Settings] HuggingFace token configured - restart engine to apply");
+                MessageBox.Show(
+                    "HuggingFace token has been saved.\n\n" +
+                    "If the engine is running, please restart it to apply the new token.\n" +
+                    "This token allows access to gated models like FLUX.1-dev.",
+                    "Token Saved",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            else
+            {
+                AddLogEntry("[Settings] HuggingFace token cleared");
+            }
+        }
+    }
+
+    private void UpdateHfTokenStatus()
+    {
+        if (_manager != null && BtnHfToken != null)
+        {
+            BtnHfToken.Tag = _manager.HasHuggingFaceToken ? "Configured" : null;
+        }
+    }
+
+    /// <summary>
+    /// Check startup validation status and show warnings if needed
+    /// </summary>
+    private async Task CheckStartupValidationAsync()
+    {
+        if (_manager?.Engine == null) return;
+
+        try
+        {
+            var status = await _manager.Engine.GetStartupStatusAsync();
+            if (status == null)
+            {
+                AddLogEntry("[Validation] Cannot check status");
+                return;
+            }
+
+            // Log validation steps
+            AddLogEntry("─────────────────────────────────────────");
+            AddLogEntry("[Validation] System validation results:");
+
+            foreach (var step in status.Steps)
+            {
+                var icon = step.Status == "ok" ? "[OK]" : step.Status == "error" ? "[X]" : "[!]";
+                var msg = $"  [{step.StepNumber}/7] {icon} {step.Name}";
+                if (!string.IsNullOrEmpty(step.Message))
+                    msg += $": {step.Message}";
+                AddLogEntry(msg);
+            }
+
+            // Show warnings/missing features
+            if (status.MissingFeatures.Count > 0)
+            {
+                AddLogEntry("─────────────────────────────────────────");
+                AddLogEntry($"[Validation] [WARN] Missing {status.MissingFeatures.Count} feature(s):");
+                foreach (var feature in status.MissingFeatures)
+                {
+                    AddLogEntry($"  • {feature}");
+                }
+
+                // Show dialog with option to continue
+                var warningMsg = "System can run but some features are missing:\n\n";
+                foreach (var feature in status.MissingFeatures)
+                {
+                    warningMsg += $"• {feature}\n";
+                }
+                warningMsg += "\nDo you want to continue?";
+
+                var result = MessageBox.Show(
+                    warningMsg,
+                    "Missing Features",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.No)
+                {
+                    AddLogEntry("[Validation] User cancelled operation");
+                    await _manager.ShutdownAsync();
+                    UpdateStatusUI(DiffusersEngineStatus.Stopped);
+                    return;
+                }
+
+                AddLogEntry("[Validation] User chose to continue (missing some features)");
+            }
+
+            // Final status
+            AddLogEntry("─────────────────────────────────────────");
+            if (status.HasGpu)
+            {
+                AddLogEntry($"[Validation] [OK] GPU: {status.GpuName}");
+            }
+            else
+            {
+                AddLogEntry("[Validation] [WARN] No GPU found - will use CPU (very slow)");
+            }
+
+            AddLogEntry($"[Validation] ControlNet: {(status.ControlNetAvailable ? "[OK] Ready" : "[X] Not available")}");
+            AddLogEntry($"[Validation] IP-Adapter: {(status.IpAdapterAvailable ? "[OK] Ready" : "[X] Not available")}");
+            AddLogEntry("─────────────────────────────────────────");
+
+            if (status.Success && status.MissingFeatures.Count == 0)
+            {
+                AddLogEntry("[Validation] [OK] System ready with all features");
+            }
+            else if (status.CanContinue)
+            {
+                AddLogEntry("[Validation] [OK] System ready (missing some features)");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLogEntry($"[Validation] Error: {ex.Message}");
         }
     }
 
@@ -736,8 +1050,7 @@ public partial class DiffusersManagerPage : Page
 
     private void AddLogEntry(string message)
     {
-        var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        var entry = $"[{timestamp}] {message}";
+        var entry = LogEntry.Create(message);
         _logEntries.Add(entry);
 
         // Auto-scroll to bottom

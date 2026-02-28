@@ -207,6 +207,7 @@ import {
     TicketIcon,
     ServerIcon,
     LockClosedIcon,
+    PlayIcon,
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
@@ -241,6 +242,7 @@ const menuItems = computed(() => [
     { name: 'analytics', label: 'วิเคราะห์', to: '/analytics', icon: ChartBarIcon, disabled: !authStore.canAccess('analytics'), locked: !authStore.canAccess('analytics') },
     { name: 'web-learning', label: 'เครื่องมือเรียนรู้', to: '/web-learning', icon: AcademicCapIcon, disabled: !authStore.canAccess('web_learning'), locked: !authStore.canAccess('web_learning') },
     { name: 'ai-tools', label: 'AI Tools', to: '/ai-tools', icon: SparklesIcon, disabled: !authStore.canAccess('ai_tools'), locked: !authStore.canAccess('ai_tools') },
+    { name: 'content-pipeline', label: 'Content Pipeline', to: '/content-pipeline', icon: PlayIcon },
     { name: 'subscription', label: 'แพ็กเกจ', to: '/subscription', icon: CreditCardIcon },
     { name: 'settings', label: 'ตั้งค่า', to: '/settings', icon: Cog6ToothIcon },
 ])

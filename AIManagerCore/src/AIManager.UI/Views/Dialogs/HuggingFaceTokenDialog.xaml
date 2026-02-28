@@ -1,0 +1,130 @@
+<Window x:Class="AIManager.UI.Views.Dialogs.HuggingFaceTokenDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="HuggingFace Token"
+        Width="500" Height="340"
+        WindowStartupLocation="CenterOwner"
+        Background="#0D0D15"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <Style x:Key="SettingInput" TargetType="TextBox">
+            <Setter Property="Background" Value="#2D2D4A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Padding="20,16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#30F59E0B" Offset="0"/>
+                    <GradientStop Color="#30C084FC" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="48" Height="48" CornerRadius="12" Background="#30F59E0B">
+                    <materialDesign:PackIcon Kind="Key" Width="28" Height="28" Foreground="#F59E0B"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="HuggingFace Token" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Access gated models like FLUX.1-dev" FontSize="12" Foreground="#80FFFFFF"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <StackPanel Grid.Row="1" Margin="20,16">
+
+            <!-- Info -->
+            <Border Background="#1A1A2E" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="How to get your token:" FontWeight="SemiBold" Foreground="White" FontSize="12" Margin="0,0,0,8"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="#9090A8" FontSize="11">
+                        <Run Text="1. Go to"/>
+                        <Hyperlink x:Name="HfLink" Click="HfLink_Click" Foreground="#F59E0B">huggingface.co/settings/tokens</Hyperlink>
+                        <LineBreak/>
+                        <Run Text="2. Create a new token with 'read' permission"/>
+                        <LineBreak/>
+                        <Run Text="3. Copy and paste the token below"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- Token Input -->
+            <TextBlock Text="Access Token" FontSize="12" Foreground="#9090A8" Margin="0,0,0,8"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="TxtToken" Style="{StaticResource SettingInput}"
+                         Text="" VerticalAlignment="Center"/>
+
+                <Button Grid.Column="1" Margin="8,0,0,0" Click="ToggleVisibility_Click"
+                        ToolTip="Show/Hide token" Width="40" Height="40"
+                        Style="{StaticResource MaterialDesignIconButton}">
+                    <materialDesign:PackIcon x:Name="VisibilityIcon" Kind="Eye" Width="18" Height="18" Foreground="#6B6B8A"/>
+                </Button>
+            </Grid>
+
+            <!-- Current Status -->
+            <StackPanel x:Name="StatusPanel" Orientation="Horizontal" Margin="0,12,0,0" Visibility="Collapsed">
+                <materialDesign:PackIcon Kind="CheckCircle" Width="16" Height="16" Foreground="#10B981" VerticalAlignment="Center"/>
+                <TextBlock Text="Token is currently configured" Foreground="#10B981" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Padding="20,16" Background="#12121A">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="BtnClear" Content="Clear Token" Click="Clear_Click"
+                        Padding="16,10" Background="#3D1F1F" Foreground="#EF4444" BorderThickness="0"
+                        Visibility="Collapsed"/>
+
+                <Button Grid.Column="2" Content="Cancel" Click="Cancel_Click" Margin="0,0,12,0"
+                        Padding="20,10" Background="#2D2D4A" Foreground="White" BorderThickness="0"/>
+
+                <Button Grid.Column="3" x:Name="BtnSave" Content="Save Token" Click="Save_Click"
+                        Padding="24,10" BorderThickness="0">
+                    <Button.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#F59E0B" Offset="0"/>
+                            <GradientStop Color="#C084FC" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Button.Background>
+                    <Button.Foreground>
+                        <SolidColorBrush Color="White"/>
+                    </Button.Foreground>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

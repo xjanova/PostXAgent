@@ -33,6 +33,7 @@
         </Style>
     </Window.Resources>
 
+    <materialDesign:DialogHost Identifier="RootDialog" CloseOnClickAway="False">
     <Border CornerRadius="20" ClipToBounds="True">
         <Grid>
             <!-- ═══════════════════════════════════════════════════════ -->
@@ -344,6 +345,28 @@
                                         <TextBlock Text="Diffusers Engine" Margin="12,0,0,0" VerticalAlignment="Center"/>
                                         <Border Style="{StaticResource BadgeNew}" Margin="8,0,0,0">
                                             <TextBlock Text="ENGINE" Style="{StaticResource BadgeText}"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- GPU Pool Manager -->
+                                <Button x:Name="BtnGpuPoolManager" Click="NavButton_Click" Tag="GpuPoolManager"
+                                        Style="{StaticResource FuturisticNavButton}" Margin="5,3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="36" Height="36" CornerRadius="8">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#2010B981" Offset="0"/>
+                                                    <GradientStop Color="#208B5CF6" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <materialDesign:PackIcon Kind="ServerNetwork" Width="20" Height="20"
+                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                     Foreground="#10B981"/>
+                                        </Border>
+                                        <TextBlock Text="GPU Pool" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                        <Border Style="{StaticResource BadgeNew}">
+                                            <TextBlock Text="⚡ NEW" Style="{StaticResource BadgeText}"/>
                                         </Border>
                                     </StackPanel>
                                 </Button>
@@ -705,4 +728,5 @@
             </Grid>
         </Grid>
     </Border>
+    </materialDesign:DialogHost>
 </Window>

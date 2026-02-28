@@ -23,6 +23,8 @@ use App\Http\Controllers\Api\ResponseToneController;
 use App\Http\Controllers\Api\ViralAnalysisController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\GpuProviderController;
+use App\Http\Controllers\Api\ContentPipelineController;
 
 /*
 |--------------------------------------------------------------------------
@@ -353,5 +355,74 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     // User's own activity
     Route::get('/my-activity', function () {
         return app(AuditLogController::class)->userActivity(request(), auth()->id());
+    });
+
+    // GPU Provider Management
+    Route::prefix('gpu')->group(function () {
+        // Provider Accounts
+        Route::get('/accounts', [GpuProviderController::class, 'listAccounts']);
+        Route::post('/accounts', [GpuProviderController::class, 'createAccount']);
+        Route::get('/accounts/{id}', [GpuProviderController::class, 'getAccount']);
+        Route::put('/accounts/{id}', [GpuProviderController::class, 'updateAccount']);
+        Route::delete('/accounts/{id}', [GpuProviderController::class, 'deleteAccount']);
+        Route::post('/accounts/{id}/refresh-balance', [GpuProviderController::class, 'refreshBalance']);
+
+        // Account Pools
+        Route::get('/pools', [GpuProviderController::class, 'listPools']);
+        Route::post('/pools', [GpuProviderController::class, 'createPool']);
+        Route::get('/pools/{id}/statistics', [GpuProviderController::class, 'getPoolStatistics']);
+        Route::post('/pools/{id}/accounts', [GpuProviderController::class, 'addAccountToPool']);
+        Route::delete('/pools/{id}/accounts/{accountId}', [GpuProviderController::class, 'removeAccountFromPool']);
+        Route::post('/pools/{id}/refresh-balances', [GpuProviderController::class, 'refreshPoolBalances']);
+
+        // Instances
+        Route::get('/instances', [GpuProviderController::class, 'listInstances']);
+        Route::post('/instances/search-offers', [GpuProviderController::class, 'searchOffers']);
+        Route::post('/instances/provision', [GpuProviderController::class, 'provisionInstance']);
+        Route::get('/instances/{id}', [GpuProviderController::class, 'getInstance']);
+        Route::post('/instances/{id}/start', [GpuProviderController::class, 'startInstance']);
+        Route::post('/instances/{id}/stop', [GpuProviderController::class, 'stopInstance']);
+        Route::post('/instances/{id}/terminate', [GpuProviderController::class, 'terminateInstance']);
+        Route::post('/instances/{id}/sync', [GpuProviderController::class, 'syncInstance']);
+        Route::post('/instances/{id}/setup', [GpuProviderController::class, 'runSetup']);
+
+        // Setup Templates
+        Route::get('/templates', [GpuProviderController::class, 'listTemplates']);
+        Route::post('/templates', [GpuProviderController::class, 'createTemplate']);
+        Route::post('/templates/create-defaults', [GpuProviderController::class, 'createDefaultTemplates']);
+
+        // Activity & Health
+        Route::get('/activity-logs', [GpuProviderController::class, 'getActivityLogs']);
+        Route::get('/health-report', [GpuProviderController::class, 'getHealthReport']);
+    });
+
+    // Content Pipeline - ระบบสร้างเนื้อหาวิดีโออัตโนมัติ
+    Route::prefix('content-pipeline')->group(function () {
+        Route::get('/stats', [ContentPipelineController::class, 'stats']);
+        Route::get('/providers/status', [ContentPipelineController::class, 'providerStatus']);
+
+        // Pipeline CRUD
+        Route::get('/', [ContentPipelineController::class, 'index']);
+        Route::post('/', [ContentPipelineController::class, 'store']);
+        Route::get('/{pipeline}', [ContentPipelineController::class, 'show']);
+        Route::put('/{pipeline}', [ContentPipelineController::class, 'update']);
+        Route::delete('/{pipeline}', [ContentPipelineController::class, 'destroy']);
+        Route::post('/{pipeline}/start', [ContentPipelineController::class, 'startRun']);
+        Route::post('/{pipeline}/toggle-active', [ContentPipelineController::class, 'toggleActive']);
+
+        // Pipeline Runs
+        Route::get('/runs/list', [ContentPipelineController::class, 'listRuns']);
+        Route::get('/runs/{run}', [ContentPipelineController::class, 'showRun']);
+        Route::post('/runs/{run}/cancel', [ContentPipelineController::class, 'cancelRun']);
+        Route::post('/runs/{run}/retry', [ContentPipelineController::class, 'retryRun']);
+
+        // API Key Pools
+        Route::prefix('api-keys')->group(function () {
+            Route::get('/', [ContentPipelineController::class, 'listApiKeyPools']);
+            Route::post('/', [ContentPipelineController::class, 'createApiKeyPool']);
+            Route::get('/{pool}/statistics', [ContentPipelineController::class, 'apiKeyPoolStats']);
+            Route::post('/{pool}/members', [ContentPipelineController::class, 'addApiKey']);
+            Route::delete('/{pool}/members/{member}', [ContentPipelineController::class, 'removeApiKey']);
+        });
     });
 });

@@ -21,6 +21,17 @@ class Kernel extends ConsoleKernel
             ->dailyAt('00:00')
             ->withoutOverlapping();
 
+        // === Content Pipeline ===
+        // Check and run scheduled content pipelines every 5 minutes
+        $schedule->command('pipeline:run-scheduled')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+
+        // Reset daily API key usage counters
+        $schedule->job(new \App\Jobs\Pipeline\ResetApiKeyCountersJob())
+            ->dailyAt('00:05')
+            ->withoutOverlapping();
+
         // === Cleanup ===
         // Clean up old logs (Laravel Telescope, etc.)
         // $schedule->command('telescope:prune --hours=48')->daily();

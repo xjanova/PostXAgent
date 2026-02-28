@@ -141,11 +141,11 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
                 ResetSetupUI();
             }
 
-            // Always sync with the latest active model from ModelManagerPage
-            if (!string.IsNullOrEmpty(ModelManagerPage.ActiveModelId))
-            {
-                _currentModel = ModelManagerPage.ActiveModelId;
-            }
+            // Load last selected model from settings (priority order):
+            // 1. ModelManagerPage.ActiveModelId (if already set in current session)
+            // 2. DiffusersEngineManager.LastSelectedModel (persisted from previous session)
+            // 3. DiffusersEngineManager.DefaultModel (fallback)
+            await LoadLastSelectedModelAsync();
 
             await InitializeGpuAsync();
             await RefreshStatusAsync();
@@ -170,8 +170,6 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
                 });
                 _logger?.LogInformation("ComfyUI detected and auto-selected as default processor");
             }
-            // Note: Model will be loaded when Generate is clicked (not pre-loaded)
-            // This avoids the long wait time that makes UI feel stuck
         };
 
         Unloaded += (s, e) =>
@@ -831,6 +829,72 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
         // This avoids the long wait time for pre-loading
     }
 
+    /// <summary>
+    /// Load last selected model from settings
+    /// Priority: ModelManagerPage.ActiveModelId > LastSelectedModel > DefaultModel
+    /// </summary>
+    private async Task LoadLastSelectedModelAsync()
+    {
+        try
+        {
+            // Priority 1: Use active model from current session (ModelManagerPage)
+            if (!string.IsNullOrEmpty(ModelManagerPage.ActiveModelId))
+            {
+                _currentModel = ModelManagerPage.ActiveModelId;
+                _logger?.LogInformation("Using active model from ModelManagerPage: {Model}", _currentModel);
+                return;
+            }
+
+            // Priority 2: Load last selected model from persisted settings
+            var (lastModelId, lastModelType, _) = _diffusersManager.GetLastSelectedModel();
+            if (!string.IsNullOrEmpty(lastModelId))
+            {
+                _currentModel = lastModelId;
+
+                // Also update ModelManagerPage.ActiveModelId for consistency
+                ModelManagerPage.ActiveModelId = lastModelId;
+                ModelManagerPage.ActiveModelType = lastModelType;
+
+                _logger?.LogInformation("Loaded last selected model from settings: {Model}", lastModelId);
+                return;
+            }
+
+            // Priority 3: Fallback to default model
+            if (!string.IsNullOrEmpty(_diffusersManager.DefaultModelId))
+            {
+                _currentModel = _diffusersManager.DefaultModelId;
+
+                // Also update ModelManagerPage for consistency
+                ModelManagerPage.ActiveModelId = _diffusersManager.DefaultModelId;
+                ModelManagerPage.ActiveModelType = _diffusersManager.Settings.DefaultModelType;
+
+                _logger?.LogInformation("Using default model: {Model}", _currentModel);
+                return;
+            }
+
+            // No model selected - try to find first available model
+            var downloadedModels = await _modelService.GetDownloadedModelsAsync();
+            if (downloadedModels.Count > 0)
+            {
+                var firstModel = downloadedModels.First();
+                _currentModel = firstModel.Id;
+
+                // Save as last selected for next time
+                _diffusersManager.SetLastSelectedModel(firstModel.Id, firstModel.Type, firstModel.LocalPath);
+
+                // Update ModelManagerPage for consistency
+                ModelManagerPage.ActiveModelId = firstModel.Id;
+                ModelManagerPage.ActiveModelType = firstModel.Type;
+
+                _logger?.LogInformation("Auto-selected first available model: {Model}", firstModel.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load last selected model");
+        }
+    }
+
     private void UpdateActiveModelDisplay()
     {
         if (!string.IsNullOrEmpty(_currentModel))
@@ -942,7 +1006,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             Dispatcher.Invoke(() => UpdateModelLoadingUI(true, "กำลังโหลดโมเดล...", 30));
 
             var modelType = _isVideoMode ? ModelType.TextToVideo : ModelType.TextToImage;
-            var loadResult = await _diffusersManager.LoadModelAsync(modelId, modelType, ct);
+            var loadResult = await _diffusersManager.LoadModelAsync(modelId, modelType, setAsDefault: true, ct: ct);
 
             if (loadResult.Success)
             {
@@ -2120,7 +2184,7 @@ public partial class GenerationPipelinePage : Page, INotifyPropertyChanged
             // Load model via manager (will cache for future use)
             var loadModelType = isVideo ? ModelType.TextToVideo : ModelType.TextToImage;
             LogInfo("โหลด Model เข้า VRAM...");
-            var loadResult = await _diffusersManager.LoadModelAsync(modelId, loadModelType, _generateCts!.Token);
+            var loadResult = await _diffusersManager.LoadModelAsync(modelId, loadModelType, setAsDefault: true, ct: _generateCts!.Token);
 
             if (!loadResult.Success)
             {

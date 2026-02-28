@@ -216,6 +216,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Start/Stop Button -->
@@ -249,6 +250,18 @@
                                                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                                                 <GradientStop Color="#EF4444" Offset="0"/>
                                                                 <GradientStop Color="#DC2626" Offset="1"/>
+                                                            </LinearGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                                <Trigger Property="Tag" Value="Starting">
+                                                    <Setter TargetName="BtnIcon" Property="Kind" Value="Cancel"/>
+                                                    <Setter TargetName="BtnText" Property="Text" Value="Cancel"/>
+                                                    <Setter TargetName="border" Property="Background">
+                                                        <Setter.Value>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                                <GradientStop Color="#F59E0B" Offset="0"/>
+                                                                <GradientStop Color="#D97706" Offset="1"/>
                                                             </LinearGradientBrush>
                                                         </Setter.Value>
                                                     </Setter>
@@ -293,50 +306,126 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- HuggingFace Token Button -->
+                                <Button x:Name="BtnHfToken" Grid.Column="3" Click="BtnHfToken_Click"
+                                        ToolTip="Configure HuggingFace Token for gated models (like FLUX.1-dev)"
+                                        Height="40" Padding="12,0" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#1E1E2E" CornerRadius="8" Padding="12,8"
+                                                    BorderBrush="#3B3B4F" BorderThickness="1" Cursor="Hand">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon x:Name="HfIcon" Kind="Key" Width="16" Height="16"
+                                                                             VerticalAlignment="Center" Foreground="#6B7280"/>
+                                                    <TextBlock x:Name="HfText" Text="HF Token" Foreground="#8888AA" FontSize="12"
+                                                               Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <Ellipse x:Name="HfStatus" Width="8" Height="8" Margin="8,0,0,0"
+                                                             VerticalAlignment="Center" Fill="#EF4444"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="BorderBrush" Value="#F59E0B"/>
+                                                    <Setter TargetName="HfIcon" Property="Foreground" Value="#F59E0B"/>
+                                                </Trigger>
+                                                <Trigger Property="Tag" Value="Configured">
+                                                    <Setter TargetName="HfStatus" Property="Fill" Value="#10B981"/>
+                                                    <Setter TargetName="HfIcon" Property="Foreground" Value="#10B981"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
                             </Grid>
                         </Border>
 
-                        <!-- System Stats -->
-                        <Border Background="#12121A" CornerRadius="12" Padding="20">
+                        <!-- System Stats - 2x2 Grid Layout -->
+                        <Border Background="#12121A" CornerRadius="12" Padding="16" Margin="0,16,0,0">
                             <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="Memory" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
-                                    <StackPanel Margin="10,0,0,0">
-                                        <TextBlock Text="VRAM" Foreground="#8888AA" FontSize="10"/>
-                                        <TextBlock x:Name="TxtVram" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
-                                    </StackPanel>
-                                </StackPanel>
+                                <!-- GPU Card -->
+                                <Border Grid.Row="0" Grid.Column="0" Background="#1E1E2E" CornerRadius="10" Padding="14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="40" Height="40" CornerRadius="10" Background="#20A855F7">
+                                            <materialDesign:PackIcon Kind="Gpu" Foreground="#A855F7" Width="22" Height="22"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="GPU" Foreground="#8888AA" FontSize="11"/>
+                                            <TextBlock x:Name="TxtGpu" Text="-" Foreground="White" FontWeight="SemiBold"
+                                                       FontSize="13" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
 
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="Gpu" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
-                                    <StackPanel Margin="10,0,0,0">
-                                        <TextBlock Text="GPU" Foreground="#8888AA" FontSize="10"/>
-                                        <TextBlock x:Name="TxtGpu" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
-                                    </StackPanel>
-                                </StackPanel>
+                                <!-- VRAM Card -->
+                                <Border Grid.Row="0" Grid.Column="2" Background="#1E1E2E" CornerRadius="10" Padding="14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="40" Height="40" CornerRadius="10" Background="#2010B981">
+                                            <materialDesign:PackIcon Kind="Memory" Foreground="#10B981" Width="22" Height="22"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="VRAM" Foreground="#8888AA" FontSize="11"/>
+                                            <TextBlock x:Name="TxtVram" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
 
-                                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="LanguagePython" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
-                                    <StackPanel Margin="10,0,0,0">
-                                        <TextBlock Text="Python" Foreground="#8888AA" FontSize="10"/>
-                                        <TextBlock x:Name="TxtPython" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
-                                    </StackPanel>
-                                </StackPanel>
+                                <!-- Python Card -->
+                                <Border Grid.Row="2" Grid.Column="0" Background="#1E1E2E" CornerRadius="10" Padding="14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="40" Height="40" CornerRadius="10" Background="#203B82F6">
+                                            <materialDesign:PackIcon Kind="LanguagePython" Foreground="#3B82F6" Width="22" Height="22"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Python" Foreground="#8888AA" FontSize="11"/>
+                                            <TextBlock x:Name="TxtPython" Text="-" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
 
-                                <StackPanel Grid.Column="3" Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="Counter" Foreground="#6B7280" Width="20" Height="20" VerticalAlignment="Center"/>
-                                    <StackPanel Margin="10,0,0,0">
-                                        <TextBlock Text="Requests" Foreground="#8888AA" FontSize="10"/>
-                                        <TextBlock x:Name="TxtRequests" Text="0" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
-                                    </StackPanel>
-                                </StackPanel>
+                                <!-- Requests Card -->
+                                <Border Grid.Row="2" Grid.Column="2" Background="#1E1E2E" CornerRadius="10" Padding="14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="40" Height="40" CornerRadius="10" Background="#20F59E0B">
+                                            <materialDesign:PackIcon Kind="Counter" Foreground="#F59E0B" Width="22" Height="22"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Requests" Foreground="#8888AA" FontSize="11"/>
+                                            <TextBlock x:Name="TxtRequests" Text="0" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </Border>
                     </StackPanel>
@@ -739,24 +828,46 @@
                                     <materialDesign:PackIcon Kind="Console" Foreground="#A855F7" Width="18" Height="18" VerticalAlignment="Center"/>
                                     <TextBlock Text="Engine Output" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="10,0,0,0"/>
                                 </StackPanel>
-                                <Button x:Name="BtnClearLog" Click="BtnClearLog_Click" HorizontalAlignment="Right"
-                                        ToolTip="Clear log" Cursor="Hand">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#25FFFFFF" CornerRadius="6" Padding="8,4">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <materialDesign:PackIcon Kind="Delete" Width="14" Height="14" Foreground="#6B7280"/>
-                                                    <TextBlock Text="Clear" FontSize="11" Foreground="#8888AA" Margin="4,0,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#35FFFFFF"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <!-- Copy Log Button -->
+                                    <Button x:Name="BtnCopyLog" Click="BtnCopyLog_Click" Margin="0,0,8,0"
+                                            ToolTip="Copy all logs to clipboard" Cursor="Hand">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#25FFFFFF" CornerRadius="6" Padding="8,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="ContentCopy" Width="14" Height="14" Foreground="#10B981"/>
+                                                        <TextBlock Text="Copy Log" FontSize="11" Foreground="#10B981" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#35FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <!-- Clear Log Button -->
+                                    <Button x:Name="BtnClearLog" Click="BtnClearLog_Click"
+                                            ToolTip="Clear log" Cursor="Hand">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#25FFFFFF" CornerRadius="6" Padding="8,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="Delete" Width="14" Height="14" Foreground="#6B7280"/>
+                                                        <TextBlock Text="Clear" FontSize="11" Foreground="#8888AA" Margin="4,0,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#35FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </StackPanel>
                             </Grid>
                         </Border>
 
@@ -766,7 +877,41 @@
                             <ItemsControl x:Name="LogItems">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding}" Style="{StaticResource LogEntryStyle}"/>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Icon -->
+                                            <materialDesign:PackIcon Grid.Column="0"
+                                                                     Kind="{Binding Icon}"
+                                                                     Width="14" Height="14"
+                                                                     VerticalAlignment="Center"
+                                                                     Margin="0,0,8,0">
+                                                <materialDesign:PackIcon.Foreground>
+                                                    <SolidColorBrush Color="{Binding IconColor}"/>
+                                                </materialDesign:PackIcon.Foreground>
+                                            </materialDesign:PackIcon>
+                                            <!-- Timestamp -->
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Timestamp, StringFormat='[{0}] '}"
+                                                       FontFamily="Consolas"
+                                                       FontSize="12"
+                                                       Foreground="#6B7280"
+                                                       VerticalAlignment="Center"/>
+                                            <!-- Message -->
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding Message}"
+                                                       FontFamily="Consolas"
+                                                       FontSize="12"
+                                                       TextWrapping="Wrap"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Foreground>
+                                                    <SolidColorBrush Color="{Binding TextColor}"/>
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+                                        </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

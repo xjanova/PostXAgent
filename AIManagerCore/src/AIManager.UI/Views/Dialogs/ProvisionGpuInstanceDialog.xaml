@@ -1,0 +1,144 @@
+<UserControl x:Class="AIManager.UI.Views.Dialogs.ProvisionGpuInstanceDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             Width="520"
+             Background="#1A1A2E">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,20">
+            <materialDesign:PackIcon Kind="RocketLaunch" Width="28" Height="28" Foreground="#10B981" VerticalAlignment="Center"/>
+            <TextBlock Text="Provision GPU Instance" FontSize="18" FontWeight="Bold" Foreground="White" Margin="12,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Source Selection -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <TextBlock Text="Source" FontSize="12" Foreground="#9090A8" Margin="0,0,0,6"/>
+            <ComboBox x:Name="CmbSource"
+                      Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                      Padding="12,10" FontSize="14"
+                      Style="{StaticResource MaterialDesignComboBox}">
+                <ComboBoxItem Content="Use Pool (Recommended)" Tag="pool" IsSelected="True"/>
+                <ComboBoxItem Content="Use Specific Account" Tag="account"/>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Pool/Account Selection -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,16">
+            <TextBlock x:Name="TxtSourceLabel" Text="Select Pool" FontSize="12" Foreground="#9090A8" Margin="0,0,0,6"/>
+            <ComboBox x:Name="CmbSourceItem"
+                      Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                      Padding="12,10" FontSize="14"
+                      Style="{StaticResource MaterialDesignComboBox}">
+            </ComboBox>
+        </StackPanel>
+
+        <!-- GPU Type -->
+        <StackPanel Grid.Row="3" Margin="0,0,0,16">
+            <TextBlock Text="GPU Type" FontSize="12" Foreground="#9090A8" Margin="0,0,0,6"/>
+            <ComboBox x:Name="CmbGpuType"
+                      Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                      Padding="12,10" FontSize="14"
+                      Style="{StaticResource MaterialDesignComboBox}">
+                <ComboBoxItem Content="RTX 4090" Tag="RTX_4090" IsSelected="True"/>
+                <ComboBoxItem Content="RTX 4080" Tag="RTX_4080"/>
+                <ComboBoxItem Content="RTX 3090" Tag="RTX_3090"/>
+                <ComboBoxItem Content="RTX 3080" Tag="RTX_3080"/>
+                <ComboBoxItem Content="A100 (80GB)" Tag="A100_80GB"/>
+                <ComboBoxItem Content="A100 (40GB)" Tag="A100_40GB"/>
+                <ComboBoxItem Content="H100" Tag="H100"/>
+                <ComboBoxItem Content="Any Available" Tag="any"/>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- GPU Count -->
+        <StackPanel Grid.Row="4" Margin="0,0,0,16">
+            <TextBlock Text="Number of GPUs" FontSize="12" Foreground="#9090A8" Margin="0,0,0,6"/>
+            <ComboBox x:Name="CmbGpuCount"
+                      Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                      Padding="12,10" FontSize="14"
+                      Style="{StaticResource MaterialDesignComboBox}">
+                <ComboBoxItem Content="1 GPU" Tag="1" IsSelected="True"/>
+                <ComboBoxItem Content="2 GPUs" Tag="2"/>
+                <ComboBoxItem Content="4 GPUs" Tag="4"/>
+                <ComboBoxItem Content="8 GPUs" Tag="8"/>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Disk Size -->
+        <StackPanel Grid.Row="5" Margin="0,0,0,16">
+            <TextBlock Text="Disk Size (GB)" FontSize="12" Foreground="#9090A8" Margin="0,0,0,6"/>
+            <TextBox x:Name="TxtDiskSize"
+                     Text="50"
+                     Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                     Padding="12,10" FontSize="14">
+                <TextBox.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </TextBox.Resources>
+            </TextBox>
+        </StackPanel>
+
+        <!-- Docker Image (Optional) -->
+        <StackPanel Grid.Row="6" Margin="0,0,0,16">
+            <TextBlock Text="Docker Image (Optional)" FontSize="12" Foreground="#9090A8" Margin="0,0,0,6"/>
+            <TextBox x:Name="TxtDockerImage"
+                     Text=""
+                     Background="#2D2D4A" Foreground="White" BorderThickness="0"
+                     Padding="12,10" FontSize="14">
+                <TextBox.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </TextBox.Resources>
+            </TextBox>
+            <TextBlock Text="e.g., pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime"
+                       FontSize="11" Foreground="#6B6B8A" Margin="0,6,0,0"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="Cancel" Click="Cancel_Click" Margin="0,0,8,0" Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="#2D2D4A" CornerRadius="8" Padding="20,10">
+                            <TextBlock Text="Cancel" FontSize="13" Foreground="#9090A8"/>
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+            <Button Content="Provision" Click="Provision_Click" Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="8" Padding="24,10">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#10B981" Offset="0"/>
+                                    <GradientStop Color="#059669" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="RocketLaunch" Width="16" Height="16" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Provision" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

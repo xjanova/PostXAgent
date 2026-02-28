@@ -377,9 +377,9 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                                 <TextBlock Text=" | Credits: " Foreground="#B8B8D0"
-                                           Visibility="{Binding IsLoggedIn, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                           Visibility="{Binding IsLoggedIn, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                 <TextBlock Text="{Binding CreditsRemaining}" Foreground="#10B981" FontWeight="Bold"
-                                           Visibility="{Binding IsLoggedIn, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                           Visibility="{Binding IsLoggedIn, Converter={StaticResource BoolToVisibilityConverter}}"/>
                             </StackPanel>
                         </Border>
 

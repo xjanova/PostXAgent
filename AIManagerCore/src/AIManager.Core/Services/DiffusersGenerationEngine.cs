@@ -68,6 +68,16 @@ public class DiffusersGenerationEngine : IDisposable
     public event EventHandler<SetupProgressEventArgs>? SetupProgressChanged;
 
     /// <summary>
+    /// Event raised when engine outputs log message (stdout/stderr)
+    /// </summary>
+    public event EventHandler<EngineLogEventArgs>? LogOutput;
+
+    /// <summary>
+    /// Event raised when startup validation completes with warnings
+    /// </summary>
+    public event EventHandler<StartupValidationEventArgs>? StartupValidationCompleted;
+
+    /// <summary>
     /// Gets whether the engine is running
     /// </summary>
     public bool IsRunning => _isRunning;
@@ -96,6 +106,11 @@ public class DiffusersGenerationEngine : IDisposable
     /// Gets the server process ID (if running)
     /// </summary>
     public int? ServerProcessId => _serverProcess?.HasExited == false ? _serverProcess.Id : null;
+
+    /// <summary>
+    /// Gets or sets the HuggingFace API token for accessing gated models
+    /// </summary>
+    public string? HuggingFaceToken { get; set; }
 
     public DiffusersGenerationEngine(
         HuggingFaceModelService modelService,
@@ -305,6 +320,9 @@ public class DiffusersGenerationEngine : IDisposable
             // Ensure Python script exists
             await EnsureScriptExistsAsync();
 
+            // Kill any existing process using the port
+            await KillProcessOnPortAsync(port);
+
             // Start Python process
             var scriptPath = Path.Combine(_scriptsDir, "generation_server.py");
 
@@ -323,10 +341,20 @@ public class DiffusersGenerationEngine : IDisposable
                 _logger?.LogInformation("Using system Python: {Path}", pythonPath);
             }
 
+            // Build command line arguments
+            var args = $"\"{scriptPath}\" --port {port} --models-dir \"{_modelService.ModelsDirectory}\"";
+
+            // Add HuggingFace token if configured
+            if (!string.IsNullOrEmpty(HuggingFaceToken))
+            {
+                args += $" --hf-token \"{HuggingFaceToken}\"";
+                _logger?.LogInformation("HuggingFace token configured for server");
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = pythonPath,
-                Arguments = $"\"{scriptPath}\" --port {port} --models-dir \"{_modelService.ModelsDirectory}\"",
+                Arguments = args,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -368,13 +396,17 @@ public class DiffusersGenerationEngine : IDisposable
                 if (!string.IsNullOrEmpty(e.Data))
                 {
                     _logger?.LogDebug("[Engine] {Output}", e.Data);
+                    LogOutput?.Invoke(this, new EngineLogEventArgs(e.Data, isError: false));
                     ParseEngineOutput(e.Data);
                 }
             };
             _serverProcess.ErrorDataReceived += (s, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
+                {
                     _logger?.LogWarning("[Engine Error] {Output}", e.Data);
+                    LogOutput?.Invoke(this, new EngineLogEventArgs(e.Data, isError: true));
+                }
             };
 
             _serverProcess.Start();
@@ -479,9 +511,89 @@ public class DiffusersGenerationEngine : IDisposable
         _logger?.LogInformation("Diffusers engine stopped");
     }
 
+    /// <summary>
+    /// Kill any process using the specified port
+    /// </summary>
+    private async Task KillProcessOnPortAsync(int port)
+    {
+        try
+        {
+            await Task.Run(() =>
+            {
+                // Use netstat to find PID using the port
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "netstat",
+                    Arguments = "-ano",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                };
+
+                using var process = Process.Start(psi);
+                if (process == null) return;
+
+                var output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit(5000);
+
+                // Parse output to find PIDs listening on our port
+                var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                var pidsToKill = new HashSet<int>();
+
+                foreach (var line in lines)
+                {
+                    if (line.Contains($":{port}") && (line.Contains("LISTENING") || line.Contains("ESTABLISHED")))
+                    {
+                        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 5 && int.TryParse(parts[^1], out var pid) && pid > 0)
+                        {
+                            // Don't kill the current process
+                            if (pid != Environment.ProcessId)
+                            {
+                                pidsToKill.Add(pid);
+                            }
+                        }
+                    }
+                }
+
+                foreach (var pid in pidsToKill)
+                {
+                    try
+                    {
+                        var proc = Process.GetProcessById(pid);
+                        // Only kill Python processes
+                        if (proc.ProcessName.Contains("python", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger?.LogInformation("Killing existing Python process on port {Port}: PID {Pid}", port, pid);
+                            proc.Kill(true);
+                            proc.WaitForExit(3000);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogDebug(ex, "Failed to kill process {Pid}", pid);
+                    }
+                }
+
+                // Wait a moment for port to be released
+                if (pidsToKill.Count > 0)
+                {
+                    Thread.Sleep(1000);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to check/kill processes on port {Port}", port);
+        }
+    }
+
     private async Task<bool> WaitForServerReadyAsync(CancellationToken ct)
     {
-        var maxAttempts = 30; // 30 seconds
+        var maxAttempts = 60; // 60 seconds (models take time to initialize)
+        _logger?.LogInformation("Waiting for server to be ready (max {Seconds}s)...", maxAttempts);
+        StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, "Waiting for server..."));
+
         for (int i = 0; i < maxAttempts; i++)
         {
             ct.ThrowIfCancellationRequested();
@@ -491,6 +603,8 @@ public class DiffusersGenerationEngine : IDisposable
                 var response = await _httpClient!.GetAsync($"http://localhost:{Port}/health", ct);
                 if (response.IsSuccessStatusCode)
                 {
+                    _logger?.LogInformation("Server ready after {Seconds}s", i + 1);
+                    StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, $"Server ready ({i + 1}s)"));
                     return true;
                 }
             }
@@ -499,9 +613,18 @@ public class DiffusersGenerationEngine : IDisposable
                 // Server not ready yet
             }
 
+            // Log progress every 5 seconds
+            if ((i + 1) % 5 == 0)
+            {
+                _logger?.LogInformation("Still waiting for server... ({Elapsed}/{Max}s)", i + 1, maxAttempts);
+                StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Starting, $"Starting server... ({i + 1}/{maxAttempts}s)"));
+            }
+
             await Task.Delay(1000, ct);
         }
 
+        _logger?.LogWarning("Server failed to start within {Seconds}s timeout", maxAttempts);
+        StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Error, $"Timeout after {maxAttempts}s"));
         return false;
     }
 
@@ -617,7 +740,7 @@ public class DiffusersGenerationEngine : IDisposable
                 ModelId = modelId,
                 Stage = "Starting",
                 Progress = 10,
-                Message = "กำลังเตรียมโหลด Model..."
+                Message = "Preparing to load model..."
             });
 
             var request = new LoadModelRequest
@@ -635,7 +758,7 @@ public class DiffusersGenerationEngine : IDisposable
                 ModelId = modelId,
                 Stage = "Loading",
                 Progress = 30,
-                Message = "กำลังโหลด Model เข้า VRAM..."
+                Message = "Loading model into VRAM..."
             });
 
             var response = await _httpClient!.PostAsync($"http://localhost:{Port}/load-model", content, ct);
@@ -646,7 +769,7 @@ public class DiffusersGenerationEngine : IDisposable
                 ModelId = modelId,
                 Stage = "Processing",
                 Progress = 70,
-                Message = "กำลังประมวลผล..."
+                Message = "Processing..."
             });
 
             if (!response.IsSuccessStatusCode)
@@ -678,7 +801,7 @@ public class DiffusersGenerationEngine : IDisposable
                 ModelId = modelId,
                 Stage = "Complete",
                 Progress = 100,
-                Message = "โหลด Model สำเร็จ!"
+                Message = "Model loaded successfully!"
             });
 
             StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, $"Loaded: {modelId}"));
@@ -955,6 +1078,588 @@ public class DiffusersGenerationEngine : IDisposable
 
     #endregion
 
+    #region Inpainting / Outpainting
+
+    /// <summary>
+    /// Inpaint (edit) specific parts of an image using a mask
+    /// </summary>
+    public async Task<InpaintResult> GenerateInpaintAsync(
+        DiffusersInpaintRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new InpaintResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, "Generating inpaint..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/inpaint", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<InpaintResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Inpaint complete"));
+
+            return result ?? new InpaintResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new InpaintResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Inpaint generation failed");
+            return new InpaintResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Extend image canvas in specified direction(s) using outpainting
+    /// </summary>
+    public async Task<OutpaintResult> GenerateOutpaintAsync(
+        DiffusersOutpaintRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new OutpaintResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, $"Outpainting ({request.Direction})..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/outpaint", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<OutpaintResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Outpaint complete"));
+
+            return result ?? new OutpaintResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new OutpaintResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Outpaint generation failed");
+            return new OutpaintResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    #endregion
+
+    #region Upscaling
+
+    /// <summary>
+    /// Upscale an image using Real-ESRGAN
+    /// </summary>
+    public async Task<UpscaleResult> GenerateUpscaleAsync(
+        DiffusersUpscaleRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new UpscaleResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, $"Upscaling image ({request.Scale}x)..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/upscale", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<UpscaleResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Upscale complete"));
+
+            return result ?? new UpscaleResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new UpscaleResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Upscale generation failed");
+            return new UpscaleResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    #endregion
+
+    #region IP-Adapter
+
+    /// <summary>
+    /// Load IP-Adapter for style/content transfer
+    /// </summary>
+    public async Task<IPAdapterLoadResult> LoadIPAdapterAsync(string adapterName = "ip-adapter_sd15", CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new IPAdapterLoadResult { Success = false, Error = "Engine not running" };
+        }
+
+        try
+        {
+            var url = $"http://localhost:{Port}/ip-adapter/load?adapter_name={Uri.EscapeDataString(adapterName)}";
+            var response = await _httpClient!.PostAsync(url, null, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<IPAdapterLoadResult>(ct);
+            _logger?.LogInformation("IP-Adapter loaded: {Adapter}", adapterName);
+
+            return result ?? new IPAdapterLoadResult { Success = false, Error = "Empty response" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load IP-Adapter: {Adapter}", adapterName);
+            return new IPAdapterLoadResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Unload IP-Adapter to free VRAM
+    /// </summary>
+    public async Task<bool> UnloadIPAdapterAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return false;
+
+        try
+        {
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/ip-adapter/unload", null, ct);
+            response.EnsureSuccessStatusCode();
+            _logger?.LogInformation("IP-Adapter unloaded");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to unload IP-Adapter");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Generate image using IP-Adapter for style/content transfer
+    /// </summary>
+    public async Task<IPAdapterResult> GenerateIPAdapterAsync(
+        DiffusersIPAdapterRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new IPAdapterResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, "Generating with IP-Adapter..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/ip-adapter", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<IPAdapterResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "IP-Adapter generation complete"));
+
+            return result ?? new IPAdapterResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new IPAdapterResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "IP-Adapter generation failed");
+            return new IPAdapterResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    #endregion
+
+    #region Multi-ControlNet
+
+    /// <summary>
+    /// Generate image using multiple ControlNet conditions simultaneously
+    /// </summary>
+    public async Task<MultiControlNetResult> GenerateMultiControlNetAsync(
+        DiffusersMultiControlNetRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new MultiControlNetResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            var controlTypes = string.Join("+", request.Controls?.Select(c => c.ControlType) ?? Array.Empty<string>());
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, $"Generating with Multi-ControlNet ({controlTypes})..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/multi-controlnet", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<MultiControlNetResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Multi-ControlNet generation complete"));
+
+            return result ?? new MultiControlNetResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new MultiControlNetResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Multi-ControlNet generation failed");
+            return new MultiControlNetResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    #endregion
+
+    #region Queue System
+
+    /// <summary>
+    /// Add a task to the generation queue
+    /// </summary>
+    public async Task<QueueAddResult> QueueAddTaskAsync(QueuedTaskRequest request, CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new QueueAddResult { Success = false, Error = "Engine not running" };
+        }
+
+        try
+        {
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/queue/add", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<QueueAddResult>(ct);
+            _logger?.LogInformation("Task queued: {TaskId} (type={Type}, priority={Priority})",
+                result?.TaskId, request.TaskType, request.Priority);
+
+            return result ?? new QueueAddResult { Success = false, Error = "Empty response" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to add task to queue");
+            return new QueueAddResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Get status of a queued task
+    /// </summary>
+    public async Task<QueueTaskStatus?> QueueGetStatusAsync(string taskId, CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return null;
+
+        try
+        {
+            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/queue/status/{Uri.EscapeDataString(taskId)}", ct);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<QueueTaskStatus>(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get queue task status: {TaskId}", taskId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Cancel a queued task
+    /// </summary>
+    public async Task<bool> QueueCancelTaskAsync(string taskId, CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return false;
+
+        try
+        {
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/queue/cancel/{Uri.EscapeDataString(taskId)}", null, ct);
+            response.EnsureSuccessStatusCode();
+            _logger?.LogInformation("Queue task cancelled: {TaskId}", taskId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to cancel queue task: {TaskId}", taskId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// List all tasks in the queue
+    /// </summary>
+    public async Task<QueueListResult?> QueueListAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return null;
+
+        try
+        {
+            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/queue/list", ct);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<QueueListResult>(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get queue list");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Clear all pending tasks from the queue
+    /// </summary>
+    public async Task<QueueClearResult?> QueueClearAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return null;
+
+        try
+        {
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/queue/clear", null, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<QueueClearResult>(ct);
+            _logger?.LogInformation("Queue cleared: {Count} tasks", result?.ClearedCount);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to clear queue");
+            return null;
+        }
+    }
+
+    #endregion
+
+    #region ControlNet
+
+    /// <summary>
+    /// Generate an image with ControlNet guidance
+    /// </summary>
+    public async Task<ControlNetResult> GenerateControlNetAsync(
+        DiffusersControlNetRequest request,
+        CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new ControlNetResult
+            {
+                Success = false,
+                Error = "Engine not running"
+            };
+        }
+
+        try
+        {
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Generating, $"Generating with ControlNet ({request.ControlType})..."));
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/controlnet", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<ControlNetResult>(ct);
+
+            StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "ControlNet generation complete"));
+
+            return result ?? new ControlNetResult { Success = false, Error = "Empty response" };
+        }
+        catch (OperationCanceledException)
+        {
+            return new ControlNetResult { Success = false, Error = "Cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "ControlNet generation failed");
+            return new ControlNetResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Get available ControlNet types for the current model
+    /// </summary>
+    public async Task<ControlNetTypesResult?> GetAvailableControlNetTypesAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return null;
+
+        try
+        {
+            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/controlnet/types", ct);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<ControlNetTypesResult>(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get ControlNet types");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Pre-load a ControlNet model
+    /// </summary>
+    public async Task<ControlNetLoadResult> LoadControlNetAsync(string controlType, string? customModel = null, CancellationToken ct = default)
+    {
+        if (!_isRunning)
+        {
+            return new ControlNetLoadResult { Success = false, Error = "Engine not running" };
+        }
+
+        try
+        {
+            var url = $"http://localhost:{Port}/controlnet/load?control_type={Uri.EscapeDataString(controlType)}";
+            if (!string.IsNullOrEmpty(customModel))
+            {
+                url += $"&custom_model={Uri.EscapeDataString(customModel)}";
+            }
+
+            var response = await _httpClient!.PostAsync(url, null, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<ControlNetLoadResult>(ct);
+            _logger?.LogInformation("ControlNet loaded: {Type}", controlType);
+
+            return result ?? new ControlNetLoadResult { Success = false, Error = "Empty response" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load ControlNet: {Type}", controlType);
+            return new ControlNetLoadResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Unload all ControlNet models to free VRAM
+    /// </summary>
+    public async Task<bool> UnloadControlNetsAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return false;
+
+        try
+        {
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/controlnet/unload", null, ct);
+            response.EnsureSuccessStatusCode();
+            _logger?.LogInformation("All ControlNets unloaded");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to unload ControlNets");
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Progress & Cancellation
+
+    /// <summary>
+    /// Get current generation progress from the server
+    /// </summary>
+    public async Task<GenerationProgressInfo?> GetGenerationProgressAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return null;
+
+        try
+        {
+            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/progress", ct);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<GenerationProgressInfo>(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get generation progress");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Cancel current generation
+    /// </summary>
+    public async Task<bool> CancelGenerationAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return false;
+
+        try
+        {
+            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/cancel", null, ct);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<CancelGenerationResult>(ct);
+            if (result?.Success == true)
+            {
+                _logger?.LogInformation("Generation cancellation requested");
+                StatusChanged?.Invoke(this, new EngineStatusEventArgs(EngineStatus.Running, "Generation cancelled"));
+            }
+            return result?.Success ?? false;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to cancel generation");
+            return false;
+        }
+    }
+
+    #endregion
+
     #region Engine Info
 
     /// <summary>
@@ -975,6 +1680,81 @@ public class DiffusersGenerationEngine : IDisposable
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Get startup validation status from server
+    /// </summary>
+    public async Task<StartupStatusResponse?> GetStartupStatusAsync(CancellationToken ct = default)
+    {
+        if (!_isRunning)
+            return null;
+
+        try
+        {
+            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/startup-status", ct);
+            response.EnsureSuccessStatusCode();
+            var status = await response.Content.ReadFromJsonAsync<StartupStatusResponse>(ct);
+
+            // Raise event if there are warnings or missing features
+            if (status != null && (status.Warnings.Count > 0 || status.MissingFeatures.Count > 0))
+            {
+                StartupValidationCompleted?.Invoke(this, new StartupValidationEventArgs(status));
+            }
+
+            return status;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get startup status");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Check startup status and log results
+    /// </summary>
+    public async Task<bool> ValidateStartupAsync(CancellationToken ct = default)
+    {
+        var status = await GetStartupStatusAsync(ct);
+        if (status == null)
+        {
+            LogOutput?.Invoke(this, new EngineLogEventArgs("[Validation] Cannot connect to server", true));
+            return false;
+        }
+
+        // Log all steps
+        foreach (var step in status.Steps)
+        {
+            var icon = step.Status == "ok" ? "[OK]" : step.Status == "error" ? "[X]" : "[!]";
+            var msg = $"[Step {step.StepNumber}] {icon} {step.Name}";
+            if (!string.IsNullOrEmpty(step.Message))
+                msg += $": {step.Message}";
+            LogOutput?.Invoke(this, new EngineLogEventArgs(msg, step.Status == "error"));
+        }
+
+        // Log summary
+        if (status.Errors.Count > 0)
+        {
+            LogOutput?.Invoke(this, new EngineLogEventArgs($"[Validation] [ERROR] Found {status.Errors.Count} error(s)", true));
+            foreach (var err in status.Errors)
+                LogOutput?.Invoke(this, new EngineLogEventArgs($"  - {err}", true));
+            return false;
+        }
+
+        if (status.MissingFeatures.Count > 0)
+        {
+            LogOutput?.Invoke(this, new EngineLogEventArgs($"[Validation] [WARN] Missing {status.MissingFeatures.Count} feature(s)"));
+            foreach (var feature in status.MissingFeatures)
+                LogOutput?.Invoke(this, new EngineLogEventArgs($"  - {feature}"));
+        }
+
+        if (status.Warnings.Count > 0)
+        {
+            LogOutput?.Invoke(this, new EngineLogEventArgs($"[Validation] [WARN] Found {status.Warnings.Count} warning(s)"));
+        }
+
+        return status.CanContinue;
     }
 
     #endregion
@@ -1253,6 +2033,100 @@ public class ModelLoadProgressEventArgs : EventArgs
 }
 
 /// <summary>
+/// Engine log output event args
+/// </summary>
+public class EngineLogEventArgs : EventArgs
+{
+    public string Message { get; }
+    public bool IsError { get; }
+    public DateTime Timestamp { get; }
+
+    public EngineLogEventArgs(string message, bool isError = false)
+    {
+        Message = message;
+        IsError = isError;
+        Timestamp = DateTime.Now;
+    }
+}
+
+/// <summary>
+/// Startup validation status from Python server
+/// </summary>
+public class StartupStatusResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("can_continue")]
+    public bool CanContinue { get; set; }
+
+    [JsonPropertyName("errors")]
+    public List<string> Errors { get; set; } = new();
+
+    [JsonPropertyName("warnings")]
+    public List<string> Warnings { get; set; } = new();
+
+    [JsonPropertyName("missing_features")]
+    public List<string> MissingFeatures { get; set; } = new();
+
+    [JsonPropertyName("steps")]
+    public List<StartupStep> Steps { get; set; } = new();
+
+    [JsonPropertyName("has_gpu")]
+    public bool HasGpu { get; set; }
+
+    [JsonPropertyName("gpu_name")]
+    public string? GpuName { get; set; }
+
+    [JsonPropertyName("controlnet_available")]
+    public bool ControlNetAvailable { get; set; }
+
+    [JsonPropertyName("ip_adapter_available")]
+    public bool IpAdapterAvailable { get; set; }
+}
+
+/// <summary>
+/// Startup validation step
+/// </summary>
+public class StartupStep
+{
+    [JsonPropertyName("step")]
+    public int StepNumber { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
+
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = "";
+}
+
+/// <summary>
+/// Startup validation event args
+/// </summary>
+public class StartupValidationEventArgs : EventArgs
+{
+    public StartupStatusResponse Status { get; }
+    public bool RequiresUserAction { get; }
+    public string Summary { get; }
+
+    public StartupValidationEventArgs(StartupStatusResponse status)
+    {
+        Status = status;
+        RequiresUserAction = status.Warnings.Count > 0 || status.MissingFeatures.Count > 0;
+
+        if (status.Errors.Count > 0)
+            Summary = $"[ERROR] Found {status.Errors.Count} error(s) - Cannot start";
+        else if (status.Warnings.Count > 0)
+            Summary = $"[WARN] Found {status.Warnings.Count} warning(s) - Some features unavailable";
+        else
+            Summary = "[OK] System ready with all features";
+    }
+}
+
+/// <summary>
 /// Engine info
 /// </summary>
 public class EngineInfo
@@ -1466,6 +2340,39 @@ public class SchedulersResponse
 }
 
 /// <summary>
+/// Generation progress info from server
+/// </summary>
+public class GenerationProgressInfo
+{
+    [JsonPropertyName("is_generating")]
+    public bool IsGenerating { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("step")]
+    public int Step { get; set; }
+
+    [JsonPropertyName("total_steps")]
+    public int TotalSteps { get; set; }
+
+    [JsonPropertyName("progress")]
+    public int Progress { get; set; }
+}
+
+/// <summary>
+/// Cancel generation result
+/// </summary>
+public class CancelGenerationResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+}
+
+/// <summary>
 /// Diffusers generation result
 /// </summary>
 public class DiffusersResult
@@ -1475,6 +2382,12 @@ public class DiffusersResult
 
     [JsonPropertyName("error")]
     public string? Error { get; set; }
+
+    [JsonPropertyName("cancelled")]
+    public bool Cancelled { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
 
     [JsonPropertyName("images")]
     public List<string>? Images { get; set; }
@@ -1490,6 +2403,12 @@ public class DiffusersResult
 
     [JsonPropertyName("fps")]
     public int Fps { get; set; }
+
+    [JsonPropertyName("vram_used_gb")]
+    public double VramUsedGb { get; set; }
+
+    [JsonPropertyName("frame_count")]
+    public int FrameCount { get; set; }
 }
 
 /// <summary>
@@ -1572,6 +2491,781 @@ public class LoadModelServerResult
 
     [JsonPropertyName("model")]
     public string? Model { get; set; }
+}
+
+/// <summary>
+/// Inpaint request - edit specific parts of an image
+/// </summary>
+public class DiffusersInpaintRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; set; } = "";
+
+    [JsonPropertyName("negative_prompt")]
+    public string? NegativePrompt { get; set; }
+
+    /// <summary>
+    /// Original image (base64 encoded)
+    /// </summary>
+    [JsonPropertyName("image")]
+    public string Image { get; set; } = "";
+
+    /// <summary>
+    /// Mask image (base64 encoded) - white = area to inpaint, black = keep
+    /// </summary>
+    [JsonPropertyName("mask")]
+    public string Mask { get; set; } = "";
+
+    [JsonPropertyName("width")]
+    public int Width { get; set; } = 1024;
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; } = 1024;
+
+    [JsonPropertyName("steps")]
+    public int Steps { get; set; } = 30;
+
+    [JsonPropertyName("guidance_scale")]
+    public double GuidanceScale { get; set; } = 7.5;
+
+    /// <summary>
+    /// Strength controls how much the masked area is changed (0.0-1.0)
+    /// </summary>
+    [JsonPropertyName("strength")]
+    public double Strength { get; set; } = 0.99;
+
+    [JsonPropertyName("seed")]
+    public long Seed { get; set; } = -1;
+
+    [JsonPropertyName("batch_size")]
+    public int BatchSize { get; set; } = 1;
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    [JsonPropertyName("clip_skip")]
+    public int ClipSkip { get; set; } = 1;
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
+}
+
+/// <summary>
+/// Inpaint result
+/// </summary>
+public class InpaintResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("cancelled")]
+    public bool Cancelled { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
+    [JsonPropertyName("seed")]
+    public int Seed { get; set; }
+
+    [JsonPropertyName("generation_time")]
+    public double GenerationTime { get; set; }
+
+    [JsonPropertyName("vram_used_gb")]
+    public double VramUsedGb { get; set; }
+}
+
+/// <summary>
+/// Outpaint request - extend image canvas
+/// </summary>
+public class DiffusersOutpaintRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; set; } = "";
+
+    [JsonPropertyName("negative_prompt")]
+    public string? NegativePrompt { get; set; }
+
+    /// <summary>
+    /// Original image (base64 encoded)
+    /// </summary>
+    [JsonPropertyName("image")]
+    public string Image { get; set; } = "";
+
+    /// <summary>
+    /// Direction to extend: left, right, top, bottom, or combination like "left,top"
+    /// </summary>
+    [JsonPropertyName("direction")]
+    public string Direction { get; set; } = "right";
+
+    /// <summary>
+    /// How many pixels to extend
+    /// </summary>
+    [JsonPropertyName("extend_pixels")]
+    public int ExtendPixels { get; set; } = 256;
+
+    [JsonPropertyName("steps")]
+    public int Steps { get; set; } = 30;
+
+    [JsonPropertyName("guidance_scale")]
+    public double GuidanceScale { get; set; } = 7.5;
+
+    [JsonPropertyName("strength")]
+    public double Strength { get; set; } = 0.85;
+
+    [JsonPropertyName("seed")]
+    public long Seed { get; set; } = -1;
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    /// <summary>
+    /// Feather/blend the mask edges for smoother transitions
+    /// </summary>
+    [JsonPropertyName("feather_pixels")]
+    public int FeatherPixels { get; set; } = 32;
+}
+
+/// <summary>
+/// Outpaint result
+/// </summary>
+public class OutpaintResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("cancelled")]
+    public bool Cancelled { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
+    [JsonPropertyName("seed")]
+    public int Seed { get; set; }
+
+    [JsonPropertyName("generation_time")]
+    public double GenerationTime { get; set; }
+
+    [JsonPropertyName("vram_used_gb")]
+    public double VramUsedGb { get; set; }
+
+    [JsonPropertyName("original_size")]
+    public ImageSize? OriginalSize { get; set; }
+
+    [JsonPropertyName("new_size")]
+    public ImageSize? NewSize { get; set; }
+
+    [JsonPropertyName("directions")]
+    public List<string>? Directions { get; set; }
+}
+
+/// <summary>
+/// Image dimensions
+/// </summary>
+public class ImageSize
+{
+    [JsonPropertyName("width")]
+    public int Width { get; set; }
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; }
+}
+
+/// <summary>
+/// ControlNet generation request
+/// </summary>
+public class DiffusersControlNetRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; set; } = "";
+
+    [JsonPropertyName("negative_prompt")]
+    public string? NegativePrompt { get; set; }
+
+    /// <summary>
+    /// Control image (base64 encoded) - can be raw image or pre-processed
+    /// </summary>
+    [JsonPropertyName("control_image")]
+    public string ControlImage { get; set; } = "";
+
+    /// <summary>
+    /// ControlNet type: canny, pose, depth, hed, lineart, scribble, softedge, normal, tile
+    /// </summary>
+    [JsonPropertyName("control_type")]
+    public string ControlType { get; set; } = "canny";
+
+    /// <summary>
+    /// Custom ControlNet model ID (auto-detected if not specified)
+    /// </summary>
+    [JsonPropertyName("controlnet_model")]
+    public string? ControlNetModel { get; set; }
+
+    /// <summary>
+    /// Whether to preprocess the control image (auto-detect edges, pose, etc.)
+    /// </summary>
+    [JsonPropertyName("preprocess")]
+    public bool Preprocess { get; set; } = true;
+
+    /// <summary>
+    /// Canny edge detection low threshold (only used when preprocess=true and control_type=canny)
+    /// </summary>
+    [JsonPropertyName("canny_low")]
+    public int CannyLow { get; set; } = 100;
+
+    /// <summary>
+    /// Canny edge detection high threshold
+    /// </summary>
+    [JsonPropertyName("canny_high")]
+    public int CannyHigh { get; set; } = 200;
+
+    [JsonPropertyName("width")]
+    public int Width { get; set; } = 1024;
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; } = 1024;
+
+    [JsonPropertyName("steps")]
+    public int Steps { get; set; } = 30;
+
+    [JsonPropertyName("guidance_scale")]
+    public double GuidanceScale { get; set; } = 7.5;
+
+    /// <summary>
+    /// ControlNet conditioning scale (0.0-2.0, default 1.0)
+    /// Higher values = stronger control image influence
+    /// </summary>
+    [JsonPropertyName("controlnet_conditioning_scale")]
+    public double ControlNetConditioningScale { get; set; } = 1.0;
+
+    [JsonPropertyName("seed")]
+    public long Seed { get; set; } = -1;
+
+    [JsonPropertyName("batch_size")]
+    public int BatchSize { get; set; } = 1;
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    [JsonPropertyName("clip_skip")]
+    public int ClipSkip { get; set; } = 1;
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
+}
+
+/// <summary>
+/// ControlNet generation result
+/// </summary>
+public class ControlNetResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("cancelled")]
+    public bool Cancelled { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
+    /// <summary>
+    /// Preview of the preprocessed control image (for debugging)
+    /// </summary>
+    [JsonPropertyName("control_preview")]
+    public string? ControlPreview { get; set; }
+
+    [JsonPropertyName("control_type")]
+    public string? ControlType { get; set; }
+
+    [JsonPropertyName("seed")]
+    public int Seed { get; set; }
+
+    [JsonPropertyName("generation_time")]
+    public double GenerationTime { get; set; }
+
+    [JsonPropertyName("vram_used_gb")]
+    public double VramUsedGb { get; set; }
+}
+
+/// <summary>
+/// Available ControlNet types
+/// </summary>
+public class ControlNetTypesResult
+{
+    [JsonPropertyName("model_family")]
+    public string ModelFamily { get; set; } = "";
+
+    [JsonPropertyName("available_types")]
+    public List<string> AvailableTypes { get; set; } = new();
+
+    [JsonPropertyName("loaded_types")]
+    public List<string> LoadedTypes { get; set; } = new();
+
+    [JsonPropertyName("has_controlnet_aux")]
+    public bool HasControlNetAux { get; set; }
+}
+
+/// <summary>
+/// ControlNet load result
+/// </summary>
+public class ControlNetLoadResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("model")]
+    public string? Model { get; set; }
+
+    [JsonPropertyName("control_type")]
+    public string? ControlType { get; set; }
+
+    [JsonPropertyName("cached")]
+    public bool Cached { get; set; }
+}
+
+/// <summary>
+/// Upscale request - upscale image using Real-ESRGAN
+/// </summary>
+public class DiffusersUpscaleRequest
+{
+    /// <summary>
+    /// Input image (base64 encoded)
+    /// </summary>
+    [JsonPropertyName("image")]
+    public string Image { get; set; } = "";
+
+    /// <summary>
+    /// Scale factor: 2, 3, or 4
+    /// </summary>
+    [JsonPropertyName("scale")]
+    public int Scale { get; set; } = 2;
+
+    /// <summary>
+    /// Upscaler model: realesrgan, realesrgan-anime, realesrgan-x2
+    /// </summary>
+    [JsonPropertyName("model")]
+    public string Model { get; set; } = "realesrgan";
+
+    /// <summary>
+    /// Denoise strength (0.0-1.0)
+    /// </summary>
+    [JsonPropertyName("denoise_strength")]
+    public double DenoiseStrength { get; set; } = 0.5;
+
+    /// <summary>
+    /// Tile size for processing large images (0 = no tiling)
+    /// </summary>
+    [JsonPropertyName("tile_size")]
+    public int TileSize { get; set; } = 0;
+
+    /// <summary>
+    /// Output format: png or jpg
+    /// </summary>
+    [JsonPropertyName("output_format")]
+    public string OutputFormat { get; set; } = "png";
+}
+
+/// <summary>
+/// Upscale result
+/// </summary>
+public class UpscaleResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
+    [JsonPropertyName("original_size")]
+    public ImageSize? OriginalSize { get; set; }
+
+    [JsonPropertyName("output_size")]
+    public ImageSize? OutputSize { get; set; }
+
+    [JsonPropertyName("scale")]
+    public int Scale { get; set; }
+
+    [JsonPropertyName("model")]
+    public string? Model { get; set; }
+
+    [JsonPropertyName("vram_used_gb")]
+    public double VramUsedGb { get; set; }
+}
+
+/// <summary>
+/// IP-Adapter request - use reference images for style/content transfer
+/// </summary>
+public class DiffusersIPAdapterRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; set; } = "";
+
+    [JsonPropertyName("negative_prompt")]
+    public string? NegativePrompt { get; set; }
+
+    /// <summary>
+    /// Reference image(s) for IP-Adapter (base64 encoded)
+    /// </summary>
+    [JsonPropertyName("reference_images")]
+    public List<string> ReferenceImages { get; set; } = new();
+
+    /// <summary>
+    /// IP-Adapter scale (0.0-1.5, higher = more influence from reference)
+    /// </summary>
+    [JsonPropertyName("ip_adapter_scale")]
+    public double IPAdapterScale { get; set; } = 0.6;
+
+    [JsonPropertyName("width")]
+    public int Width { get; set; } = 1024;
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; } = 1024;
+
+    [JsonPropertyName("steps")]
+    public int Steps { get; set; } = 30;
+
+    [JsonPropertyName("guidance_scale")]
+    public double GuidanceScale { get; set; } = 7.5;
+
+    [JsonPropertyName("seed")]
+    public long Seed { get; set; } = -1;
+
+    [JsonPropertyName("batch_size")]
+    public int BatchSize { get; set; } = 1;
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    [JsonPropertyName("clip_skip")]
+    public int ClipSkip { get; set; } = 1;
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
+}
+
+/// <summary>
+/// IP-Adapter load result
+/// </summary>
+public class IPAdapterLoadResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("adapter")]
+    public string? Adapter { get; set; }
+}
+
+/// <summary>
+/// IP-Adapter generation result
+/// </summary>
+public class IPAdapterResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("cancelled")]
+    public bool Cancelled { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
+    [JsonPropertyName("seed")]
+    public int Seed { get; set; }
+
+    [JsonPropertyName("ip_adapter_scale")]
+    public double IPAdapterScale { get; set; }
+
+    [JsonPropertyName("reference_count")]
+    public int ReferenceCount { get; set; }
+
+    [JsonPropertyName("vram_used_gb")]
+    public double VramUsedGb { get; set; }
+}
+
+/// <summary>
+/// Multi-ControlNet request - use multiple control conditions simultaneously
+/// </summary>
+public class DiffusersMultiControlNetRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; set; } = "";
+
+    [JsonPropertyName("negative_prompt")]
+    public string? NegativePrompt { get; set; }
+
+    /// <summary>
+    /// List of control conditions
+    /// </summary>
+    [JsonPropertyName("controls")]
+    public List<ControlCondition> Controls { get; set; } = new();
+
+    [JsonPropertyName("width")]
+    public int Width { get; set; } = 1024;
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; } = 1024;
+
+    [JsonPropertyName("steps")]
+    public int Steps { get; set; } = 30;
+
+    [JsonPropertyName("guidance_scale")]
+    public double GuidanceScale { get; set; } = 7.5;
+
+    [JsonPropertyName("seed")]
+    public long Seed { get; set; } = -1;
+
+    [JsonPropertyName("batch_size")]
+    public int BatchSize { get; set; } = 1;
+
+    [JsonPropertyName("scheduler")]
+    public string? Scheduler { get; set; }
+
+    [JsonPropertyName("lora_models")]
+    public List<LoraModelInfo>? LoraModels { get; set; }
+}
+
+/// <summary>
+/// A single control condition for Multi-ControlNet
+/// </summary>
+public class ControlCondition
+{
+    /// <summary>
+    /// Control image (base64 encoded)
+    /// </summary>
+    [JsonPropertyName("control_image")]
+    public string ControlImage { get; set; } = "";
+
+    /// <summary>
+    /// ControlNet type: canny, pose, depth, etc.
+    /// </summary>
+    [JsonPropertyName("control_type")]
+    public string ControlType { get; set; } = "canny";
+
+    /// <summary>
+    /// Conditioning scale for this control (0.0-2.0)
+    /// </summary>
+    [JsonPropertyName("weight")]
+    public double Weight { get; set; } = 1.0;
+
+    /// <summary>
+    /// Whether to preprocess the control image
+    /// </summary>
+    [JsonPropertyName("preprocess")]
+    public bool Preprocess { get; set; } = true;
+
+    [JsonPropertyName("canny_low")]
+    public int CannyLow { get; set; } = 100;
+
+    [JsonPropertyName("canny_high")]
+    public int CannyHigh { get; set; } = 200;
+}
+
+/// <summary>
+/// Multi-ControlNet generation result
+/// </summary>
+public class MultiControlNetResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("cancelled")]
+    public bool Cancelled { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
+    [JsonPropertyName("seed")]
+    public int Seed { get; set; }
+
+    [JsonPropertyName("control_types")]
+    public List<string>? ControlTypes { get; set; }
+
+    [JsonPropertyName("control_scales")]
+    public List<double>? ControlScales { get; set; }
+
+    [JsonPropertyName("vram_used_gb")]
+    public double VramUsedGb { get; set; }
+}
+
+/// <summary>
+/// Request to add a task to the generation queue
+/// </summary>
+public class QueuedTaskRequest
+{
+    /// <summary>
+    /// Task type: image, img2img, video, controlnet, multi_controlnet, inpaint, outpaint, upscale, ip_adapter
+    /// </summary>
+    [JsonPropertyName("task_type")]
+    public string TaskType { get; set; } = "";
+
+    /// <summary>
+    /// Request data (varies by task type)
+    /// </summary>
+    [JsonPropertyName("request_data")]
+    public Dictionary<string, object> RequestData { get; set; } = new();
+
+    /// <summary>
+    /// Priority (0-10, higher = processed first)
+    /// </summary>
+    [JsonPropertyName("priority")]
+    public int Priority { get; set; } = 0;
+}
+
+/// <summary>
+/// Result of adding a task to the queue
+/// </summary>
+public class QueueAddResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("position")]
+    public int? Position { get; set; }
+}
+
+/// <summary>
+/// Status of a queued task
+/// </summary>
+public class QueueTaskStatus
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    /// <summary>
+    /// Status: pending, processing, completed, failed, cancelled
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("progress")]
+    public int Progress { get; set; }
+
+    [JsonPropertyName("position")]
+    public int? Position { get; set; }
+
+    [JsonPropertyName("result")]
+    public Dictionary<string, object>? Result { get; set; }
+
+    [JsonPropertyName("created_at")]
+    public double CreatedAt { get; set; }
+
+    [JsonPropertyName("started_at")]
+    public double? StartedAt { get; set; }
+
+    [JsonPropertyName("completed_at")]
+    public double? CompletedAt { get; set; }
+}
+
+/// <summary>
+/// Queue list result
+/// </summary>
+public class QueueListResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("queue_running")]
+    public bool QueueRunning { get; set; }
+
+    [JsonPropertyName("pending_count")]
+    public int PendingCount { get; set; }
+
+    [JsonPropertyName("pending")]
+    public List<QueueTaskInfo>? Pending { get; set; }
+
+    [JsonPropertyName("processing")]
+    public List<QueueTaskInfo>? Processing { get; set; }
+
+    [JsonPropertyName("recent_completed")]
+    public List<QueueTaskInfo>? RecentCompleted { get; set; }
+}
+
+/// <summary>
+/// Basic task info for queue listing
+/// </summary>
+public class QueueTaskInfo
+{
+    [JsonPropertyName("task_id")]
+    public string? TaskId { get; set; }
+
+    [JsonPropertyName("task_type")]
+    public string? TaskType { get; set; }
+
+    [JsonPropertyName("priority")]
+    public int Priority { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("progress")]
+    public int Progress { get; set; }
+
+    [JsonPropertyName("created_at")]
+    public double CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Result of clearing the queue
+/// </summary>
+public class QueueClearResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("cleared_count")]
+    public int ClearedCount { get; set; }
 }
 
 #endregion

@@ -11,7 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Python generation server script - copy to output directory -->
+    <!-- Python generation server script - embed as resource AND copy to output -->
+    <EmbeddedResource Include="Services\generation_server.py">
+      <LogicalName>AIManager.Core.Services.generation_server.py</LogicalName>
+    </EmbeddedResource>
     <Content Include="Services\generation_server.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>generation_server.py</Link>

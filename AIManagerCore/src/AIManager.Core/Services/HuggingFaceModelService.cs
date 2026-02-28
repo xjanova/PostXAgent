@@ -221,6 +221,43 @@ public class HuggingFaceModelService : IDisposable
     }
 
     /// <summary>
+    /// Get total size of a model from HuggingFace (sum of all safetensors/bin files)
+    /// </summary>
+    public async Task<long> GetModelSizeAsync(string modelId, CancellationToken ct = default)
+    {
+        try
+        {
+            // Get file list from HuggingFace API
+            var url = $"{HF_API_BASE}/models/{modelId}/tree/main";
+            var response = await _httpClient.GetAsync(url, ct);
+
+            if (!response.IsSuccessStatusCode)
+                return 0;
+
+            var files = await response.Content.ReadFromJsonAsync<List<HuggingFaceFile>>(ct);
+            if (files == null || files.Count == 0)
+                return 0;
+
+            // Sum sizes of model files (.safetensors, .bin, .ckpt)
+            long totalSize = files
+                .Where(f => f.Type == "file")
+                .Where(f => f.Path != null && (
+                    f.Path.EndsWith(".safetensors", StringComparison.OrdinalIgnoreCase) ||
+                    f.Path.EndsWith(".bin", StringComparison.OrdinalIgnoreCase) ||
+                    f.Path.EndsWith(".ckpt", StringComparison.OrdinalIgnoreCase) ||
+                    f.Path.EndsWith(".pt", StringComparison.OrdinalIgnoreCase)))
+                .Sum(f => f.Size);
+
+            return totalSize;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to get model size: {ModelId}", modelId);
+            return 0;
+        }
+    }
+
+    /// <summary>
     /// Get model info from HuggingFace
     /// </summary>
     public async Task<HuggingFaceModelInfo?> GetModelInfoAsync(string modelId, CancellationToken ct = default)

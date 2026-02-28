@@ -199,6 +199,12 @@ builder.Services.AddSingleton<VideoCreationPipeline>(sp =>
         postPublisher);
 });
 
+// Thai TTS Service (Edge TTS + Google Cloud TTS)
+builder.Services.AddSingleton<ThaiTtsService>();
+
+// Lip Sync Service (SadTalker / Wav2Lip)
+builder.Services.AddSingleton<LipSyncService>();
+
 // Content Workflow Services
 builder.Services.AddSingleton<CloudDriveService>();
 builder.Services.AddSingleton<VideoScriptGeneratorService>();

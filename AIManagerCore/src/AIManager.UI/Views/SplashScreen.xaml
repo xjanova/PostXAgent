@@ -189,7 +189,7 @@
 
                     <!-- Version and Status -->
                     <Grid Grid.Row="0">
-                        <TextBlock Text="Version 1.1.0"
+                        <TextBlock x:Name="TxtVersion" Text="Version 1.0.0"
                                    FontSize="10"
                                    Foreground="#7070A0"
                                    HorizontalAlignment="Left"/>
