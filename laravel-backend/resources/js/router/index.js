@@ -22,6 +22,7 @@ import SocialAccounts from '../views/user/SocialAccounts.vue'
 import Analytics from '../views/user/Analytics.vue'
 import WebLearning from '../views/user/WebLearning.vue'
 import AITools from '../views/user/AITools.vue'
+import ContentPipeline from '../components/ContentPipelinePage.vue'
 
 // Admin Views
 import AdminDashboard from '../views/admin/Dashboard.vue'
@@ -63,6 +64,7 @@ const routes = [
             { path: 'analytics', name: 'analytics', component: Analytics },
             { path: 'web-learning', name: 'web-learning', component: WebLearning, meta: { feature: 'web_learning' } },
             { path: 'ai-tools', name: 'ai-tools', component: AITools, meta: { feature: 'ai_tools' } },
+            { path: 'content-pipeline', name: 'content-pipeline', component: ContentPipeline },
         ]
     },
 

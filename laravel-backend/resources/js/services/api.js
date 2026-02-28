@@ -124,6 +124,33 @@ export const aiManagerApi = {
     stop: () => api.post('/ai-manager/stop'),
 }
 
+// Content Pipeline APIs
+export const pipelineApi = {
+    // Pipelines CRUD
+    list: () => api.get('/content-pipeline'),
+    get: (id) => api.get(`/content-pipeline/${id}`),
+    create: (data) => api.post('/content-pipeline', data),
+    update: (id, data) => api.put(`/content-pipeline/${id}`, data),
+    delete: (id) => api.delete(`/content-pipeline/${id}`),
+    start: (id) => api.post(`/content-pipeline/${id}/start`),
+    toggle: (id) => api.post(`/content-pipeline/${id}/toggle`),
+    stats: () => api.get('/content-pipeline/stats'),
+    providerStatus: () => api.get('/content-pipeline/provider-status'),
+
+    // Pipeline Runs
+    listRuns: (params) => api.get('/content-pipeline/runs/list', { params }),
+    getRun: (id) => api.get(`/content-pipeline/runs/${id}`),
+    cancelRun: (id) => api.post(`/content-pipeline/runs/${id}/cancel`),
+    retryRun: (id) => api.post(`/content-pipeline/runs/${id}/retry`),
+
+    // API Key Pools
+    listApiKeyPools: () => api.get('/content-pipeline/api-keys'),
+    createApiKeyPool: (data) => api.post('/content-pipeline/api-keys', data),
+    addApiKey: (poolId, data) => api.post(`/content-pipeline/api-keys/${poolId}/members`, data),
+    removeApiKey: (poolId, memberId) => api.delete(`/content-pipeline/api-keys/${poolId}/members/${memberId}`),
+    apiKeyPoolStats: (poolId) => api.get(`/content-pipeline/api-keys/${poolId}/statistics`),
+}
+
 // Admin APIs
 export const adminApi = {
     // Users

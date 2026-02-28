@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserRental;
 use App\Models\RentalPackage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -23,6 +24,7 @@ class PostControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(ThrottleRequests::class);
 
         $this->user = User::factory()->create();
         $this->brand = Brand::factory()->create(['user_id' => $this->user->id]);
@@ -92,7 +94,7 @@ class PostControllerTest extends TestCase
 
     public function test_user_can_delete_own_post(): void
     {
-        $post = Post::factory()->create([
+        $post = Post::factory()->draft()->create([
             'user_id' => $this->user->id,
             'brand_id' => $this->brand->id,
         ]);

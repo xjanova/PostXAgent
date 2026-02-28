@@ -39,4 +39,9 @@
     <Resource Include="logo.png" Condition="Exists('logo.png')" />
   </ItemGroup>
 
+  <!-- VERSION file from project root -->
+  <ItemGroup>
+    <Content Include="..\..\..\VERSION" Link="VERSION" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

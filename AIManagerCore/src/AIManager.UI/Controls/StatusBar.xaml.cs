@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using AIManager.Core.Services;
+using AIManager.UI.Helpers;
 
 namespace AIManager.UI.Controls;
 
@@ -193,6 +194,9 @@ public partial class StatusBar : UserControl
 
     private async void StatusBar_Loaded(object sender, RoutedEventArgs e)
     {
+        // Set version from VERSION file
+        TxtVersion.Text = VersionHelper.GetVersionWithPrefix();
+
         _updateTimer.Start();
         _aiAssistant.Start();
         await RefreshAllStatusAsync();

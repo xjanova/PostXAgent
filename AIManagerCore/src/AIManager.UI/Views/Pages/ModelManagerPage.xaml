@@ -770,6 +770,33 @@
                             <TextBlock x:Name="SearchResultCount" Text="" FontSize="12" Foreground="#6B6B8A"
                                        VerticalAlignment="Center" Margin="0,0,16,0"/>
 
+                            <!-- Downloaded Filter Toggle -->
+                            <Border x:Name="DownloadedFilterBtn" Background="#202030" CornerRadius="8" Padding="10,8" Margin="0,0,8,0"
+                                    Cursor="Hand" MouseLeftButtonDown="DownloadedFilter_Click" Tag="off"
+                                    ToolTip="แสดงเฉพาะที่ดาวน์โหลดแล้ว">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon x:Name="DownloadedFilterIcon" Kind="CheckCircleOutline" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="DownloadedFilterText" Text="Downloaded" FontSize="11" Foreground="#6B6B8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- NSFW Filter Toggle -->
+                            <Border x:Name="NsfwFilterBtn" Background="#202030" CornerRadius="8" Padding="10,8" Margin="0,0,8,0"
+                                    Cursor="Hand" MouseLeftButtonDown="NsfwFilter_Click" Tag="off"
+                                    ToolTip="ซ่อน/แสดงโมเดล NSFW">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon x:Name="NsfwFilterIcon" Kind="EyeOff" Width="16" Height="16" Foreground="#6B6B8A" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="NsfwFilterText" Text="NSFW" FontSize="11" Foreground="#6B6B8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Refresh Thumbnails -->
+                            <Border x:Name="RefreshThumbnailsBtn" Background="#202030" CornerRadius="8" Padding="10,8" Margin="0,0,12,0"
+                                    Cursor="Hand" MouseLeftButtonDown="RefreshThumbnails_Click"
+                                    ToolTip="โหลด Thumbnails ใหม่">
+                                <materialDesign:PackIcon x:Name="RefreshIcon" Kind="Refresh" Width="18" Height="18" Foreground="#6B6B8A"/>
+                            </Border>
+
                             <!-- Grid View -->
                             <Border x:Name="ViewGridBtn" Background="#307C4DFF" CornerRadius="8,0,0,8" Padding="10,8"
                                     Cursor="Hand" MouseLeftButtonDown="ViewToggle_Click" Tag="grid">
@@ -864,21 +891,25 @@
                                                        Margin="0,8,0,0" TextWrapping="Wrap" MaxHeight="36"
                                                        TextTrimming="CharacterEllipsis"/>
 
-                                            <!-- Stats Row -->
-                                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                                <Border Background="#1A10B981" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <materialDesign:PackIcon Kind="Download" Width="12" Height="12" Foreground="#10B981" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding DownloadsFormatted}" FontSize="10" Foreground="#10B981" Margin="4,0,0,0"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <Border Background="#1AF472B6" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <materialDesign:PackIcon Kind="Heart" Width="12" Height="12" Foreground="#F472B6" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding LikesFormatted}" FontSize="10" Foreground="#F472B6" Margin="4,0,0,0"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <Border Background="#1A7C4DFF" CornerRadius="6" Padding="8,4"
+                                            <!-- Stats Row - Two rows layout -->
+                                            <StackPanel Margin="0,12,0,0">
+                                                <!-- Row 1: Downloads + Likes -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                    <Border Background="#1A10B981" CornerRadius="6" Padding="8,4" Margin="0,0,8,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <materialDesign:PackIcon Kind="Download" Width="12" Height="12" Foreground="#10B981" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding DownloadsFormatted}" FontSize="10" Foreground="#10B981" Margin="4,0,0,0"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border Background="#1AF472B6" CornerRadius="6" Padding="8,4">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <materialDesign:PackIcon Kind="Heart" Width="12" Height="12" Foreground="#F472B6" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding LikesFormatted}" FontSize="10" Foreground="#F472B6" Margin="4,0,0,0"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                                <!-- Row 2: Size (if available) -->
+                                                <Border Background="#1A7C4DFF" CornerRadius="6" Padding="8,4" HorizontalAlignment="Left"
                                                         Visibility="{Binding HasSize, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <materialDesign:PackIcon Kind="Harddisk" Width="12" Height="12" Foreground="#C084FC" VerticalAlignment="Center"/>
@@ -1007,14 +1038,20 @@
                                             </StackPanel>
                                             <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#8888AA"
                                                        Margin="0,6,0,0" TextTrimming="CharacterEllipsis" MaxWidth="500"/>
-                                            <!-- Stats -->
-                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                <materialDesign:PackIcon Kind="Download" Width="12" Height="12" Foreground="#10B981"/>
-                                                <TextBlock Text="{Binding DownloadsFormatted}" FontSize="10" Foreground="#10B981" Margin="4,0,16,0"/>
-                                                <materialDesign:PackIcon Kind="Heart" Width="12" Height="12" Foreground="#F472B6"/>
-                                                <TextBlock Text="{Binding LikesFormatted}" FontSize="10" Foreground="#F472B6" Margin="4,0,16,0"/>
-                                                <materialDesign:PackIcon Kind="Tag" Width="12" Height="12" Foreground="#C084FC"/>
-                                                <TextBlock Text="{Binding ModelTypeDisplay, FallbackValue=Model}" FontSize="10" Foreground="#C084FC" Margin="4,0,0,0"/>
+                                            <!-- Stats - Two rows layout -->
+                                            <StackPanel Margin="0,8,0,0">
+                                                <!-- Row 1: Downloads + Likes -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <materialDesign:PackIcon Kind="Download" Width="12" Height="12" Foreground="#10B981"/>
+                                                    <TextBlock Text="{Binding DownloadsFormatted}" FontSize="10" Foreground="#10B981" Margin="4,0,16,0"/>
+                                                    <materialDesign:PackIcon Kind="Heart" Width="12" Height="12" Foreground="#F472B6"/>
+                                                    <TextBlock Text="{Binding LikesFormatted}" FontSize="10" Foreground="#F472B6" Margin="4,0,0,0"/>
+                                                </StackPanel>
+                                                <!-- Row 2: Model Type -->
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon Kind="Tag" Width="12" Height="12" Foreground="#C084FC"/>
+                                                    <TextBlock Text="{Binding ModelTypeDisplay, FallbackValue=Model}" FontSize="10" Foreground="#C084FC" Margin="4,0,0,0"/>
+                                                </StackPanel>
                                             </StackPanel>
                                         </StackPanel>
 

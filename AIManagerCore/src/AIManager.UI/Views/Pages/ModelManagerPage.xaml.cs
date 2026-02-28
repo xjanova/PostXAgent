@@ -18,11 +18,15 @@ namespace AIManager.UI.Views.Pages;
 public partial class ModelManagerPage : Page
 {
     private readonly HuggingFaceModelService _modelService;
+    private readonly DiffusersEngineManager? _diffusersManager;
     private CancellationTokenSource? _downloadCts;
     private CancellationTokenSource? _searchCts;
 
     private ObservableCollection<DownloadedModelViewModel> _downloadedModels = new();
     private ObservableCollection<SearchResultViewModel> _searchResults = new();
+    private List<SearchResultViewModel> _allSearchResults = new(); // All results before filtering
+    private bool _hideNsfw = false; // NSFW filter state
+    private bool _showDownloadedOnly = false; // Downloaded filter state
 
     // Track current/last download for resume functionality
     private string? _currentDownloadModelId;
@@ -35,8 +39,9 @@ public partial class ModelManagerPage : Page
     private int _downloadAnimationFrame;
 
     // Static property for sharing active model with other pages
-    public static string? ActiveModelId { get; private set; }
-    public static ModelType? ActiveModelType { get; private set; }
+    // Setter is internal so other pages can set from persisted settings
+    public static string? ActiveModelId { get; set; }
+    public static ModelType? ActiveModelType { get; set; }
     public static event EventHandler<ModelActivatedEventArgs>? ModelActivated;
 
     public ModelManagerPage()
@@ -45,6 +50,16 @@ public partial class ModelManagerPage : Page
 
         _modelService = new HuggingFaceModelService(null);
         _modelService.DownloadProgressChanged += OnDownloadProgressChanged;
+
+        // Get DiffusersEngineManager to save default model
+        try
+        {
+            _diffusersManager = DiffusersEngineManager.Instance;
+        }
+        catch
+        {
+            _diffusersManager = null;
+        }
 
         Loaded += ModelManagerPage_Loaded;
     }
@@ -60,10 +75,120 @@ public partial class ModelManagerPage : Page
 
     private async void ModelManagerPage_Loaded(object sender, RoutedEventArgs e)
     {
+        // Preload thumbnail cache for faster display
+        await Helpers.AsyncImageLoader.PreloadCacheAsync();
+
         await LoadDownloadedModelsAsync();
         await UpdateStorageUsageAsync();
         LoadRecommendedModels();
         UpdateActiveModelDisplay();
+
+        // Auto-download default model (SDXL) if not present
+        await EnsureDefaultModelAvailableAsync();
+    }
+
+    /// <summary>
+    /// Ensure the default recommended model (SDXL) is downloaded
+    /// This ensures users always have a working model available
+    /// </summary>
+    private async Task EnsureDefaultModelAvailableAsync()
+    {
+        var defaultModelId = RecommendedModels.DefaultModel;
+
+        // Check if default model is already downloaded
+        var isDownloaded = _downloadedModels.Any(m =>
+            m.ModelId.Equals(defaultModelId, StringComparison.OrdinalIgnoreCase));
+
+        if (isDownloaded)
+        {
+            return; // Already have the default model
+        }
+
+        // Ask user if they want to download the default model
+        var result = MessageBox.Show(
+            $"ยังไม่มี Model สำหรับสร้างภาพ\n\n" +
+            $"ต้องการดาวน์โหลด SDXL Base (แนะนำ) หรือไม่?\n\n" +
+            $"• SDXL Base เป็น Model คุณภาพสูง\n" +
+            $"• ต้องการ VRAM 8GB+\n" +
+            $"• ขนาดประมาณ 6.5 GB\n\n" +
+            $"หากไม่ดาวน์โหลด สามารถเลือก Model อื่นได้จากหน้านี้",
+            "ดาวน์โหลด Default Model",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            await DownloadDefaultModelAsync();
+        }
+    }
+
+    /// <summary>
+    /// Download the default model (SDXL)
+    /// </summary>
+    private async Task DownloadDefaultModelAsync()
+    {
+        var defaultModelId = RecommendedModels.DefaultModel;
+
+        try
+        {
+            // Show progress UI
+            DownloadProgressOverlay.Visibility = Visibility.Visible;
+            DownloadModelName.Text = "SDXL Base (Default)";
+            DownloadProgressBar.Value = 0;
+            DownloadProgressBar.IsIndeterminate = true;
+            DownloadStatusText.Text = "กำลังเริ่มดาวน์โหลด...";
+            DownloadSpeedText.Text = "";
+            DownloadEtaText.Text = "";
+
+            _downloadCts = new CancellationTokenSource();
+            _currentDownloadModelId = defaultModelId;
+            _currentDownloadModelType = ModelType.TextToImage;
+
+            DownloadProgressBar.IsIndeterminate = false;
+
+            await _modelService.DownloadModelAsync(
+                defaultModelId,
+                ModelType.TextToImage,
+                ct: _downloadCts.Token);
+
+            // Set as active model after download
+            if (_diffusersManager != null)
+            {
+                _diffusersManager.SetLastSelectedModel(defaultModelId, ModelType.TextToImage);
+                ActiveModelId = defaultModelId;
+                ActiveModelType = ModelType.TextToImage;
+            }
+
+            MessageBox.Show(
+                "ดาวน์โหลด SDXL Base สำเร็จ!\n\nตั้งเป็น Default Model เรียบร้อยแล้ว",
+                "สำเร็จ",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            // Refresh model list
+            await LoadDownloadedModelsAsync();
+            LoadRecommendedModels();
+            UpdateActiveModelDisplay();
+        }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show("ยกเลิกการดาวน์โหลด", "ยกเลิก", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"ดาวน์โหลดไม่สำเร็จ: {ex.Message}\n\nสามารถลองดาวน์โหลดใหม่หรือเลือก Model อื่นได้",
+                "ผิดพลาด",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            DownloadProgressOverlay.Visibility = Visibility.Collapsed;
+            _downloadCts?.Dispose();
+            _downloadCts = null;
+            _currentDownloadModelId = null;
+        }
     }
 
     private void UpdateActiveModelDisplay()
@@ -83,6 +208,23 @@ public partial class ModelManagerPage : Page
     {
         try
         {
+            // Load last selected model from settings if not already set
+            if (ActiveModelId == null && _diffusersManager != null)
+            {
+                var (lastModelId, lastModelType, _) = _diffusersManager.GetLastSelectedModel();
+                if (!string.IsNullOrEmpty(lastModelId))
+                {
+                    ActiveModelId = lastModelId;
+                    ActiveModelType = lastModelType;
+                }
+                // Fallback to default model
+                else if (!string.IsNullOrEmpty(_diffusersManager.DefaultModelId))
+                {
+                    ActiveModelId = _diffusersManager.DefaultModelId;
+                    ActiveModelType = _diffusersManager.Settings.DefaultModelType;
+                }
+            }
+
             var models = await _modelService.GetDownloadedModelsAsync();
             _downloadedModels.Clear();
 
@@ -98,13 +240,17 @@ public partial class ModelManagerPage : Page
                     SizeFormatted = FormatSize(model.SizeBytes),
                     SizeBytes = model.SizeBytes,
                     IsActive = model.Id == ActiveModelId,
-                    ThumbnailUrl = model.ThumbnailUrl
+                    ThumbnailUrl = model.ThumbnailUrl,
+                    LocalPath = model.LocalPath
                 });
             }
 
             DownloadedModelsList.ItemsSource = _downloadedModels;
             ModelCountText.Text = $"{_downloadedModels.Count} models";
             EmptyDownloadedState.Visibility = _downloadedModels.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            // Update active model display
+            UpdateActiveModelDisplay();
 
             // Load thumbnails in background for models without saved thumbnails
             _ = LoadThumbnailsAsync();
@@ -161,24 +307,136 @@ public partial class ModelManagerPage : Page
 
     private async Task LoadSearchThumbnailsAsync(CancellationToken ct)
     {
-        foreach (var model in _searchResults.Where(m => !m.HasThumbnail))
-        {
-            if (ct.IsCancellationRequested) break;
+        var modelsWithoutThumbnails = _searchResults.Where(m => !m.HasThumbnail).ToList();
+        if (modelsWithoutThumbnails.Count == 0) return;
 
+        // Process in parallel with limit (like LoadThumbnailsAsync)
+        var semaphore = new SemaphoreSlim(5); // Max 5 concurrent fetches
+        var loadedCount = 0;
+
+        var tasks = modelsWithoutThumbnails.Select(async model =>
+        {
+            if (ct.IsCancellationRequested) return;
+
+            await semaphore.WaitAsync(ct);
             try
             {
                 var thumbnailUrl = await _modelService.GetModelThumbnailUrlAsync(model.ModelId, ct);
-                if (!string.IsNullOrEmpty(thumbnailUrl))
+                if (!string.IsNullOrEmpty(thumbnailUrl) && !ct.IsCancellationRequested)
                 {
                     model.ThumbnailUrl = thumbnailUrl;
-                    // Refresh UI on dispatcher thread
-                    await Dispatcher.InvokeAsync(() => SearchResultsList.Items.Refresh());
+                    var currentCount = Interlocked.Increment(ref loadedCount);
+
+                    // Batch UI refreshes - refresh every 3 thumbnails or at the end
+                    if (currentCount % 3 == 0 || currentCount == modelsWithoutThumbnails.Count)
+                    {
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            // Refresh both Grid View and List View
+                            SearchResultsList.Items.Refresh();
+                            SearchResultsListMode.Items.Refresh();
+                        });
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore cancellation
             }
             catch
             {
                 // Ignore thumbnail fetch errors - not critical
             }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        try
+        {
+            await Task.WhenAll(tasks);
+
+            // Final refresh to ensure all loaded thumbnails are visible
+            if (loadedCount > 0 && !ct.IsCancellationRequested)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    SearchResultsList.Items.Refresh();
+                    SearchResultsListMode.Items.Refresh();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation
+        }
+    }
+
+    private async Task LoadSearchModelSizesAsync(CancellationToken ct)
+    {
+        var modelsWithoutSize = _searchResults.Where(m => !m.HasSize).ToList();
+        if (modelsWithoutSize.Count == 0) return;
+
+        // Process in parallel with limit
+        var semaphore = new SemaphoreSlim(3); // Max 3 concurrent fetches
+        var loadedCount = 0;
+
+        var tasks = modelsWithoutSize.Select(async model =>
+        {
+            if (ct.IsCancellationRequested) return;
+
+            await semaphore.WaitAsync(ct);
+            try
+            {
+                var sizeBytes = await _modelService.GetModelSizeAsync(model.ModelId, ct);
+                if (sizeBytes > 0 && !ct.IsCancellationRequested)
+                {
+                    model.SizeBytes = sizeBytes;
+                    var currentCount = Interlocked.Increment(ref loadedCount);
+
+                    // Batch UI refreshes - refresh every 5 sizes or at the end
+                    if (currentCount % 5 == 0 || currentCount == modelsWithoutSize.Count)
+                    {
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            SearchResultsList.Items.Refresh();
+                            SearchResultsListMode.Items.Refresh();
+                        });
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore cancellation
+            }
+            catch
+            {
+                // Ignore size fetch errors - not critical
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        try
+        {
+            await Task.WhenAll(tasks);
+
+            // Final refresh
+            if (loadedCount > 0 && !ct.IsCancellationRequested)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    SearchResultsList.Items.Refresh();
+                    SearchResultsListMode.Items.Refresh();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation
         }
     }
 
@@ -774,6 +1032,10 @@ public partial class ModelManagerPage : Page
             ActiveModelId = modelId;
             ActiveModelType = Enum.TryParse<ModelType>(model.TypeName, out var type) ? type : ModelType.TextToImage;
 
+            // Save as last selected model in DiffusersEngineManager (persisted to disk)
+            // This will be auto-loaded when engine starts
+            _diffusersManager?.SetLastSelectedModel(modelId, ActiveModelType.Value, model.LocalPath);
+
             // Update UI
             UpdateActiveModelDisplay();
 
@@ -787,10 +1049,10 @@ public partial class ModelManagerPage : Page
             // Notify other pages
             ModelActivated?.Invoke(this, new ModelActivatedEventArgs(modelId, ActiveModelType.Value));
 
-            // Show confirmation
+            // Show confirmation with auto-load info
             MessageBox.Show($"Model activated: {model.Name}\n\n" +
-                "This model is now selected for image/video generation.\n" +
-                "Go to Generation Pipeline to start creating!",
+                "โมเดลนี้จะถูกโหลดอัตโนมัติเมื่อเปิดโปรแกรมครั้งถัดไป\n" +
+                "ไปที่ Generation Pipeline เพื่อเริ่มสร้างภาพ!",
                 "Model Activated", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
@@ -860,31 +1122,44 @@ public partial class ModelManagerPage : Page
 
             var results = await _modelService.SearchModelsAsync(query, ct: _searchCts.Token);
             _searchResults.Clear();
+            _allSearchResults.Clear();
 
             // Get downloaded model IDs for checking
             var downloadedIds = _downloadedModels.Select(m => m.ModelId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var model in results)
             {
-                _searchResults.Add(new SearchResultViewModel
+                var viewModel = new SearchResultViewModel
                 {
                     ModelId = model.ModelId,
                     Description = model.PipelineTag ?? "",
                     DownloadsFormatted = FormatNumber((int)model.Downloads),
                     LikesFormatted = FormatNumber(model.Likes),
-                    IsDownloaded = downloadedIds.Contains(model.ModelId)
-                });
+                    IsDownloaded = downloadedIds.Contains(model.ModelId),
+                    Tags = model.Tags ?? new List<string>()
+                };
+
+                _allSearchResults.Add(viewModel);
+
+                // Apply NSFW filter
+                if (!_hideNsfw || !viewModel.IsNsfw)
+                {
+                    _searchResults.Add(viewModel);
+                }
             }
 
             SearchResultsList.ItemsSource = _searchResults;
             SearchResultsListMode.ItemsSource = _searchResults;
 
             // Update result count and show clear button
-            SearchResultCount.Text = $"พบ {_searchResults.Count} โมเดล";
+            var nsfwCount = _allSearchResults.Count - _searchResults.Count;
+            SearchResultCount.Text = $"พบ {_searchResults.Count} โมเดล" +
+                (nsfwCount > 0 && _hideNsfw ? $" (ซ่อน {nsfwCount} NSFW)" : "");
             ClearSearchButton.Visibility = Visibility.Visible;
 
-            // Load thumbnails in background from multiple sources
+            // Load thumbnails and sizes in background
             _ = LoadSearchThumbnailsAsync(_searchCts.Token);
+            _ = LoadSearchModelSizesAsync(_searchCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -1023,6 +1298,131 @@ public partial class ModelManagerPage : Page
                 SearchResultsListMode.ItemsSource = _searchResults;
             }
         }
+    }
+
+    private void DownloadedFilter_Click(object sender, MouseButtonEventArgs e)
+    {
+        // Toggle Downloaded filter
+        var isFiltering = DownloadedFilterBtn.Tag?.ToString() == "on";
+        _showDownloadedOnly = !isFiltering;
+        DownloadedFilterBtn.Tag = _showDownloadedOnly ? "on" : "off";
+
+        // Update visual state
+        DownloadedFilterBtn.Background = new SolidColorBrush(_showDownloadedOnly
+            ? Color.FromArgb(0x30, 0x10, 0xB9, 0x81)
+            : Color.FromRgb(0x20, 0x20, 0x30));
+        DownloadedFilterIcon.Foreground = new SolidColorBrush(_showDownloadedOnly
+            ? Color.FromRgb(0x10, 0xB9, 0x81)
+            : Color.FromRgb(0x6B, 0x6B, 0x8A));
+        DownloadedFilterText.Foreground = new SolidColorBrush(_showDownloadedOnly
+            ? Color.FromRgb(0x10, 0xB9, 0x81)
+            : Color.FromRgb(0x6B, 0x6B, 0x8A));
+        DownloadedFilterIcon.Kind = _showDownloadedOnly
+            ? MaterialDesignThemes.Wpf.PackIconKind.CheckCircle
+            : MaterialDesignThemes.Wpf.PackIconKind.CheckCircleOutline;
+
+        // Apply filter to current results
+        ApplySearchFilter();
+    }
+
+    private void NsfwFilter_Click(object sender, MouseButtonEventArgs e)
+    {
+        // Toggle NSFW filter
+        var isFiltering = NsfwFilterBtn.Tag?.ToString() == "on";
+        _hideNsfw = !isFiltering;
+        NsfwFilterBtn.Tag = _hideNsfw ? "on" : "off";
+
+        // Update visual state
+        NsfwFilterBtn.Background = new SolidColorBrush(_hideNsfw
+            ? Color.FromArgb(0x30, 0xEF, 0x44, 0x44)
+            : Color.FromRgb(0x20, 0x20, 0x30));
+        NsfwFilterIcon.Foreground = new SolidColorBrush(_hideNsfw
+            ? Color.FromRgb(0xEF, 0x44, 0x44)
+            : Color.FromRgb(0x6B, 0x6B, 0x8A));
+        NsfwFilterText.Foreground = new SolidColorBrush(_hideNsfw
+            ? Color.FromRgb(0xEF, 0x44, 0x44)
+            : Color.FromRgb(0x6B, 0x6B, 0x8A));
+        NsfwFilterIcon.Kind = _hideNsfw
+            ? MaterialDesignThemes.Wpf.PackIconKind.EyeOffOutline
+            : MaterialDesignThemes.Wpf.PackIconKind.Eye;
+
+        // Apply filter to current results
+        ApplySearchFilter();
+    }
+
+    private async void RefreshThumbnails_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_searchResults.Count == 0)
+        {
+            MessageBox.Show("ไม่มีผลการค้นหา กรุณาค้นหาโมเดลก่อน", "ข้อมูล",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Show loading feedback
+        RefreshThumbnailsBtn.Background = new SolidColorBrush(Color.FromArgb(0x30, 0x10, 0xB9, 0x81));
+
+        // Cancel any existing thumbnail loading
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+
+        // Clear all thumbnails to force reload
+        foreach (var model in _searchResults)
+        {
+            model.ThumbnailUrl = null;
+        }
+
+        // Also clear from _allSearchResults
+        foreach (var model in _allSearchResults)
+        {
+            model.ThumbnailUrl = null;
+        }
+
+        // Clear image cache for these URLs to force re-download
+        Helpers.AsyncImageLoader.ClearMemoryCache();
+
+        // Refresh UI to show placeholder icons
+        SearchResultsList.Items.Refresh();
+        SearchResultsListMode.Items.Refresh();
+
+        // Start loading thumbnails again
+        await LoadSearchThumbnailsAsync(_searchCts.Token);
+
+        // Reset button color after loading
+        RefreshThumbnailsBtn.Background = new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x30));
+    }
+
+    private void ApplySearchFilter()
+    {
+        if (_allSearchResults == null || _allSearchResults.Count == 0) return;
+
+        _searchResults.Clear();
+
+        foreach (var model in _allSearchResults)
+        {
+            // Check NSFW filter
+            if (_hideNsfw && model.IsNsfw)
+                continue;
+
+            // Check Downloaded filter
+            if (_showDownloadedOnly && !model.IsDownloaded)
+                continue;
+
+            _searchResults.Add(model);
+        }
+
+        // Update UI
+        SearchResultsList.Items.Refresh();
+        SearchResultsListMode.Items.Refresh();
+
+        // Build filter status text
+        var filterParts = new List<string>();
+        if (_hideNsfw) filterParts.Add("ซ่อน NSFW");
+        if (_showDownloadedOnly) filterParts.Add("เฉพาะที่ดาวน์โหลด");
+
+        var filterText = filterParts.Count > 0 ? $" ({string.Join(", ", filterParts)})" : "";
+        SearchResultCount.Text = $"พบ {_searchResults.Count} โมเดล{filterText}";
     }
 
     #endregion
@@ -1431,7 +1831,7 @@ public partial class ModelManagerPage : Page
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new ModelManagerSettingsDialog(_modelService);
+        var dialog = new ModelManagerSettingsDialog(_modelService, _diffusersManager);
         dialog.Owner = Window.GetWindow(this);
         dialog.ShowDialog();
     }
@@ -1728,6 +2128,7 @@ public class DownloadedModelViewModel
     public bool IsActive { get; set; }
     public string? ThumbnailUrl { get; set; }
     public bool HasThumbnail => !string.IsNullOrEmpty(ThumbnailUrl);
+    public string? LocalPath { get; set; }
 }
 
 public class SearchResultViewModel : System.ComponentModel.INotifyPropertyChanged
@@ -1740,6 +2141,15 @@ public class SearchResultViewModel : System.ComponentModel.INotifyPropertyChange
     public string Description { get; set; } = "";
     public string DownloadsFormatted { get; set; } = "0";
     public string LikesFormatted { get; set; } = "0";
+    public List<string> Tags { get; set; } = new();
+
+    /// <summary>
+    /// Check if model is NSFW based on tags
+    /// </summary>
+    public bool IsNsfw => Tags.Any(t =>
+        t.Equals("nsfw", StringComparison.OrdinalIgnoreCase) ||
+        t.Equals("not-for-all-audiences", StringComparison.OrdinalIgnoreCase) ||
+        t.Contains("adult", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Author extracted from ModelId (part before /)
@@ -1833,13 +2243,15 @@ public class ModelActivatedEventArgs : EventArgs
 public class ModelManagerSettingsDialog : Window
 {
     private readonly HuggingFaceModelService _modelService;
+    private readonly DiffusersEngineManager? _diffusersManager;
     private readonly TextBox _apiTokenBox;
     private readonly TextBox _modelsPathBox;
     private readonly TextBox _cacheSizeBox;
 
-    public ModelManagerSettingsDialog(HuggingFaceModelService modelService)
+    public ModelManagerSettingsDialog(HuggingFaceModelService modelService, DiffusersEngineManager? diffusersManager = null)
     {
         _modelService = modelService;
+        _diffusersManager = diffusersManager;
 
         Title = "Model Manager Settings";
         Width = 550;
@@ -2222,8 +2634,13 @@ public class ModelManagerSettingsDialog : Window
     {
         try
         {
-            // Save API Token
+            // Save API Token - use DiffusersEngineManager for shared storage
             var token = _apiTokenBox.Text?.Trim();
+            if (_diffusersManager != null)
+            {
+                _diffusersManager.SetHuggingFaceToken(string.IsNullOrWhiteSpace(token) ? null : token);
+            }
+            // Also set environment variable for backward compatibility
             if (!string.IsNullOrEmpty(token))
             {
                 Environment.SetEnvironmentVariable("HF_TOKEN", token, EnvironmentVariableTarget.User);
@@ -2236,8 +2653,12 @@ public class ModelManagerSettingsDialog : Window
                 Environment.SetEnvironmentVariable("HF_HOME", modelsPath, EnvironmentVariableTarget.User);
             }
 
-            MessageBox.Show("Settings saved successfully!\n\nNote: You may need to restart the application for changes to take effect.",
-                "Settings Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+            var restartNeeded = _diffusersManager?.IsReady == true;
+            var message = restartNeeded
+                ? "Settings saved successfully!\n\nNote: Restart the Diffusers Engine for token changes to take effect."
+                : "Settings saved successfully!";
+
+            MessageBox.Show(message, "Settings Saved", MessageBoxButton.OK, MessageBoxImage.Information);
 
             Close();
         }
@@ -2250,6 +2671,13 @@ public class ModelManagerSettingsDialog : Window
 
     private string GetSavedApiToken()
     {
+        // Use DiffusersEngineManager settings (synced with Diffusers Manager page)
+        if (_diffusersManager != null && !string.IsNullOrEmpty(_diffusersManager.Settings.HuggingFaceToken))
+        {
+            return _diffusersManager.Settings.HuggingFaceToken;
+        }
+
+        // Fallback to environment variable for backward compatibility
         return Environment.GetEnvironmentVariable("HF_TOKEN", EnvironmentVariableTarget.User) ?? "";
     }
 

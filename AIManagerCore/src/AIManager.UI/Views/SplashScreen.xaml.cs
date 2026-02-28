@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using AIManager.UI.Helpers;
 
 namespace AIManager.UI.Views;
 
@@ -22,6 +23,9 @@ public partial class SplashScreen : Window
 
         Loaded += OnLoaded;
         SizeChanged += OnSizeChanged;
+
+        // Set version from VERSION file
+        TxtVersion.Text = VersionHelper.GetVersionDisplay();
 
         // Try to load logo
         TryLoadLogo();
