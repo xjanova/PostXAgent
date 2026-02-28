@@ -919,6 +919,8 @@ class GpuProviderController extends Controller
             'total_cost' => $instance->total_cost,
             'runtime_minutes' => $instance->runtime_minutes,
             'docker_image' => $instance->docker_image,
+            'gpu_provider_account_id' => $instance->gpu_provider_account_id,
+            'gpu_account_pool_id' => $instance->gpu_account_pool_id,
             'account_name' => $instance->providerAccount?->name,
             'pool_name' => $instance->accountPool?->name,
             'started_at' => $instance->started_at?->toIso8601String(),

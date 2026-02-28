@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Gpu\GpuProviderFactory;
 use App\Services\Gpu\GpuProviderInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
 use Mockery\MockInterface;
@@ -22,6 +23,7 @@ class GpuProviderAccountTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(ThrottleRequests::class);
         $this->user = User::factory()->create();
         Sanctum::actingAs($this->user);
     }
@@ -316,8 +318,8 @@ class GpuProviderAccountTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.old_balance', '50.0000')
-            ->assertJsonPath('data.new_balance', 75.00)
-            ->assertJsonPath('data.change', 25.00);
+            ->assertJsonPath('data.new_balance', 75)
+            ->assertJsonPath('data.change', 25);
 
         $this->assertDatabaseHas('gpu_provider_accounts', [
             'id' => $account->id,

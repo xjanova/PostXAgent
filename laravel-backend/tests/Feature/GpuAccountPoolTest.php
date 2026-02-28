@@ -10,6 +10,7 @@ use App\Services\Gpu\GpuProviderFactory;
 use App\Services\Gpu\GpuProviderInterface;
 use App\Services\Gpu\GpuAccountRotationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
@@ -25,6 +26,7 @@ class GpuAccountPoolTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(ThrottleRequests::class);
         $this->user = User::factory()->create();
         Sanctum::actingAs($this->user);
     }

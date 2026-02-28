@@ -12,6 +12,7 @@ use App\Services\Gpu\GpuProviderFactory;
 use App\Services\Gpu\GpuProviderInterface;
 use App\Services\Gpu\GpuProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
 use Mockery\MockInterface;
@@ -26,6 +27,7 @@ class GpuProvisioningTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(ThrottleRequests::class);
         $this->user = User::factory()->create();
         Sanctum::actingAs($this->user);
     }
@@ -403,9 +405,10 @@ class GpuProvisioningTest extends TestCase
             'pool_id' => $pool->id,
         ]);
 
-        // This test verifies the failover mechanism triggers
-        // The actual result depends on whether there's another account to try
-        $response->assertStatus(400); // Fails because pool provisioning goes through service
+        // Failover mechanism triggers: first account fails, second succeeds
+        $response->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.instance.instance_id', 'failover-inst');
     }
 
     // ==================== Instance Actions ====================
