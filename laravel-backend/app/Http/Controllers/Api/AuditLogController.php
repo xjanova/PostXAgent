@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity;
@@ -52,21 +53,26 @@ class AuditLogController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $logs->map(fn (Activity $log) => [
-                'id' => $log->id,
-                'log_name' => $log->log_name,
-                'description' => $log->description,
-                'event' => $log->event,
-                'causer' => $log->causer ? [
-                    'id' => $log->causer->id,
-                    'name' => $log->causer->name,
-                    'email' => $log->causer->email,
-                ] : null,
-                'subject_type' => class_basename($log->subject_type ?? ''),
-                'subject_id' => $log->subject_id,
-                'properties' => $log->properties,
-                'created_at' => $log->created_at->toIso8601String(),
-            ]),
+            'data' => $logs->map(function (Activity $log): array {
+                /** @var User|null $causer */
+                $causer = $log->causer;
+
+                return [
+                    'id' => $log->id,
+                    'log_name' => $log->log_name,
+                    'description' => $log->description,
+                    'event' => $log->event,
+                    'causer' => $causer !== null ? [
+                        'id' => $causer->id,
+                        'name' => $causer->name,
+                        'email' => $causer->email,
+                    ] : null,
+                    'subject_type' => class_basename($log->subject_type ?? ''),
+                    'subject_id' => $log->subject_id,
+                    'properties' => $log->properties,
+                    'created_at' => $log->created_at?->toIso8601String(),
+                ];
+            }),
             'meta' => [
                 'current_page' => $logs->currentPage(),
                 'last_page' => $logs->lastPage(),
@@ -83,8 +89,11 @@ class AuditLogController extends Controller
     {
         $activity->load(['causer', 'subject']);
 
-        /** @var \App\Models\User|null $causer */
+        /** @var User|null $causer */
         $causer = $activity->causer;
+
+        /** @var \Illuminate\Database\Eloquent\Model|null $subject */
+        $subject = $activity->subject;
 
         return response()->json([
             'success' => true,
@@ -93,18 +102,18 @@ class AuditLogController extends Controller
                 'log_name' => $activity->log_name,
                 'description' => $activity->description,
                 'event' => $activity->event,
-                'causer' => $causer ? [
+                'causer' => $causer !== null ? [
                     'id' => $causer->id,
                     'name' => $causer->name,
                     'email' => $causer->email,
                 ] : null,
-                'subject' => $activity->subject ? [
-                    'type' => class_basename($activity->subject_type),
+                'subject' => $subject !== null ? [
+                    'type' => class_basename($activity->subject_type ?? ''),
                     'id' => $activity->subject_id,
-                    'data' => method_exists($activity->subject, 'toArray') ? $activity->subject->toArray() : [],
+                    'data' => $subject->toArray(),
                 ] : null,
                 'properties' => $activity->properties,
-                'created_at' => $activity->created_at->toIso8601String(),
+                'created_at' => $activity->created_at?->toIso8601String(),
             ],
         ]);
     }
@@ -114,18 +123,17 @@ class AuditLogController extends Controller
      */
     public function stats(Request $request): JsonResponse
     {
+        /** @var int $days */
         $days = $request->get('days', 30);
         $startDate = now()->subDays($days);
 
         // Get activity by log name
-        /** @phpstan-ignore-next-line */
         $byLogName = Activity::where('created_at', '>=', $startDate)
             ->selectRaw('log_name, COUNT(*) as count')
             ->groupBy('log_name')
             ->pluck('count', 'log_name');
 
         // Get activity by event type
-        /** @phpstan-ignore-next-line */
         $byEvent = Activity::where('created_at', '>=', $startDate)
             ->whereNotNull('event')
             ->selectRaw('event, COUNT(*) as count')
@@ -133,7 +141,6 @@ class AuditLogController extends Controller
             ->pluck('count', 'event');
 
         // Get daily activity
-        /** @phpstan-ignore-next-line */
         $dailyActivity = Activity::where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
             ->groupBy('date')
@@ -141,7 +148,6 @@ class AuditLogController extends Controller
             ->pluck('count', 'date');
 
         // Get top causers
-        /** @phpstan-ignore-next-line */
         $topCausers = Activity::where('created_at', '>=', $startDate)
             ->whereNotNull('causer_id')
             ->with('causer:id,name,email')
@@ -150,13 +156,22 @@ class AuditLogController extends Controller
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn (Activity $item) => [
-                'user' => $item->causer ? [
-                    'id' => $item->causer->id,
-                    'name' => $item->causer->name,
-                ] : null,
-                'count' => $item->count,
-            ]);
+            ->map(function (Activity $item): array {
+                /** @var User|null $causer */
+                $causer = $item->causer;
+                /** @var int $count */
+                $count = $item->getAttribute('count');
+
+                return [
+                    'user' => $causer !== null ? [
+                        'id' => $causer->id,
+                        'name' => $causer->name,
+                    ] : null,
+                    'count' => $count,
+                ];
+            });
+
+        $totalActivities = Activity::where('created_at', '>=', $startDate)->count();
 
         return response()->json([
             'success' => true,
@@ -166,8 +181,7 @@ class AuditLogController extends Controller
                     'to' => now()->toDateString(),
                     'days' => $days,
                 ],
-                /** @phpstan-ignore-next-line */
-                'total_activities' => Activity::where('created_at', '>=', $startDate)->count(),
+                'total_activities' => $totalActivities,
                 'by_log_name' => $byLogName,
                 'by_event' => $byEvent,
                 'daily_activity' => $dailyActivity,
@@ -189,14 +203,14 @@ class AuditLogController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $logs->map(fn (Activity $log) => [
+            'data' => $logs->map(fn (Activity $log): array => [
                 'id' => $log->id,
                 'description' => $log->description,
                 'event' => $log->event,
                 'subject_type' => class_basename($log->subject_type ?? ''),
                 'subject_id' => $log->subject_id,
                 'properties' => $log->properties,
-                'created_at' => $log->created_at->toIso8601String(),
+                'created_at' => $log->created_at?->toIso8601String(),
             ]),
             'meta' => [
                 'current_page' => $logs->currentPage(),
@@ -231,10 +245,10 @@ class AuditLogController extends Controller
             ->orderBy('created_at', 'desc');
 
         if ($request->has('from')) {
-            $query->whereDate('created_at', '>=', $request->from);
+            $query->whereDate('created_at', '>=', $request->input('from'));
         }
         if ($request->has('to')) {
-            $query->whereDate('created_at', '<=', $request->to);
+            $query->whereDate('created_at', '<=', $request->input('to'));
         }
 
         $logs = $query->get();
@@ -242,19 +256,21 @@ class AuditLogController extends Controller
         $csv = "ID,Log Name,Description,Event,Causer,Subject Type,Subject ID,Created At\n";
 
         foreach ($logs as $log) {
-            $causerName = $log->causer ? $log->causer->name : 'System';
+            /** @var User|null $causer */
+            $causer = $log->causer;
+            $causerName = $causer !== null ? $causer->name : 'System';
             $subjectType = class_basename($log->subject_type ?? '');
 
             $csv .= sprintf(
                 "%d,%s,%s,%s,%s,%s,%s,%s\n",
                 $log->id,
                 $log->log_name ?? '',
-                str_replace(',', ';', $log->description),
+                str_replace(',', ';', $log->description ?? ''),
                 $log->event ?? '',
                 $causerName,
                 $subjectType,
                 $log->subject_id ?? '',
-                $log->created_at->toDateTimeString()
+                $log->created_at?->toDateTimeString() ?? ''
             );
         }
 
