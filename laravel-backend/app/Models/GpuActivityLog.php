@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $triggered_by
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class GpuActivityLog extends Model
 {
@@ -157,9 +159,11 @@ class GpuActivityLog extends Model
 
     public static function logBalanceCheck(
         GpuProviderAccount $account,
-        float $oldBalance,
-        float $newBalance
+        float|string $oldBalance,
+        float|string $newBalance
     ): self {
+        $oldBalance = (float) $oldBalance;
+        $newBalance = (float) $newBalance;
         return self::create([
             'gpu_provider_account_id' => $account->id,
             'user_id' => $account->user_id,

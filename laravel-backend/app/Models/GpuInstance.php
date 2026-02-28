@@ -41,6 +41,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read GpuProviderAccount $providerAccount
+ * @property-read GpuAccountPool|null $accountPool
+ * @property-read User $user
+ *
+ * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class GpuInstance extends Model
 {

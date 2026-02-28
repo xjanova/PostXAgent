@@ -27,6 +27,8 @@ class RunPodProvider implements GpuProviderInterface
 
     /**
      * Get HTTP client with authentication
+     *
+     * @phpstan-ignore method.unused
      */
     private function getClient(GpuProviderAccount $account): PendingRequest
     {

@@ -452,6 +452,7 @@ class ContentPipelineController extends Controller
         $pools = ApiKeyPool::active()->with('members')->get();
         $status = [];
 
+        /** @var ApiKeyPool $pool */
         foreach ($pools as $pool) {
             $active = $pool->members->where('status', 'active')->count();
             $total = $pool->members->count();

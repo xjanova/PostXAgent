@@ -35,6 +35,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPoolMember find($id, $columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPoolMember findOrFail($id, $columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPoolMember first($columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPoolMember whereHas($relation, $callback = null, $operator = '>=', $count = 1)
+ *
+ * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class ApiKeyPoolMember extends Model
 {

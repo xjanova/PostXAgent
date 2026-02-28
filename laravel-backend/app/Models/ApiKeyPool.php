@@ -31,6 +31,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPool active()
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPool forProvider(string $provider)
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPool forServiceType(string $serviceType)
+ * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPool withCount($relations)
+ *
+ * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class ApiKeyPool extends Model
 {

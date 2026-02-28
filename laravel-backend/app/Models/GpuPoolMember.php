@@ -26,6 +26,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $last_error
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read GpuProviderAccount $providerAccount
+ *
+ * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class GpuPoolMember extends Model
 {

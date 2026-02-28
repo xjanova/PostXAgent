@@ -507,7 +507,7 @@ class GpuProvisioningService
         $config = [
             'offer_id' => $offer['offer_id'],
             'gpu_type_id' => $offer['gpu_type_id'] ?? $offer['offer_id'],
-            'disk_gb' => $requirements['disk_gb'] ?? $template?->min_disk_gb ?? 50,
+            'disk_gb' => $requirements['disk_gb'] ?? $template->min_disk_gb ?? 50,
             'name' => $requirements['name'] ?? 'postxagent-' . time(),
         ];
 
@@ -519,7 +519,7 @@ class GpuProvisioningService
         }
 
         // Environment variables
-        $envVars = $template?->environment_vars ?? [];
+        $envVars = $template->environment_vars ?? [];
         if (!empty($requirements['environment_vars'])) {
             $envVars = array_merge($envVars, $requirements['environment_vars']);
         }
