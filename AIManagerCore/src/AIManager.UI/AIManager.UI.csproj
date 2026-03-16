@@ -24,7 +24,7 @@
     <!-- Use CommunityToolkit.Mvvm as DLL only (no source generators) to fix WPF wpftmp issue -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" ExcludeAssets="analyzers" />
     <!-- For System.Drawing (taskbar icon) -->
-    <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.5" />
     <!-- WebView2 for embedded browser -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" />
   </ItemGroup>
