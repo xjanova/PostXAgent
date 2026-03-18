@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
+ * @property int|null $user_id
  * @property string $name
  * @property string $provider
  * @property string $service_type
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ApiKeyPoolMember> $members
  *
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPool where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|ApiKeyPool create(array $attributes = [])
@@ -61,6 +63,7 @@ class ApiKeyPool extends Model
     const SERVICE_MUSIC = 'music';
 
     protected $fillable = [
+        'user_id',
         'name',
         'provider',
         'service_type',
@@ -101,6 +104,11 @@ class ApiKeyPool extends Model
     }
 
     // Relationships
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function members(): HasMany
     {
         return $this->hasMany(ApiKeyPoolMember::class);

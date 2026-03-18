@@ -31,17 +31,31 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property float|null $viral_score
  * @property array|null $viral_factors
  * @property bool $is_viral
+ * @property \Illuminate\Support\Carbon|null $last_comment_check_at
  * @property \Illuminate\Support\Carbon|null $peak_engagement_at
  * @property float|null $engagement_velocity
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  *
+ * @property int|null $comments_fetched_count
+ * @property int|null $comments_replied_count
+ *
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\Brand|null $brand
+ * @property-read \App\Models\Campaign|null $campaign
+ * @property-read \App\Models\SocialAccount|null $socialAccount
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Comment> $comments
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|Post where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|Post whereIn(string $column, mixed $values, string $boolean = 'and', bool $not = false)
  * @method static \Illuminate\Database\Eloquent\Builder|Post create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|Post find($id, $columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|Post findOrFail($id, $columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|Post first($columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Post published()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post viral()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post pending()
  */
 class Post extends Model
 {
@@ -200,7 +214,7 @@ class Post extends Model
                 'hashtags' => $this->hashtags ?? [],
                 'link' => $this->link_url,
             ],
-            'credentials' => $this->socialAccount->getCredentials(),
+            'credentials' => $this->socialAccount?->getCredentials() ?? [],
         ];
     }
 

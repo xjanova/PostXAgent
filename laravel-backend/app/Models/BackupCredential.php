@@ -8,6 +8,28 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @property int $id
+ * @property int $social_account_id
+ * @property string $credential_type
+ * @property string $encrypted_value
+ * @property string|null $description
+ * @property bool $is_primary
+ * @property \Illuminate\Support\Carbon|null $valid_until
+ * @property \Illuminate\Support\Carbon|null $last_verified_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\SocialAccount $socialAccount
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential forAccount(int $accountId)
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential ofType(string $type)
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential primary()
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential valid()
+ */
 class BackupCredential extends Model
 {
     use HasFactory, SoftDeletes;

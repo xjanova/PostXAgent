@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, GpuPoolMember> $members
  *
  * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
@@ -178,8 +179,9 @@ class GpuAccountPool extends Model
     {
         $members = $this->members()->with('providerAccount')->get();
 
-        $statusCounts = $members->groupBy('status')->map->count();
-        $totalCredits = $members->sum(fn ($m) => $m->providerAccount?->credits_balance ?? 0);
+        $statusCounts = $members->groupBy('status')->map(fn ($items) => $items->count());
+        /** @phpstan-ignore argument.type */
+        $totalCredits = $members->sum(fn (GpuPoolMember $m): float => (float) ($m->providerAccount->credits_balance ?? 0));
 
         return [
             'total_accounts' => $members->count(),

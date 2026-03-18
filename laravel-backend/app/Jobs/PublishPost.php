@@ -64,14 +64,14 @@ class PublishPost implements ShouldQueue
                 $this->post->update([
                     'status' => Post::STATUS_PUBLISHED,
                     'published_at' => now(),
-                    'platform_post_id' => $result['data']['post_id'] ?? null,
-                    'platform_url' => $result['data']['url'] ?? null,
+                    'platform_post_id' => $result['post_id'] ?? null,
+                    'platform_url' => $result['url'] ?? null,
                     'error_message' => null,
                 ]);
 
                 Log::info('Post published successfully', [
                     'post_id' => $this->post->id,
-                    'platform_post_id' => $result['data']['post_id'] ?? null,
+                    'platform_post_id' => $result['post_id'] ?? null,
                 ]);
 
                 // Notify user
@@ -85,15 +85,26 @@ class PublishPost implements ShouldQueue
             Log::error('Post publishing failed', [
                 'post_id' => $this->post->id,
                 'error' => $e->getMessage(),
+                'attempt' => $this->attempts(),
+                'max_tries' => $this->tries,
             ]);
 
-            $this->post->update([
-                'status' => Post::STATUS_FAILED,
-                'error_message' => $e->getMessage(),
-            ]);
+            if ($this->attempts() >= $this->tries) {
+                // Final attempt - mark as permanently failed
+                $this->post->update([
+                    'status' => Post::STATUS_FAILED,
+                    'error_message' => $e->getMessage(),
+                ]);
 
-            // Notify user of failure
-            $this->post->user->notify(new PostFailed($this->post, $e->getMessage()));
+                // Notify user of failure only on last attempt
+                $this->post->user->notify(new PostFailed($this->post, $e->getMessage()));
+            } else {
+                // Not the last attempt - set back to pending for retry
+                $this->post->update([
+                    'status' => Post::STATUS_PENDING,
+                    'error_message' => $e->getMessage(),
+                ]);
+            }
 
             // Re-throw to trigger retry if attempts remaining
             throw $e;

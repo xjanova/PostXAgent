@@ -28,11 +28,11 @@ class SeekAndPostController extends Controller
             ->with(['workflowTemplate:id,name,name_th', 'brand:id,name']);
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         if ($request->has('platform')) {
-            $query->byPlatform($request->platform);
+            $query->byPlatform($request->input('platform'));
         }
 
         $tasks = $query->orderByDesc('created_at')
@@ -304,18 +304,19 @@ class SeekAndPostController extends Controller
      */
     public function groups(Request $request): JsonResponse
     {
-        $query = DiscoveredGroup::query();
+        $userId = $request->user()->id;
+        $query = DiscoveredGroup::whereHas('seekAndPostTasks', fn($q) => $q->where('user_id', $userId));
 
         if ($request->has('platform')) {
-            $query->byPlatform($request->platform);
+            $query->byPlatform($request->input('platform'));
         }
 
         if ($request->has('keyword')) {
-            $query->byKeyword($request->keyword);
+            $query->byKeyword($request->input('keyword'));
         }
 
         if ($request->has('min_quality')) {
-            $query->highQuality((float) $request->min_quality);
+            $query->highQuality((float) $request->input('min_quality'));
         }
 
         if ($request->boolean('joined_only')) {
@@ -341,6 +342,12 @@ class SeekAndPostController extends Controller
      */
     public function groupShow(DiscoveredGroup $group): JsonResponse
     {
+        $userId = request()->user()->id;
+        $belongsToUser = $group->seekAndPostTasks()->where('user_id', $userId)->exists();
+        if (!$belongsToUser) {
+            abort(403, 'You do not have permission to access this group');
+        }
+
         return response()->json([
             'success' => true,
             'data' => $group,
@@ -366,11 +373,20 @@ class SeekAndPostController extends Controller
             ], 422);
         }
 
-        $groups = DiscoveredGroup::findByKeywords(
-            $request->keywords,
-            $request->platform,
-            $request->get('limit', 50)
-        );
+        $userId = $request->user()->id;
+        $groups = DiscoveredGroup::whereHas('seekAndPostTasks', fn($q) => $q->where('user_id', $userId))
+            ->availableForPosting()
+            ->orderByDesc('quality_score')
+            ->when($request->input('platform'), fn($q, $platform) => $q->byPlatform($platform))
+            ->where(function ($q) use ($request) {
+                foreach ($request->input('keywords', []) as $keyword) {
+                    $q->orWhereJsonContains('keywords', $keyword)
+                        ->orWhere('group_name', 'like', "%{$keyword}%")
+                        ->orWhere('description', 'like', "%{$keyword}%");
+                }
+            })
+            ->limit($request->get('limit', 50))
+            ->get();
 
         return response()->json([
             'success' => true,
@@ -384,13 +400,15 @@ class SeekAndPostController extends Controller
      */
     public function recommendedGroups(Request $request): JsonResponse
     {
-        $query = DiscoveredGroup::availableForPosting()
+        $userId = $request->user()->id;
+        $query = DiscoveredGroup::whereHas('seekAndPostTasks', fn($q) => $q->where('user_id', $userId))
+            ->availableForPosting()
             ->highQuality(70)
             ->orderByDesc('success_rate')
             ->orderByDesc('quality_score');
 
         if ($request->has('platform')) {
-            $query->byPlatform($request->platform);
+            $query->byPlatform($request->input('platform'));
         }
 
         $groups = $query->limit($request->get('limit', 20))->get();
@@ -404,25 +422,31 @@ class SeekAndPostController extends Controller
     /**
      * Get group statistics
      */
-    public function groupStatistics(): JsonResponse
+    public function groupStatistics(Request $request): JsonResponse
     {
+        $userId = $request->user()->id;
+        $userScope = fn($query) => $query->whereHas('seekAndPostTasks', fn($q) => $q->where('user_id', $userId));
+
         $stats = [
-            'total_groups' => DiscoveredGroup::count(),
-            'joined_groups' => DiscoveredGroup::joined()->count(),
-            'available_groups' => DiscoveredGroup::availableForPosting()->count(),
-            'banned_groups' => DiscoveredGroup::where('is_banned', true)->count(),
-            'by_platform' => DiscoveredGroup::selectRaw('platform, count(*) as count, avg(quality_score) as avg_quality')
-                ->groupBy('platform')
+            'total_groups' => DiscoveredGroup::where($userScope)->count(),
+            'joined_groups' => DiscoveredGroup::where($userScope)->joined()->count(),
+            'available_groups' => DiscoveredGroup::where($userScope)->availableForPosting()->count(),
+            'banned_groups' => DiscoveredGroup::where($userScope)->where('is_banned', true)->count(),
+            'by_platform' => DiscoveredGroup::where($userScope)
+                ->selectRaw('discovered_groups.platform, count(*) as count, avg(discovered_groups.quality_score) as avg_quality')
+                ->groupBy('discovered_groups.platform')
                 ->get(),
-            'by_activity' => DiscoveredGroup::selectRaw('activity_level, count(*) as count')
-                ->groupBy('activity_level')
-                ->pluck('count', 'activity_level'),
-            'average_quality_score' => DiscoveredGroup::avg('quality_score'),
-            'top_performing' => DiscoveredGroup::availableForPosting()
+            'by_activity' => DiscoveredGroup::where($userScope)
+                ->selectRaw('discovered_groups.activity_level, count(*) as count')
+                ->groupBy('discovered_groups.activity_level')
+                ->pluck('count', 'discovered_groups.activity_level'),
+            'average_quality_score' => DiscoveredGroup::where($userScope)->avg('quality_score'),
+            'top_performing' => DiscoveredGroup::where($userScope)
+                ->availableForPosting()
                 ->where('our_post_count', '>', 0)
                 ->orderByDesc('success_rate')
                 ->limit(10)
-                ->get(['id', 'group_name', 'platform', 'success_rate', 'our_post_count']),
+                ->get(['discovered_groups.id', 'group_name', 'discovered_groups.platform', 'success_rate', 'our_post_count']),
         ];
 
         return response()->json([

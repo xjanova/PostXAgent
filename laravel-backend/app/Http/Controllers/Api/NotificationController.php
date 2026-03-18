@@ -15,9 +15,9 @@ class NotificationController extends Controller
     {
         $notifications = $request->user()
             ->notifications()
-            ->when($request->unread_only, fn($q) => $q->whereNull('read_at'))
+            ->when($request->boolean('unread_only'), fn($q) => $q->whereNull('read_at'))
             ->orderBy('created_at', 'desc')
-            ->paginate($request->per_page ?? 20);
+            ->paginate($request->integer('per_page', 20));
 
         return response()->json([
             'success' => true,

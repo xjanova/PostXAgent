@@ -262,6 +262,10 @@ class ContentPipelineController extends Controller
     {
         $run->load('pipeline:id,name,user_id');
 
+        if ($run->pipeline->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to access this run');
+        }
+
         return response()->json([
             'success' => true,
             'data' => $run,
@@ -270,6 +274,11 @@ class ContentPipelineController extends Controller
 
     public function cancelRun(PipelineRun $run): JsonResponse
     {
+        $run->loadMissing('pipeline:id,user_id');
+        if ($run->pipeline->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to cancel this run');
+        }
+
         if (!$run->canCancel()) {
             return response()->json([
                 'success' => false,
@@ -287,6 +296,11 @@ class ContentPipelineController extends Controller
 
     public function retryRun(PipelineRun $run): JsonResponse
     {
+        $run->loadMissing('pipeline:id,user_id');
+        if ($run->pipeline->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to retry this run');
+        }
+
         if (!$run->canRetry()) {
             return response()->json([
                 'success' => false,
@@ -317,7 +331,8 @@ class ContentPipelineController extends Controller
 
     public function listApiKeyPools(Request $request): JsonResponse
     {
-        $pools = ApiKeyPool::withCount('members')
+        $pools = ApiKeyPool::where('user_id', $request->user()->id)
+            ->withCount('members')
             ->latest()
             ->get()
             ->map(function (ApiKeyPool $pool) {
@@ -343,6 +358,7 @@ class ContentPipelineController extends Controller
             'auto_failover' => 'boolean',
         ]);
 
+        $validated['user_id'] = $request->user()->id;
         $pool = ApiKeyPool::create($validated);
 
         return response()->json([
@@ -354,6 +370,10 @@ class ContentPipelineController extends Controller
 
     public function addApiKey(Request $request, ApiKeyPool $pool): JsonResponse
     {
+        if ($pool->user_id !== $request->user()->id) {
+            abort(403, 'You do not have permission to modify this pool');
+        }
+
         $validated = $request->validate([
             'label' => 'required|string|max:100',
             'api_key' => 'required|string',
@@ -383,6 +403,10 @@ class ContentPipelineController extends Controller
 
     public function removeApiKey(ApiKeyPool $pool, ApiKeyPoolMember $member): JsonResponse
     {
+        if ($pool->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to modify this pool');
+        }
+
         if ($member->api_key_pool_id !== $pool->id) {
             return response()->json(['success' => false, 'error' => 'Key not in pool'], 404);
         }
@@ -397,6 +421,10 @@ class ContentPipelineController extends Controller
 
     public function apiKeyPoolStats(ApiKeyPool $pool): JsonResponse
     {
+        if ($pool->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to access this pool');
+        }
+
         return response()->json([
             'success' => true,
             'data' => $this->keyRotation->getPoolStatistics($pool),
@@ -412,7 +440,7 @@ class ContentPipelineController extends Controller
         $userId = $request->user()->id;
 
         $totalPipelines = ContentPipeline::where('user_id', $userId)->count();
-        $activePipelines = ContentPipeline::where('user_id', $userId)->active()->count();
+        $activePipelines = ContentPipeline::where('user_id', $userId)->where('is_active', true)->count();
         $activeRuns = PipelineRun::whereHas('pipeline', fn($q) => $q->where('user_id', $userId))
             ->whereNotIn('status', ['completed', 'failed', 'cancelled', 'pending'])
             ->count();

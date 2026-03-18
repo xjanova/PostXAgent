@@ -14,12 +14,16 @@ class BrandController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $brands = Brand::where('user_id', $request->user()->id)
             ->withCount(['campaigns', 'posts', 'socialAccounts'])
-            ->when($request->search, fn($q, $search) => $q->where('name', 'like', "%{$search}%"))
-            ->when($request->industry, fn($q, $industry) => $q->where('industry', $industry))
+            ->when($request->input('search'), fn($q, $search) => $q->where('name', 'like', "%{$search}%"))
+            ->when($request->input('industry'), fn($q, $industry) => $q->where('industry', $industry))
             ->orderBy('created_at', 'desc')
-            ->paginate($request->per_page ?? 20);
+            ->paginate($request->integer('per_page', 20));
 
         return response()->json([
             'success' => true,

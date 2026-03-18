@@ -21,8 +21,15 @@ use Spatie\Activitylog\LogOptions;
  * @property string $language
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property string $password
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|User where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|User create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|User find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|User findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|User first($columns = ['*'])
  */
 class User extends Authenticatable
 {
@@ -81,6 +88,31 @@ class User extends Authenticatable
     public function rentals()
     {
         return $this->hasMany(UserRental::class);
+    }
+
+    public function contentPipelines(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ContentPipeline::class);
+    }
+
+    public function gpuProviderAccounts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GpuProviderAccount::class);
+    }
+
+    public function gpuAccountPools(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GpuAccountPool::class);
+    }
+
+    public function learnedWorkflows(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LearnedWorkflow::class);
+    }
+
+    public function seekAndPostTasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SeekAndPostTask::class);
     }
 
     // Helpers

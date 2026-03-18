@@ -80,6 +80,21 @@ class Brand extends Model
         return $this->hasMany(SocialAccount::class);
     }
 
+    public function responseTones(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ResponseTone::class);
+    }
+
+    public function seekAndPostTasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SeekAndPostTask::class);
+    }
+
+    public function contentPipelines(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ContentPipeline::class);
+    }
+
     // Helpers
     public function getFormattedHashtags(): string
     {

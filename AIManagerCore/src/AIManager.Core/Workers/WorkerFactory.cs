@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AIManager.Core.Models;
 using AIManager.Core.Services;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,9 @@ namespace AIManager.Core.Workers;
 /// </summary>
 public class WorkerFactory
 {
+    // Cache worker instances per platform for reuse (workers are stateless and thread-safe)
+    private static readonly ConcurrentDictionary<SocialPlatform, IPlatformWorker> _workerCache = new();
+
     // Lazy initialization of dependencies for media workers
     private static readonly Lazy<(FFmpegService ffmpeg, VideoProcessor video, AudioProcessor audio)> _mediaServices = new(() =>
     {
@@ -55,15 +59,17 @@ public class WorkerFactory
     };
 
     /// <summary>
-    /// Get worker for a specific platform (instance method for DI)
+    /// Get worker for a specific platform (instance method for DI).
+    /// Returns a cached instance if available, creates one on first request.
     /// </summary>
     public IPlatformWorker GetWorker(SocialPlatform platform)
     {
-        return CreateWorker(platform);
+        return GetOrCreateWorker(platform);
     }
 
     /// <summary>
-    /// Get worker for a specific platform by name
+    /// Get worker for a specific platform by name.
+    /// Returns a cached instance if available, creates one on first request.
     /// </summary>
     public IPlatformWorker? GetWorker(string platformName)
     {
@@ -71,7 +77,7 @@ public class WorkerFactory
         {
             try
             {
-                return CreateWorker(platform);
+                return GetOrCreateWorker(platform);
             }
             catch
             {
@@ -82,7 +88,22 @@ public class WorkerFactory
     }
 
     /// <summary>
-    /// Create worker for a specific platform (static method)
+    /// Get or create a cached worker for a specific platform (thread-safe)
+    /// </summary>
+    public static IPlatformWorker GetOrCreateWorker(SocialPlatform platform)
+    {
+        return _workerCache.GetOrAdd(platform, p =>
+        {
+            if (_factories.TryGetValue(p, out var factory))
+            {
+                return factory();
+            }
+            throw new ArgumentException($"No worker available for platform: {p}");
+        });
+    }
+
+    /// <summary>
+    /// Create a new worker for a specific platform (always creates a new instance)
     /// </summary>
     public static IPlatformWorker CreateWorker(SocialPlatform platform)
     {

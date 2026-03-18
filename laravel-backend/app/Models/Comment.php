@@ -7,6 +7,49 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $post_id
+ * @property string $platform
+ * @property string|null $platform_comment_id
+ * @property int|null $parent_comment_id
+ * @property string|null $author_name
+ * @property string|null $author_id
+ * @property string|null $author_avatar_url
+ * @property string|null $content_text
+ * @property string|null $media_url
+ * @property string|null $sentiment
+ * @property float|null $sentiment_score
+ * @property bool $is_question
+ * @property bool $requires_reply
+ * @property int $priority
+ * @property \Illuminate\Support\Carbon|null $replied_at
+ * @property string|null $reply_content
+ * @property string|null $reply_comment_id
+ * @property string|null $reply_status
+ * @property int $likes_count
+ * @property int $replies_count
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $commented_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Post $post
+ * @property-read \App\Models\Comment|null $parent
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Comment> $replies
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment updateOrCreate(array $attributes, array $values = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment pending()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment replied()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment positive()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment neutral()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment negative()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment questions()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment highPriority()
+ */
 class Comment extends Model
 {
     use HasFactory;
@@ -91,6 +134,16 @@ class Comment extends Model
     public function scopePending($query)
     {
         return $query->where('reply_status', self::REPLY_PENDING);
+    }
+
+    public function scopeReplied($query)
+    {
+        return $query->where('reply_status', self::REPLY_REPLIED);
+    }
+
+    public function scopeNeutral($query)
+    {
+        return $query->where('sentiment', self::SENTIMENT_NEUTRAL);
     }
 
     public function scopeRequiresReply($query)
@@ -245,8 +298,8 @@ class Comment extends Model
             'sentiment' => $this->sentiment,
             'is_question' => $this->is_question,
             'platform' => $this->platform,
-            'post_content' => $this->post?->content_text,
-            'brand_name' => $this->post?->brand?->name,
+            'post_content' => $this->post->content_text,
+            'brand_name' => $this->post->brand?->name,
             'commented_at' => $this->commented_at?->toIso8601String(),
         ];
     }

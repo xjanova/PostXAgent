@@ -21,17 +21,17 @@ class WorkflowTemplateController extends Controller
 
         // Filter by category
         if ($request->has('category')) {
-            $query->byCategory($request->category);
+            $query->byCategory($request->input('category'));
         }
 
         // Filter by platform
         if ($request->has('platform')) {
-            $query->forPlatform($request->platform);
+            $query->forPlatform($request->input('platform'));
         }
 
         // Filter by type (system/custom)
         if ($request->has('type')) {
-            $request->type === 'system' ? $query->system() : $query->custom();
+            $request->input('type') === 'system' ? $query->system() : $query->custom();
         }
 
         $templates = $query->orderBy('category')
@@ -138,7 +138,7 @@ class WorkflowTemplateController extends Controller
         }
 
         // Validate workflow JSON
-        $workflowData = json_decode($request->workflow_json);
+        $workflowData = json_decode($request->input('workflow_json'));
         if (json_last_error() !== JSON_ERROR_NONE) {
             return response()->json([
                 'success' => false,
@@ -194,7 +194,7 @@ class WorkflowTemplateController extends Controller
 
         // Validate workflow JSON if provided
         if ($request->has('workflow_json')) {
-            $workflowData = json_decode($request->workflow_json);
+            $workflowData = json_decode($request->input('workflow_json'));
             if (json_last_error() !== JSON_ERROR_NONE) {
                 return response()->json([
                     'success' => false,

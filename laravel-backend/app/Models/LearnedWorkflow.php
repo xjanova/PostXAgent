@@ -7,6 +7,34 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $platform
+ * @property string $name
+ * @property string|null $description
+ * @property int $version
+ * @property string $status
+ * @property string $confidence_score
+ * @property int $success_count
+ * @property int $failure_count
+ * @property \Illuminate\Support\Carbon|null $last_success_at
+ * @property \Illuminate\Support\Carbon|null $last_failure_at
+ * @property bool $is_active
+ * @property string|null $ai_manager_id
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowStep> $steps
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowExecution> $executions
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow active()
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow forPlatform(string $platform)
+ */
 class LearnedWorkflow extends Model
 {
     use HasFactory;
@@ -66,8 +94,12 @@ class LearnedWorkflow extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\WorkflowStep, $this>
+     */
     public function steps(): HasMany
     {
+        /** @var \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\WorkflowStep, $this> */
         return $this->hasMany(WorkflowStep::class)->orderBy('order');
     }
 

@@ -56,7 +56,7 @@ class PostControllerTest extends TestCase
             ->getJson('/api/v1/posts');
 
         $response->assertOk()
-            ->assertJsonStructure(['data', 'current_page']);
+            ->assertJsonStructure(['success', 'data' => ['current_page']]);
     }
 
     public function test_user_can_create_post(): void
@@ -73,7 +73,7 @@ class PostControllerTest extends TestCase
             ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('content_text', 'Test post content');
+            ->assertJsonPath('data.content_text', 'Test post content');
 
         $this->assertDatabaseHas('posts', ['content_text' => 'Test post content']);
     }
@@ -89,7 +89,7 @@ class PostControllerTest extends TestCase
             ->getJson("/api/v1/posts/{$post->id}");
 
         $response->assertOk()
-            ->assertJsonPath('id', $post->id);
+            ->assertJsonPath('data.id', $post->id);
     }
 
     public function test_user_can_delete_own_post(): void

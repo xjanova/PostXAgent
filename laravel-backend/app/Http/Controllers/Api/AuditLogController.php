@@ -17,6 +17,16 @@ class AuditLogController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'log_name' => 'sometimes|string|max:100',
+            'causer_id' => 'sometimes|integer',
+            'subject_type' => 'sometimes|string|max:255',
+            'event' => 'sometimes|string|max:100',
+            'from' => 'sometimes|date',
+            'to' => 'sometimes|date|after_or_equal:from',
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $query = Activity::with(['causer', 'subject'])
             ->orderBy('created_at', 'desc');
 
@@ -49,7 +59,7 @@ class AuditLogController extends Controller
             $query->whereDate('created_at', '<=', $request->input('to'));
         }
 
-        $logs = $query->paginate($request->get('per_page', 50));
+        $logs = $query->paginate($request->integer('per_page', 50));
 
         return response()->json([
             'success' => true,
@@ -123,8 +133,12 @@ class AuditLogController extends Controller
      */
     public function stats(Request $request): JsonResponse
     {
+        $request->validate([
+            'days' => 'sometimes|integer|min:1|max:365',
+        ]);
+
         /** @var int $days */
-        $days = $request->get('days', 30);
+        $days = $request->integer('days', 30);
         $startDate = now()->subDays($days);
 
         // Get activity by log name
@@ -195,11 +209,15 @@ class AuditLogController extends Controller
      */
     public function userActivity(Request $request, int $userId): JsonResponse
     {
+        $request->validate([
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $logs = Activity::where('causer_id', $userId)
             ->where('causer_type', 'App\\Models\\User')
             ->with('subject')
             ->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 50));
+            ->paginate($request->integer('per_page', 50));
 
         return response()->json([
             'success' => true,
@@ -241,6 +259,11 @@ class AuditLogController extends Controller
      */
     public function export(Request $request): \Illuminate\Http\Response
     {
+        $request->validate([
+            'from' => 'sometimes|date',
+            'to' => 'sometimes|date|after_or_equal:from',
+        ]);
+
         $query = Activity::with(['causer'])
             ->orderBy('created_at', 'desc');
 
@@ -251,7 +274,7 @@ class AuditLogController extends Controller
             $query->whereDate('created_at', '<=', $request->input('to'));
         }
 
-        $logs = $query->get();
+        $logs = $query->limit(10000)->get();
 
         $csv = "ID,Log Name,Description,Event,Causer,Subject Type,Subject ID,Created At\n";
 

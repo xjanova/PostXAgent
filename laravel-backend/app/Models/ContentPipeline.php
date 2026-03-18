@@ -54,6 +54,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read Brand|null $brand
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PipelineRun> $runs
+ * @property-read ApiKeyPool|null $textPool
+ * @property-read ApiKeyPool|null $ttsPool
+ * @property-read AccountPool|null $publishAccountPool
+ * @property-read AccountPool|null $freepikAccountPool
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|static active()
+ * @method static \Illuminate\Database\Eloquent\Builder|static scheduled()
  *
  * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */

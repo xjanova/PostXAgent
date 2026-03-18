@@ -8,6 +8,43 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int|null $learned_workflow_id
+ * @property int|null $brand_id
+ * @property int|null $post_id
+ * @property int|null $failed_at_step
+ * @property string|null $error_screenshot
+ * @property array|null $step_results
+ * @property array|null $content_used
+ * @property array|null $metadata
+ * @property int|null $user_id
+ * @property int|null $user_workflow_id
+ * @property int|null $template_id
+ * @property string $status
+ * @property array|null $variables
+ * @property array|null $node_outputs
+ * @property string|null $error_message
+ * @property array|null $execution_log
+ * @property int|null $nodes_executed
+ * @property int|null $total_nodes
+ * @property int|null $duration_ms
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\LearnedWorkflow|null $workflow
+ * @property-read \App\Models\UserWorkflow|null $userWorkflow
+ * @property-read \App\Models\WorkflowTemplate|null $template
+ * @property-read \App\Models\User|null $user
+ * @property-read \App\Models\Brand|null $brand
+ * @property-read \App\Models\Post|null $post
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution whereIn(string $column, mixed $values, string $boolean = 'and', bool $not = false)
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution findOrFail($id, $columns = ['*'])
+ */
 class WorkflowExecution extends Model
 {
     use HasFactory;
@@ -134,7 +171,7 @@ class WorkflowExecution extends Model
                 : null,
         ]);
 
-        $this->workflow->recordSuccess();
+        $this->workflow?->recordSuccess();
     }
 
     public function fail(int $step, string $error, ?string $screenshot = null): void
@@ -150,7 +187,7 @@ class WorkflowExecution extends Model
                 : null,
         ]);
 
-        $this->workflow->recordFailure();
+        $this->workflow?->recordFailure();
     }
 
     public function addStepResult(int $stepOrder, bool $success, ?string $error = null): void

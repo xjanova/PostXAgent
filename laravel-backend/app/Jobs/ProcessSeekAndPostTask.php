@@ -22,8 +22,14 @@ class ProcessSeekAndPostTask implements ShouldQueue
     public int $timeout = 3600; // 1 hour max
     public int $backoff = 60;
 
+    /**
+     * Maximum number of self-dispatch iterations to prevent unbounded recursion.
+     */
+    public int $maxIterations = 100;
+
     public function __construct(
-        public SeekAndPostTask $task
+        public SeekAndPostTask $task,
+        public int $iteration = 0
     ) {}
 
     public function handle(AIManagerService $aiManager): void
@@ -268,9 +274,10 @@ class ProcessSeekAndPostTask implements ShouldQueue
     private function generateContent(AIManagerService $aiManager): string
     {
         if ($this->task->workflowTemplate) {
-            // Execute workflow
+            // Execute workflow (workflow_json is cast to array, API expects JSON string)
+            $workflowJson = $this->task->workflowTemplate->workflow_json;
             $result = $aiManager->executeWorkflow([
-                'workflowJson' => $this->task->workflowTemplate->workflow_json,
+                'workflowJson' => is_array($workflowJson) ? json_encode($workflowJson) : $workflowJson,
                 'variables' => $this->task->workflow_variables ?? [],
             ]);
 
@@ -356,6 +363,13 @@ class ProcessSeekAndPostTask implements ShouldQueue
             return;
         }
 
+        // Prevent unbounded self-dispatch
+        if ($this->iteration >= $this->maxIterations) {
+            Log::warning("SeekAndPostTask #{$this->task->id} reached maximum iterations ({$this->maxIterations}), marking as failed");
+            $this->task->fail("Maximum iteration limit ({$this->maxIterations}) reached");
+            return;
+        }
+
         // Schedule next run with delay to prevent rate limiting
         $delay = match ($this->task->status) {
             SeekAndPostTask::STATUS_SEEKING => 60 * 5,    // 5 minutes
@@ -364,7 +378,7 @@ class ProcessSeekAndPostTask implements ShouldQueue
             default => 60 * 5,
         };
 
-        self::dispatch($this->task->fresh())->delay(now()->addSeconds($delay));
+        self::dispatch($this->task->fresh(), $this->iteration + 1)->delay(now()->addSeconds($delay));
     }
 
     /**

@@ -25,8 +25,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\Brand|null $brand
+ * @property-read \App\Models\User $user
  * @property-read int|null $total_posts
  * @property-read int|null $published_posts
+ * @property-read int|null $posts_count
  *
  * @method static \Illuminate\Database\Eloquent\Builder|Campaign where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|Campaign create(array $attributes = [])
@@ -127,7 +130,7 @@ class Campaign extends Model
             'goal' => $this->goal,
             'themes' => $this->content_themes,
             'ai_settings' => $this->ai_settings,
-            'brand' => $this->brand->toAIContext(),
+            'brand' => $this->brand?->toAIContext() ?? [],
         ];
     }
 }

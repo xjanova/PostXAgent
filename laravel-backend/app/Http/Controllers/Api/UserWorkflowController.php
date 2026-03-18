@@ -27,7 +27,7 @@ class UserWorkflowController extends Controller
             ->with('template:id,name,name_th,icon');
 
         if ($request->has('platform')) {
-            $query->forPlatform($request->platform);
+            $query->forPlatform($request->input('platform'));
         }
 
         if ($request->boolean('active_only')) {
@@ -80,7 +80,7 @@ class UserWorkflowController extends Controller
         }
 
         // Validate workflow JSON
-        $workflowData = json_decode($request->workflow_json);
+        $workflowData = json_decode($request->input('workflow_json'));
         if (json_last_error() !== JSON_ERROR_NONE) {
             return response()->json([
                 'success' => false,
@@ -119,7 +119,7 @@ class UserWorkflowController extends Controller
             ], 422);
         }
 
-        $template = WorkflowTemplate::findOrFail($request->template_id);
+        $template = WorkflowTemplate::findOrFail($request->input('template_id'));
 
         // Increment template use count
         $template->incrementUseCount();
@@ -163,7 +163,7 @@ class UserWorkflowController extends Controller
 
         // Validate workflow JSON if provided
         if ($request->has('workflow_json')) {
-            $workflowData = json_decode($request->workflow_json);
+            $workflowData = json_decode($request->input('workflow_json'));
             if (json_last_error() !== JSON_ERROR_NONE) {
                 return response()->json([
                     'success' => false,
@@ -635,7 +635,7 @@ class UserWorkflowController extends Controller
             ], 422);
         }
 
-        $workflow = json_decode($request->workflow_json, true);
+        $workflow = json_decode($request->input('workflow_json'), true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             return response()->json([
                 'success' => false,

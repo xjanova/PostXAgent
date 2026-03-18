@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Mvc;
 using AIManager.Core.Models;
 using AIManager.Core.Services;
@@ -18,9 +19,9 @@ public class ContentWorkflowController : ControllerBase
     private readonly AudioGeneratorService _audioGenerator;
     private readonly VideoAssemblyService _videoAssembly;
 
-    // In-memory storage for demo (use database in production)
-    private static readonly Dictionary<string, UserPackage> _userPackages = new();
-    private static readonly Dictionary<string, CloudDriveConnection> _cloudConnections = new();
+    // In-memory storage for demo (use database in production) - thread-safe
+    private static readonly ConcurrentDictionary<string, UserPackage> _userPackages = new();
+    private static readonly ConcurrentDictionary<string, CloudDriveConnection> _cloudConnections = new();
 
     public ContentWorkflowController(
         ILogger<ContentWorkflowController> logger,

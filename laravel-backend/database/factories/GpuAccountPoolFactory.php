@@ -23,7 +23,7 @@ class GpuAccountPoolFactory extends Factory
         return [
             'user_id' => User::factory(),
             'provider' => fake()->randomElement(['vast_ai', 'runpod', 'mixed']),
-            'name' => fake()->company() . ' GPU Pool',
+            'name' => fake()->unique()->company() . ' GPU Pool',
             'description' => fake()->sentence(),
             'rotation_strategy' => GpuAccountPool::STRATEGY_MOST_CREDITS,
             'cooldown_minutes' => 60,

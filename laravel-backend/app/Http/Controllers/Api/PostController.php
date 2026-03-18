@@ -21,15 +21,22 @@ class PostController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $posts = Post::where('user_id', $request->user()->id)
             ->with(['brand', 'socialAccount', 'campaign'])
-            ->when($request->status, fn($q, $status) => $q->where('status', $status))
-            ->when($request->platform, fn($q, $platform) => $q->where('platform', $platform))
-            ->when($request->brand_id, fn($q, $brandId) => $q->where('brand_id', $brandId))
+            ->when($request->input('status'), fn($q, $status) => $q->where('status', $status))
+            ->when($request->input('platform'), fn($q, $platform) => $q->where('platform', $platform))
+            ->when($request->input('brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
             ->latest()
-            ->paginate($request->per_page ?? 20);
+            ->paginate($request->integer('per_page', 20));
 
-        return response()->json($posts);
+        return response()->json([
+            'success' => true,
+            'data' => $posts,
+        ]);
     }
 
     /**
@@ -63,21 +70,25 @@ class PostController extends Controller
 
             if ($postsThisMonth >= $quota['posts_per_month']) {
                 return response()->json([
-                    'error' => 'Monthly post quota exceeded',
-                    'limit' => $quota['posts_per_month'],
-                    'used' => $postsThisMonth,
+                    'success' => false,
+                    'message' => 'Monthly post quota exceeded',
+                    'errors' => [],
+                    'data' => [
+                        'limit' => $quota['posts_per_month'],
+                        'used' => $postsThisMonth,
+                    ],
                 ], 403);
             }
         }
 
         // Generate content with AI if requested
-        if ($request->ai_generate && $request->ai_prompt) {
+        if ($request->boolean('ai_generate') && $request->input('ai_prompt')) {
             $brand = Brand::findOrFail($validated['brand_id']);
 
             $generated = $this->aiManager->generateContent([
-                'prompt' => $request->ai_prompt,
+                'prompt' => $request->input('ai_prompt'),
                 'brand_info' => $brand->toAIContext(),
-                'platform' => $request->platform ?? 'general',
+                'platform' => $request->input('platform', 'general'),
                 'content_type' => $validated['content_type'],
             ]);
 
@@ -86,7 +97,7 @@ class PostController extends Controller
                 $validated['hashtags'] = $generated['content']['hashtags'];
                 $validated['ai_generated'] = true;
                 $validated['ai_provider'] = $generated['provider'];
-                $validated['ai_prompt'] = $request->ai_prompt;
+                $validated['ai_prompt'] = $request->input('ai_prompt');
             }
         }
 
@@ -97,15 +108,19 @@ class PostController extends Controller
             'user_id' => $user->id,
             'platform' => $socialAccount->platform,
             ...$validated,
-            'status' => $request->scheduled_at ? Post::STATUS_SCHEDULED : Post::STATUS_PENDING,
+            'status' => $request->input('scheduled_at') ? Post::STATUS_SCHEDULED : Post::STATUS_PENDING,
         ]);
 
         // Queue for publishing if not scheduled
-        if (!$request->scheduled_at) {
+        if (!$request->input('scheduled_at')) {
             PublishPost::dispatch($post);
         }
 
-        return response()->json($post->load(['brand', 'socialAccount']), 201);
+        return response()->json([
+            'success' => true,
+            'data' => $post->load(['brand', 'socialAccount']),
+            'message' => 'Post created successfully',
+        ], 201);
     }
 
     /**
@@ -115,7 +130,10 @@ class PostController extends Controller
     {
         $this->authorize('view', $post);
 
-        return response()->json($post->load(['brand', 'socialAccount', 'campaign']));
+        return response()->json([
+            'success' => true,
+            'data' => $post->load(['brand', 'socialAccount', 'campaign']),
+        ]);
     }
 
     /**
@@ -127,7 +145,9 @@ class PostController extends Controller
 
         if (!$post->canBeEdited()) {
             return response()->json([
-                'error' => 'Post cannot be edited in current status',
+                'success' => false,
+                'message' => 'Post cannot be edited in current status',
+                'errors' => [],
             ], 400);
         }
 
@@ -141,7 +161,11 @@ class PostController extends Controller
 
         $post->update($validated);
 
-        return response()->json($post->fresh(['brand', 'socialAccount']));
+        return response()->json([
+            'success' => true,
+            'data' => $post->fresh(['brand', 'socialAccount']),
+            'message' => 'Post updated successfully',
+        ]);
     }
 
     /**
@@ -158,7 +182,11 @@ class PostController extends Controller
 
         $post->delete();
 
-        return response()->json(['message' => 'Post deleted']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Post deleted',
+            'data' => null,
+        ]);
     }
 
     /**
@@ -169,20 +197,23 @@ class PostController extends Controller
         $request->validate([
             'prompt' => 'required|string|max:1000',
             'brand_id' => 'required|exists:brands,id',
-            'platform' => 'required|string',
-            'content_type' => 'required|string',
+            'platform' => 'required|string|in:facebook,instagram,tiktok,twitter,line,youtube,threads,linkedin,pinterest,general',
+            'content_type' => 'required|string|in:text,image,video,carousel,story,reel',
         ]);
 
-        $brand = Brand::findOrFail($request->brand_id);
+        $brand = Brand::findOrFail($request->input('brand_id'));
 
         $result = $this->aiManager->generateContent([
-            'prompt' => $request->prompt,
+            'prompt' => $request->input('prompt'),
             'brand_info' => $brand->toAIContext(),
-            'platform' => $request->platform,
-            'content_type' => $request->content_type,
+            'platform' => $request->input('platform'),
+            'content_type' => $request->input('content_type'),
         ]);
 
-        return response()->json($result);
+        return response()->json([
+            'success' => $result['success'] ?? false,
+            'data' => $result,
+        ]);
     }
 
     /**
@@ -198,13 +229,16 @@ class PostController extends Controller
         ]);
 
         $result = $this->aiManager->generateImage([
-            'prompt' => $request->prompt,
-            'style' => $request->style ?? 'modern',
-            'size' => $request->size ?? '1024x1024',
-            'provider' => $request->provider ?? 'auto',
+            'prompt' => $request->input('prompt'),
+            'style' => $request->input('style', 'modern'),
+            'size' => $request->input('size', '1024x1024'),
+            'provider' => $request->input('provider', 'auto'),
         ]);
 
-        return response()->json($result);
+        return response()->json([
+            'success' => $result['success'] ?? false,
+            'data' => $result,
+        ]);
     }
 
     /**
@@ -216,7 +250,9 @@ class PostController extends Controller
 
         if (!in_array($post->status, [Post::STATUS_DRAFT, Post::STATUS_PENDING, Post::STATUS_SCHEDULED])) {
             return response()->json([
-                'error' => 'Post cannot be published in current status',
+                'success' => false,
+                'message' => 'Post cannot be published in current status',
+                'errors' => [],
             ], 400);
         }
 
@@ -225,8 +261,9 @@ class PostController extends Controller
         $post->update(['status' => Post::STATUS_PUBLISHING]);
 
         return response()->json([
+            'success' => true,
             'message' => 'Post queued for publishing',
-            'post' => $post->fresh(),
+            'data' => $post->fresh(),
         ]);
     }
 
@@ -239,7 +276,9 @@ class PostController extends Controller
 
         if (!$post->isPublished()) {
             return response()->json([
-                'error' => 'Post is not published yet',
+                'success' => false,
+                'message' => 'Post is not published yet',
+                'errors' => [],
             ], 400);
         }
 
@@ -251,7 +290,10 @@ class PostController extends Controller
         }
 
         return response()->json([
-            'metrics' => $post->fresh()->metrics,
+            'success' => true,
+            'data' => [
+                'metrics' => $post->fresh()->metrics,
+            ],
         ]);
     }
 

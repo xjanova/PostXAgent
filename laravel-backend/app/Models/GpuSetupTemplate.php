@@ -30,6 +30,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  *
+ * @method static \Illuminate\Database\Eloquent\Builder|static forUser(int $userId)
+ * @method static \Illuminate\Database\Eloquent\Builder|static default()
+ * @method static \Illuminate\Database\Eloquent\Builder|static public()
+ *
  * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class GpuSetupTemplate extends Model

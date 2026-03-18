@@ -10,6 +10,9 @@ namespace AIManager.Core.Workers;
 /// </summary>
 public abstract class BasePlatformWorker : IPlatformWorker
 {
+    private static readonly HttpClient SharedHttpClient = new();
+    private static readonly ILoggerFactory SharedLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
+
     protected readonly HttpClient _httpClient;
     protected readonly ILogger _logger;
 
@@ -17,8 +20,8 @@ public abstract class BasePlatformWorker : IPlatformWorker
 
     protected BasePlatformWorker()
     {
-        _httpClient = new HttpClient();
-        _logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger(GetType());
+        _httpClient = SharedHttpClient;
+        _logger = SharedLoggerFactory.CreateLogger(GetType());
     }
 
     public virtual async Task<TaskResult> GenerateContentAsync(TaskItem task, CancellationToken ct)

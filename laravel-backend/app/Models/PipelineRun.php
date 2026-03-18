@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array|null $tokens_consumed
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read ContentPipeline $pipeline
  *
  * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */

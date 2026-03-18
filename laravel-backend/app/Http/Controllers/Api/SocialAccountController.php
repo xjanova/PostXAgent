@@ -18,8 +18,8 @@ class SocialAccountController extends Controller
     {
         $accounts = SocialAccount::where('user_id', $request->user()->id)
             ->with(['brand:id,name'])
-            ->when($request->platform, fn($q, $platform) => $q->where('platform', $platform))
-            ->when($request->brand_id, fn($q, $brandId) => $q->where('brand_id', $brandId))
+            ->when($request->input('platform'), fn($q, $platform) => $q->where('platform', $platform))
+            ->when($request->input('brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
             ->orderBy('platform')
             ->get()
             ->groupBy('platform');
@@ -66,24 +66,35 @@ class SocialAccountController extends Controller
      */
     public function callback(Request $request, string $platform): JsonResponse
     {
+        // Verify user is authenticated
+        if (!$request->user()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required. Please log in and try again.',
+            ], 401);
+        }
+
         // Verify state
         $storedState = session('oauth_state');
-        if ($request->state !== $storedState) {
+        if (!$storedState || $request->input('state') !== $storedState) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid OAuth state',
             ], 400);
         }
 
+        // Clear used state to prevent replay
+        session()->forget(['oauth_state', 'oauth_platform']);
+
         if ($request->has('error')) {
             return response()->json([
                 'success' => false,
-                'message' => $request->error_description ?? 'OAuth authorization failed',
+                'message' => $request->input('error_description', 'OAuth authorization failed'),
             ], 400);
         }
 
         // Exchange code for tokens (implementation depends on platform)
-        $tokens = $this->exchangeCodeForTokens($platform, $request->code);
+        $tokens = $this->exchangeCodeForTokens($platform, $request->input('code'));
 
         if (!$tokens) {
             return response()->json([

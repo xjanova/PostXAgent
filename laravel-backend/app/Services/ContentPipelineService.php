@@ -87,6 +87,7 @@ class ContentPipelineService
         $pool = $pipeline->textPool;
         if (!$pool) {
             // Fallback: try finding any active text pool
+            /** @var ApiKeyPool|null $pool */
             $pool = ApiKeyPool::active()->forServiceType('text')->first();
         }
 
@@ -480,9 +481,11 @@ class ContentPipelineService
      */
     public function checkScheduledPipelines(): int
     {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ContentPipeline> $pipelines */
         $pipelines = ContentPipeline::scheduled()->get();
         $dispatched = 0;
 
+        /** @var ContentPipeline $pipeline */
         foreach ($pipelines as $pipeline) {
             if (!$pipeline->canRunToday()) {
                 continue;
@@ -635,9 +638,11 @@ PROMPT;
     private function callGeminiApi(string $prompt, string $apiKey, ?string $modelId = null): array
     {
         $model = $modelId ?? 'gemini-2.0-flash-lite';
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
 
-        $response = Http::timeout(60)->post($url, [
+        $response = Http::withHeaders([
+            'x-goog-api-key' => $apiKey,
+        ])->timeout(60)->post($url, [
             'contents' => [
                 ['role' => 'user', 'parts' => [['text' => $prompt]]],
             ],

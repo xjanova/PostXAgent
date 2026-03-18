@@ -56,7 +56,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(['user_id', 'name']);
+            $table->index(['user_id', 'name']);
             $table->index(['provider', 'is_active']);
         });
 

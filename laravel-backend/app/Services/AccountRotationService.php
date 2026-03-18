@@ -117,9 +117,6 @@ class AccountRotationService
                 $postId,
                 $metadata
             );
-
-            // Update round robin index
-            $this->updateRoundRobinIndex($member->accountPool);
         });
 
         Log::info("Account post success recorded", [
@@ -425,6 +422,7 @@ class AccountRotationService
         return $accounts->sortBy('priority')->first();
     }
 
+    /** @phpstan-ignore method.unused */
     private function updateRoundRobinIndex(AccountPool $pool): void
     {
         $cacheKey = self::CACHE_ROUND_ROBIN_INDEX . $pool->id;

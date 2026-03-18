@@ -107,6 +107,21 @@ class SocialAccount extends Model
         return $this->hasMany(Post::class);
     }
 
+    public function backupCredentials(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(BackupCredential::class);
+    }
+
+    public function poolMemberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccountPoolMember::class);
+    }
+
+    public function statusLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AccountStatusLog::class);
+    }
+
     // Helpers
     public function isTokenExpired(): bool
     {

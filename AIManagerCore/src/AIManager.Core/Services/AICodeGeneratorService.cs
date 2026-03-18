@@ -11,8 +11,10 @@ namespace AIManager.Core.Services;
 /// AI Code Generator Service - ใช้ Local AI เขียน prompt แล้วส่งให้ External AI เขียน JS Code
 /// สำหรับรันใน WebView เพื่อโพสต์บน Social Media
 /// </summary>
-public class AICodeGeneratorService
+public class AICodeGeneratorService : IDisposable
 {
+    private static readonly HttpClient SharedHttpClient = new() { Timeout = TimeSpan.FromSeconds(120) };
+
     private readonly ILogger<AICodeGeneratorService> _logger;
     private readonly ContentGeneratorService _contentGenerator;
     private readonly HttpClient _httpClient;
@@ -29,7 +31,7 @@ public class AICodeGeneratorService
         _contentGenerator = contentGenerator;
         _config = config ?? new AICodeGenerationConfig();
         _logger = logger ?? LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AICodeGeneratorService>();
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(_config.CodeGenerationTimeoutSeconds) };
+        _httpClient = SharedHttpClient;
 
         // Allow environment variables to override config
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OLLAMA_BASE_URL")))
@@ -714,6 +716,13 @@ End with: }})();
     }
 
     #endregion
+
+    public void Dispose()
+    {
+        // HttpClient is static/shared - do not dispose it here.
+        // This method satisfies the IDisposable contract for DI containers.
+        GC.SuppressFinalize(this);
+    }
 }
 
 #region Models

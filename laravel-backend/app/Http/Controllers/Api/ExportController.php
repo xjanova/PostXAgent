@@ -32,16 +32,16 @@ class ExportController extends Controller
 
         $posts = Post::where('user_id', $userId)
             ->with(['brand:id,name', 'socialAccount:id,platform,display_name', 'campaign:id,name'])
-            ->when($request->status, fn($q, $s) => $q->where('status', $s))
-            ->when($request->platform, fn($q, $p) => $q->where('platform', $p))
-            ->when($request->brand_id, fn($q, $b) => $q->where('brand_id', $b))
-            ->when($request->campaign_id, fn($q, $c) => $q->where('campaign_id', $c))
-            ->when($request->date_from, fn($q, $d) => $q->whereDate('created_at', '>=', $d))
-            ->when($request->date_to, fn($q, $d) => $q->whereDate('created_at', '<=', $d))
+            ->when($request->input('status'), fn($q, $s) => $q->where('status', $s))
+            ->when($request->input('platform'), fn($q, $p) => $q->where('platform', $p))
+            ->when($request->input('brand_id'), fn($q, $b) => $q->where('brand_id', $b))
+            ->when($request->input('campaign_id'), fn($q, $c) => $q->where('campaign_id', $c))
+            ->when($request->input('date_from'), fn($q, $d) => $q->whereDate('created_at', '>=', $d))
+            ->when($request->input('date_to'), fn($q, $d) => $q->whereDate('created_at', '<=', $d))
             ->orderBy('created_at', 'desc')
             ->get();
 
-        if ($request->format === 'json') {
+        if ($request->input('format') === 'json') {
             return $this->exportJson($posts->toArray(), 'posts');
         }
 
@@ -65,10 +65,10 @@ class ExportController extends Controller
         ], function ($post) {
             return [
                 $post->id,
-                $post->brand?->name ?? '-',
-                $post->campaign?->name ?? '-',
+                $post->brand->name ?? '-',
+                $post->campaign->name ?? '-',
                 $post->platform,
-                $post->socialAccount?->display_name ?? '-',
+                $post->socialAccount->display_name ?? '-',
                 Str::limit($post->content_text, 100),
                 $post->content_type,
                 $this->translateStatus($post->status),
@@ -100,12 +100,12 @@ class ExportController extends Controller
         $campaigns = Campaign::where('user_id', $userId)
             ->with(['brand:id,name'])
             ->withCount('posts')
-            ->when($request->status, fn($q, $s) => $q->where('status', $s))
-            ->when($request->brand_id, fn($q, $b) => $q->where('brand_id', $b))
+            ->when($request->input('status'), fn($q, $s) => $q->where('status', $s))
+            ->when($request->input('brand_id'), fn($q, $b) => $q->where('brand_id', $b))
             ->orderBy('created_at', 'desc')
             ->get();
 
-        if ($request->format === 'json') {
+        if ($request->input('format') === 'json') {
             return $this->exportJson($campaigns->toArray(), 'campaigns');
         }
 
@@ -125,7 +125,7 @@ class ExportController extends Controller
             return [
                 $campaign->id,
                 $campaign->name,
-                $campaign->brand?->name ?? '-',
+                $campaign->brand->name ?? '-',
                 $campaign->type,
                 $campaign->goal,
                 number_format($campaign->budget ?? 0) . ' บาท',
@@ -155,9 +155,9 @@ class ExportController extends Controller
         // Get posts with metrics in date range
         $posts = Post::where('user_id', $userId)
             ->where('status', Post::STATUS_PUBLISHED)
-            ->whereDate('published_at', '>=', $request->date_from)
-            ->whereDate('published_at', '<=', $request->date_to)
-            ->when($request->brand_id, fn($q, $b) => $q->where('brand_id', $b))
+            ->whereDate('published_at', '>=', $request->input('date_from'))
+            ->whereDate('published_at', '<=', $request->input('date_to'))
+            ->when($request->input('brand_id'), fn($q, $b) => $q->where('brand_id', $b))
             ->get();
 
         // Calculate summary by platform
@@ -178,11 +178,11 @@ class ExportController extends Controller
             ];
         })->values();
 
-        if ($request->format === 'json') {
+        if ($request->input('format') === 'json') {
             return $this->exportJson([
                 'period' => [
-                    'from' => $request->date_from,
-                    'to' => $request->date_to,
+                    'from' => $request->input('date_from'),
+                    'to' => $request->input('date_to'),
                 ],
                 'summary' => [
                     'total_posts' => $posts->count(),

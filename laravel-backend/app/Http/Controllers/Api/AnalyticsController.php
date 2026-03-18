@@ -17,8 +17,12 @@ class AnalyticsController extends Controller
      */
     public function overview(Request $request): JsonResponse
     {
+        $request->validate([
+            'days' => 'sometimes|integer|min:1|max:365',
+        ]);
+
         $userId = $request->user()->id;
-        $days = $request->days ?? 30;
+        $days = $request->integer('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         // Total stats
@@ -90,8 +94,12 @@ class AnalyticsController extends Controller
      */
     public function posts(Request $request): JsonResponse
     {
+        $request->validate([
+            'days' => 'sometimes|integer|min:1|max:365',
+        ]);
+
         $userId = $request->user()->id;
-        $days = $request->days ?? 30;
+        $days = $request->integer('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         // Daily posts count
@@ -134,8 +142,12 @@ class AnalyticsController extends Controller
      */
     public function engagement(Request $request): JsonResponse
     {
+        $request->validate([
+            'days' => 'sometimes|integer|min:1|max:365',
+        ]);
+
         $userId = $request->user()->id;
-        $days = $request->days ?? 30;
+        $days = $request->integer('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         $posts = Post::where('user_id', $userId)
@@ -144,7 +156,6 @@ class AnalyticsController extends Controller
             ->get();
 
         // Daily engagement
-        /** @phpstan-ignore-next-line */
         $dailyEngagement = $posts->groupBy(fn(Post $p): string => $p->published_at?->toDateString() ?? '')
             ->map(fn($dayPosts) => [
                 'likes' => $dayPosts->sum(fn($p) => $p->metrics['likes'] ?? 0),
@@ -163,7 +174,6 @@ class AnalyticsController extends Controller
             ]);
 
         // Best time to post (hour analysis)
-        /** @phpstan-ignore-next-line */
         $byHour = $posts->groupBy(fn(Post $p): string => $p->published_at?->format('H') ?? '00')
             ->map(fn($hourPosts) => round($hourPosts->avg(fn($p) =>
                 $p->metrics['engagement_rate'] ?? 0
@@ -185,8 +195,12 @@ class AnalyticsController extends Controller
      */
     public function platforms(Request $request): JsonResponse
     {
+        $request->validate([
+            'days' => 'sometimes|integer|min:1|max:365',
+        ]);
+
         $userId = $request->user()->id;
-        $days = $request->days ?? 30;
+        $days = $request->integer('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         $posts = Post::where('user_id', $userId)
@@ -230,7 +244,11 @@ class AnalyticsController extends Controller
             ], 403);
         }
 
-        $days = $request->days ?? 30;
+        $request->validate([
+            'days' => 'sometimes|integer|min:1|max:365',
+        ]);
+
+        $days = $request->integer('days', 30);
         $startDate = Carbon::now()->subDays($days);
 
         $posts = Post::where('brand_id', $brand->id)
@@ -249,7 +267,6 @@ class AnalyticsController extends Controller
         $campaignStats = Campaign::where('brand_id', $brand->id)
             ->withCount(['posts as total_posts', 'posts as published_posts' => fn($q) => $q->where('status', 'published')])
             ->get()
-            /** @phpstan-ignore-next-line */
             ->map(fn(Campaign $c): array => [
                 'id' => $c->id,
                 'name' => $c->name,

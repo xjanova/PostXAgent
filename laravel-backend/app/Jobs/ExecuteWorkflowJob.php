@@ -40,19 +40,17 @@ class ExecuteWorkflowJob implements ShouldQueue
                 'started_at' => now(),
             ]);
 
-            // Get workflow JSON
-            $workflowJson = $this->getWorkflowJson();
-            if (!$workflowJson) {
+            // Get workflow data
+            $workflowData = $this->getWorkflowData();
+            if (!$workflowData) {
                 throw new \Exception('Workflow JSON not found');
             }
 
-            // Parse workflow
-            $workflow = json_decode($workflowJson, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('Invalid workflow JSON');
-            }
+            // Validate workflow data
+            $workflow = $workflowData;
 
-            // Execute workflow via AI Manager
+            // Execute workflow via AI Manager (API expects JSON string)
+            $workflowJson = json_encode($workflow);
             $result = $aiManager->executeWorkflow([
                 'workflowJson' => $workflowJson,
                 'variables' => $this->execution->variables ?? [],
@@ -89,8 +87,8 @@ class ExecuteWorkflowJob implements ShouldQueue
                 'completed_at' => now(),
             ]);
 
-            // Update workflow statistics
-            $this->updateWorkflowStats(false);
+            // Don't call updateWorkflowStats(false) here - the failed() method already does it
+            // when the job permanently fails after all retries are exhausted.
 
             Log::error("Workflow execution #{$this->execution->id} failed: {$e->getMessage()}");
 
@@ -99,9 +97,11 @@ class ExecuteWorkflowJob implements ShouldQueue
     }
 
     /**
-     * Get workflow JSON from user workflow or template
+     * Get workflow data from user workflow or template
+     *
+     * @return array<string, mixed>|null
      */
-    private function getWorkflowJson(): ?string
+    private function getWorkflowData(): ?array
     {
         if ($this->execution->userWorkflow) {
             return $this->execution->userWorkflow->workflow_json;

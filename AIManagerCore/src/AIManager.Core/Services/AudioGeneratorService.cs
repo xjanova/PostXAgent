@@ -9,8 +9,10 @@ namespace AIManager.Core.Services;
 /// Audio Generator Service
 /// รองรับ Text-to-Speech จากหลาย providers
 /// </summary>
-public class AudioGeneratorService
+public class AudioGeneratorService : IDisposable
 {
+    private static readonly HttpClient SharedHttpClient = new() { Timeout = TimeSpan.FromMinutes(5) };
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<AudioGeneratorService>? _logger;
 
@@ -22,8 +24,7 @@ public class AudioGeneratorService
 
     public AudioGeneratorService(ILogger<AudioGeneratorService>? logger = null)
     {
-        _httpClient = new HttpClient();
-        _httpClient.Timeout = TimeSpan.FromMinutes(5);
+        _httpClient = SharedHttpClient;
         _logger = logger;
     }
 
@@ -210,7 +211,7 @@ public class AudioGeneratorService
 
         try
         {
-            var process = new System.Diagnostics.Process
+            using var process = new System.Diagnostics.Process
             {
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
@@ -398,7 +399,7 @@ public class AudioGeneratorService
 
         try
         {
-            var process = new System.Diagnostics.Process
+            using var process = new System.Diagnostics.Process
             {
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
@@ -423,9 +424,10 @@ public class AudioGeneratorService
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Fallback: just copy the first file
+            System.Diagnostics.Debug.WriteLine($"FFmpeg merge failed, using fallback: {ex.Message}");
             if (inputFiles.Count > 0 && File.Exists(inputFiles[0]))
             {
                 File.Copy(inputFiles[0], outputPath, true);
@@ -438,6 +440,13 @@ public class AudioGeneratorService
     }
 
     #endregion
+
+    public void Dispose()
+    {
+        // HttpClient is static/shared - do not dispose it here.
+        // This method satisfies the IDisposable contract for DI containers.
+        GC.SuppressFinalize(this);
+    }
 }
 
 /// <summary>

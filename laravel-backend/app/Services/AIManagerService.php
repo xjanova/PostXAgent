@@ -54,6 +54,38 @@ class AIManagerService
     }
 
     /**
+     * Dispatch a task to the AI Manager and wait for result
+     *
+     * @param array<string, mixed> $params Task parameters including type, platform, user_id, brand_id, payload
+     * @return array<string, mixed>
+     */
+    public function dispatchTask(array $params): array
+    {
+        $platform = $params['platform'] ?? 'general';
+        $type = $params['type'] ?? 'generic';
+        $payload = $params['payload'] ?? $params;
+
+        $result = $this->sendTask($platform, $type, $payload);
+
+        if (!$result['success']) {
+            return ['success' => false, 'error' => 'Failed to dispatch task'];
+        }
+
+        $response = $this->waitForResult($result['task_id'], 60);
+
+        if (!$response) {
+            return ['success' => false, 'error' => 'Task timeout'];
+        }
+
+        return [
+            'success' => $response['status'] === 'completed',
+            'data' => $response['result'] ?? [],
+            'error' => $response['error'] ?? null,
+            'error_code' => $response['error_code'] ?? null,
+        ];
+    }
+
+    /**
      * Generate content using AI
      */
     public function generateContent(array $params): array
@@ -334,7 +366,7 @@ class AIManagerService
             'id' => $post->id,
             'platform' => $post->platform,
             'content' => [
-                'text' => $post->content,
+                'text' => $post->content_text,
                 'images' => $post->media_urls ?? [],
                 'link' => $post->link_url,
                 'hashtags' => $post->hashtags ?? [],
@@ -424,7 +456,7 @@ class AIManagerService
     {
         $payload = [
             'post_ids' => [$post->platform_post_id],
-            'credentials' => $post->socialAccount->getCredentials(),
+            'credentials' => $post->socialAccount?->getCredentials() ?? [],
         ];
 
         $result = $this->sendTask($post->platform, 'analyze_metrics', $payload);
@@ -452,7 +484,7 @@ class AIManagerService
     {
         $payload = [
             'post_id' => $post->platform_post_id,
-            'credentials' => $post->socialAccount->getCredentials(),
+            'credentials' => $post->socialAccount?->getCredentials() ?? [],
         ];
 
         $result = $this->sendTask($post->platform, 'delete_post', $payload);
@@ -482,9 +514,11 @@ class AIManagerService
             ];
         }
 
+        $decoded = json_decode($stats, true) ?? [];
+
         return [
             'connected' => true,
-            ...json_decode($stats, true),
+            ...$decoded,
         ];
     }
 
@@ -601,6 +635,83 @@ class AIManagerService
     }
 
     /**
+     * Cancel an active teaching session
+     */
+    public function cancelTeachingSession(int $sessionId): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/teaching/cancel', [
+            'sessionId' => $sessionId,
+        ]);
+    }
+
+    /**
+     * Cancel a workflow execution
+     */
+    public function cancelExecution(int $executionId): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/execution/cancel', [
+            'executionId' => $executionId,
+        ]);
+    }
+
+    /**
+     * Suggest CSS selectors using AI
+     */
+    public function suggestSelectors(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/suggest-selectors', $params);
+    }
+
+    /**
+     * Create a social account via web automation
+     *
+     * @param \App\Models\AccountCreationTask $task
+     * @return array<string, mixed>
+     */
+    public function createAccount(\App\Models\AccountCreationTask $task): array
+    {
+        return $this->callAIManagerApi('POST', '/api/account-creation/create', [
+            'taskId' => $task->id,
+            'platform' => $task->platform,
+            'profileData' => $task->profile_data,
+        ]);
+    }
+
+    /**
+     * Start a teaching session for web automation learning
+     */
+    public function startTeachingSession(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/teaching/start', $params);
+    }
+
+    /**
+     * Complete a teaching session
+     */
+    public function completeTeachingSession(int $sessionId): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/teaching/complete', [
+            'sessionId' => $sessionId,
+        ]);
+    }
+
+    /**
+     * Analyze a web page using AI
+     */
+    public function analyzePageWithAI(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/analyze-page', $params);
+    }
+
+    /**
+     * Optimize a workflow using AI
+     */
+    public function optimizeWorkflow(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/optimize-workflow', $params);
+    }
+
+    /**
      * Call AI Manager Core API directly via HTTP
      */
     private function callAIManagerApi(string $method, string $endpoint, array $data = []): array
@@ -667,23 +778,31 @@ class AIManagerService
 
     /**
      * Wait for a task result from Redis
+     *
+     * Uses a Lua script for atomic lrange + lrem to prevent race conditions
+     * where concurrent consumers could both read and remove the same result.
      */
     private function waitForResult(string $taskId, int $timeoutSeconds = 30): ?array
     {
         $startTime = time();
 
+        $script = <<<'LUA'
+            local results = redis.call('lrange', KEYS[1], 0, -1)
+            for i, v in ipairs(results) do
+                local decoded = cjson.decode(v)
+                if decoded['id'] == ARGV[1] then
+                    redis.call('lrem', KEYS[1], 1, v)
+                    return v
+                end
+            end
+            return nil
+        LUA;
+
         while (time() - $startTime < $timeoutSeconds) {
-            // Check result queue
-            $results = Redis::lrange($this->resultQueue, 0, -1);
+            $result = Redis::eval($script, 1, $this->resultQueue, $taskId);
 
-            foreach ($results as $index => $resultJson) {
-                $result = json_decode($resultJson, true);
-
-                if (isset($result['id']) && $result['id'] === $taskId) {
-                    // Remove from queue
-                    Redis::lrem($this->resultQueue, 1, $resultJson);
-                    return $result;
-                }
+            if ($result) {
+                return json_decode($result, true);
             }
 
             usleep(100000); // 100ms

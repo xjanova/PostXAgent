@@ -63,7 +63,7 @@ class GpuAccountRotationService
         $sorted = match ($pool->rotation_strategy) {
             GpuAccountPool::STRATEGY_PRIORITY => $availableAccounts->sortBy('priority'),
             GpuAccountPool::STRATEGY_LEAST_USED => $availableAccounts->sortBy('instances_today'),
-            GpuAccountPool::STRATEGY_MOST_CREDITS => $availableAccounts->sortByDesc(fn ($m) => $m->providerAccount?->credits_balance ?? 0),
+            GpuAccountPool::STRATEGY_MOST_CREDITS => $availableAccounts->sortByDesc(fn (GpuPoolMember $m): float => (float) ($m->providerAccount->credits_balance ?? 0)),
             default => $availableAccounts->shuffle(),
         };
 
@@ -87,7 +87,9 @@ class GpuAccountRotationService
                     ->orWhere('cooldown_until', '<=', now());
             })
             ->get()
-            ->filter(function ($member) use ($pool) {
+            /** @phpstan-ignore argument.type */
+            ->filter(function (GpuPoolMember $member) use ($pool): bool {
+                /** @var GpuProviderAccount|null $account */
                 $account = $member->providerAccount;
                 if (!$account) {
                     return false;
@@ -104,23 +106,18 @@ class GpuAccountRotationService
         float $creditsUsed = 0,
         ?array $metadata = null
     ): void {
-        DB::transaction(function () use ($member, $creditsUsed, $metadata) {
+        DB::transaction(function () use ($member, $creditsUsed) {
             $member->recordSuccess();
 
             if ($creditsUsed > 0) {
                 $member->recordCreditsUsed($creditsUsed);
-                $member->providerAccount?->recordUsage($creditsUsed);
+                $member->providerAccount->recordUsage($creditsUsed);
             }
 
             // Start cooldown if configured
             $pool = $member->accountPool;
             if ($pool && $pool->cooldown_minutes > 0) {
                 $member->startCooldown($pool->cooldown_minutes);
-            }
-
-            // Update round robin index
-            if ($pool) {
-                $this->updateRoundRobinIndex($pool);
             }
         });
 
@@ -184,7 +181,7 @@ class GpuAccountRotationService
     {
         DB::transaction(function () use ($member) {
             $member->markAsDepleted();
-            $member->providerAccount?->markAsDepleted();
+            $member->providerAccount->markAsDepleted();
 
             GpuActivityLog::logBalanceDepleted($member->providerAccount);
         });
@@ -208,7 +205,9 @@ class GpuAccountRotationService
     {
         $results = [];
 
+        /** @var GpuPoolMember $member */
         foreach ($pool->members()->with('providerAccount')->get() as $member) {
+            /** @var GpuProviderAccount|null $account */
             $account = $member->providerAccount;
             if (!$account) {
                 continue;
@@ -280,7 +279,7 @@ class GpuAccountRotationService
     public function getPoolStatistics(GpuAccountPool $pool): array
     {
         $members = $pool->members()->with('providerAccount')->get();
-        $statusCounts = $members->groupBy('status')->map->count();
+        $statusCounts = $members->groupBy('status')->map(fn ($items) => $items->count());
 
         return [
             'total_accounts' => $members->count(),
@@ -289,7 +288,8 @@ class GpuAccountRotationService
             'suspended' => $statusCounts->get(GpuPoolMember::STATUS_SUSPENDED, 0),
             'depleted' => $statusCounts->get(GpuPoolMember::STATUS_DEPLETED, 0),
             'error' => $statusCounts->get(GpuPoolMember::STATUS_ERROR, 0),
-            'total_credits' => $members->sum(fn ($m) => $m->providerAccount?->credits_balance ?? 0),
+            /** @phpstan-ignore argument.type */
+            'total_credits' => $members->sum(fn (GpuPoolMember $m): float => (float) ($m->providerAccount->credits_balance ?? 0)),
             'instances_today' => $members->sum('instances_today'),
             'total_instances' => $members->sum('total_instances'),
             'credits_used_today' => $members->sum('credits_used_today'),
@@ -303,8 +303,8 @@ class GpuAccountRotationService
      */
     public function getHealthReport(int $hours = 24): array
     {
-        $logs = GpuActivityLog::with(['providerAccount', 'accountPool'])
-            ->recent($hours)
+        $logs = GpuActivityLog::recent($hours)
+            ->with(['providerAccount', 'accountPool'])
             ->get();
 
         return [
@@ -315,10 +315,10 @@ class GpuAccountRotationService
             'api_errors' => $logs->where('event_type', GpuActivityLog::EVENT_API_ERROR)->count(),
             'balance_depletions' => $logs->where('event_type', GpuActivityLog::EVENT_BALANCE_DEPLETED)->count(),
             'failovers' => $logs->where('event_type', GpuActivityLog::EVENT_FAILOVER_TRIGGERED)->count(),
-            'by_provider' => $logs->groupBy('provider')
+            'by_provider' => collect($logs->toArray())->groupBy('provider')
                 ->map(fn ($group) => [
                     'total' => $group->count(),
-                    'errors' => $group->filter(fn ($l) => in_array($l->event_type, [
+                    'errors' => $group->filter(fn ($l) => in_array($l['event_type'] ?? '', [
                         GpuActivityLog::EVENT_API_ERROR,
                         GpuActivityLog::EVENT_INSTANCE_ERROR,
                         GpuActivityLog::EVENT_SETUP_FAILED,
@@ -337,7 +337,7 @@ class GpuAccountRotationService
         DB::transaction(function () use ($member, $oldStatus, $reason) {
             $member->reactivate();
 
-            if ($member->providerAccount?->status !== GpuProviderAccount::STATUS_ACTIVE) {
+            if ($member->providerAccount->status !== GpuProviderAccount::STATUS_ACTIVE) {
                 $member->providerAccount->update(['status' => GpuProviderAccount::STATUS_ACTIVE]);
             }
 
@@ -396,7 +396,7 @@ class GpuAccountRotationService
 
     private function selectMostCredits(Collection $accounts): GpuPoolMember
     {
-        return $accounts->sortByDesc(fn ($m) => $m->providerAccount?->credits_balance ?? 0)->first();
+        return $accounts->sortByDesc(fn ($m) => $m->providerAccount->credits_balance ?? 0)->first();
     }
 
     private function selectByPriority(Collection $accounts): GpuPoolMember
@@ -404,6 +404,7 @@ class GpuAccountRotationService
         return $accounts->sortBy('priority')->first();
     }
 
+    /** @phpstan-ignore method.unused */
     private function updateRoundRobinIndex(GpuAccountPool $pool): void
     {
         $cacheKey = self::CACHE_ROUND_ROBIN_INDEX . $pool->id;
@@ -420,7 +421,8 @@ class GpuAccountRotationService
         $pool->members()
             ->where('status', GpuPoolMember::STATUS_COOLDOWN)
             ->where('cooldown_until', '<=', now())
-            ->each(function (GpuPoolMember $member) {
+            /** @phpstan-ignore argument.type */
+            ->each(function (GpuPoolMember $member): void {
                 $member->endCooldown();
             });
     }

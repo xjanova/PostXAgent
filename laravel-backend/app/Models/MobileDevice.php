@@ -62,10 +62,11 @@ class MobileDevice extends Model
     /**
      * Get payments received from this device
      */
-    public function payments(): HasMany
-    {
-        return $this->hasMany(SmsPayment::class, 'device_id', 'device_id');
-    }
+    // TODO: Uncomment when SmsPayment model is created
+    // public function payments(): HasMany
+    // {
+    //     return $this->hasMany(SmsPayment::class, 'device_id', 'device_id');
+    // }
 
     /**
      * Get sync status

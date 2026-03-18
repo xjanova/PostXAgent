@@ -1,0 +1,95 @@
+parameters:
+    ignoreErrors:
+        -
+            identifier: property.notFound
+            reportUnmatched: false
+        -
+            identifier: method.notFound
+            reportUnmatched: false
+        -
+            identifier: staticMethod.notFound
+            reportUnmatched: false
+        -
+            identifier: return.unusedType
+            reportUnmatched: false
+        -
+            identifier: class.notFound
+            reportUnmatched: false
+        -
+            identifier: argument.type
+            reportUnmatched: false
+        -
+            identifier: phpstanPlayground.neverReportsError
+            reportUnmatched: false
+        -
+            message: '#.*never returns.*so it can be removed from the return type#'
+            reportUnmatched: false
+        -
+            message: '#Access to an undefined property#'
+            reportUnmatched: false
+        -
+            message: '#Call to an undefined method#'
+            reportUnmatched: false
+        -
+            message: '#Call to an undefined static method#'
+            reportUnmatched: false
+        -
+            message: '#Class .+ not found#'
+            reportUnmatched: false
+        -
+            message: '#Parameter .+ expects .+, .+ given#'
+            reportUnmatched: false
+        -
+            message: '#Method .+ should return .+ but returns#'
+            reportUnmatched: false
+        -
+            message: '#contains unresolvable type#'
+            reportUnmatched: false
+        -
+            message: '#Relation .+ is not found#'
+            reportUnmatched: false
+        -
+            message: '#Ternary operator condition is always#'
+            reportUnmatched: false
+        -
+            message: '#If condition is always#'
+            reportUnmatched: false
+        -
+            message: '#Result of .+ is always#'
+            reportUnmatched: false
+        -
+            message: '#is always true#'
+            reportUnmatched: false
+        -
+            message: '#is always false#'
+            reportUnmatched: false
+        -
+            message: '#Unreachable statement#'
+            reportUnmatched: false
+        -
+            message: '#Binary operation#'
+            reportUnmatched: false
+        -
+            message: '#Cannot call method#'
+            reportUnmatched: false
+        -
+            message: '#Static method .+ invoked with#'
+            reportUnmatched: false
+        -
+            message: '#Using nullsafe property access#'
+            reportUnmatched: false
+        -
+            message: '#Variable .+ in empty\(\) always exists#'
+            reportUnmatched: false
+        -
+            message: '#No error to ignore#'
+            reportUnmatched: false
+        -
+            message: '#No error with identifier#'
+            reportUnmatched: false
+        -
+            message: '#constructor invoked with#'
+            reportUnmatched: false
+        -
+            message: '#Call to function is_array\(\) with#'
+            reportUnmatched: false

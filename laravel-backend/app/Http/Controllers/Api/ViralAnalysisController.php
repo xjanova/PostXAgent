@@ -24,8 +24,13 @@ class ViralAnalysisController extends Controller
      */
     public function dashboard(Request $request): JsonResponse
     {
-        $brandId = $request->brand_id;
-        $period = $request->period ?? '7d';
+        $request->validate([
+            'brand_id' => 'nullable|integer|exists:brands,id',
+            'period' => 'nullable|string|in:24h,7d,30d,90d',
+        ]);
+
+        $brandId = $request->input('brand_id');
+        $period = $request->input('period', '7d');
 
         $startDate = match($period) {
             '24h' => now()->subDay(),

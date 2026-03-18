@@ -9,6 +9,58 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int $brand_id
+ * @property string $name
+ * @property string|null $description
+ * @property string $status
+ * @property string $platform
+ * @property array|null $target_keywords
+ * @property array|null $exclude_keywords
+ * @property int $min_group_members
+ * @property int|null $max_group_members
+ * @property float $min_quality_score
+ * @property int $max_groups_to_discover
+ * @property int $max_groups_to_join_per_day
+ * @property bool $auto_join
+ * @property int|null $workflow_template_id
+ * @property array|null $workflow_variables
+ * @property int $posts_per_group_per_day
+ * @property int $max_posts_per_day
+ * @property array|null $posting_schedule
+ * @property bool $smart_timing
+ * @property string|null $content_template
+ * @property array|null $content_variations
+ * @property bool $vary_content
+ * @property array|null $media_urls
+ * @property int $groups_discovered
+ * @property int $groups_joined
+ * @property int $posts_made
+ * @property int $posts_successful
+ * @property int $posts_failed
+ * @property \Illuminate\Support\Carbon|null $last_seek_at
+ * @property \Illuminate\Support\Carbon|null $last_post_at
+ * @property bool $is_recurring
+ * @property string|null $recurrence_pattern
+ * @property \Illuminate\Support\Carbon|null $scheduled_at
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\Brand $brand
+ * @property-read \App\Models\WorkflowTemplate|null $workflowTemplate
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DiscoveredGroup> $discoveredGroups
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask active()
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask byUser(int $userId)
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask byPlatform(string $platform)
+ */
 class SeekAndPostTask extends Model
 {
     use HasFactory;

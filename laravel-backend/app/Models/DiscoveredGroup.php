@@ -8,6 +8,59 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+/**
+ * @property int $id
+ * @property string $platform
+ * @property string $group_id
+ * @property string $group_name
+ * @property string|null $group_url
+ * @property string|null $description
+ * @property array|null $keywords
+ * @property string|null $category
+ * @property array|null $tags
+ * @property int $member_count
+ * @property float $engagement_rate
+ * @property int $posts_per_day
+ * @property string|null $activity_level
+ * @property bool $is_public
+ * @property bool $requires_approval
+ * @property string|null $language
+ * @property array|null $admin_info
+ * @property bool $is_joined
+ * @property \Illuminate\Support\Carbon|null $join_requested_at
+ * @property \Illuminate\Support\Carbon|null $joined_at
+ * @property bool $is_banned
+ * @property \Illuminate\Support\Carbon|null $banned_at
+ * @property string|null $ban_reason
+ * @property int $our_post_count
+ * @property int $successful_posts
+ * @property int $failed_posts
+ * @property int $deleted_posts
+ * @property \Illuminate\Support\Carbon|null $last_post_at
+ * @property \Illuminate\Support\Carbon|null $last_checked_at
+ * @property float $quality_score
+ * @property float $relevance_score
+ * @property float $success_rate
+ * @property array|null $quality_factors
+ * @property array|null $posting_rules
+ * @property array|null $best_posting_times
+ * @property array|null $content_preferences
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SeekAndPostTask> $seekAndPostTasks
+ *
+ * @property-read \Illuminate\Database\Eloquent\Relations\Pivot|null $pivot
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup whereHas(string $relation, ?\Closure $callback = null, string $operator = '>=', int $count = 1)
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup updateOrCreate(array $attributes, array $values = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup availableForPosting()
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup joined()
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup byPlatform(string $platform)
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup highQuality(float $minScore = 70)
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup active()
+ */
 class DiscoveredGroup extends Model
 {
     use HasFactory;

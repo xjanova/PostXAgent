@@ -22,6 +22,9 @@ public class ProcessOrchestrator : IDisposable
     private readonly Dictionary<SocialPlatform, Channel<TaskItem>> _taskChannels;
     private readonly Channel<TaskResult> _resultChannel;
 
+    // Task tracking
+    private readonly ConcurrentDictionary<string, TaskItem> _taskStore;
+
     // Worker pools
     private readonly ConcurrentDictionary<string, WorkerInfo> _workers;
     private readonly List<Task> _workerTasks;
@@ -65,6 +68,7 @@ public class ProcessOrchestrator : IDisposable
         }
 
         _resultChannel = Channel.CreateUnbounded<TaskResult>();
+        _taskStore = new ConcurrentDictionary<string, TaskItem>();
         _workers = new ConcurrentDictionary<string, WorkerInfo>();
         _workerTasks = new List<Task>();
         _stats = new OrchestratorStats();
@@ -169,6 +173,9 @@ public class ProcessOrchestrator : IDisposable
         task.CreatedAt = DateTime.UtcNow;
         task.Status = Models.TaskStatus.Queued;
 
+        // Store task for tracking
+        _taskStore[task.Id] = task;
+
         var channel = _taskChannels[task.Platform];
         await channel.Writer.WriteAsync(task);
 
@@ -188,8 +195,8 @@ public class ProcessOrchestrator : IDisposable
     /// </summary>
     public TaskItem? GetTask(string taskId)
     {
-        // This would be enhanced with a proper task store
-        return null;
+        _taskStore.TryGetValue(taskId, out var task);
+        return task;
     }
 
     /// <summary>
@@ -197,7 +204,16 @@ public class ProcessOrchestrator : IDisposable
     /// </summary>
     public bool CancelTask(string taskId)
     {
-        // Implementation for task cancellation
+        if (_taskStore.TryGetValue(taskId, out var task))
+        {
+            // Only cancel if the task is still queued or running
+            if (task.Status == Models.TaskStatus.Queued || task.Status == Models.TaskStatus.Running)
+            {
+                task.Status = Models.TaskStatus.Cancelled;
+                _logger.LogInformation("Task {TaskId} cancelled", taskId);
+                return true;
+            }
+        }
         return false;
     }
 
@@ -283,8 +299,8 @@ public class ProcessOrchestrator : IDisposable
 
         try
         {
-            // Get the appropriate worker for the platform
-            var platformWorker = WorkerFactory.CreateWorker(task.Platform);
+            // Get the appropriate worker for the platform (cached, avoids creating new instance per task)
+            var platformWorker = WorkerFactory.GetOrCreateWorker(task.Platform);
 
             result = task.Type switch
             {
@@ -294,6 +310,16 @@ public class ProcessOrchestrator : IDisposable
                 Models.TaskType.SchedulePost => await platformWorker.SchedulePostAsync(task, ct),
                 Models.TaskType.AnalyzeMetrics => await platformWorker.AnalyzeMetricsAsync(task, ct),
                 Models.TaskType.DeletePost => await platformWorker.DeletePostAsync(task, ct),
+                Models.TaskType.GenerateVideo or
+                Models.TaskType.GenerateMusic or
+                Models.TaskType.ProcessVideo or
+                Models.TaskType.ProcessAudio or
+                Models.TaskType.MixVideoWithMusic or
+                Models.TaskType.ConcatenateVideos or
+                Models.TaskType.ExtractAudioFromVideo or
+                Models.TaskType.GenerateThumbnail or
+                Models.TaskType.ConvertVideoFormat or
+                Models.TaskType.ResizeVideo => HandleMediaGenerationTask(task),
                 _ => throw new ArgumentException($"Unknown task type: {task.Type}")
             };
 
@@ -309,6 +335,17 @@ public class ProcessOrchestrator : IDisposable
         return result;
     }
 
+    private TaskResult HandleMediaGenerationTask(TaskItem task)
+    {
+        _logger.LogWarning("Media generation task type {TaskType} is not yet implemented", task.Type);
+        return new TaskResult
+        {
+            TaskId = task.Id!,
+            Success = false,
+            Error = $"Task type '{task.Type}' is not yet implemented. Media generation tasks require the Diffusers Generation Server."
+        };
+    }
+
     private async Task ProcessResultsAsync(CancellationToken ct)
     {
         _logger.LogDebug("Result processor started");
@@ -317,12 +354,19 @@ public class ProcessOrchestrator : IDisposable
         {
             await foreach (var result in _resultChannel.Reader.ReadAllAsync(ct))
             {
+                // Update task store with final status
+                if (_taskStore.TryGetValue(result.TaskId, out var trackedTask))
+                {
+                    trackedTask.Status = result.Success ? Models.TaskStatus.Completed : Models.TaskStatus.Failed;
+                    trackedTask.CompletedAt = DateTime.UtcNow;
+                }
+
                 lock (_statsLock)
                 {
                     if (result.Success)
                     {
                         _stats.TasksCompleted++;
-                        TaskCompleted?.Invoke(this, new TaskEventArgs(new TaskItem
+                        TaskCompleted?.Invoke(this, new TaskEventArgs(trackedTask ?? new TaskItem
                         {
                             Id = result.TaskId,
                             Status = Models.TaskStatus.Completed
@@ -331,7 +375,7 @@ public class ProcessOrchestrator : IDisposable
                     else
                     {
                         _stats.TasksFailed++;
-                        TaskFailed?.Invoke(this, new TaskEventArgs(new TaskItem
+                        TaskFailed?.Invoke(this, new TaskEventArgs(trackedTask ?? new TaskItem
                         {
                             Id = result.TaskId,
                             Status = Models.TaskStatus.Failed

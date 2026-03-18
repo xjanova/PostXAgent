@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Mvc;
 using AIManager.Core.WebAutomation;
 using AIManager.Core.WebAutomation.Models;
@@ -15,9 +16,8 @@ public class WebAutomationController : ControllerBase
     private readonly WorkflowStorage _storage;
     private readonly WorkflowLearningEngine _learningEngine;
 
-    // Active teaching sessions
-    private static readonly Dictionary<string, TeachingSessionState> _teachingSessions = new();
-    private static readonly object _sessionLock = new();
+    // Active teaching sessions (thread-safe)
+    private static readonly ConcurrentDictionary<string, TeachingSessionState> _teachingSessions = new();
 
     public WebAutomationController(
         ILogger<WebAutomationController> logger,
@@ -75,10 +75,7 @@ public class WebAutomationController : ControllerBase
         session.Status = TeachingStatus.Recording;
         session.BrowserSessionId = state.Browser.SessionId;
 
-        lock (_sessionLock)
-        {
-            _teachingSessions[session.Id] = state;
-        }
+        _teachingSessions[session.Id] = state;
 
         return Ok(new TeachingSessionResponse
         {
@@ -98,11 +95,7 @@ public class WebAutomationController : ControllerBase
         string sessionId,
         [FromBody] AddStepRequest request)
     {
-        TeachingSessionState? state;
-        lock (_sessionLock)
-        {
-            _teachingSessions.TryGetValue(sessionId, out state);
-        }
+        _teachingSessions.TryGetValue(sessionId, out var state);
 
         if (state == null)
         {
@@ -159,11 +152,7 @@ public class WebAutomationController : ControllerBase
     [HttpGet("teaching/{sessionId}/preview")]
     public ActionResult<TeachingPreviewResponse> PreviewTeachingSession(string sessionId)
     {
-        TeachingSessionState? state;
-        lock (_sessionLock)
-        {
-            _teachingSessions.TryGetValue(sessionId, out state);
-        }
+        _teachingSessions.TryGetValue(sessionId, out var state);
 
         if (state == null)
         {
@@ -195,11 +184,7 @@ public class WebAutomationController : ControllerBase
         string sessionId,
         [FromBody] CompleteTeachingRequest? request = null)
     {
-        TeachingSessionState? state;
-        lock (_sessionLock)
-        {
-            _teachingSessions.TryGetValue(sessionId, out state);
-        }
+        _teachingSessions.TryGetValue(sessionId, out var state);
 
         if (state == null)
         {
@@ -235,10 +220,7 @@ public class WebAutomationController : ControllerBase
 
         // Cleanup
         await state.Browser.DisposeAsync();
-        lock (_sessionLock)
-        {
-            _teachingSessions.Remove(sessionId);
-        }
+        _teachingSessions.TryRemove(sessionId, out _);
 
         return Ok(new WorkflowSavedResponse
         {
@@ -256,19 +238,12 @@ public class WebAutomationController : ControllerBase
     [HttpPost("teaching/{sessionId}/cancel")]
     public async Task<ActionResult> CancelTeachingSession(string sessionId)
     {
-        TeachingSessionState? state;
-        lock (_sessionLock)
-        {
-            _teachingSessions.TryGetValue(sessionId, out state);
-        }
+        _teachingSessions.TryGetValue(sessionId, out var state);
 
         if (state != null)
         {
             await state.Browser.DisposeAsync();
-            lock (_sessionLock)
-            {
-                _teachingSessions.Remove(sessionId);
-            }
+            _teachingSessions.TryRemove(sessionId, out _);
         }
 
         return Ok(new { Message = "Session cancelled" });

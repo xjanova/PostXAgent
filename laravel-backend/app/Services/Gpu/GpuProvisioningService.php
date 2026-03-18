@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Gpu;
 
 use App\Models\GpuAccountPool;
+use App\Models\GpuPoolMember;
 use App\Models\GpuProviderAccount;
 use App\Models\GpuInstance;
 use App\Models\GpuSetupTemplate;
@@ -177,9 +178,10 @@ class GpuProvisioningService
         $allOffers = [];
         $errors = [];
 
+        /** @var GpuPoolMember $member */
         foreach ($pool->members()->with('providerAccount')->get() as $member) {
             $account = $member->providerAccount;
-            if (!$account || !$account->is_active) {
+            if (!$account->is_active) {
                 continue;
             }
 
@@ -396,9 +398,13 @@ class GpuProvisioningService
      */
     public function getActiveInstances(User $user): array
     {
-        return GpuInstance::where('user_id', $user->id)
-            ->active()
-            ->with('providerAccount')
+        return GpuInstance::with('providerAccount')
+            ->where('user_id', $user->id)
+            ->whereIn('status', [
+                GpuInstance::STATUS_PENDING,
+                GpuInstance::STATUS_STARTING,
+                GpuInstance::STATUS_RUNNING,
+            ])
             ->get()
             ->toArray();
     }
@@ -410,15 +416,16 @@ class GpuProvisioningService
     {
         $results = [];
 
-        $instances = GpuInstance::where('user_id', $user->id)
+        $instances = GpuInstance::with('providerAccount')
+            ->where('user_id', $user->id)
             ->whereIn('status', [
                 GpuInstance::STATUS_PENDING,
                 GpuInstance::STATUS_STARTING,
                 GpuInstance::STATUS_RUNNING,
             ])
-            ->with('providerAccount')
             ->get();
 
+        /** @var GpuInstance $instance */
         foreach ($instances as $instance) {
             $results[$instance->id] = $this->syncInstanceStatus($instance);
         }
@@ -434,9 +441,14 @@ class GpuProvisioningService
         $results = [];
 
         $instances = GpuInstance::where('gpu_account_pool_id', $pool->id)
-            ->active()
+            ->whereIn('status', [
+                GpuInstance::STATUS_PENDING,
+                GpuInstance::STATUS_STARTING,
+                GpuInstance::STATUS_RUNNING,
+            ])
             ->get();
 
+        /** @var GpuInstance $instance */
         foreach ($instances as $instance) {
             $results[$instance->id] = $this->terminateInstance($instance);
         }
@@ -519,7 +531,7 @@ class GpuProvisioningService
         }
 
         // Environment variables
-        $envVars = $template->environment_vars ?? [];
+        $envVars = $template ? ($template->environment_vars ?? []) : [];
         if (!empty($requirements['environment_vars'])) {
             $envVars = array_merge($envVars, $requirements['environment_vars']);
         }

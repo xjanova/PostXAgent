@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read GpuProviderAccount $providerAccount
+ * @property-read GpuAccountPool|null $accountPool
  *
  * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
@@ -121,7 +122,10 @@ class GpuPoolMember extends Model
             return false;
         }
 
-        return $this->providerAccount?->isAvailable() ?? false;
+        /** @var GpuProviderAccount|null $account */
+        $account = $this->providerAccount;
+
+        return $account !== null ? $account->isAvailable() : false;
     }
 
     public function recordSuccess(): void
