@@ -258,6 +258,9 @@ builder.Services.AddSingleton<DynamicCodeExecutor>(sp =>
 // Self-Healing Worker Factory
 builder.Services.AddSingleton<SelfHealingWorker>();
 
+// Local File Server (serves local media files as temporary URLs for platforms)
+builder.Services.AddSingleton<LocalFileServerService>();
+
 // GPU Pool Service (Distributed GPU Worker Management)
 builder.Services.AddSingleton<GpuPoolService>();
 
@@ -341,6 +344,10 @@ app.MapControllers();
 // SignalR Hubs
 app.MapHub<AIManagerHub>("/hub/aimanager");
 app.MapHub<GpuPoolHub>("/hub/gpupool");
+
+// Start Local File Server (serves local media as temporary URLs)
+var fileServer = app.Services.GetRequiredService<LocalFileServerService>();
+_ = fileServer.StartAsync();
 
 // Start orchestrator on startup
 var orchestrator = app.Services.GetRequiredService<ProcessOrchestrator>();

@@ -1,4 +1,5 @@
 using AIManager.Core.Models;
+using AIManager.Core.Services.MusicGeneration;
 using AIManager.Core.WebAutomation;
 using AIManager.Core.WebAutomation.Models;
 using Microsoft.Extensions.Logging;
@@ -15,12 +16,17 @@ public class SunoAutomationService
     private readonly BrowserController _browserController;
     private readonly WorkflowExecutor _workflowExecutor;
     private readonly WorkflowStorage _workflowStorage;
+    private readonly SunoSessionManager? _sessionManager;
     private readonly string _downloadPath;
+    private readonly string _userDataDir;
 
     // Suno URLs
     private const string SUNO_HOME = "https://suno.com";
     private const string SUNO_CREATE = "https://suno.com/create";
     private const string SUNO_LIBRARY = "https://suno.com/library";
+
+    // Manual login timeout
+    private static readonly TimeSpan ManualLoginTimeout = TimeSpan.FromMinutes(5);
 
     // Music genres/styles ที่รองรับ
     public static readonly IReadOnlyList<string> SupportedGenres = new List<string>
@@ -45,15 +51,20 @@ public class SunoAutomationService
         BrowserController browserController,
         WorkflowExecutor workflowExecutor,
         WorkflowStorage workflowStorage,
+        SunoSessionManager? sessionManager = null,
         string? downloadPath = null)
     {
         _logger = logger;
         _browserController = browserController;
         _workflowExecutor = workflowExecutor;
         _workflowStorage = workflowStorage;
+        _sessionManager = sessionManager;
         _downloadPath = downloadPath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "PostXAgent", "Downloads", "Suno");
+        _userDataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "PostXAgent", "browser_data", "suno");
 
         Directory.CreateDirectory(_downloadPath);
     }
@@ -321,6 +332,56 @@ public class SunoAutomationService
     }
 
     /// <summary>
+    /// เปิด browser ให้ user login ด้วยตัวเอง (headed mode)
+    /// รอสูงสุด 5 นาทีให้ login เสร็จ
+    /// </summary>
+    public async Task<bool> LoginManuallyAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            _logger.LogInformation("Starting manual login flow for Suno...");
+
+            // Launch browser with persistent context (non-headless for manual login)
+            if (!_browserController.IsLaunched)
+            {
+                await _browserController.InitializeAsync(ct);
+                await _browserController.LaunchPersistentAsync(_userDataDir, ct);
+            }
+
+            // Navigate to Suno home (which will redirect to login if not authenticated)
+            await _browserController.NavigateAsync(SUNO_HOME, ct);
+            _logger.LogInformation(
+                "Please login to Suno in the browser window. Waiting up to {Minutes} minutes...",
+                ManualLoginTimeout.TotalMinutes);
+
+            // Poll for login success
+            var endTime = DateTime.UtcNow.Add(ManualLoginTimeout);
+            while (DateTime.UtcNow < endTime && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(3000, ct);
+
+                if (await CheckIfLoggedInAsync(ct))
+                {
+                    _logger.LogInformation("Suno login detected successfully!");
+
+                    // Try to extract session token for API usage
+                    await TryExtractAndSaveSessionTokenAsync(ct);
+
+                    return true;
+                }
+            }
+
+            _logger.LogWarning("Manual login timed out after {Minutes} minutes", ManualLoginTimeout.TotalMinutes);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during manual login flow");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Extend เพลงที่มีอยู่
     /// </summary>
     public async Task<SunoGenerationResult> ExtendSongAsync(
@@ -389,12 +450,13 @@ public class SunoAutomationService
     {
         try
         {
-            if (_browserController.CurrentUrl == null)
+            if (_browserController.IsLaunched)
             {
-                await _browserController.InitializeAsync(ct);
-                await _browserController.LaunchAsync(ct);
+                return true;
             }
-            return true;
+
+            await _browserController.InitializeAsync(ct);
+            return await _browserController.LaunchPersistentAsync(_userDataDir, ct);
         }
         catch (Exception ex)
         {
@@ -407,15 +469,57 @@ public class SunoAutomationService
     {
         try
         {
+            // Navigate to home to check login status via persistent cookies
             await _browserController.NavigateAsync(SUNO_HOME, ct);
             await Task.Delay(2000, ct);
 
+            // Check if already logged in (persistent context preserves cookies)
+            if (await CheckIfLoggedInAsync(ct))
+            {
+                _logger.LogDebug("Already logged in to Suno (persistent session)");
+                return true;
+            }
+
+            // Not logged in - wait for manual login
+            _logger.LogInformation(
+                "Not logged in to Suno. Please login in the browser window. Waiting up to {Minutes} minutes...",
+                ManualLoginTimeout.TotalMinutes);
+
+            var endTime = DateTime.UtcNow.Add(ManualLoginTimeout);
+            while (DateTime.UtcNow < endTime && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(3000, ct);
+
+                if (await CheckIfLoggedInAsync(ct))
+                {
+                    _logger.LogInformation("Suno login detected successfully!");
+
+                    // Try to extract session token for API usage
+                    await TryExtractAndSaveSessionTokenAsync(ct);
+
+                    return true;
+                }
+            }
+
+            _logger.LogWarning("Login timed out. Please use LoginManuallyAsync() to login.");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to ensure logged in");
+            return false;
+        }
+    }
+
+    private async Task<bool> CheckIfLoggedInAsync(CancellationToken ct)
+    {
+        try
+        {
             var script = @"
                 (function() {
-                    // ตรวจสอบว่า login แล้วหรือยัง
-                    var createBtn = document.querySelector('a[href*=""create""], button:contains(""Create"")');
-                    var profileIcon = document.querySelector('.user-avatar, .profile-icon, [data-user]');
-                    var signInBtn = document.querySelector('button:contains(""Sign""), a[href*=""login""]');
+                    var createBtn = document.querySelector('a[href*=""create""], button:has-text(""Create"")');
+                    var profileIcon = document.querySelector('.user-avatar, .profile-icon, [data-user], img[alt*=""avatar""], img[alt*=""profile""]');
+                    var signInBtn = document.querySelector('button:has-text(""Sign""), a[href*=""login""], a[href*=""sign-in""]');
 
                     if (profileIcon || (createBtn && !signInBtn)) return 'logged_in';
                     if (signInBtn) return 'logged_out';
@@ -424,29 +528,40 @@ public class SunoAutomationService
             ";
 
             var result = await _browserController.ExecuteScriptAsync(script, ct);
-
-            if (result == "logged_in")
-            {
-                return true;
-            }
-
-            _logger.LogWarning("Not logged in to Suno. Attempting login workflow...");
-
-            // ลองใช้ learned workflow
-            var loginWorkflow = await _workflowStorage.LoadWorkflowAsync("suno_login", ct);
-            if (loginWorkflow != null)
-            {
-                var executeResult = await _workflowExecutor.ExecuteAsync(
-                    loginWorkflow, new WebPostContent(), null, ct);
-                return executeResult.Success;
-            }
-
+            return result?.Contains("logged_in") == true;
+        }
+        catch
+        {
             return false;
+        }
+    }
+
+    private async Task TryExtractAndSaveSessionTokenAsync(CancellationToken ct)
+    {
+        if (_sessionManager == null) return;
+
+        try
+        {
+            // Extract cookies from browser to find session token
+            var cookies = await _browserController.GetCookiesAsync(ct);
+            var cookieString = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
+
+            if (!string.IsNullOrEmpty(cookieString))
+            {
+                var token = await _sessionManager.ExtractTokenFromCookiesAsync(cookieString, ct);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    _logger.LogInformation("Suno session token extracted and saved successfully");
+                }
+                else
+                {
+                    _logger.LogDebug("Could not extract Suno session token from cookies (browser session still valid)");
+                }
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to ensure logged in");
-            return false;
+            _logger.LogWarning(ex, "Failed to extract Suno session token (browser login still valid)");
         }
     }
 

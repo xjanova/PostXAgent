@@ -16,12 +16,16 @@ public class FreepikAutomationService
     private readonly WorkflowExecutor _workflowExecutor;
     private readonly WorkflowStorage _workflowStorage;
     private readonly string _downloadPath;
+    private readonly string _userDataDir;
 
     // Freepik URLs
     private const string FREEPIK_HOME = "https://www.freepik.com";
     private const string FREEPIK_LOGIN = "https://www.freepik.com/log-in";
     private const string FREEPIK_IMAGE_GENERATOR = "https://www.freepik.com/pikaso/ai-image-generator";
     private const string FREEPIK_VIDEO_GENERATOR = "https://www.freepik.com/pikaso/ai-video";
+
+    // Manual login timeout
+    private static readonly TimeSpan ManualLoginTimeout = TimeSpan.FromMinutes(5);
 
     // รายชื่อโมเดลที่ Unlimited (ฟรี ไม่เสีย credits)
     private static readonly HashSet<string> UnlimitedModels = new(StringComparer.OrdinalIgnoreCase)
@@ -57,6 +61,9 @@ public class FreepikAutomationService
         _downloadPath = downloadPath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "PostXAgent", "Downloads", "Freepik");
+        _userDataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "PostXAgent", "browser_data", "freepik");
 
         Directory.CreateDirectory(_downloadPath);
     }
@@ -292,6 +299,52 @@ public class FreepikAutomationService
     /// </summary>
     public IReadOnlyCollection<string> GetUnlimitedModels() => UnlimitedModels;
 
+    /// <summary>
+    /// เปิด browser ให้ user login ด้วยตัวเอง (headed mode)
+    /// รอสูงสุด 5 นาทีให้ login เสร็จ
+    /// </summary>
+    public async Task<bool> LoginManuallyAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            _logger.LogInformation("Starting manual login flow for Freepik...");
+
+            // Launch browser with persistent context (non-headless for manual login)
+            if (!_browserController.IsLaunched)
+            {
+                await _browserController.InitializeAsync(ct);
+                await _browserController.LaunchPersistentAsync(_userDataDir, ct);
+            }
+
+            // Navigate to login page
+            await _browserController.NavigateAsync(FREEPIK_LOGIN, ct);
+            _logger.LogInformation(
+                "Please login to Freepik in the browser window. Waiting up to {Minutes} minutes...",
+                ManualLoginTimeout.TotalMinutes);
+
+            // Poll for login success
+            var endTime = DateTime.UtcNow.Add(ManualLoginTimeout);
+            while (DateTime.UtcNow < endTime && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(3000, ct);
+
+                if (await CheckIfLoggedInAsync(ct))
+                {
+                    _logger.LogInformation("Freepik login detected successfully!");
+                    return true;
+                }
+            }
+
+            _logger.LogWarning("Manual login timed out after {Minutes} minutes", ManualLoginTimeout.TotalMinutes);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during manual login flow");
+            return false;
+        }
+    }
+
     #endregion
 
     #region Private Methods - Browser Actions
@@ -300,12 +353,13 @@ public class FreepikAutomationService
     {
         try
         {
-            if (_browserController.CurrentUrl == null)
+            if (_browserController.IsLaunched)
             {
-                await _browserController.InitializeAsync(ct);
-                await _browserController.LaunchAsync(ct);
+                return true;
             }
-            return true;
+
+            await _browserController.InitializeAsync(ct);
+            return await _browserController.LaunchPersistentAsync(_userDataDir, ct);
         }
         catch (Exception ex)
         {
@@ -318,39 +372,37 @@ public class FreepikAutomationService
     {
         try
         {
-            // ตรวจสอบว่า login แล้วหรือยังโดยดู URL หรือ element
-            var currentUrl = _browserController.CurrentUrl ?? "";
-
-            // ถ้าอยู่หน้า login ให้ทำการ login
-            if (currentUrl.Contains("log-in") || currentUrl.Contains("login"))
-            {
-                // TODO: ใช้ learned workflow สำหรับ login
-                _logger.LogWarning("Not logged in. Please login manually or use learned workflow.");
-                return false;
-            }
-
-            // ไปที่หน้า home เพื่อตรวจสอบ
+            // Navigate to home to check login status via persistent cookies
             await _browserController.NavigateAsync(FREEPIK_HOME, ct);
             await Task.Delay(2000, ct);
 
-            // ตรวจสอบว่ามี user avatar หรือ profile icon
-            var isLoggedIn = await CheckIfLoggedInAsync(ct);
-
-            if (!isLoggedIn)
+            // Check if already logged in (persistent context preserves cookies)
+            if (await CheckIfLoggedInAsync(ct))
             {
-                _logger.LogInformation("Not logged in, attempting login workflow...");
+                _logger.LogDebug("Already logged in to Freepik (persistent session)");
+                return true;
+            }
 
-                // ลองใช้ learned workflow
-                var loginWorkflow = await _workflowStorage.LoadWorkflowAsync("freepik_login", ct);
-                if (loginWorkflow != null)
+            // Not logged in - navigate to login page and wait for manual login
+            _logger.LogInformation(
+                "Not logged in to Freepik. Navigating to login page. Please login in the browser window...");
+
+            await _browserController.NavigateAsync(FREEPIK_LOGIN, ct);
+
+            var endTime = DateTime.UtcNow.Add(ManualLoginTimeout);
+            while (DateTime.UtcNow < endTime && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(3000, ct);
+
+                if (await CheckIfLoggedInAsync(ct))
                 {
-                    var executeResult = await _workflowExecutor.ExecuteAsync(
-                        loginWorkflow, new WebPostContent(), null, ct);
-                    return executeResult.Success;
+                    _logger.LogInformation("Freepik login detected successfully!");
+                    return true;
                 }
             }
 
-            return isLoggedIn;
+            _logger.LogWarning("Login timed out. Please use LoginManuallyAsync() to login.");
+            return false;
         }
         catch (Exception ex)
         {
@@ -363,11 +415,10 @@ public class FreepikAutomationService
     {
         try
         {
-            // ตรวจสอบ element ที่บ่งบอกว่า login แล้ว
+            // Check for avatar/profile elements that indicate logged-in state
             var script = @"
                 (function() {
-                    // ลองหา avatar, profile icon, หรือ logout button
-                    var avatar = document.querySelector('[data-cy=""user-avatar""], .user-avatar, .profile-icon');
+                    var avatar = document.querySelector('[data-cy=""user-avatar""], .user-avatar, .profile-icon, img[alt*=""avatar""], img[alt*=""profile""]');
                     var logoutBtn = document.querySelector('[data-cy=""logout""], a[href*=""logout""]');
                     var loginBtn = document.querySelector('[data-cy=""login""], a[href*=""log-in""]');
 

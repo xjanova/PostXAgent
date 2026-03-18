@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using AIManager.Core.Models;
+using AIManager.Core.Services;
 using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Workers;
@@ -15,6 +16,12 @@ namespace AIManager.Core.Workers;
 public class InstagramWorker : BasePlatformWorker
 {
     private const string GraphApiUrl = "https://graph.facebook.com/v19.0";
+
+    /// <summary>
+    /// Optional file server for serving local files as temporary URLs.
+    /// Set this before calling PostContentAsync when media paths are local files.
+    /// </summary>
+    public LocalFileServerService? FileServer { get; set; }
 
     public override SocialPlatform Platform => SocialPlatform.Instagram;
 
@@ -43,15 +50,17 @@ public class InstagramWorker : BasePlatformWorker
                 ["access_token"] = accessToken
             };
 
-            // Add image or video URL
+            // Add image or video URL (convert local paths to temporary URLs)
             if (content.Videos?.Count > 0)
             {
                 containerData["media_type"] = "REELS";
-                containerData["video_url"] = content.Videos.First();
+                var videoPath = content.Videos.First();
+                containerData["video_url"] = ResolveMediaUrl(videoPath);
             }
             else if (content.Images?.Count > 0)
             {
-                containerData["image_url"] = content.Images.First();
+                var imagePath = content.Images.First();
+                containerData["image_url"] = ResolveMediaUrl(imagePath);
             }
 
             var containerResponse = await _httpClient.PostAsync(
@@ -113,6 +122,30 @@ public class InstagramWorker : BasePlatformWorker
             _logger.LogError(ex, "Instagram post failed");
             return new TaskResult { Success = false, Error = ex.Message, ProcessingTimeMs = sw.ElapsedMilliseconds };
         }
+    }
+
+    /// <summary>
+    /// Resolve a media path to a URL. If the path is already a URL, return as-is.
+    /// If it's a local file path, register it with the file server to get a temporary URL.
+    /// </summary>
+    private string ResolveMediaUrl(string pathOrUrl)
+    {
+        // Already a URL
+        if (pathOrUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            pathOrUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return pathOrUrl;
+        }
+
+        // Local file path - use file server
+        if (FileServer == null)
+        {
+            _logger.LogWarning("Local file path provided but no FileServer configured. Using path as-is: {Path}", pathOrUrl);
+            return pathOrUrl;
+        }
+
+        _logger.LogInformation("Converting local file to temporary URL: {Path}", pathOrUrl);
+        return FileServer.RegisterFile(pathOrUrl, TimeSpan.FromHours(2));
     }
 
     public override async Task<TaskResult> AnalyzeMetricsAsync(TaskItem task, CancellationToken ct)
@@ -177,6 +210,13 @@ public class InstagramWorker : BasePlatformWorker
 public class TikTokWorker : BasePlatformWorker
 {
     private const string TikTokApiUrl = "https://open.tiktokapis.com/v2";
+    private const int ChunkSize = 10 * 1024 * 1024; // 10 MB chunks
+
+    /// <summary>
+    /// Optional file server for serving local files as temporary URLs.
+    /// Set this before calling PostContentAsync when video paths are local files.
+    /// </summary>
+    public LocalFileServerService? FileServer { get; set; }
 
     public override SocialPlatform Platform => SocialPlatform.TikTok;
 
@@ -195,40 +235,30 @@ public class TikTokWorker : BasePlatformWorker
             }
 
             // TikTok requires video content - use Content Posting API
-            var videoUrl = content.Videos?.FirstOrDefault();
-            if (string.IsNullOrEmpty(videoUrl))
+            var videoPath = content.Videos?.FirstOrDefault();
+            if (string.IsNullOrEmpty(videoPath))
             {
                 return new TaskResult { Success = false, Error = "TikTok requires video content" };
             }
 
-            // Step 1: Initialize upload
-            var initRequest = new
-            {
-                post_info = new
-                {
-                    title = content.Text?.Substring(0, Math.Min(content.Text.Length, 150)) ?? "",
-                    privacy_level = "PUBLIC_TO_EVERYONE",
-                    disable_duet = false,
-                    disable_comment = false,
-                    disable_stitch = false
-                },
-                source_info = new
-                {
-                    source = "PULL_FROM_URL",
-                    video_url = videoUrl
-                }
-            };
+            var isLocalFile = !videoPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                              !videoPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {credentials.AccessToken}");
 
-            var response = await _httpClient.PostAsJsonAsync(
-                $"{TikTokApiUrl}/post/publish/video/init/",
-                initRequest,
-                ct
-            );
+            TikTokPostResponse? result;
 
-            var result = await response.Content.ReadFromJsonAsync<TikTokPostResponse>(ct);
+            if (isLocalFile && File.Exists(videoPath))
+            {
+                // Local file: use FILE_UPLOAD source type with chunked upload
+                result = await PostWithFileUploadAsync(videoPath, content, credentials, ct);
+            }
+            else
+            {
+                // Remote URL: use PULL_FROM_URL
+                result = await PostWithPullFromUrlAsync(videoPath, content, credentials, ct);
+            }
 
             if (result?.Data?.PublishId != null)
             {
@@ -256,6 +286,123 @@ public class TikTokWorker : BasePlatformWorker
             _logger.LogError(ex, "TikTok post failed");
             return new TaskResult { Success = false, Error = ex.Message, ProcessingTimeMs = sw.ElapsedMilliseconds };
         }
+    }
+
+    /// <summary>
+    /// Post video using PULL_FROM_URL source type (for remote URLs).
+    /// </summary>
+    private async Task<TikTokPostResponse?> PostWithPullFromUrlAsync(
+        string videoUrl, PostContent content, PlatformCredentials credentials, CancellationToken ct)
+    {
+        var initRequest = new
+        {
+            post_info = new
+            {
+                title = content.Text?.Substring(0, Math.Min(content.Text.Length, 150)) ?? "",
+                privacy_level = "PUBLIC_TO_EVERYONE",
+                disable_duet = false,
+                disable_comment = false,
+                disable_stitch = false
+            },
+            source_info = new
+            {
+                source = "PULL_FROM_URL",
+                video_url = videoUrl
+            }
+        };
+
+        var response = await _httpClient.PostAsJsonAsync(
+            $"{TikTokApiUrl}/post/publish/video/init/",
+            initRequest,
+            ct
+        );
+
+        return await response.Content.ReadFromJsonAsync<TikTokPostResponse>(ct);
+    }
+
+    /// <summary>
+    /// Post video using FILE_UPLOAD source type with chunked upload (for local files).
+    /// Flow: init upload -> upload chunks -> publish
+    /// </summary>
+    private async Task<TikTokPostResponse?> PostWithFileUploadAsync(
+        string localPath, PostContent content, PlatformCredentials credentials, CancellationToken ct)
+    {
+        var fileInfo = new FileInfo(localPath);
+        var fileSize = fileInfo.Length;
+        var totalChunks = (int)Math.Ceiling((double)fileSize / ChunkSize);
+
+        _logger.LogInformation("TikTok FILE_UPLOAD: {Path} ({Size} bytes, {Chunks} chunks)",
+            localPath, fileSize, totalChunks);
+
+        // Step 1: Initialize file upload
+        var initRequest = new
+        {
+            post_info = new
+            {
+                title = content.Text?.Substring(0, Math.Min(content.Text.Length, 150)) ?? "",
+                privacy_level = "PUBLIC_TO_EVERYONE",
+                disable_duet = false,
+                disable_comment = false,
+                disable_stitch = false
+            },
+            source_info = new
+            {
+                source = "FILE_UPLOAD",
+                video_size = fileSize,
+                chunk_size = ChunkSize,
+                total_chunk_count = totalChunks
+            }
+        };
+
+        var initResponse = await _httpClient.PostAsJsonAsync(
+            $"{TikTokApiUrl}/post/publish/video/init/",
+            initRequest,
+            ct
+        );
+
+        var initResult = await initResponse.Content.ReadFromJsonAsync<TikTokUploadInitResponse>(ct);
+
+        if (initResult?.Data?.UploadUrl == null)
+        {
+            _logger.LogError("TikTok FILE_UPLOAD init failed: {Error}", initResult?.Error?.Message);
+            return new TikTokPostResponse { Error = initResult?.Error ?? new TikTokError { Message = "Upload init failed" } };
+        }
+
+        // Step 2: Upload chunks
+        var uploadUrl = initResult.Data.UploadUrl;
+        using var fileStream = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var buffer = new byte[ChunkSize];
+
+        for (var chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
+        {
+            var bytesRead = await fileStream.ReadAsync(buffer, ct);
+            var chunkStart = (long)chunkIndex * ChunkSize;
+            var chunkEnd = chunkStart + bytesRead - 1;
+
+            using var chunkContent = new ByteArrayContent(buffer, 0, bytesRead);
+            chunkContent.Headers.Add("Content-Range", $"bytes {chunkStart}-{chunkEnd}/{fileSize}");
+            chunkContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("video/mp4");
+
+            var uploadResponse = await _httpClient.PutAsync(uploadUrl, chunkContent, ct);
+
+            if (!uploadResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await uploadResponse.Content.ReadAsStringAsync(ct);
+                _logger.LogError("TikTok chunk upload failed (chunk {Index}/{Total}): {Error}",
+                    chunkIndex + 1, totalChunks, errorBody);
+                return new TikTokPostResponse { Error = new TikTokError { Message = $"Chunk upload failed: {errorBody}" } };
+            }
+
+            _logger.LogDebug("TikTok chunk {Index}/{Total} uploaded", chunkIndex + 1, totalChunks);
+        }
+
+        // Step 3: Publish (the init response already contains publish_id for FILE_UPLOAD)
+        _logger.LogInformation("TikTok FILE_UPLOAD completed, publish_id: {PublishId}", initResult.Data.PublishId);
+
+        return new TikTokPostResponse
+        {
+            Data = new TikTokPostData { PublishId = initResult.Data.PublishId }
+        };
     }
 
     public override async Task<TaskResult> AnalyzeMetricsAsync(TaskItem task, CancellationToken ct)
@@ -590,6 +737,8 @@ public class LineWorker : BasePlatformWorker
 public class YouTubeWorker : BasePlatformWorker
 {
     private const string YouTubeApiUrl = "https://www.googleapis.com/youtube/v3";
+    private const string YouTubeUploadUrl = "https://www.googleapis.com/upload/youtube/v3/videos";
+    private const int UploadChunkSize = 5 * 1024 * 1024; // 5MB chunks for reliability
 
     public override SocialPlatform Platform => SocialPlatform.YouTube;
 
@@ -607,46 +756,45 @@ public class YouTubeWorker : BasePlatformWorker
                 return new TaskResult { Success = false, Error = "Missing credentials or content" };
             }
 
-            // For community posts (text-only)
-            if (content.Videos?.Count == 0 && content.Images?.Count == 0)
+            // For community posts (text-only or image-only, no video)
+            if ((content.Videos == null || content.Videos.Count == 0) &&
+                (content.Images == null || content.Images.Count == 0))
             {
-                // YouTube Community Post API
-                var postData = new
-                {
-                    snippet = new
-                    {
-                        channelId = credentials.ChannelId ?? credentials.PlatformUserId,
-                        topLevelComment = new
-                        {
-                            snippet = new { textOriginal = content.Text + "\n\n" + FormatHashtags(content.Hashtags) }
-                        }
-                    }
-                };
-
-                _httpClient.DefaultRequestHeaders.Clear();
-                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {credentials.AccessToken}");
-
-                // Note: Community posts require YouTube Partner Program
+                // Community posts require YouTube Partner Program - not available via standard API
                 return new TaskResult
                 {
-                    Success = true,
-                    Data = new ResultData
-                    {
-                        PostId = $"community_{Guid.NewGuid():N}",
-                        PlatformUrl = $"https://youtube.com/channel/{credentials.ChannelId}/community"
-                    },
+                    Success = false,
+                    Error = "YouTube community posts require the YouTube Partner Program and are not available via the Data API. Please upload a video instead.",
                     ProcessingTimeMs = sw.ElapsedMilliseconds
                 };
             }
 
-            // For video uploads - requires resumable upload
+            // Get the video file path/URL
+            var videoSource = content.Videos?.FirstOrDefault() ?? content.Images?.FirstOrDefault();
+            if (string.IsNullOrEmpty(videoSource))
+            {
+                return new TaskResult
+                {
+                    Success = false,
+                    Error = "No video file path or URL provided",
+                    ProcessingTimeMs = sw.ElapsedMilliseconds
+                };
+            }
+
+            // Build video metadata (title max 100 chars for YouTube)
+            var title = content.Text?.Length > 100
+                ? content.Text.Substring(0, 97) + "..."
+                : content.Text ?? "Video";
+            var description = content.Text + "\n\n" + FormatHashtags(content.Hashtags);
+            var tags = content.Hashtags?.ToArray() ?? Array.Empty<string>();
+
             var videoMetadata = new
             {
                 snippet = new
                 {
-                    title = content.Text?.Substring(0, Math.Min(content.Text?.Length ?? 0, 100)) ?? "Video",
-                    description = content.Text + "\n\n" + FormatHashtags(content.Hashtags),
-                    tags = content.Hashtags?.ToArray() ?? Array.Empty<string>(),
+                    title,
+                    description,
+                    tags,
                     categoryId = "22" // People & Blogs
                 },
                 status = new
@@ -656,34 +804,189 @@ public class YouTubeWorker : BasePlatformWorker
                 }
             };
 
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {credentials.AccessToken}");
+            var metadataJson = JsonSerializer.Serialize(videoMetadata);
 
-            var response = await _httpClient.PostAsJsonAsync(
-                $"{YouTubeApiUrl}/videos?part=snippet,status&uploadType=resumable",
-                videoMetadata,
-                ct
-            );
+            // Step 1: Initiate resumable upload session
+            _logger.LogInformation("Initiating YouTube resumable upload for: {VideoSource}", videoSource);
 
-            // Note: Full video upload requires additional steps with resumable upload
-            var videoId = $"yt_{Guid.NewGuid():N}";
+            using var initRequest = new HttpRequestMessage(HttpMethod.Post,
+                $"{YouTubeUploadUrl}?uploadType=resumable&part=snippet,status");
+            initRequest.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credentials.AccessToken);
+            initRequest.Content = new StringContent(metadataJson, Encoding.UTF8, "application/json");
 
-            return new TaskResult
+            // Resolve video source to a stream (download URL or open local file)
+            Stream videoStream;
+            string? tempFilePath = null;
+
+            if (Uri.TryCreate(videoSource, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == "http" || uri.Scheme == "https"))
             {
-                Success = true,
-                Data = new ResultData
+                _logger.LogInformation("Downloading video from URL before upload: {Url}", videoSource);
+                tempFilePath = Path.Combine(Path.GetTempPath(), $"yt_upload_{Guid.NewGuid():N}.mp4");
+                using var downloadResponse = await _httpClient.GetAsync(videoSource, HttpCompletionOption.ResponseHeadersRead, ct);
+                downloadResponse.EnsureSuccessStatusCode();
+                await using (var fileStream = File.Create(tempFilePath))
                 {
-                    PostId = videoId,
-                    PlatformUrl = $"https://youtube.com/watch?v={videoId}"
-                },
-                ProcessingTimeMs = sw.ElapsedMilliseconds
-            };
+                    await downloadResponse.Content.CopyToAsync(fileStream, ct);
+                }
+                videoStream = File.OpenRead(tempFilePath);
+            }
+            else if (File.Exists(videoSource))
+            {
+                videoStream = File.OpenRead(videoSource);
+            }
+            else
+            {
+                return new TaskResult
+                {
+                    Success = false,
+                    Error = $"Video file not found: {videoSource}",
+                    ProcessingTimeMs = sw.ElapsedMilliseconds
+                };
+            }
+
+            try
+            {
+                var fileSize = videoStream.Length;
+                initRequest.Headers.Add("X-Upload-Content-Length", fileSize.ToString());
+                initRequest.Headers.Add("X-Upload-Content-Type", "video/*");
+
+                var initResponse = await _httpClient.SendAsync(initRequest, ct);
+                if (!initResponse.IsSuccessStatusCode)
+                {
+                    var errorBody = await initResponse.Content.ReadAsStringAsync(ct);
+                    _logger.LogError("YouTube upload init failed: {Status} {Error}",
+                        (int)initResponse.StatusCode, errorBody);
+                    return new TaskResult
+                    {
+                        Success = false,
+                        Error = $"YouTube upload init failed ({(int)initResponse.StatusCode}): {errorBody}",
+                        ProcessingTimeMs = sw.ElapsedMilliseconds
+                    };
+                }
+
+                // Get the resumable upload URI from Location header
+                var uploadUri = initResponse.Headers.Location?.ToString();
+                if (string.IsNullOrEmpty(uploadUri))
+                {
+                    return new TaskResult
+                    {
+                        Success = false,
+                        Error = "YouTube did not return a resumable upload URI",
+                        ProcessingTimeMs = sw.ElapsedMilliseconds
+                    };
+                }
+
+                _logger.LogInformation("Got resumable upload URI, uploading {Size} bytes in {ChunkSize}B chunks",
+                    fileSize, UploadChunkSize);
+
+                // Step 2: Upload video in chunks with 308 Resume Incomplete handling
+                var videoId = await UploadVideoChunkedAsync(
+                    uploadUri, videoStream, fileSize, credentials.AccessToken, ct);
+
+                if (string.IsNullOrEmpty(videoId))
+                {
+                    return new TaskResult
+                    {
+                        Success = false,
+                        Error = "Failed to complete video upload - no video ID returned",
+                        ProcessingTimeMs = sw.ElapsedMilliseconds
+                    };
+                }
+
+                _logger.LogInformation("YouTube video uploaded successfully: {VideoId}", videoId);
+
+                return new TaskResult
+                {
+                    Success = true,
+                    Data = new ResultData
+                    {
+                        PostId = videoId,
+                        PlatformUrl = $"https://youtube.com/watch?v={videoId}"
+                    },
+                    ProcessingTimeMs = sw.ElapsedMilliseconds
+                };
+            }
+            finally
+            {
+                await videoStream.DisposeAsync();
+                if (tempFilePath != null && File.Exists(tempFilePath))
+                {
+                    try { File.Delete(tempFilePath); }
+                    catch { /* best effort temp file cleanup */ }
+                }
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "YouTube post failed");
             return new TaskResult { Success = false, Error = ex.Message, ProcessingTimeMs = sw.ElapsedMilliseconds };
         }
+    }
+
+    /// <summary>
+    /// Upload video to YouTube using chunked resumable upload protocol.
+    /// Handles HTTP 308 Resume Incomplete responses for progress tracking.
+    /// </summary>
+    private async Task<string?> UploadVideoChunkedAsync(
+        string uploadUri, Stream videoStream, long totalSize, string accessToken, CancellationToken ct)
+    {
+        var buffer = new byte[UploadChunkSize];
+        long bytesSent = 0;
+
+        while (bytesSent < totalSize)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var bytesRemaining = totalSize - bytesSent;
+            var currentChunkSize = (int)Math.Min(UploadChunkSize, bytesRemaining);
+            var bytesRead = await videoStream.ReadAsync(buffer.AsMemory(0, currentChunkSize), ct);
+
+            if (bytesRead == 0) break;
+
+            using var chunkRequest = new HttpRequestMessage(HttpMethod.Put, uploadUri);
+            chunkRequest.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+            var chunkContent = new ByteArrayContent(buffer, 0, bytesRead);
+            chunkContent.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue("video/*");
+            chunkContent.Headers.ContentLength = bytesRead;
+            chunkContent.Headers.Add("Content-Range",
+                $"bytes {bytesSent}-{bytesSent + bytesRead - 1}/{totalSize}");
+            chunkRequest.Content = chunkContent;
+
+            var response = await _httpClient.SendAsync(chunkRequest, ct);
+            var statusCode = (int)response.StatusCode;
+
+            if (statusCode == 308)
+            {
+                // Resume Incomplete - chunk accepted, continue uploading next chunk
+                bytesSent += bytesRead;
+                var progress = (double)bytesSent / totalSize * 100;
+                _logger.LogDebug("YouTube upload progress: {Progress:F1}% ({Sent}/{Total} bytes)",
+                    progress, bytesSent, totalSize);
+                continue;
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Upload complete (200 OK) - parse response for video ID
+                var responseBody = await response.Content.ReadAsStringAsync(ct);
+                var uploadResult = JsonSerializer.Deserialize<YouTubeUploadResponse>(responseBody);
+                return uploadResult?.Id;
+            }
+
+            // Error during chunk upload
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError("YouTube chunk upload failed at {BytesSent}/{Total}: {Status} {Error}",
+                bytesSent, totalSize, statusCode, errorBody);
+            throw new InvalidOperationException(
+                $"YouTube upload failed at byte {bytesSent} ({statusCode}): {errorBody}");
+        }
+
+        return null;
     }
 
     public override async Task<TaskResult> AnalyzeMetricsAsync(TaskItem task, CancellationToken ct)
@@ -703,13 +1006,37 @@ public class YouTubeWorker : BasePlatformWorker
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {credentials.AccessToken}");
 
+            // Use YouTube Data API v3 to get real video statistics
             var response = await _httpClient.GetAsync(
                 $"{YouTubeApiUrl}/videos?part=statistics&id={videoId}",
                 ct
             );
 
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning("YouTube metrics API returned {Status}: {Error}",
+                    (int)response.StatusCode, errorBody);
+                return new TaskResult
+                {
+                    Success = false,
+                    Error = $"YouTube API error ({(int)response.StatusCode}): {errorBody}",
+                    ProcessingTimeMs = sw.ElapsedMilliseconds
+                };
+            }
+
             var data = await response.Content.ReadFromJsonAsync<YouTubeVideoResponse>(ct);
             var stats = data?.Items?.FirstOrDefault()?.Statistics;
+
+            if (stats == null)
+            {
+                return new TaskResult
+                {
+                    Success = false,
+                    Error = $"Video not found: {videoId}",
+                    ProcessingTimeMs = sw.ElapsedMilliseconds
+                };
+            }
 
             return new TaskResult
             {
@@ -718,9 +1045,9 @@ public class YouTubeWorker : BasePlatformWorker
                 {
                     Metrics = new EngagementMetrics
                     {
-                        Views = long.TryParse(stats?.ViewCount, out var views) ? (int)views : 0,
-                        Likes = long.TryParse(stats?.LikeCount, out var likes) ? (int)likes : 0,
-                        Comments = long.TryParse(stats?.CommentCount, out var comments) ? (int)comments : 0
+                        Views = long.TryParse(stats.ViewCount, out var views) ? (int)Math.Min(views, int.MaxValue) : 0,
+                        Likes = long.TryParse(stats.LikeCount, out var likes) ? (int)Math.Min(likes, int.MaxValue) : 0,
+                        Comments = long.TryParse(stats.CommentCount, out var comments) ? (int)Math.Min(comments, int.MaxValue) : 0
                     }
                 },
                 ProcessingTimeMs = sw.ElapsedMilliseconds
@@ -1207,6 +1534,18 @@ internal class TikTokError
     public string? Code { get; set; }
 }
 
+internal class TikTokUploadInitResponse
+{
+    public TikTokUploadInitData? Data { get; set; }
+    public TikTokError? Error { get; set; }
+}
+
+internal class TikTokUploadInitData
+{
+    public string? PublishId { get; set; }
+    public string? UploadUrl { get; set; }
+}
+
 internal class TikTokVideoQueryResponse
 {
     public TikTokVideoData? Data { get; set; }
@@ -1284,6 +1623,30 @@ internal class YouTubeStatistics
     public string? ViewCount { get; set; }
     public string? LikeCount { get; set; }
     public string? CommentCount { get; set; }
+}
+
+/// <summary>
+/// Response from YouTube resumable upload completion (200 OK)
+/// </summary>
+internal class YouTubeUploadResponse
+{
+    [System.Text.Json.Serialization.JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("kind")]
+    public string? Kind { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("snippet")]
+    public YouTubeUploadSnippet? Snippet { get; set; }
+}
+
+internal class YouTubeUploadSnippet
+{
+    [System.Text.Json.Serialization.JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("channelId")]
+    public string? ChannelId { get; set; }
 }
 
 // Threads Models

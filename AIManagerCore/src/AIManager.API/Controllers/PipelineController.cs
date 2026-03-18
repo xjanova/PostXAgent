@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using AIManager.Core.Services;
+using AIManager.Core.Models;
 using System.Diagnostics;
 
 namespace AIManager.API.Controllers;
@@ -11,17 +12,20 @@ public class PipelineController : ControllerBase
     private readonly ThaiTtsService _ttsService;
     private readonly LipSyncService _lipSyncService;
     private readonly FFmpegService _ffmpegService;
+    private readonly PostPublisherService _postPublisherService;
     private readonly ILogger<PipelineController> _logger;
 
     public PipelineController(
         ThaiTtsService ttsService,
         LipSyncService lipSyncService,
         FFmpegService ffmpegService,
+        PostPublisherService postPublisherService,
         ILogger<PipelineController> logger)
     {
         _ttsService = ttsService;
         _lipSyncService = lipSyncService;
         _ffmpegService = ffmpegService;
+        _postPublisherService = postPublisherService;
         _logger = logger;
     }
 
@@ -264,6 +268,61 @@ public class PipelineController : ControllerBase
             wav2lip = wav2Lip,
             ffmpeg = ffmpeg,
             google_tts = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GOOGLE_TTS_API_KEY")),
+        });
+    }
+
+    /// <summary>
+    /// Publish a video to a social media platform
+    /// เผยแพร่วิดีโอไปยัง social media platform
+    /// </summary>
+    [HttpPost("publish-video")]
+    public async Task<ActionResult> PublishVideo([FromBody] PublishVideoRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(request.VideoPath))
+        {
+            return BadRequest(new { success = false, error = "video_path is required" });
+        }
+
+        if (!System.IO.File.Exists(request.VideoPath))
+        {
+            return BadRequest(new { success = false, error = $"Video file not found: {request.VideoPath}" });
+        }
+
+        if (string.IsNullOrEmpty(request.Platform))
+        {
+            return BadRequest(new { success = false, error = "platform is required" });
+        }
+
+        // Parse platform string to SocialPlatform enum
+        if (!Enum.TryParse<SocialPlatform>(request.Platform, ignoreCase: true, out var platform))
+        {
+            return BadRequest(new { success = false, error = $"Unknown platform: {request.Platform}" });
+        }
+
+        var videoRequest = new VideoPostRequest
+        {
+            Platform = platform,
+            VideoPath = request.VideoPath,
+            ThumbnailPath = request.ThumbnailPath,
+            Title = request.Title,
+            Description = request.Description,
+            Hashtags = request.Hashtags,
+            AccountId = request.AccountId,
+            Credentials = request.Credentials,
+        };
+
+        var result = await _postPublisherService.PublishVideoAsync(videoRequest, ct);
+
+        if (!result.Success)
+        {
+            return StatusCode(500, new { success = false, error = result.Error });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            post_id = result.PostId,
+            post_url = result.PostUrl,
         });
     }
 
@@ -514,4 +573,16 @@ public class SlideshowRequest
     public int DurationSeconds { get; set; } = 5;
     public string? Effect { get; set; }
     public string? OutputDir { get; set; }
+}
+
+public class PublishVideoRequest
+{
+    public string Platform { get; set; } = "";
+    public string VideoPath { get; set; } = "";
+    public string? ThumbnailPath { get; set; }
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public List<string>? Hashtags { get; set; }
+    public string? AccountId { get; set; }
+    public Dictionary<string, string>? Credentials { get; set; }
 }
