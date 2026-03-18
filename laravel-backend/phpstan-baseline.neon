@@ -73,6 +73,9 @@ parameters:
             message: '#Cannot call method#'
             reportUnmatched: false
         -
+            message: '#Static method .+ invoked with#'
+            reportUnmatched: false
+        -
             message: '#Using nullsafe property access#'
             reportUnmatched: false
         -
