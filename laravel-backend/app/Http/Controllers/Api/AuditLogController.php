@@ -27,7 +27,6 @@ class AuditLogController extends Controller
             'per_page' => 'sometimes|integer|min:1|max:100',
         ]);
 
-        /** @phpstan-ignore-next-line */
         $query = Activity::with(['causer', 'subject'])
             ->orderBy('created_at', 'desc');
 
@@ -272,7 +271,6 @@ class AuditLogController extends Controller
             'to' => 'sometimes|date|after_or_equal:from',
         ]);
 
-        /** @phpstan-ignore-next-line */
         $query = Activity::with(['causer'])
             ->orderBy('created_at', 'desc');
 

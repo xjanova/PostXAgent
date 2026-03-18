@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property float|null $viral_score
  * @property array|null $viral_factors
  * @property bool $is_viral
+ * @property \Illuminate\Support\Carbon|null $last_comment_check_at
  * @property \Illuminate\Support\Carbon|null $peak_engagement_at
  * @property float|null $engagement_velocity
  * @property \Illuminate\Support\Carbon|null $created_at

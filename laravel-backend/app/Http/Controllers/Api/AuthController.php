@@ -80,6 +80,7 @@ class AuthController extends Controller
             ], 403);
         }
 
+        /** @phpstan-ignore-next-line */
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([

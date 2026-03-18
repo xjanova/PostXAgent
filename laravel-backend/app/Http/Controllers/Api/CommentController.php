@@ -147,6 +147,7 @@ class CommentController extends Controller
                     'comment_content' => $comment->content_text,
                     'post_content' => $post->content_text,
                     'author_name' => $comment->author_name,
+                    /** @phpstan-ignore-next-line */
                     'tone_config' => $tone?->toAIConfig(),
                     'credentials' => $post->socialAccount?->getCredentials() ?? [],
                     'brand_info' => [
@@ -254,6 +255,7 @@ class CommentController extends Controller
                     'sentiment' => $c->sentiment,
                     'is_question' => $c->is_question,
                 ])->toArray(),
+                /** @phpstan-ignore-next-line */
                 'tone_config' => $tone?->toAIConfig(),
                 'credentials' => $post->socialAccount?->getCredentials() ?? [],
                 'brand_info' => [

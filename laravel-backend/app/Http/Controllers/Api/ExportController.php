@@ -65,10 +65,10 @@ class ExportController extends Controller
         ], function ($post) {
             return [
                 $post->id,
-                $post->brand?->name ?? '-',
-                $post->campaign?->name ?? '-',
+                $post->brand->name ?? '-',
+                $post->campaign->name ?? '-',
                 $post->platform,
-                $post->socialAccount?->display_name ?? '-',
+                $post->socialAccount->display_name ?? '-',
                 Str::limit($post->content_text, 100),
                 $post->content_type,
                 $this->translateStatus($post->status),
@@ -125,7 +125,7 @@ class ExportController extends Controller
             return [
                 $campaign->id,
                 $campaign->name,
-                $campaign->brand?->name ?? '-',
+                $campaign->brand->name ?? '-',
                 $campaign->type,
                 $campaign->goal,
                 number_format($campaign->budget ?? 0) . ' บาท',
