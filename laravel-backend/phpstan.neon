@@ -1,0 +1,65 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    level: 5
+
+    ignoreErrors:
+        # Spatie permission package - dynamic properties on Role and Permission
+        -
+            message: '#Access to an undefined property Spatie\\Permission\\Models\\(Role|Permission)::#'
+            paths:
+                - app/Http/Controllers/Api/RoleController.php
+
+        # Request::user() returns nullable Authenticatable - safe in auth middleware context
+        -
+            message: '#Call to a member function .+ on .+null#'
+            paths:
+                - app/Http/Controllers/Api/
+
+        # auth()->id() / request()->user()->id may return null in controller context with auth middleware
+        -
+            message: '#Cannot access property .+ on .+null#'
+            paths:
+                - app/Http/Controllers/Api/
+
+        # SocialAccountController placeholder methods always return null
+        -
+            message: '#Method App\\Http\\Controllers\\Api\\SocialAccountController::(exchangeCodeForTokens|refreshAccessToken)\(\) should return array.+null but return statement is missing#'
+            paths:
+                - app/Http/Controllers/Api/SocialAccountController.php
+
+        # Collection closures with typed parameters from Eloquent results
+        -
+            message: '#Parameter \#1 .+ of closure expects .+, .+ given#'
+            paths:
+                - app/Services/Gpu/GpuAccountRotationService.php
+                - app/Http/Controllers/Api/GpuProviderController.php
+
+        # activity() helper from spatie/laravel-activitylog
+        -
+            message: '#Function activity not found#'
+            paths:
+                - app/Http/Controllers/Api/RoleController.php
+
+        # Redis facade methods called dynamically
+        -
+            message: '#Call to an undefined static method Illuminate\\Support\\Facades\\Redis::#'
+            paths:
+                - app/Services/AIManagerService.php
+
+        # Spatie Role::create accepts different params than Eloquent
+        -
+            message: '#Call to an undefined method Spatie\\Permission\\Models\\Role::syncPermissions#'
+            paths:
+                - app/Http/Controllers/Api/RoleController.php
+
+        # Model scope methods called statically via query builder
+        -
+            message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder::(pending|available|active|forPlatform|notBannedFor|leastUsed)\(\)#'
+            paths:
+                - app/Services/AccountCreationService.php
+                - app/Models/

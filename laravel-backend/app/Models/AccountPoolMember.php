@@ -22,9 +22,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $success_count
  * @property int $failure_count
  * @property string|null $last_error
+ * @property int $consecutive_failures
+ * @property \Illuminate\Support\Carbon|null $last_failure_at
  * @property array|null $performance_metrics
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @property-read \App\Models\SocialAccount $socialAccount
+ * @property-read \App\Models\AccountPool $accountPool
  *
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPoolMember where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPoolMember create(array $attributes = [])

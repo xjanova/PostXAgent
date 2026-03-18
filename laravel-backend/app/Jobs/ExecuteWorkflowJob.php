@@ -46,14 +46,11 @@ class ExecuteWorkflowJob implements ShouldQueue
                 throw new \Exception('Workflow JSON not found');
             }
 
-            // Ensure we have an array (handles both cast array and raw JSON string)
-            $workflow = is_string($workflowData) ? json_decode($workflowData, true) : $workflowData;
-            if (!is_array($workflow)) {
-                throw new \Exception('Invalid workflow JSON');
-            }
+            // Validate workflow data
+            $workflow = $workflowData;
 
             // Execute workflow via AI Manager (API expects JSON string)
-            $workflowJson = is_string($workflowData) ? $workflowData : json_encode($workflowData);
+            $workflowJson = json_encode($workflow);
             $result = $aiManager->executeWorkflow([
                 'workflowJson' => $workflowJson,
                 'variables' => $this->execution->variables ?? [],
@@ -102,9 +99,9 @@ class ExecuteWorkflowJob implements ShouldQueue
     /**
      * Get workflow data from user workflow or template
      *
-     * @return array|string|null
+     * @return array<string, mixed>|null
      */
-    private function getWorkflowData(): array|string|null
+    private function getWorkflowData(): ?array
     {
         if ($this->execution->userWorkflow) {
             return $this->execution->userWorkflow->workflow_json;

@@ -49,9 +49,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SeekAndPostTask> $seekAndPostTasks
  *
+ * @property-read \Illuminate\Database\Eloquent\Relations\Pivot|null $pivot
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup whereHas(string $relation, ?\Closure $callback = null, string $operator = '>=', int $count = 1)
  * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup updateOrCreate(array $attributes, array $values = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup availableForPosting()
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup joined()
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup byPlatform(string $platform)
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup highQuality(float $minScore = 70)
+ * @method static \Illuminate\Database\Eloquent\Builder|DiscoveredGroup active()
  */
 class DiscoveredGroup extends Model
 {

@@ -32,6 +32,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow active()
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow forPlatform(string $platform)
  */
 class LearnedWorkflow extends Model
 {
@@ -92,8 +94,12 @@ class LearnedWorkflow extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\WorkflowStep, $this>
+     */
     public function steps(): HasMany
     {
+        /** @var \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\WorkflowStep, $this> */
         return $this->hasMany(WorkflowStep::class)->orderBy('order');
     }
 

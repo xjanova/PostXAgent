@@ -57,6 +57,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask active()
  * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask byUser(int $userId)
  * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask byPlatform(string $platform)
  */

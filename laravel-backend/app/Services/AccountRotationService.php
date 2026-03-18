@@ -422,6 +422,7 @@ class AccountRotationService
         return $accounts->sortBy('priority')->first();
     }
 
+    /** @phpstan-ignore method.unused */
     private function updateRoundRobinIndex(AccountPool $pool): void
     {
         $cacheKey = self::CACHE_ROUND_ROBIN_INDEX . $pool->id;

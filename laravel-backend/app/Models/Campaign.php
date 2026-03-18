@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\Brand|null $brand
+ * @property-read \App\Models\User $user
  * @property-read int|null $total_posts
  * @property-read int|null $published_posts
  * @property-read int|null $posts_count

@@ -31,6 +31,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\LearnedWorkflow $workflow
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowStep where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowStep whereIn(string $column, mixed $values, string $boolean = 'and', bool $not = false)
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowStep create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowStep find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowStep findOrFail($id, $columns = ['*'])
  */
 class WorkflowStep extends Model
 {

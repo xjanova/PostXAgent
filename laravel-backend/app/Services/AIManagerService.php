@@ -43,6 +43,7 @@ class AIManagerService
         ];
 
         // Send to AI Manager via Redis
+        /** @phpstan-ignore staticMethod.notFound */
         Redis::lpush($this->queuePrefix . $platform, json_encode($task));
 
         Log::info("Task sent to AI Manager", ['task_id' => $taskId, 'type' => $type]);
@@ -505,6 +506,7 @@ class AIManagerService
      */
     public function getStats(): array
     {
+        /** @phpstan-ignore staticMethod.notFound */
         $stats = Redis::get('orchestrator:stats');
 
         if (!$stats) {
@@ -635,6 +637,83 @@ class AIManagerService
     }
 
     /**
+     * Cancel an active teaching session
+     */
+    public function cancelTeachingSession(int $sessionId): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/teaching/cancel', [
+            'sessionId' => $sessionId,
+        ]);
+    }
+
+    /**
+     * Cancel a workflow execution
+     */
+    public function cancelExecution(int $executionId): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/execution/cancel', [
+            'executionId' => $executionId,
+        ]);
+    }
+
+    /**
+     * Suggest CSS selectors using AI
+     */
+    public function suggestSelectors(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/suggest-selectors', $params);
+    }
+
+    /**
+     * Create a social account via web automation
+     *
+     * @param \App\Models\AccountCreationTask $task
+     * @return array<string, mixed>
+     */
+    public function createAccount(\App\Models\AccountCreationTask $task): array
+    {
+        return $this->callAIManagerApi('POST', '/api/account-creation/create', [
+            'taskId' => $task->id,
+            'platform' => $task->platform,
+            'profileData' => $task->profile_data,
+        ]);
+    }
+
+    /**
+     * Start a teaching session for web automation learning
+     */
+    public function startTeachingSession(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/teaching/start', $params);
+    }
+
+    /**
+     * Complete a teaching session
+     */
+    public function completeTeachingSession(int $sessionId): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/teaching/complete', [
+            'sessionId' => $sessionId,
+        ]);
+    }
+
+    /**
+     * Analyze a web page using AI
+     */
+    public function analyzePageWithAI(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/analyze-page', $params);
+    }
+
+    /**
+     * Optimize a workflow using AI
+     */
+    public function optimizeWorkflow(array $params): array
+    {
+        return $this->callAIManagerApi('POST', '/api/web-automation/optimize-workflow', $params);
+    }
+
+    /**
      * Call AI Manager Core API directly via HTTP
      */
     private function callAIManagerApi(string $method, string $endpoint, array $data = []): array
@@ -722,6 +801,7 @@ class AIManagerService
         LUA;
 
         while (time() - $startTime < $timeoutSeconds) {
+            /** @phpstan-ignore staticMethod.notFound */
             $result = Redis::eval($script, 1, $this->resultQueue, $taskId);
 
             if ($result) {

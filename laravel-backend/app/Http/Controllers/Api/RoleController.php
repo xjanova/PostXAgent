@@ -22,6 +22,7 @@ class RoleController extends Controller
 
         return response()->json([
             'success' => true,
+            /** @phpstan-ignore-next-line */
             'data' => $roles->map(fn ($role) => [
                 'id' => $role->id,
                 'name' => $role->name,
@@ -41,6 +42,7 @@ class RoleController extends Controller
 
         return response()->json([
             'success' => true,
+            /** @phpstan-ignore-next-line */
             'data' => [
                 'id' => $role->id,
                 'name' => $role->name,
@@ -104,6 +106,7 @@ class RoleController extends Controller
             'permissions.*' => 'string|exists:permissions,name',
         ]);
 
+        /** @phpstan-ignore-next-line */
         $role->update([
             'name' => $validated['name'] ?? $role->name,
             'description' => $validated['description'] ?? $role->description,

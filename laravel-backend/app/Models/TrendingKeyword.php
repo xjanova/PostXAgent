@@ -33,6 +33,11 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword updateOrCreate(array $attributes, array $values = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword forPlatform(string $platform)
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword forRegion(string $region)
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword trending(int $minScore = 50)
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword viral(int $minScore = 70)
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword recent(int $hours = 24)
  */
 class TrendingKeyword extends Model
 {

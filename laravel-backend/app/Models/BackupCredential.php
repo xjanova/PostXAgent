@@ -21,6 +21,14 @@ use Illuminate\Support\Facades\Crypt;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property-read \App\Models\SocialAccount $socialAccount
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential forAccount(int $accountId)
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential ofType(string $type)
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential primary()
+ * @method static \Illuminate\Database\Eloquent\Builder|BackupCredential valid()
  */
 class BackupCredential extends Model
 {

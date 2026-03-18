@@ -16,14 +16,36 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $current_step
  * @property int $attempts
  * @property int $max_attempts
- * @property Brand $brand
- * @property User $user
- * @property AccountPool|null $accountPool
+ * @property int|null $phone_number_id
+ * @property int|null $email_account_id
+ * @property int|null $proxy_server_id
+ * @property string|null $generated_username
+ * @property string|null $generated_password
+ * @property array|null $profile_data
+ * @property int|null $result_social_account_id
+ * @property string|null $error_message
+ * @property string|null $error_screenshot
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property array|null $step_log
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @property-read Brand $brand
+ * @property-read User $user
+ * @property-read AccountPool|null $accountPool
+ * @property-read \App\Models\PhoneNumber|null $phoneNumber
+ * @property-read \App\Models\EmailAccount|null $emailAccount
+ * @property-read \App\Models\ProxyServer|null $proxyServer
+ * @property-read \App\Models\SocialAccount|null $resultSocialAccount
  *
  * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask whereColumn(string $first, string|null $operator = null, string|null $second = null, string $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask find($id, $columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask pending()
  */
 class AccountCreationTask extends Model
 {

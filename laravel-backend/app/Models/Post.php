@@ -38,6 +38,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  *
+ * @property int|null $comments_fetched_count
+ * @property int|null $comments_replied_count
+ *
  * @property-read \App\Models\User $user
  * @property-read \App\Models\Brand|null $brand
  * @property-read \App\Models\Campaign|null $campaign
@@ -45,10 +48,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Comment> $comments
  *
  * @method static \Illuminate\Database\Eloquent\Builder|Post where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|Post whereIn(string $column, mixed $values, string $boolean = 'and', bool $not = false)
  * @method static \Illuminate\Database\Eloquent\Builder|Post create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|Post find($id, $columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|Post findOrFail($id, $columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|Post first($columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Post published()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post viral()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post pending()
  */
 class Post extends Model
 {

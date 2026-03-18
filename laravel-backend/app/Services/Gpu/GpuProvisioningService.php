@@ -531,7 +531,7 @@ class GpuProvisioningService
         }
 
         // Environment variables
-        $envVars = $template?->environment_vars ?? [];
+        $envVars = $template ? ($template->environment_vars ?? []) : [];
         if (!empty($requirements['environment_vars'])) {
             $envVars = array_merge($envVars, $requirements['environment_vars']);
         }

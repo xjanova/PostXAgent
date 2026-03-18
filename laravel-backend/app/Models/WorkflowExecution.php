@@ -41,6 +41,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read \App\Models\Post|null $post
  *
  * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution whereIn(string $column, mixed $values, string $boolean = 'and', bool $not = false)
  * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|WorkflowExecution findOrFail($id, $columns = ['*'])
  */

@@ -298,8 +298,8 @@ class Comment extends Model
             'sentiment' => $this->sentiment,
             'is_question' => $this->is_question,
             'platform' => $this->platform,
-            'post_content' => $this->post?->content_text,
-            'brand_name' => $this->post?->brand?->name,
+            'post_content' => $this->post->content_text,
+            'brand_name' => $this->post->brand?->name,
             'commented_at' => $this->commented_at?->toIso8601String(),
         ];
     }
