@@ -598,28 +598,27 @@ public class FreepikAutomationService
 
     private async Task UploadImageAsync(string imagePath, CancellationToken ct)
     {
-        // หา file input element
-        var script = @"
+        _logger.LogInformation("Uploading image via Playwright: {Path}", imagePath);
+
+        // Make file input visible (some sites hide it)
+        await _browserController.ExecuteScriptAsync(@"
             (function() {
-                var input = document.querySelector('input[type=""file""]');
-                if (input) {
-                    input.style.display = 'block';
-                    return 'found';
-                }
-                return 'not_found';
+                var inputs = document.querySelectorAll('input[type=""file""]');
+                inputs.forEach(function(input) { input.style.display = 'block'; });
+                return inputs.length;
             })();
-        ";
+        ", ct);
 
-        var result = await _browserController.ExecuteScriptAsync(script, ct);
-
-        if (result == "found")
+        // Use Playwright's native SetInputFiles for reliable file upload
+        var uploaded = await _browserController.SetInputFilesAsync("input[type='file']", imagePath, ct);
+        if (!uploaded)
         {
-            // ใช้ Playwright setInputFiles
-            // Note: ต้องปรับ BrowserController ให้รองรับ
-            _logger.LogInformation("Uploading image: {Path}", imagePath);
-
-            // Fallback: ใช้ ExecuteScript กับ FileReader (สำหรับทดสอบ)
+            _logger.LogWarning("Failed to upload image via SetInputFiles, trying drag-and-drop fallback");
+            // Try alternative: click upload button to trigger file dialog
+            throw new InvalidOperationException("Image upload failed - file input not found on page");
         }
+
+        _logger.LogInformation("Image uploaded successfully");
     }
 
     private async Task TypeMotionPromptAsync(string motionPrompt, CancellationToken ct)

@@ -133,15 +133,25 @@ public class PipelineController : ControllerBase
         {
             string? concatenatedVideo = null;
 
-            // Step 1: Use lip sync video if available, otherwise concatenate clips
+            // Step 1: Concatenate video clips (prepend lip sync video if available)
+            var allClips = new List<string>();
             if (!string.IsNullOrEmpty(request.LipSyncVideoPath) && System.IO.File.Exists(request.LipSyncVideoPath))
             {
-                concatenatedVideo = request.LipSyncVideoPath;
+                allClips.Add(request.LipSyncVideoPath);
             }
-            else if (request.VideoClips != null && request.VideoClips.Count > 0)
+            if (request.VideoClips != null)
+            {
+                allClips.AddRange(request.VideoClips.Where(c => System.IO.File.Exists(c)));
+            }
+
+            if (allClips.Count == 1)
+            {
+                concatenatedVideo = allClips[0];
+            }
+            else if (allClips.Count > 1)
             {
                 concatenatedVideo = Path.Combine(outputDir, "concatenated.mp4");
-                await ConcatenateVideosAsync(request.VideoClips, concatenatedVideo, ct);
+                await ConcatenateVideosAsync(allClips, concatenatedVideo, ct);
             }
 
             if (concatenatedVideo == null || !System.IO.File.Exists(concatenatedVideo))
@@ -161,7 +171,7 @@ public class PipelineController : ControllerBase
             string videoWithMusic = videoWithAudio;
             if (request.EnableMusic && !string.IsNullOrEmpty(request.MusicSource) && request.MusicSource != "none")
             {
-                var musicPath = FindBackgroundMusicAsync(request.MusicStyle ?? "cinematic");
+                var musicPath = FindBackgroundMusic(request.MusicStyle ?? "cinematic");
                 if (musicPath != null)
                 {
                     videoWithMusic = Path.Combine(outputDir, "with_music.mp4");
@@ -250,6 +260,69 @@ public class PipelineController : ControllerBase
         return Ok(new { video_path = outputPath });
     }
 
+    [HttpPost("generate-video-from-image")]
+    public async Task<ActionResult> GenerateVideoFromImage([FromBody] VideoFromImageRequest request, CancellationToken ct)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.ImagePath) || !System.IO.File.Exists(request.ImagePath))
+                return BadRequest(new { success = false, error = "Image file not found" });
+
+            var outputDir = request.OutputDir ?? Path.Combine(Path.GetTempPath(), "PostXAgent", "videos");
+            Directory.CreateDirectory(outputDir);
+
+            // Try Freepik automation first
+            try
+            {
+                var freepik = HttpContext.RequestServices.GetService<FreepikAutomationService>();
+                if (freepik != null)
+                {
+                    var result = await freepik.GenerateVideoFromImageAsync(
+                        request.ImagePath, request.MotionPrompt ?? "", null, ct);
+                    if (result != null && result.Success && !string.IsNullOrEmpty(result.LocalPath))
+                    {
+                        return Ok(new
+                        {
+                            video_path = result.LocalPath,
+                            provider = "freepik",
+                            duration_seconds = request.DurationSeconds
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Freepik video generation failed, falling back to slideshow");
+            }
+
+            // Fallback: create slideshow from static image
+            var slideshowOutput = Path.Combine(outputDir, $"slideshow_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
+            var fps = 25;
+            var args = $"-y -loop 1 -i \"{request.ImagePath}\" -c:v libx264 -t {request.DurationSeconds} " +
+                       $"-pix_fmt yuv420p -r {fps} \"{slideshowOutput}\"";
+
+            using var process = new System.Diagnostics.Process();
+            process.StartInfo = new System.Diagnostics.ProcessStartInfo("ffmpeg", args)
+            {
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            process.Start();
+            await process.WaitForExitAsync(ct);
+
+            if (System.IO.File.Exists(slideshowOutput))
+                return Ok(new { video_path = slideshowOutput, provider = "slideshow", duration_seconds = request.DurationSeconds });
+
+            return StatusCode(500, new { success = false, error = "Video generation failed" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GenerateVideoFromImage failed");
+            return StatusCode(500, new { success = false, error = ex.Message });
+        }
+    }
+
     /// <summary>
     /// Check availability of all pipeline services
     /// ตรวจสอบความพร้อมของบริการทั้งหมดใน pipeline
@@ -300,6 +373,13 @@ public class PipelineController : ControllerBase
         if (!Enum.TryParse<SocialPlatform>(request.Platform, ignoreCase: true, out var platform))
         {
             return BadRequest(new { success = false, error = $"Unknown platform: {request.Platform}" });
+        }
+
+        // Validate thumbnail exists, clear if not
+        if (!string.IsNullOrEmpty(request.ThumbnailPath) && !System.IO.File.Exists(request.ThumbnailPath))
+        {
+            _logger.LogWarning("Thumbnail not found: {Path}, publishing without", request.ThumbnailPath);
+            request.ThumbnailPath = null;
         }
 
         var videoRequest = new VideoPostRequest
@@ -507,23 +587,23 @@ public class PipelineController : ControllerBase
         catch { return false; }
     }
 
-    private static string FindBackgroundMusicAsync(string style)
+    private static string? FindBackgroundMusic(string style)
     {
-        // Check for royalty-free music directory
         var musicDir = Environment.GetEnvironmentVariable("ROYALTY_FREE_MUSIC_DIR");
-        if (!string.IsNullOrEmpty(musicDir) && Directory.Exists(musicDir))
+        if (string.IsNullOrEmpty(musicDir) || !Directory.Exists(musicDir))
         {
-            var musicFiles = Directory.GetFiles(musicDir, "*.mp3")
-                .Concat(Directory.GetFiles(musicDir, "*.wav"))
-                .ToArray();
-
-            if (musicFiles.Length > 0)
-            {
-                // Random selection
-                return musicFiles[Random.Shared.Next(musicFiles.Length)];
-            }
+            return null;
         }
-        return null!;
+
+        // Try style-specific subdirectory first
+        var styleDir = Path.Combine(musicDir, style);
+        var searchDir = Directory.Exists(styleDir) ? styleDir : musicDir;
+
+        var musicFiles = Directory.GetFiles(searchDir, "*.mp3")
+            .Concat(Directory.GetFiles(searchDir, "*.wav"))
+            .ToArray();
+
+        return musicFiles.Length > 0 ? musicFiles[Random.Shared.Next(musicFiles.Length)] : null;
     }
 
     private static string SanitizeFilename(string name)
@@ -589,4 +669,12 @@ public class PublishVideoRequest
     public List<string>? Hashtags { get; set; }
     public string? AccountId { get; set; }
     public Dictionary<string, string>? Credentials { get; set; }
+}
+
+public class VideoFromImageRequest
+{
+    public string ImagePath { get; set; } = "";
+    public string? MotionPrompt { get; set; }
+    public int DurationSeconds { get; set; } = 5;
+    public string? OutputDir { get; set; }
 }

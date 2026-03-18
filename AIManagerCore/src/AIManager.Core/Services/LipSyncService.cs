@@ -308,7 +308,7 @@ public class LipSyncService
                 {
                     FileName = "ffmpeg",
                     Arguments = $"-y -loop 1 -i \"{faceImagePath}\" -i \"{audioPath}\" " +
-                                $"-c:v libx264 -tune stillimage -c:a aac -b:a 192k " +
+                                $"-c:v libx264 -c:a aac -b:a 192k " +
                                 $"-pix_fmt yuv420p -shortest \"{outputPath}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
