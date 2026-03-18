@@ -54,6 +54,38 @@ class AIManagerService
     }
 
     /**
+     * Dispatch a task to the AI Manager and wait for result
+     *
+     * @param array<string, mixed> $params Task parameters including type, platform, user_id, brand_id, payload
+     * @return array<string, mixed>
+     */
+    public function dispatchTask(array $params): array
+    {
+        $platform = $params['platform'] ?? 'general';
+        $type = $params['type'] ?? 'generic';
+        $payload = $params['payload'] ?? $params;
+
+        $result = $this->sendTask($platform, $type, $payload);
+
+        if (!$result['success']) {
+            return ['success' => false, 'error' => 'Failed to dispatch task'];
+        }
+
+        $response = $this->waitForResult($result['task_id'], 60);
+
+        if (!$response) {
+            return ['success' => false, 'error' => 'Task timeout'];
+        }
+
+        return [
+            'success' => $response['status'] === 'completed',
+            'data' => $response['result'] ?? [],
+            'error' => $response['error'] ?? null,
+            'error_code' => $response['error_code'] ?? null,
+        ];
+    }
+
+    /**
      * Generate content using AI
      */
     public function generateContent(array $params): array
@@ -334,7 +366,7 @@ class AIManagerService
             'id' => $post->id,
             'platform' => $post->platform,
             'content' => [
-                'text' => $post->content,
+                'text' => $post->content_text,
                 'images' => $post->media_urls ?? [],
                 'link' => $post->link_url,
                 'hashtags' => $post->hashtags ?? [],
@@ -424,7 +456,7 @@ class AIManagerService
     {
         $payload = [
             'post_ids' => [$post->platform_post_id],
-            'credentials' => $post->socialAccount->getCredentials(),
+            'credentials' => $post->socialAccount?->getCredentials() ?? [],
         ];
 
         $result = $this->sendTask($post->platform, 'analyze_metrics', $payload);
@@ -452,7 +484,7 @@ class AIManagerService
     {
         $payload = [
             'post_id' => $post->platform_post_id,
-            'credentials' => $post->socialAccount->getCredentials(),
+            'credentials' => $post->socialAccount?->getCredentials() ?? [],
         ];
 
         $result = $this->sendTask($post->platform, 'delete_post', $payload);

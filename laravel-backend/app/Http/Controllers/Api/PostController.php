@@ -27,9 +27,9 @@ class PostController extends Controller
 
         $posts = Post::where('user_id', $request->user()->id)
             ->with(['brand', 'socialAccount', 'campaign'])
-            ->when($request->status, fn($q, $status) => $q->where('status', $status))
-            ->when($request->platform, fn($q, $platform) => $q->where('platform', $platform))
-            ->when($request->brand_id, fn($q, $brandId) => $q->where('brand_id', $brandId))
+            ->when($request->input('status'), fn($q, $status) => $q->where('status', $status))
+            ->when($request->input('platform'), fn($q, $platform) => $q->where('platform', $platform))
+            ->when($request->input('brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
             ->latest()
             ->paginate($request->integer('per_page', 20));
 
@@ -82,13 +82,13 @@ class PostController extends Controller
         }
 
         // Generate content with AI if requested
-        if ($request->ai_generate && $request->ai_prompt) {
+        if ($request->boolean('ai_generate') && $request->input('ai_prompt')) {
             $brand = Brand::findOrFail($validated['brand_id']);
 
             $generated = $this->aiManager->generateContent([
-                'prompt' => $request->ai_prompt,
+                'prompt' => $request->input('ai_prompt'),
                 'brand_info' => $brand->toAIContext(),
-                'platform' => $request->platform ?? 'general',
+                'platform' => $request->input('platform', 'general'),
                 'content_type' => $validated['content_type'],
             ]);
 
@@ -97,7 +97,7 @@ class PostController extends Controller
                 $validated['hashtags'] = $generated['content']['hashtags'];
                 $validated['ai_generated'] = true;
                 $validated['ai_provider'] = $generated['provider'];
-                $validated['ai_prompt'] = $request->ai_prompt;
+                $validated['ai_prompt'] = $request->input('ai_prompt');
             }
         }
 
@@ -108,11 +108,11 @@ class PostController extends Controller
             'user_id' => $user->id,
             'platform' => $socialAccount->platform,
             ...$validated,
-            'status' => $request->scheduled_at ? Post::STATUS_SCHEDULED : Post::STATUS_PENDING,
+            'status' => $request->input('scheduled_at') ? Post::STATUS_SCHEDULED : Post::STATUS_PENDING,
         ]);
 
         // Queue for publishing if not scheduled
-        if (!$request->scheduled_at) {
+        if (!$request->input('scheduled_at')) {
             PublishPost::dispatch($post);
         }
 
@@ -201,13 +201,13 @@ class PostController extends Controller
             'content_type' => 'required|string|in:text,image,video,carousel,story,reel',
         ]);
 
-        $brand = Brand::findOrFail($request->brand_id);
+        $brand = Brand::findOrFail($request->input('brand_id'));
 
         $result = $this->aiManager->generateContent([
-            'prompt' => $request->prompt,
+            'prompt' => $request->input('prompt'),
             'brand_info' => $brand->toAIContext(),
-            'platform' => $request->platform,
-            'content_type' => $request->content_type,
+            'platform' => $request->input('platform'),
+            'content_type' => $request->input('content_type'),
         ]);
 
         return response()->json([
@@ -229,10 +229,10 @@ class PostController extends Controller
         ]);
 
         $result = $this->aiManager->generateImage([
-            'prompt' => $request->prompt,
-            'style' => $request->style ?? 'modern',
-            'size' => $request->size ?? '1024x1024',
-            'provider' => $request->provider ?? 'auto',
+            'prompt' => $request->input('prompt'),
+            'style' => $request->input('style', 'modern'),
+            'size' => $request->input('size', '1024x1024'),
+            'provider' => $request->input('provider', 'auto'),
         ]);
 
         return response()->json([

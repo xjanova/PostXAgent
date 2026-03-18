@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $name_th
  * @property string|null $description
  * @property array|null $personality_traits
+ * @property array|null $traits
  * @property array|null $language_preferences
+ * @property array|null $language_style
  * @property array|null $response_templates
  * @property array|null $keyword_triggers
  * @property array|null $prohibited_words
@@ -28,6 +30,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $user
  * @property-read \App\Models\Brand|null $brand
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone first($columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone query()
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone active()
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone default()
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone forBrand(int $brandId)
+ * @method static \Illuminate\Database\Eloquent\Builder|ResponseTone autoReplyEnabled()
  */
 class ResponseTone extends Model
 {
@@ -263,6 +276,22 @@ class ResponseTone extends Model
         $prompt .= "ปรับความยาวและสไตล์ให้เหมาะกับ platform\n";
 
         return $prompt;
+    }
+
+    /**
+     * Convert tone settings to AI configuration array
+     */
+    public function toAIConfig(): array
+    {
+        return [
+            'name' => $this->name,
+            'personality_traits' => $this->personality_traits ?? self::DEFAULT_TRAITS,
+            'language_preferences' => $this->language_preferences ?? self::DEFAULT_LANGUAGE,
+            'custom_instructions' => $this->custom_instructions,
+            'required_elements' => $this->required_elements ?? [],
+            'prohibited_words' => $this->prohibited_words ?? [],
+            'system_prompt' => $this->buildSystemPrompt(),
+        ];
     }
 
     /**

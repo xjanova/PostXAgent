@@ -22,8 +22,8 @@ class ResponseToneController extends Controller
                 $query->whereNull('user_id') // System presets
                     ->orWhere('user_id', Auth::id());
             })
-            ->when($request->brand_id, fn($q, $brandId) => $q->where('brand_id', $brandId))
-            ->when($request->is_active !== null, fn($q) => $q->where('is_active', $request->boolean('is_active')))
+            ->when($request->input('brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
+            ->when($request->has('is_active'), fn($q) => $q->where('is_active', $request->boolean('is_active')))
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();
@@ -108,9 +108,9 @@ class ResponseToneController extends Controller
         ]);
 
         // If setting as default, unset other defaults
-        if ($request->is_default) {
+        if ($request->boolean('is_default')) {
             ResponseTone::where('user_id', Auth::id())
-                ->when($request->brand_id, fn($q, $brandId) => $q->where('brand_id', $brandId))
+                ->when($request->input('brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
                 ->update(['is_default' => false]);
         }
 
@@ -186,7 +186,7 @@ class ResponseToneController extends Controller
         ]);
 
         // If setting as default, unset other defaults
-        if ($request->is_default) {
+        if ($request->boolean('is_default')) {
             ResponseTone::where('user_id', Auth::id())
                 ->where('id', '!=', $responseTone->id)
                 ->when($responseTone->brand_id, fn($q) => $q->where('brand_id', $responseTone->brand_id))

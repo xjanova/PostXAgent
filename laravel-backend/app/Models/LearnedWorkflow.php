@@ -28,6 +28,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read \App\Models\User $user
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowStep> $steps
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowExecution> $executions
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|LearnedWorkflow findOrFail($id, $columns = ['*'])
  */
 class LearnedWorkflow extends Model
 {

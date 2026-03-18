@@ -28,12 +28,12 @@ class CommentController extends Controller
 
         $comments = $post->comments()
             ->with(['replies'])
-            ->when($request->status, fn($q, $status) => $q->where('status', $status))
-            ->when($request->sentiment, fn($q, $sentiment) => $q->where('sentiment', $sentiment))
-            ->when($request->needs_reply, fn($q) => $q->pending())
-            ->orderByDesc('priority_score')
-            ->orderByDesc('platform_created_at')
-            ->paginate($request->per_page ?? 20);
+            ->when($request->input('status'), fn($q, $status) => $q->where('status', $status))
+            ->when($request->input('sentiment'), fn($q, $sentiment) => $q->where('sentiment', $sentiment))
+            ->when($request->input('needs_reply'), fn($q) => $q->pending())
+            ->orderByDesc('priority')
+            ->orderByDesc('commented_at')
+            ->paginate($request->integer('per_page', 20));
 
         return response()->json([
             'success' => true,
@@ -63,8 +63,8 @@ class CommentController extends Controller
             'brand_id' => $post->brand_id,
             'payload' => [
                 'post_id' => $post->platform_post_id,
-                'credentials' => $post->socialAccount->getCredentials(),
-                'limit' => $request->limit ?? 50,
+                'credentials' => $post->socialAccount?->getCredentials() ?? [],
+                'limit' => $request->integer('limit', 50),
             ],
         ]);
 
@@ -132,7 +132,7 @@ class CommentController extends Controller
         $replyContent = $validated['content'] ?? null;
 
         // Auto-generate reply using AI
-        if ($request->auto_generate) {
+        if ($request->boolean('auto_generate')) {
             $tone = isset($validated['tone_id'])
                 ? ResponseTone::find($validated['tone_id'])
                 : ResponseTone::default()->first();
@@ -144,11 +144,11 @@ class CommentController extends Controller
                 'brand_id' => $post->brand_id,
                 'payload' => [
                     'comment_id' => $comment->platform_comment_id,
-                    'comment_content' => $comment->content,
+                    'comment_content' => $comment->content_text,
                     'post_content' => $post->content_text,
                     'author_name' => $comment->author_name,
                     'tone_config' => $tone?->toAIConfig(),
-                    'credentials' => $post->socialAccount->getCredentials(),
+                    'credentials' => $post->socialAccount?->getCredentials() ?? [],
                     'brand_info' => [
                         'name' => $post->brand->name ?? '',
                         'tone' => $post->brand->default_tone ?? 'friendly',
@@ -182,7 +182,7 @@ class CommentController extends Controller
             'payload' => [
                 'comment_id' => $comment->platform_comment_id,
                 'reply_content' => $replyContent,
-                'credentials' => $post->socialAccount->getCredentials(),
+                'credentials' => $post->socialAccount?->getCredentials() ?? [],
             ],
         ]);
 
@@ -255,7 +255,7 @@ class CommentController extends Controller
                     'is_question' => $c->is_question,
                 ])->toArray(),
                 'tone_config' => $tone?->toAIConfig(),
-                'credentials' => $post->socialAccount->getCredentials(),
+                'credentials' => $post->socialAccount?->getCredentials() ?? [],
                 'brand_info' => [
                     'name' => $post->brand->name ?? '',
                     'tone' => $post->brand->default_tone ?? 'friendly',
@@ -305,7 +305,7 @@ class CommentController extends Controller
             'user_id' => Auth::id(),
             'brand_id' => $post->brand_id,
             'payload' => [
-                'content' => $comment->content,
+                'content' => $comment->content_text,
                 'author_name' => $comment->author_name,
                 'context' => $post->content_text,
             ],

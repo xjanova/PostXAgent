@@ -32,6 +32,11 @@ use Illuminate\Support\Facades\Crypt;
  *
  * @property-write string $password
  *
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer first($columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer active()
  * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer forCountry(string $countryCode)
  * @method static \Illuminate\Database\Eloquent\Builder|ProxyServer notBannedFor(string $platform)

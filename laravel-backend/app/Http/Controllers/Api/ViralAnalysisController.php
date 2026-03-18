@@ -29,8 +29,8 @@ class ViralAnalysisController extends Controller
             'period' => 'nullable|string|in:24h,7d,30d,90d',
         ]);
 
-        $brandId = $request->brand_id;
-        $period = $request->period ?? '7d';
+        $brandId = $request->input('brand_id');
+        $period = $request->input('period', '7d');
 
         $startDate = match($period) {
             '24h' => now()->subDay(),

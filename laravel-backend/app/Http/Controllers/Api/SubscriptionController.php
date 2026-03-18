@@ -126,7 +126,7 @@ class SubscriptionController extends Controller
         $user = $request->user();
 
         try {
-            $checkout = $user->newSubscription('default', $request->price_id)
+            $checkout = $user->newSubscription('default', $request->input('price_id'))
                 ->checkout([
                     'success_url' => config('app.frontend_url') . '/subscription/success?session_id={CHECKOUT_SESSION_ID}',
                     'cancel_url' => config('app.frontend_url') . '/subscription/cancel',
@@ -188,7 +188,7 @@ class SubscriptionController extends Controller
         }
 
         try {
-            $user->subscription('default')->swap($request->price_id);
+            $user->subscription('default')->swap($request->input('price_id'));
 
             return response()->json([
                 'success' => true,

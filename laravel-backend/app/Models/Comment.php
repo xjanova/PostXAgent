@@ -36,6 +36,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read \App\Models\Post $post
  * @property-read \App\Models\Comment|null $parent
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Comment> $replies
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment updateOrCreate(array $attributes, array $values = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment pending()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment replied()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment positive()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment neutral()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment negative()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment questions()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment highPriority()
  */
 class Comment extends Model
 {
@@ -121,6 +134,16 @@ class Comment extends Model
     public function scopePending($query)
     {
         return $query->where('reply_status', self::REPLY_PENDING);
+    }
+
+    public function scopeReplied($query)
+    {
+        return $query->where('reply_status', self::REPLY_REPLIED);
+    }
+
+    public function scopeNeutral($query)
+    {
+        return $query->where('sentiment', self::SENTIMENT_NEUTRAL);
     }
 
     public function scopeRequiresReply($query)

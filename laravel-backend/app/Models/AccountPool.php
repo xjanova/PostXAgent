@@ -24,6 +24,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  *
+ * @property-read \App\Models\Brand $brand
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AccountPoolMember> $members
+ * @property-read int|null $members_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPool where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPool create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|AccountPool find($id, $columns = ['*'])

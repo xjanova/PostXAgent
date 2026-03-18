@@ -30,6 +30,11 @@ use Illuminate\Support\Facades\Crypt;
  *
  * @property-write string $password
  *
+ * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount first($columns = ['*'])
  * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount available()
  * @method static \Illuminate\Database\Eloquent\Builder|EmailAccount forPlatform(string $platform)
  */

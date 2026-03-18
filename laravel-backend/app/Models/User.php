@@ -21,8 +21,15 @@ use Spatie\Activitylog\LogOptions;
  * @property string $language
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property string $password
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|User where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|User create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|User find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|User findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|User first($columns = ['*'])
  */
 class User extends Authenticatable
 {

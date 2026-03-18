@@ -28,11 +28,11 @@ class SeekAndPostController extends Controller
             ->with(['workflowTemplate:id,name,name_th', 'brand:id,name']);
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         if ($request->has('platform')) {
-            $query->byPlatform($request->platform);
+            $query->byPlatform($request->input('platform'));
         }
 
         $tasks = $query->orderByDesc('created_at')
@@ -308,15 +308,15 @@ class SeekAndPostController extends Controller
         $query = DiscoveredGroup::whereHas('seekAndPostTasks', fn($q) => $q->where('user_id', $userId));
 
         if ($request->has('platform')) {
-            $query->byPlatform($request->platform);
+            $query->byPlatform($request->input('platform'));
         }
 
         if ($request->has('keyword')) {
-            $query->byKeyword($request->keyword);
+            $query->byKeyword($request->input('keyword'));
         }
 
         if ($request->has('min_quality')) {
-            $query->highQuality((float) $request->min_quality);
+            $query->highQuality((float) $request->input('min_quality'));
         }
 
         if ($request->boolean('joined_only')) {
@@ -377,9 +377,9 @@ class SeekAndPostController extends Controller
         $groups = DiscoveredGroup::whereHas('seekAndPostTasks', fn($q) => $q->where('user_id', $userId))
             ->availableForPosting()
             ->orderByDesc('quality_score')
-            ->when($request->platform, fn($q, $platform) => $q->byPlatform($platform))
+            ->when($request->input('platform'), fn($q, $platform) => $q->byPlatform($platform))
             ->where(function ($q) use ($request) {
-                foreach ($request->keywords as $keyword) {
+                foreach ($request->input('keywords', []) as $keyword) {
                     $q->orWhereJsonContains('keywords', $keyword)
                         ->orWhere('group_name', 'like', "%{$keyword}%")
                         ->orWhere('description', 'like', "%{$keyword}%");
@@ -408,7 +408,7 @@ class SeekAndPostController extends Controller
             ->orderByDesc('quality_score');
 
         if ($request->has('platform')) {
-            $query->byPlatform($request->platform);
+            $query->byPlatform($request->input('platform'));
         }
 
         $groups = $query->limit($request->get('limit', 20))->get();

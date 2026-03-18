@@ -37,6 +37,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  *
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\Brand|null $brand
+ * @property-read \App\Models\Campaign|null $campaign
+ * @property-read \App\Models\SocialAccount|null $socialAccount
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Comment> $comments
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|Post where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \Illuminate\Database\Eloquent\Builder|Post create(array $attributes = [])
  * @method static \Illuminate\Database\Eloquent\Builder|Post find($id, $columns = ['*'])

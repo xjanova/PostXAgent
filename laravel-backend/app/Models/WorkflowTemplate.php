@@ -31,6 +31,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserWorkflow> $userWorkflows
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SeekAndPostTask> $seekAndPostTasks
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowExecution> $executions
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowTemplate where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowTemplate findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowTemplate active()
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowTemplate system()
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowTemplate custom()
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowTemplate byCategory(string $category)
+ * @method static \Illuminate\Database\Eloquent\Builder|WorkflowTemplate forPlatform(string $platform)
  */
 class WorkflowTemplate extends Model
 {

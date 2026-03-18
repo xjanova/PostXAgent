@@ -27,6 +27,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read \App\Models\User $user
  * @property-read \App\Models\WorkflowTemplate|null $template
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowExecution> $executions
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|UserWorkflow where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|UserWorkflow create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|UserWorkflow findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|UserWorkflow byUser(int $userId)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserWorkflow forPlatform(string $platform)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserWorkflow active()
  */
 class UserWorkflow extends Model
 {

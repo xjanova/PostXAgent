@@ -17,6 +17,7 @@ class RoleController extends Controller
      */
     public function index(): JsonResponse
     {
+        /** @phpstan-ignore-next-line */
         $roles = Role::with('permissions')->get();
 
         return response()->json([
@@ -62,6 +63,7 @@ class RoleController extends Controller
             'permissions.*' => 'string|exists:permissions,name',
         ]);
 
+        /** @phpstan-ignore-next-line */
         $role = Role::create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
@@ -148,6 +150,7 @@ class RoleController extends Controller
      */
     public function permissions(): JsonResponse
     {
+        /** @phpstan-ignore-next-line */
         $permissions = Permission::all()->groupBy(function ($permission) {
             // Group by resource (first word)
             $parts = explode(' ', $permission->name);

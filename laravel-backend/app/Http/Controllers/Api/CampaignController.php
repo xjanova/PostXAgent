@@ -22,9 +22,9 @@ class CampaignController extends Controller
         $campaigns = Campaign::where('user_id', $request->user()->id)
             ->with(['brand:id,name'])
             ->withCount('posts')
-            ->when($request->status, fn($q, $status) => $q->where('status', $status))
-            ->when($request->brand_id, fn($q, $brandId) => $q->where('brand_id', $brandId))
-            ->when($request->search, fn($q, $search) => $q->where('name', 'like', "%{$search}%"))
+            ->when($request->input('status'), fn($q, $status) => $q->where('status', $status))
+            ->when($request->input('brand_id'), fn($q, $brandId) => $q->where('brand_id', $brandId))
+            ->when($request->input('search'), fn($q, $search) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('created_at', 'desc')
             ->paginate($request->integer('per_page', 20));
 

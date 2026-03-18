@@ -53,6 +53,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property-read \App\Models\Brand $brand
  * @property-read \App\Models\WorkflowTemplate|null $workflowTemplate
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DiscoveredGroup> $discoveredGroups
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask findOrFail($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask byUser(int $userId)
+ * @method static \Illuminate\Database\Eloquent\Builder|SeekAndPostTask byPlatform(string $platform)
  */
 class SeekAndPostTask extends Model
 {

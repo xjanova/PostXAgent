@@ -29,6 +29,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property array|null $metadata
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|TrendingKeyword updateOrCreate(array $attributes, array $values = [])
  */
 class TrendingKeyword extends Model
 {

@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property Brand $brand
  * @property User $user
  * @property AccountPool|null $accountPool
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask where($column, $operator = null, $value = null, $boolean = 'and')
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask create(array $attributes = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask find($id, $columns = ['*'])
+ * @method static \Illuminate\Database\Eloquent\Builder|AccountCreationTask findOrFail($id, $columns = ['*'])
  */
 class AccountCreationTask extends Model
 {

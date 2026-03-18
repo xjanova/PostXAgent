@@ -149,15 +149,15 @@ class WebLearningController extends Controller
         $execution = WorkflowExecution::create([
             'learned_workflow_id' => $workflow->id,
             'user_id' => $request->user()->id,
-            'content_used' => $request->content,
+            'content_used' => $request->input('content'),
             'status' => WorkflowExecution::STATUS_PENDING,
         ]);
 
         $result = $this->aiManager->executeWorkflow([
             'workflow_id' => $workflow->id,
             'execution_id' => $execution->id,
-            'content' => $request->content,
-            'social_account_id' => $request->social_account_id,
+            'content' => $request->input('content'),
+            'social_account_id' => $request->input('social_account_id'),
             'test_mode' => false,
         ]);
 
@@ -236,9 +236,9 @@ class WebLearningController extends Controller
         }
 
         $result = $this->aiManager->suggestSelectors([
-            'page_html' => $request->page_html,
-            'element_description' => $request->element_description,
-            'platform' => $request->platform,
+            'page_html' => $request->input('page_html'),
+            'element_description' => $request->input('element_description'),
+            'platform' => $request->input('platform'),
         ]);
 
         return response()->json([
@@ -266,7 +266,7 @@ class WebLearningController extends Controller
         }
 
         /** @var LearnedWorkflow $sourceWorkflow */
-        $sourceWorkflow = LearnedWorkflow::findOrFail($request->source_workflow_id);
+        $sourceWorkflow = LearnedWorkflow::findOrFail($request->input('source_workflow_id'));
         $this->authorize('view', $sourceWorkflow);
 
         $maxOrder = $workflow->steps()->max('order') ?? -1;
@@ -345,7 +345,7 @@ class WebLearningController extends Controller
 
         $imported = 0;
 
-        foreach ($request->workflows as $workflowData) {
+        foreach ($request->input('workflows', []) as $workflowData) {
             $workflow = LearnedWorkflow::create([
                 'user_id' => $request->user()->id,
                 'platform' => $workflowData['platform'],
@@ -387,11 +387,11 @@ class WebLearningController extends Controller
         $query = LearnedWorkflow::with('steps');
 
         if ($request->has('platform')) {
-            $query->where('platform', $request->platform);
+            $query->where('platform', $request->input('platform'));
         }
 
         if ($request->has('user_id')) {
-            $query->where('user_id', $request->user_id);
+            $query->where('user_id', $request->input('user_id'));
         }
 
         $workflows = $query->get()->map(function (LearnedWorkflow $workflow) {
@@ -452,11 +452,11 @@ class WebLearningController extends Controller
             ->with('steps');
 
         if ($request->has('platform')) {
-            $query->where('platform', $request->platform);
+            $query->where('platform', $request->input('platform'));
         }
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         if ($request->boolean('active_only')) {
@@ -508,17 +508,17 @@ class WebLearningController extends Controller
         // Create a new workflow in learning status
         $workflow = LearnedWorkflow::create([
             'user_id' => $request->user()->id,
-            'platform' => $request->platform,
-            'name' => $request->workflow_type,
-            'description' => $request->description,
+            'platform' => $request->input('platform'),
+            'name' => $request->input('workflow_type'),
+            'description' => $request->input('description'),
             'status' => LearnedWorkflow::STATUS_LEARNING,
         ]);
 
         // Start teaching session in AI Manager
         $session = $this->aiManager->startTeachingSession([
             'workflow_id' => $workflow->id,
-            'platform' => $request->platform,
-            'workflow_type' => $request->workflow_type,
+            'platform' => $request->input('platform'),
+            'workflow_type' => $request->input('workflow_type'),
         ]);
 
         return response()->json([
@@ -561,14 +561,14 @@ class WebLearningController extends Controller
         $step = WorkflowStep::create([
             'learned_workflow_id' => $workflow->id,
             'order' => $maxOrder + 1,
-            'action' => $request->action,
-            'description' => $request->description,
-            'selector_type' => $request->selector_type,
-            'selector_value' => $request->selector_value,
-            'input_value' => $request->input_value,
-            'input_variable' => $request->input_variable,
+            'action' => $request->input('action'),
+            'description' => $request->input('description'),
+            'selector_type' => $request->input('selector_type'),
+            'selector_value' => $request->input('selector_value'),
+            'input_value' => $request->input('input_value'),
+            'input_variable' => $request->input('input_variable'),
             'learned_from' => LearnedWorkflow::SOURCE_MANUAL,
-            'visual_features' => $request->element_info,
+            'visual_features' => $request->input('element_info'),
         ]);
 
         return response()->json([
@@ -632,7 +632,7 @@ class WebLearningController extends Controller
         $execution = WorkflowExecution::create([
             'learned_workflow_id' => $workflow->id,
             'user_id' => $request->user()->id,
-            'content_used' => $request->content,
+            'content_used' => $request->input('content'),
             'status' => WorkflowExecution::STATUS_PENDING,
         ]);
 
@@ -640,8 +640,8 @@ class WebLearningController extends Controller
         $result = $this->aiManager->executeWorkflow([
             'workflow_id' => $workflow->id,
             'execution_id' => $execution->id,
-            'content' => $request->content,
-            'social_account_id' => $request->social_account_id,
+            'content' => $request->input('content'),
+            'social_account_id' => $request->input('social_account_id'),
             'test_mode' => true,
         ]);
 
@@ -679,11 +679,11 @@ class WebLearningController extends Controller
             ->with('workflow');
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         if ($request->has('workflow_id')) {
-            $query->where('learned_workflow_id', $request->workflow_id);
+            $query->where('learned_workflow_id', $request->input('workflow_id'));
         }
 
         $executions = $query->orderBy('created_at', 'desc')
@@ -777,7 +777,7 @@ class WebLearningController extends Controller
             ], 422);
         }
 
-        foreach ($request->step_ids as $order => $stepId) {
+        foreach ($request->input('step_ids', []) as $order => $stepId) {
             WorkflowStep::where('id', $stepId)
                 ->where('learned_workflow_id', $workflow->id)
                 ->update(['order' => $order]);
@@ -883,10 +883,10 @@ class WebLearningController extends Controller
 
         // Send to AI Manager for analysis
         $result = $this->aiManager->analyzePageWithAI([
-            'platform' => $request->platform,
-            'purpose' => $request->purpose,
-            'page_html' => $request->page_html,
-            'screenshot' => $request->screenshot,
+            'platform' => $request->input('platform'),
+            'purpose' => $request->input('purpose'),
+            'page_html' => $request->input('page_html'),
+            'screenshot' => $request->input('screenshot'),
         ]);
 
         return response()->json([
@@ -919,15 +919,15 @@ class WebLearningController extends Controller
         // Create workflow
         $workflow = LearnedWorkflow::create([
             'user_id' => $request->user()->id,
-            'platform' => $request->platform,
-            'name' => $request->workflow_type,
+            'platform' => $request->input('platform'),
+            'name' => $request->input('workflow_type'),
             'description' => 'สร้างโดย AI',
             'status' => LearnedWorkflow::STATUS_ACTIVE,
             'is_active' => true,
         ]);
 
         // Create steps
-        foreach ($request->suggested_steps as $index => $stepData) {
+        foreach ($request->input('suggested_steps', []) as $index => $stepData) {
             WorkflowStep::create([
                 'learned_workflow_id' => $workflow->id,
                 'order' => $index,

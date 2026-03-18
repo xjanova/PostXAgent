@@ -38,6 +38,7 @@ class AuthController extends Controller
         ]);
 
         // Assign default role if it exists
+        /** @phpstan-ignore-next-line */
         if (\Spatie\Permission\Models\Role::where('name', 'user')->exists()) {
             $user->assignRole('user');
         }
