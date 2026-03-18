@@ -200,7 +200,7 @@ class Post extends Model
                 'hashtags' => $this->hashtags ?? [],
                 'link' => $this->link_url,
             ],
-            'credentials' => $this->socialAccount->getCredentials(),
+            'credentials' => $this->socialAccount?->getCredentials() ?? [],
         ];
     }
 

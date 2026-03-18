@@ -9,6 +9,29 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $name_th
+ * @property string|null $description
+ * @property string|null $description_th
+ * @property string|null $category
+ * @property string|null $icon
+ * @property array|null $supported_platforms
+ * @property array|null $variables
+ * @property array|null $workflow_json
+ * @property bool $is_system
+ * @property bool $is_active
+ * @property int $use_count
+ * @property float $avg_success_rate
+ * @property int|null $created_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $creator
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserWorkflow> $userWorkflows
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\SeekAndPostTask> $seekAndPostTasks
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowExecution> $executions
+ */
 class WorkflowTemplate extends Model
 {
     use HasFactory;
@@ -33,6 +56,7 @@ class WorkflowTemplate extends Model
     protected $casts = [
         'supported_platforms' => 'array',
         'variables' => 'array',
+        'workflow_json' => 'array',
         'is_system' => 'boolean',
         'is_active' => 'boolean',
         'use_count' => 'integer',

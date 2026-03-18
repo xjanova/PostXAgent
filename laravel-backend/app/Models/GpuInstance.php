@@ -45,6 +45,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read GpuAccountPool|null $accountPool
  * @property-read User $user
  *
+ * @method static \Illuminate\Database\Eloquent\Builder|static running()
+ * @method static \Illuminate\Database\Eloquent\Builder|static active()
+ * @method static \Illuminate\Database\Eloquent\Builder|static forProvider(string $provider)
+ *
  * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class GpuInstance extends Model

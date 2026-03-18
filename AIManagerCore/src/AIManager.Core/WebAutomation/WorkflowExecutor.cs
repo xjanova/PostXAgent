@@ -63,14 +63,14 @@ public class WorkflowExecutor
                 ct.ThrowIfCancellationRequested();
 
                 var step = workflow.Steps[i];
-                await OnStepStarted?.Invoke(i, step)!;
+                if (OnStepStarted != null) await OnStepStarted.Invoke(i, step);
 
                 var stepResult = await ExecuteStepAsync(step, content, ct);
                 result.StepResults.Add(stepResult);
 
                 if (stepResult.Success)
                 {
-                    await OnStepCompleted?.Invoke(i, step, true)!;
+                    if (OnStepCompleted != null) await OnStepCompleted.Invoke(i, step, true);
                     _logger.LogDebug("Step {Index} completed: {Action}", i, step.Action);
                 }
                 else
@@ -78,7 +78,7 @@ public class WorkflowExecutor
                     // ถ้า step ไม่ optional และล้มเหลว
                     if (!step.IsOptional)
                     {
-                        await OnStepFailed?.Invoke(i, step, stepResult.Error ?? "Unknown error")!;
+                        if (OnStepFailed != null) await OnStepFailed.Invoke(i, step, stepResult.Error ?? "Unknown error");
 
                         // พยายามซ่อมอัตโนมัติ
                         var repaired = await TryAutoRepairAndRetry(workflow, i, content, ct);
@@ -93,7 +93,7 @@ public class WorkflowExecutor
                             await _learningEngine.UpdateWorkflowFromResult(
                                 workflow, false, i, stepResult.Error, ct);
 
-                            await OnWorkflowFailed?.Invoke(workflow.Id, i, stepResult.Error ?? "Unknown")!;
+                            if (OnWorkflowFailed != null) await OnWorkflowFailed.Invoke(workflow.Id, i, stepResult.Error ?? "Unknown");
 
                             break;
                         }
@@ -101,7 +101,7 @@ public class WorkflowExecutor
                     else
                     {
                         _logger.LogDebug("Optional step {Index} failed, continuing", i);
-                        await OnStepCompleted?.Invoke(i, step, false)!;
+                        if (OnStepCompleted != null) await OnStepCompleted.Invoke(i, step, false);
                     }
                 }
             }
@@ -111,7 +111,7 @@ public class WorkflowExecutor
             {
                 result.Success = true;
                 await _learningEngine.UpdateWorkflowFromResult(workflow, true, ct: ct);
-                await OnWorkflowCompleted?.Invoke(workflow.Id)!;
+                if (OnWorkflowCompleted != null) await OnWorkflowCompleted.Invoke(workflow.Id);
             }
 
             result.CompletedAt = DateTime.UtcNow;

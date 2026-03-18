@@ -482,9 +482,11 @@ class AIManagerService
             ];
         }
 
+        $decoded = json_decode($stats, true) ?? [];
+
         return [
             'connected' => true,
-            ...json_decode($stats, true),
+            ...$decoded,
         ];
     }
 
@@ -667,23 +669,31 @@ class AIManagerService
 
     /**
      * Wait for a task result from Redis
+     *
+     * Uses a Lua script for atomic lrange + lrem to prevent race conditions
+     * where concurrent consumers could both read and remove the same result.
      */
     private function waitForResult(string $taskId, int $timeoutSeconds = 30): ?array
     {
         $startTime = time();
 
+        $script = <<<'LUA'
+            local results = redis.call('lrange', KEYS[1], 0, -1)
+            for i, v in ipairs(results) do
+                local decoded = cjson.decode(v)
+                if decoded['id'] == ARGV[1] then
+                    redis.call('lrem', KEYS[1], 1, v)
+                    return v
+                end
+            end
+            return nil
+        LUA;
+
         while (time() - $startTime < $timeoutSeconds) {
-            // Check result queue
-            $results = Redis::lrange($this->resultQueue, 0, -1);
+            $result = Redis::eval($script, 1, $this->resultQueue, $taskId);
 
-            foreach ($results as $index => $resultJson) {
-                $result = json_decode($resultJson, true);
-
-                if (isset($result['id']) && $result['id'] === $taskId) {
-                    // Remove from queue
-                    Redis::lrem($this->resultQueue, 1, $resultJson);
-                    return $result;
-                }
+            if ($result) {
+                return json_decode($result, true);
             }
 
             usleep(100000); // 100ms

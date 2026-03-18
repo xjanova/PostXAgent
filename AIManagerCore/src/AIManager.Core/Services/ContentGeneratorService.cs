@@ -8,8 +8,10 @@ namespace AIManager.Core.Services;
 /// AI Content Generation Service
 /// Supports multiple providers: Ollama (Local), Google Gemini (Free), OpenAI, Anthropic, HuggingFace
 /// </summary>
-public class ContentGeneratorService
+public class ContentGeneratorService : IDisposable
 {
+    private static readonly HttpClient SharedHttpClient = new() { Timeout = TimeSpan.FromMinutes(10) };
+
     private readonly HttpClient _httpClient;
     private readonly AIConfig _config;
     private readonly OllamaCpuOptimizer _cpuOptimizer;
@@ -18,8 +20,7 @@ public class ContentGeneratorService
 
     public ContentGeneratorService()
     {
-        _httpClient = new HttpClient();
-        _httpClient.Timeout = TimeSpan.FromMinutes(10); // เพิ่ม timeout สำหรับ CPU inference
+        _httpClient = SharedHttpClient;
         _config = AIConfig.Load();
         _cpuOptimizer = new OllamaCpuOptimizer();
         _cpuConfig = _cpuOptimizer.DetectAndOptimize();
@@ -60,9 +61,10 @@ public class ContentGeneratorService
                     return result;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Try next provider
+                // Try next provider - log silently
+                System.Diagnostics.Debug.WriteLine($"Provider {name} failed: {ex.Message}");
             }
         }
 
@@ -200,9 +202,10 @@ public class ContentGeneratorService
                     return ParseContent(content ?? "");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Try next model
+                // Try next model - log silently
+                System.Diagnostics.Debug.WriteLine($"Model attempt failed: {ex.Message}");
             }
         }
 
@@ -262,9 +265,10 @@ public class ContentGeneratorService
                     return ParseContent(content ?? "");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Try next model
+                // Try next model - log silently
+                System.Diagnostics.Debug.WriteLine($"Model attempt failed: {ex.Message}");
             }
         }
 
@@ -327,9 +331,10 @@ public class ContentGeneratorService
                     return ParseContent(content ?? "");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Try next model
+                // Try next model - log silently
+                System.Diagnostics.Debug.WriteLine($"Model attempt failed: {ex.Message}");
             }
         }
 
@@ -411,9 +416,10 @@ public class ContentGeneratorService
                     return ParseContent(generatedText);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Try next model
+                // Try next model - log silently
+                System.Diagnostics.Debug.WriteLine($"Model attempt failed: {ex.Message}");
             }
         }
 
@@ -489,9 +495,10 @@ public class ContentGeneratorService
 
             return ParseContent(content);
         }
-        catch
+        catch (Exception ex)
         {
-            return null; // Ollama not available
+            System.Diagnostics.Debug.WriteLine($"Ollama not available: {ex.Message}");
+            return null;
         }
     }
 
@@ -540,8 +547,9 @@ public class ContentGeneratorService
 
             return ParseContent(content ?? "");
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Fallback model failed: {ex.Message}");
             return null;
         }
     }
@@ -611,6 +619,13 @@ Rules:
             Text = string.Join("\n", textLines).Trim(),
             Hashtags = hashtags.Distinct().ToList()
         };
+    }
+
+    public void Dispose()
+    {
+        // HttpClient is static/shared - do not dispose it here.
+        // This method satisfies the IDisposable contract for DI containers.
+        GC.SuppressFinalize(this);
     }
 }
 

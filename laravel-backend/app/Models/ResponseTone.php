@@ -6,6 +6,29 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $brand_id
+ * @property string $name
+ * @property string|null $name_th
+ * @property string|null $description
+ * @property array|null $personality_traits
+ * @property array|null $language_preferences
+ * @property array|null $response_templates
+ * @property array|null $keyword_triggers
+ * @property array|null $prohibited_words
+ * @property array|null $required_elements
+ * @property string|null $custom_instructions
+ * @property bool $is_default
+ * @property bool $is_active
+ * @property bool $auto_reply_enabled
+ * @property int $reply_delay_seconds
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\Brand|null $brand
+ */
 class ResponseTone extends Model
 {
     use HasFactory;

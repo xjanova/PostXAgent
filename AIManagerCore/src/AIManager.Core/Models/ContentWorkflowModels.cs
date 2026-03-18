@@ -802,6 +802,11 @@ public class WorkflowProgress
     private void CalculateOverallProgress()
     {
         var totalWeight = Steps.Sum(s => s.Weight);
+        if (totalWeight == 0)
+        {
+            OverallPercentage = 0;
+            return;
+        }
         var completedWeight = Steps.Sum(s => (s.Percentage / 100.0) * s.Weight);
         OverallPercentage = (int)((completedWeight / totalWeight) * 100);
     }

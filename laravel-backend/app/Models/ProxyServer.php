@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Crypt;
 
 /**
  * @property int $id
+ * @property int|null $user_id
  * @property string $host
  * @property int $port
  * @property string $type
@@ -62,6 +63,7 @@ class ProxyServer extends Model
     const PROVIDER_CUSTOM = 'custom';
 
     protected $fillable = [
+        'user_id',
         'host',
         'port',
         'type',

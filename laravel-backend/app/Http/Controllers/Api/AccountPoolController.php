@@ -22,6 +22,27 @@ class AccountPoolController extends Controller
     ) {}
 
     /**
+     * Verify that the pool's brand belongs to the authenticated user
+     */
+    private function authorizePoolOwnership(AccountPool $pool): void
+    {
+        if ($pool->brand->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to access this resource');
+        }
+    }
+
+    /**
+     * Verify that a brand belongs to the authenticated user
+     */
+    private function authorizeBrandOwnership(int $brandId): void
+    {
+        $brand = \App\Models\Brand::findOrFail($brandId);
+        if ($brand->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to access this brand');
+        }
+    }
+
+    /**
      * List all account pools for a brand
      */
     public function index(Request $request): JsonResponse
@@ -30,6 +51,8 @@ class AccountPoolController extends Controller
             'brand_id' => 'required|exists:brands,id',
             'platform' => 'nullable|string',
         ]);
+
+        $this->authorizeBrandOwnership((int) $validated['brand_id']);
 
         $query = AccountPool::where('brand_id', $validated['brand_id'])
             ->with(['members.socialAccount'])
@@ -71,6 +94,8 @@ class AccountPoolController extends Controller
             'account_ids' => 'nullable|array',
             'account_ids.*' => 'exists:social_accounts,id',
         ]);
+
+        $this->authorizeBrandOwnership((int) $validated['brand_id']);
 
         // Check unique constraint
         $exists = AccountPool::where('brand_id', $validated['brand_id'])
@@ -125,6 +150,8 @@ class AccountPoolController extends Controller
      */
     public function show(AccountPool $accountPool): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $accountPool->load(['members.socialAccount', 'statusLogs' => function ($query) {
             $query->latest()->limit(50);
         }]);
@@ -142,6 +169,8 @@ class AccountPoolController extends Controller
      */
     public function update(Request $request, AccountPool $accountPool): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
@@ -152,7 +181,7 @@ class AccountPoolController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
-        $accountPool->update(array_filter($validated, fn($v) => $v !== null));
+        $accountPool->update(array_filter($validated, fn($v) => !is_null($v)));
 
         return response()->json([
             'success' => true,
@@ -166,6 +195,8 @@ class AccountPoolController extends Controller
      */
     public function destroy(AccountPool $accountPool): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $accountPool->delete();
 
         return response()->json([
@@ -179,6 +210,8 @@ class AccountPoolController extends Controller
      */
     public function addAccount(Request $request, AccountPool $accountPool): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $validated = $request->validate([
             'social_account_id' => 'required|exists:social_accounts,id',
             'priority' => 'nullable|integer|min:0',
@@ -227,6 +260,8 @@ class AccountPoolController extends Controller
      */
     public function removeAccount(AccountPool $accountPool, int $accountId): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $deleted = AccountPoolMember::where('account_pool_id', $accountPool->id)
             ->where('social_account_id', $accountId)
             ->delete();
@@ -249,6 +284,8 @@ class AccountPoolController extends Controller
      */
     public function updateMember(Request $request, AccountPool $accountPool, int $accountId): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $validated = $request->validate([
             'priority' => 'nullable|integer|min:0',
             'weight' => 'nullable|integer|min:1|max:1000',
@@ -287,6 +324,8 @@ class AccountPoolController extends Controller
      */
     public function recoverAccount(Request $request, AccountPool $accountPool, int $accountId): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $request->validate([
             'reason' => 'nullable|string|max:500',
         ]);
@@ -320,6 +359,8 @@ class AccountPoolController extends Controller
      */
     public function statistics(AccountPool $accountPool): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         return response()->json([
             'success' => true,
             'data' => $this->rotationService->getPoolStatistics($accountPool),
@@ -331,6 +372,8 @@ class AccountPoolController extends Controller
      */
     public function logs(Request $request, AccountPool $accountPool): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $validated = $request->validate([
             'hours' => 'nullable|integer|min:1|max:168', // max 1 week
             'event_type' => 'nullable|string',
@@ -396,6 +439,8 @@ class AccountPoolController extends Controller
      */
     public function previewNextAccount(AccountPool $accountPool): JsonResponse
     {
+        $this->authorizePoolOwnership($accountPool);
+
         $member = $this->rotationService->getNextAccount($accountPool);
 
         if (!$member) {

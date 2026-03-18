@@ -11,37 +11,57 @@ public class AIManagerHub : Hub
 {
     private readonly ProcessOrchestrator _orchestrator;
     private readonly ILogger<AIManagerHub> _logger;
+    private readonly IHubContext<AIManagerHub> _hubContext;
+    private static bool _eventsSubscribed;
+    private static readonly object _subscriptionLock = new();
 
-    public AIManagerHub(ProcessOrchestrator orchestrator, ILogger<AIManagerHub> logger)
+    public AIManagerHub(ProcessOrchestrator orchestrator, ILogger<AIManagerHub> logger, IHubContext<AIManagerHub> hubContext)
     {
         _orchestrator = orchestrator;
         _logger = logger;
+        _hubContext = hubContext;
 
-        // Subscribe to events and forward to clients
-        _orchestrator.TaskReceived += async (s, e) =>
+        // Subscribe to events only once using a static flag to prevent duplicate subscriptions
+        // Hub instances are created per-connection, so without this guard, every new connection
+        // would add another set of event handlers, causing a leak.
+        lock (_subscriptionLock)
         {
-            await BroadcastTaskUpdate("TaskReceived", e.Task);
-        };
+            if (!_eventsSubscribed)
+            {
+                _eventsSubscribed = true;
 
-        _orchestrator.TaskCompleted += async (s, e) =>
-        {
-            await BroadcastTaskUpdate("TaskCompleted", e.Task);
-        };
+                _orchestrator.TaskReceived += async (s, e) =>
+                {
+                    await BroadcastTaskUpdateViaContext("TaskReceived", e.Task);
+                };
 
-        _orchestrator.TaskFailed += async (s, e) =>
-        {
-            await BroadcastTaskUpdate("TaskFailed", e.Task);
-        };
+                _orchestrator.TaskCompleted += async (s, e) =>
+                {
+                    await BroadcastTaskUpdateViaContext("TaskCompleted", e.Task);
+                };
 
-        _orchestrator.StatsUpdated += async (s, e) =>
-        {
-            await BroadcastStats(e.Stats);
-        };
+                _orchestrator.TaskFailed += async (s, e) =>
+                {
+                    await BroadcastTaskUpdateViaContext("TaskFailed", e.Task);
+                };
 
-        _orchestrator.WorkerStatusChanged += async (s, e) =>
-        {
-            await BroadcastWorkerStatus(e.Worker, e.Status);
-        };
+                _orchestrator.StatsUpdated += async (s, e) =>
+                {
+                    await _hubContext.Clients.All.SendAsync("StatsUpdated", e.Stats);
+                };
+
+                _orchestrator.WorkerStatusChanged += async (s, e) =>
+                {
+                    await _hubContext.Clients.All.SendAsync("WorkerStatusChanged", new { Worker = e.Worker, Status = e.Status });
+                };
+            }
+        }
+    }
+
+    private async Task BroadcastTaskUpdateViaContext(string eventName, TaskItem task)
+    {
+        await _hubContext.Clients.All.SendAsync(eventName, task);
+        await _hubContext.Clients.Group($"platform_{task.Platform}").SendAsync($"Platform{eventName}", task);
     }
 
     public override async Task OnConnectedAsync()

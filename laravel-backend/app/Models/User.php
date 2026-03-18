@@ -83,6 +83,31 @@ class User extends Authenticatable
         return $this->hasMany(UserRental::class);
     }
 
+    public function contentPipelines(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ContentPipeline::class);
+    }
+
+    public function gpuProviderAccounts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GpuProviderAccount::class);
+    }
+
+    public function gpuAccountPools(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GpuAccountPool::class);
+    }
+
+    public function learnedWorkflows(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LearnedWorkflow::class);
+    }
+
+    public function seekAndPostTasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SeekAndPostTask::class);
+    }
+
     // Helpers
     public function hasActiveSubscription(): bool
     {

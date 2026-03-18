@@ -78,7 +78,8 @@ class AIManagerStatusController extends Controller
             return response()->json([
                 'success' => false,
                 'pong' => false,
-                'error' => $e->getMessage(),
+                'message' => 'AI Manager is not reachable',
+                'errors' => [],
             ], 503);
         }
     }
@@ -90,7 +91,9 @@ class AIManagerStatusController extends Controller
     {
         if (!$this->connectionStatus->isConnected()) {
             return response()->json([
-                'error' => 'AI Manager not connected',
+                'success' => false,
+                'message' => 'AI Manager not connected',
+                'errors' => [],
             ], 503);
         }
 
@@ -102,7 +105,9 @@ class AIManagerStatusController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to retrieve AI Manager stats',
+                'errors' => [],
             ], 500);
         }
     }
@@ -114,7 +119,9 @@ class AIManagerStatusController extends Controller
     {
         if (!$this->connectionStatus->isConnected()) {
             return response()->json([
-                'error' => 'AI Manager not connected',
+                'success' => false,
+                'message' => 'AI Manager not connected',
+                'errors' => [],
             ], 503);
         }
 
@@ -126,7 +133,9 @@ class AIManagerStatusController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to retrieve workers',
+                'errors' => [],
             ], 500);
         }
     }
@@ -138,7 +147,9 @@ class AIManagerStatusController extends Controller
     {
         if (!$this->connectionStatus->isConnected()) {
             return response()->json([
-                'error' => 'AI Manager not connected',
+                'success' => false,
+                'message' => 'AI Manager not connected',
+                'errors' => [],
             ], 503);
         }
 
@@ -150,7 +161,9 @@ class AIManagerStatusController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to retrieve system information',
+                'errors' => [],
             ], 500);
         }
     }
@@ -171,7 +184,9 @@ class AIManagerStatusController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to start AI Manager',
+                'errors' => [],
             ], 500);
         }
     }
@@ -192,7 +207,9 @@ class AIManagerStatusController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to stop AI Manager',
+                'errors' => [],
             ], 500);
         }
     }
@@ -203,14 +220,31 @@ class AIManagerStatusController extends Controller
     public function testConnection(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'host' => 'required|string',
-            'port' => 'required|integer|min:1|max:65535',
+            'host' => 'required|string|max:255',
+            'port' => 'required|integer|min:1024|max:65535',
         ]);
+
+        // SSRF protection: only allow connections to known safe hosts
+        $allowedHosts = array_filter([
+            'localhost',
+            '127.0.0.1',
+            '::1',
+            config('aimanager.host'),
+        ]);
+
+        $host = strtolower(trim($validated['host']));
+
+        if (!in_array($host, $allowedHosts, true)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Host not allowed. Only localhost and the configured AI Manager host are permitted.',
+            ], 403);
+        }
 
         $startTime = microtime(true);
 
         try {
-            $url = "http://{$validated['host']}:{$validated['port']}/api/status/health";
+            $url = "http://{$host}:{$validated['port']}/api/status/health";
 
             $response = Http::timeout(5)->get($url);
             $latency = round((microtime(true) - $startTime) * 1000, 2);
@@ -235,7 +269,8 @@ class AIManagerStatusController extends Controller
             return response()->json([
                 'success' => false,
                 'reachable' => false,
-                'error' => $e->getMessage(),
+                'message' => 'Connection test failed',
+                'errors' => [],
             ]);
         }
     }

@@ -117,9 +117,6 @@ class AccountRotationService
                 $postId,
                 $metadata
             );
-
-            // Update round robin index
-            $this->updateRoundRobinIndex($member->accountPool);
         });
 
         Log::info("Account post success recorded", [

@@ -517,8 +517,9 @@ public class SelfHealingWorker
                 CreatedAt = DateTime.UtcNow
             };
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Session refresh healing failed: {ex.Message}");
             result.Healed = false;
         }
 
@@ -629,8 +630,9 @@ public class SelfHealingWorker
                 };
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Generic relearning healing failed: {ex.Message}");
             result.Healed = false;
         }
 
@@ -705,8 +707,9 @@ public class SelfHealingWorker
             }
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Apply solution failed: {ex.Message}");
             return false;
         }
     }

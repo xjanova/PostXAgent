@@ -127,7 +127,7 @@ class Campaign extends Model
             'goal' => $this->goal,
             'themes' => $this->content_themes,
             'ai_settings' => $this->ai_settings,
-            'brand' => $this->brand->toAIContext(),
+            'brand' => $this->brand?->toAIContext() ?? [],
         ];
     }
 }

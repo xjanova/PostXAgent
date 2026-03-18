@@ -22,7 +22,428 @@ class WebLearningController extends Controller
     }
 
     /**
-     * List learned workflows
+     * List learned workflows (route: GET /web-learning/workflows)
+     */
+    public function index(Request $request): JsonResponse
+    {
+        return $this->listWorkflows($request);
+    }
+
+    /**
+     * Show single workflow (route: GET /web-learning/workflows/{workflow})
+     */
+    public function show(LearnedWorkflow $workflow): JsonResponse
+    {
+        return $this->getWorkflow($workflow);
+    }
+
+    /**
+     * Update workflow basic properties (route: PUT /web-learning/workflows/{workflow})
+     */
+    public function update(Request $request, LearnedWorkflow $workflow): JsonResponse
+    {
+        $this->authorize('update', $workflow);
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:500',
+            'is_active' => 'nullable|boolean',
+            'platform' => 'nullable|in:' . implode(',', SocialAccount::getPlatforms()),
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $workflow->update($request->only(['name', 'description', 'is_active', 'platform']));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'อัพเดท Workflow สำเร็จ',
+            'data' => $workflow->load('steps'),
+        ]);
+    }
+
+    /**
+     * Delete workflow (route: DELETE /web-learning/workflows/{workflow})
+     */
+    public function destroy(LearnedWorkflow $workflow): JsonResponse
+    {
+        return $this->deleteWorkflow($workflow);
+    }
+
+    /**
+     * Get workflow steps (route: GET /web-learning/workflows/{workflow}/steps)
+     */
+    public function getSteps(LearnedWorkflow $workflow): JsonResponse
+    {
+        $this->authorize('view', $workflow);
+
+        return response()->json([
+            'success' => true,
+            'data' => $workflow->steps()->orderBy('order')->get(),
+        ]);
+    }
+
+    /**
+     * Cancel teaching session (route: POST /web-learning/teaching/{workflow}/cancel)
+     */
+    public function cancelTeachingSession(LearnedWorkflow $workflow): JsonResponse
+    {
+        $this->authorize('update', $workflow);
+
+        if ($workflow->status !== LearnedWorkflow::STATUS_LEARNING) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Workflow ไม่อยู่ในโหมดการสอน',
+            ], 400);
+        }
+
+        // Notify AI Manager to cancel
+        try {
+            $this->aiManager->cancelTeachingSession($workflow->id);
+        } catch (\Throwable $e) {
+            // Continue even if AI Manager is unreachable
+        }
+
+        $workflow->steps()->delete();
+        $workflow->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'ยกเลิกเซสชันการสอนแล้ว',
+        ]);
+    }
+
+    /**
+     * Execute workflow (route: POST /web-learning/workflows/{workflow}/execute)
+     */
+    public function executeWorkflow(Request $request, LearnedWorkflow $workflow): JsonResponse
+    {
+        $this->authorize('view', $workflow);
+
+        if (!$workflow->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Workflow ไม่ได้เปิดใช้งาน',
+            ], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'content' => 'nullable|array',
+            'content.text' => 'nullable|string',
+            'content.hashtags' => 'nullable|array',
+            'social_account_id' => 'nullable|exists:social_accounts,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $execution = WorkflowExecution::create([
+            'learned_workflow_id' => $workflow->id,
+            'user_id' => $request->user()->id,
+            'content_used' => $request->content,
+            'status' => WorkflowExecution::STATUS_PENDING,
+        ]);
+
+        $result = $this->aiManager->executeWorkflow([
+            'workflow_id' => $workflow->id,
+            'execution_id' => $execution->id,
+            'content' => $request->content,
+            'social_account_id' => $request->social_account_id,
+            'test_mode' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'เริ่มรัน Workflow แล้ว',
+            'data' => [
+                'execution_id' => $execution->id,
+                'status' => $result['status'] ?? 'queued',
+            ],
+        ]);
+    }
+
+    /**
+     * Get test execution history for a workflow (route: GET /web-learning/workflows/{workflow}/test-history)
+     */
+    public function testHistory(Request $request, LearnedWorkflow $workflow): JsonResponse
+    {
+        $this->authorize('view', $workflow);
+
+        $executions = $workflow->executions()
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'success' => true,
+            'data' => $executions,
+        ]);
+    }
+
+    /**
+     * Cancel a workflow execution (route: POST /web-learning/executions/{execution}/cancel)
+     */
+    public function cancelExecution(WorkflowExecution $execution): JsonResponse
+    {
+        $this->authorize('view', $execution->workflow);
+
+        if (!in_array($execution->status, [WorkflowExecution::STATUS_PENDING, WorkflowExecution::STATUS_RUNNING])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ไม่สามารถยกเลิก Execution ที่เสร็จสิ้นแล้ว',
+            ], 400);
+        }
+
+        try {
+            $this->aiManager->cancelExecution($execution->id);
+        } catch (\Throwable $e) {
+            // Continue even if AI Manager is unreachable
+        }
+
+        $execution->update(['status' => WorkflowExecution::STATUS_FAILED]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'ยกเลิก Execution แล้ว',
+            'data' => $execution->fresh(),
+        ]);
+    }
+
+    /**
+     * AI suggest CSS/XPath selectors (route: POST /web-learning/ai/suggest-selectors)
+     */
+    public function suggestSelectors(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'page_html' => 'required|string',
+            'element_description' => 'required|string|max:255',
+            'platform' => 'nullable|in:' . implode(',', SocialAccount::getPlatforms()),
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $result = $this->aiManager->suggestSelectors([
+            'page_html' => $request->page_html,
+            'element_description' => $request->element_description,
+            'platform' => $request->platform,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Merge another workflow into this one (route: POST /web-learning/workflows/{workflow}/merge)
+     */
+    public function mergeWorkflows(Request $request, LearnedWorkflow $workflow): JsonResponse
+    {
+        $this->authorize('update', $workflow);
+
+        $validator = Validator::make($request->all(), [
+            'source_workflow_id' => 'required|exists:learned_workflows,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        /** @var LearnedWorkflow $sourceWorkflow */
+        $sourceWorkflow = LearnedWorkflow::findOrFail($request->source_workflow_id);
+        $this->authorize('view', $sourceWorkflow);
+
+        $maxOrder = $workflow->steps()->max('order') ?? -1;
+
+        foreach ($sourceWorkflow->steps()->orderBy('order')->get() as $step) {
+            $maxOrder++;
+            $newStep = $step->replicate();
+            $newStep->learned_workflow_id = $workflow->id;
+            $newStep->order = $maxOrder;
+            $newStep->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Merge Workflow สำเร็จ',
+            'data' => $workflow->load('steps'),
+        ]);
+    }
+
+    /**
+     * Get statistics (route: GET /web-learning/statistics)
+     */
+    public function statistics(Request $request): JsonResponse
+    {
+        return $this->getStatistics($request);
+    }
+
+    /**
+     * Get statistics grouped by platform (route: GET /web-learning/statistics/by-platform)
+     */
+    public function statisticsByPlatform(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $workflows = LearnedWorkflow::where('user_id', $userId)->get();
+
+        $byPlatform = $workflows->groupBy('platform')->map(function ($group, $platform) {
+            $executions = WorkflowExecution::whereIn('learned_workflow_id', $group->pluck('id'))->get();
+            $successCount = $executions->where('status', WorkflowExecution::STATUS_SUCCESS)->count();
+            $totalExec = $executions->count();
+
+            return [
+                'platform' => $platform,
+                'total_workflows' => $group->count(),
+                'active_workflows' => $group->where('is_active', true)->count(),
+                'total_executions' => $totalExec,
+                'success_rate' => $totalExec > 0 ? round($successCount / $totalExec * 100, 2) : 0,
+                'avg_confidence' => round($group->avg('confidence_score') * 100, 2),
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $byPlatform,
+        ]);
+    }
+
+    /**
+     * Import workflows from JSON (route: POST /web-learning/workflows/import) [admin]
+     */
+    public function importWorkflows(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'workflows' => 'required|array',
+            'workflows.*.name' => 'required|string|max:255',
+            'workflows.*.platform' => 'required|in:' . implode(',', SocialAccount::getPlatforms()),
+            'workflows.*.steps' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $imported = 0;
+
+        foreach ($request->workflows as $workflowData) {
+            $workflow = LearnedWorkflow::create([
+                'user_id' => $request->user()->id,
+                'platform' => $workflowData['platform'],
+                'name' => $workflowData['name'],
+                'description' => $workflowData['description'] ?? null,
+                'status' => LearnedWorkflow::STATUS_ACTIVE,
+                'is_active' => true,
+            ]);
+
+            foreach (($workflowData['steps'] ?? []) as $index => $stepData) {
+                WorkflowStep::create([
+                    'learned_workflow_id' => $workflow->id,
+                    'order' => $index,
+                    'action' => $stepData['action'] ?? 'click',
+                    'description' => $stepData['description'] ?? '',
+                    'selector_type' => $stepData['selector_type'] ?? null,
+                    'selector_value' => $stepData['selector_value'] ?? null,
+                    'input_value' => $stepData['input_value'] ?? null,
+                    'input_variable' => $stepData['input_variable'] ?? null,
+                    'learned_from' => LearnedWorkflow::SOURCE_MANUAL,
+                ]);
+            }
+
+            $imported++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "นำเข้า {$imported} Workflow สำเร็จ",
+            'data' => ['imported_count' => $imported],
+        ]);
+    }
+
+    /**
+     * Export workflows as JSON (route: GET /web-learning/workflows/export) [admin]
+     */
+    public function exportWorkflows(Request $request): JsonResponse
+    {
+        $query = LearnedWorkflow::with('steps');
+
+        if ($request->has('platform')) {
+            $query->where('platform', $request->platform);
+        }
+
+        if ($request->has('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        $workflows = $query->get()->map(function (LearnedWorkflow $workflow) {
+            return [
+                'name' => $workflow->name,
+                'platform' => $workflow->platform,
+                'description' => $workflow->description,
+                'steps' => $workflow->steps->map(function (WorkflowStep $step) {
+                    return [
+                        'order' => $step->order,
+                        'action' => $step->action,
+                        'description' => $step->description,
+                        'selector_type' => $step->selector_type,
+                        'selector_value' => $step->selector_value,
+                        'input_value' => $step->input_value,
+                        'input_variable' => $step->input_variable,
+                    ];
+                })->toArray(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'workflows' => $workflows,
+                'exported_at' => now()->toIso8601String(),
+                'total' => $workflows->count(),
+            ],
+        ]);
+    }
+
+    /**
+     * Reset all learning data (route: POST /web-learning/reset-learning) [admin]
+     */
+    public function resetLearning(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $workflowIds = LearnedWorkflow::where('user_id', $userId)->pluck('id');
+
+        WorkflowExecution::whereIn('learned_workflow_id', $workflowIds)->delete();
+        WorkflowStep::whereIn('learned_workflow_id', $workflowIds)->delete();
+        LearnedWorkflow::where('user_id', $userId)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'รีเซ็ตข้อมูลการเรียนรู้ทั้งหมดแล้ว',
+        ]);
+    }
+
+    /**
+     * List learned workflows (internal)
      */
     public function listWorkflows(Request $request): JsonResponse
     {
@@ -248,14 +669,24 @@ class WebLearningController extends Controller
     }
 
     /**
-     * List workflow executions
+     * List all executions for the current user (route: GET /web-learning/executions)
      */
-    public function listExecutions(Request $request, LearnedWorkflow $workflow): JsonResponse
+    public function listExecutions(Request $request): JsonResponse
     {
-        $this->authorize('view', $workflow);
+        $userId = $request->user()->id;
 
-        $executions = $workflow->executions()
-            ->orderBy('created_at', 'desc')
+        $query = WorkflowExecution::where('user_id', $userId)
+            ->with('workflow');
+
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('workflow_id')) {
+            $query->where('learned_workflow_id', $request->workflow_id);
+        }
+
+        $executions = $query->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 15));
 
         return response()->json([

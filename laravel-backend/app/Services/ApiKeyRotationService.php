@@ -91,7 +91,7 @@ class ApiKeyRotationService
 
             // Apply cooldown if configured
             $pool = $member->apiKeyPool;
-            if ($pool && $pool->cooldown_seconds > 0) {
+            if ($pool->cooldown_seconds > 0) {
                 $member->startCooldown($pool->cooldown_seconds);
             }
 

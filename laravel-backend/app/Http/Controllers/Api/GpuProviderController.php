@@ -37,7 +37,7 @@ class GpuProviderController extends Controller
         $accounts = GpuProviderAccount::where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(fn ($a) => $this->formatAccount($a));
+            ->map(fn (GpuProviderAccount $a) => $this->formatAccount($a));
 
         return response()->json([
             'success' => true,
@@ -68,8 +68,15 @@ class GpuProviderController extends Controller
         }
 
         // Validate credentials with provider
-        $provider = $this->providerFactory->getProvider($request->provider);
-        if (!$provider->validateCredentials($request->api_key, $request->api_secret)) {
+        /** @var string $providerName */
+        $providerName = $request->input('provider');
+        /** @var string $apiKey */
+        $apiKey = $request->input('api_key');
+        /** @var string|null $apiSecret */
+        $apiSecret = $request->input('api_secret');
+
+        $provider = $this->providerFactory->getProvider($providerName);
+        if (!$provider->validateCredentials($apiKey, $apiSecret)) {
             return response()->json([
                 'success' => false,
                 'error' => 'Invalid API credentials. Please check and try again.',
@@ -78,11 +85,11 @@ class GpuProviderController extends Controller
 
         // Create temporary account to get balance
         $tempAccount = new GpuProviderAccount([
-            'provider' => $request->provider,
-            'api_key' => $request->api_key,
-            'api_secret' => $request->api_secret,
+            'provider' => $providerName,
+            'api_key' => $apiKey,
+            'api_secret' => $apiSecret,
         ]);
-        $tempAccount->setRawAttributes(['api_key' => $request->api_key], true);
+        $tempAccount->setRawAttributes(['api_key' => $apiKey], true);
 
         // Get initial balance
         $balance = 0;
@@ -94,14 +101,14 @@ class GpuProviderController extends Controller
 
         $account = GpuProviderAccount::create([
             'user_id' => Auth::id(),
-            'provider' => $request->provider,
-            'name' => $request->name,
-            'email' => $request->email,
-            'api_key' => $request->api_key,
-            'api_secret' => $request->api_secret,
+            'provider' => $providerName,
+            'name' => $request->input('name'),
+            'email' => $request->input('email'),
+            'api_key' => $apiKey,
+            'api_secret' => $apiSecret,
             'credits_balance' => $balance,
-            'daily_credit_limit' => $request->daily_credit_limit,
-            'low_balance_threshold' => $request->low_balance_threshold ?? 1.00,
+            'daily_credit_limit' => $request->input('daily_credit_limit'),
+            'low_balance_threshold' => $request->input('low_balance_threshold', 1.00),
             'last_balance_check_at' => now(),
         ]);
 
@@ -154,9 +161,11 @@ class GpuProviderController extends Controller
         }
 
         // If API key changed, validate it
-        if ($request->has('api_key') && $request->api_key !== $account->getDecryptedApiKey()) {
+        if ($request->has('api_key') && $request->input('api_key') !== $account->getDecryptedApiKey()) {
             $provider = $this->providerFactory->getProviderForAccount($account);
-            if (!$provider->validateCredentials($request->api_key, $request->api_secret ?? $account->getDecryptedApiSecret())) {
+            /** @var string $newApiKey */
+            $newApiKey = $request->input('api_key');
+            if (!$provider->validateCredentials($newApiKey, $request->input('api_secret') ?? $account->getDecryptedApiSecret())) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Invalid API credentials',
@@ -184,8 +193,10 @@ class GpuProviderController extends Controller
         $account = GpuProviderAccount::where('user_id', Auth::id())
             ->findOrFail($id);
 
-        // Check for active instances
-        $activeInstances = $account->instances()->active()->count();
+        // Check for active instances (inline of ->active() scope)
+        $activeInstances = $account->instances()
+            ->whereIn('status', [GpuInstance::STATUS_PENDING, GpuInstance::STATUS_STARTING, GpuInstance::STATUS_RUNNING])
+            ->count();
         if ($activeInstances > 0) {
             return response()->json([
                 'success' => false,
@@ -237,7 +248,7 @@ class GpuProviderController extends Controller
             ->with(['members.providerAccount'])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(fn ($p) => $this->formatPool($p));
+            ->map(fn (GpuAccountPool $p) => $this->formatPool($p));
 
         return response()->json([
             'success' => true,
@@ -275,22 +286,24 @@ class GpuProviderController extends Controller
 
         $pool = GpuAccountPool::create([
             'user_id' => Auth::id(),
-            'name' => $request->name,
-            'provider' => $request->provider,
-            'description' => $request->description,
-            'rotation_strategy' => $request->rotation_strategy ?? GpuAccountPool::STRATEGY_MOST_CREDITS,
-            'cooldown_minutes' => $request->cooldown_minutes ?? 60,
-            'min_credits_required' => $request->min_credits_required ?? 0.50,
-            'auto_failover' => $request->auto_failover ?? true,
-            'auto_provision' => $request->auto_provision ?? true,
-            'preferred_gpu_types' => $request->preferred_gpu_types,
-            'preferred_regions' => $request->preferred_regions,
-            'max_price_per_hour' => $request->max_price_per_hour,
+            'name' => $request->input('name'),
+            'provider' => $request->input('provider'),
+            'description' => $request->input('description'),
+            'rotation_strategy' => $request->input('rotation_strategy', GpuAccountPool::STRATEGY_MOST_CREDITS),
+            'cooldown_minutes' => $request->input('cooldown_minutes', 60),
+            'min_credits_required' => $request->input('min_credits_required', 0.50),
+            'auto_failover' => $request->input('auto_failover', true),
+            'auto_provision' => $request->input('auto_provision', true),
+            'preferred_gpu_types' => $request->input('preferred_gpu_types'),
+            'preferred_regions' => $request->input('preferred_regions'),
+            'max_price_per_hour' => $request->input('max_price_per_hour'),
         ]);
 
         // Add accounts to pool
-        if (!empty($request->account_ids)) {
-            foreach ($request->account_ids as $index => $accountId) {
+        /** @var array<int, int>|null $accountIds */
+        $accountIds = $request->input('account_ids');
+        if (!empty($accountIds)) {
+            foreach ($accountIds as $index => $accountId) {
                 $account = GpuProviderAccount::where('user_id', Auth::id())
                     ->find($accountId);
 
@@ -349,12 +362,13 @@ class GpuProviderController extends Controller
         }
 
         // Verify account belongs to user
+        $accountId = $request->input('account_id');
         $account = GpuProviderAccount::where('user_id', Auth::id())
-            ->findOrFail($request->account_id);
+            ->findOrFail($accountId);
 
         // Check if already in pool
         $existing = GpuPoolMember::where('gpu_account_pool_id', $poolId)
-            ->where('gpu_provider_account_id', $request->account_id)
+            ->where('gpu_provider_account_id', $accountId)
             ->first();
 
         if ($existing) {
@@ -366,9 +380,9 @@ class GpuProviderController extends Controller
 
         $member = GpuPoolMember::create([
             'gpu_account_pool_id' => $poolId,
-            'gpu_provider_account_id' => $request->account_id,
-            'priority' => $request->priority ?? 0,
-            'weight' => $request->weight ?? 100,
+            'gpu_provider_account_id' => $accountId,
+            'priority' => $request->input('priority', 0),
+            'weight' => $request->input('weight', 100),
         ]);
 
         return response()->json([
@@ -425,20 +439,20 @@ class GpuProviderController extends Controller
             ->with(['providerAccount', 'accountPool']);
 
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $query->where('status', $request->input('status'));
         }
 
         if ($request->has('provider')) {
-            $query->where('provider', $request->provider);
+            $query->where('provider', $request->input('provider'));
         }
 
         if ($request->has('pool_id')) {
-            $query->where('gpu_account_pool_id', $request->pool_id);
+            $query->where('gpu_account_pool_id', $request->input('pool_id'));
         }
 
         $instances = $query->orderBy('created_at', 'desc')
             ->get()
-            ->map(fn ($i) => $this->formatInstance($i));
+            ->map(fn (GpuInstance $i) => $this->formatInstance($i));
 
         return response()->json([
             'success' => true,
@@ -476,12 +490,12 @@ class GpuProviderController extends Controller
 
         if ($request->has('pool_id')) {
             $pool = GpuAccountPool::where('user_id', Auth::id())
-                ->findOrFail($request->pool_id);
+                ->findOrFail($request->input('pool_id'));
 
             $result = $this->provisioningService->searchOffersFromPool($pool, $filters);
         } else {
             $account = GpuProviderAccount::where('user_id', Auth::id())
-                ->findOrFail($request->account_id);
+                ->findOrFail($request->input('account_id'));
 
             $provider = $this->providerFactory->getProviderForAccount($account);
             $offers = $provider->searchOffers($account, $filters);
@@ -526,19 +540,21 @@ class GpuProviderController extends Controller
         ]);
 
         $template = null;
-        if ($request->template_id) {
-            $template = GpuSetupTemplate::forUser(Auth::id())
-                ->findOrFail($request->template_id);
+        if ($request->input('template_id')) {
+            $template = GpuSetupTemplate::where(function ($q) {
+                    $q->where('user_id', Auth::id())->orWhere('is_public', true);
+                })
+                ->findOrFail($request->input('template_id'));
         }
 
         if ($request->has('pool_id')) {
             $pool = GpuAccountPool::where('user_id', Auth::id())
-                ->findOrFail($request->pool_id);
+                ->findOrFail($request->input('pool_id'));
 
             $result = $this->provisioningService->provisionFromPool($pool, $requirements, $template);
         } else {
             $account = GpuProviderAccount::where('user_id', Auth::id())
-                ->findOrFail($request->account_id);
+                ->findOrFail($request->input('account_id'));
 
             $result = $this->provisioningService->provisionWithAccount($account, $requirements, $template);
         }
@@ -679,9 +695,11 @@ class GpuProviderController extends Controller
             ->findOrFail($id);
 
         $template = null;
-        if ($request->template_id) {
-            $template = GpuSetupTemplate::forUser(Auth::id())
-                ->findOrFail($request->template_id);
+        if ($request->input('template_id')) {
+            $template = GpuSetupTemplate::where(function ($q) {
+                    $q->where('user_id', Auth::id())->orWhere('is_public', true);
+                })
+                ->findOrFail($request->input('template_id'));
         }
 
         $result = $this->provisioningService->runSetup($instance, $template);
@@ -755,7 +773,7 @@ class GpuProviderController extends Controller
             ]),
         ]);
 
-        if ($request->is_default) {
+        if ($request->input('is_default')) {
             $template->setAsDefault();
         }
 
@@ -788,31 +806,40 @@ class GpuProviderController extends Controller
      */
     public function getActivityLogs(Request $request): JsonResponse
     {
+        $request->validate([
+            'limit' => 'sometimes|integer|min:1|max:500',
+            'account_id' => 'sometimes|integer',
+            'pool_id' => 'sometimes|integer',
+            'instance_id' => 'sometimes|integer',
+            'event_type' => 'sometimes|string|max:100',
+            'hours' => 'sometimes|integer|min:1|max:8760',
+        ]);
+
         $query = GpuActivityLog::where('user_id', Auth::id())
             ->with(['providerAccount', 'accountPool', 'instance']);
 
         if ($request->has('account_id')) {
-            $query->where('gpu_provider_account_id', $request->account_id);
+            $query->where('gpu_provider_account_id', $request->input('account_id'));
         }
 
         if ($request->has('pool_id')) {
-            $query->where('gpu_account_pool_id', $request->pool_id);
+            $query->where('gpu_account_pool_id', $request->input('pool_id'));
         }
 
         if ($request->has('instance_id')) {
-            $query->where('gpu_instance_id', $request->instance_id);
+            $query->where('gpu_instance_id', $request->input('instance_id'));
         }
 
         if ($request->has('event_type')) {
-            $query->where('event_type', $request->event_type);
+            $query->where('event_type', $request->input('event_type'));
         }
 
         if ($request->has('hours')) {
-            $query->recent((int) $request->hours);
+            $query->where('created_at', '>=', now()->subHours($request->integer('hours')));
         }
 
         $logs = $query->orderBy('created_at', 'desc')
-            ->limit($request->limit ?? 100)
+            ->limit($request->integer('limit', 100))
             ->get();
 
         return response()->json([
@@ -826,7 +853,7 @@ class GpuProviderController extends Controller
      */
     public function getHealthReport(Request $request): JsonResponse
     {
-        $hours = (int) ($request->hours ?? 24);
+        $hours = (int) $request->input('hours', 24);
         $report = $this->rotationService->getHealthReport($hours);
 
         return response()->json([
@@ -880,15 +907,15 @@ class GpuProviderController extends Controller
             'max_price_per_hour' => $pool->max_price_per_hour,
             'is_active' => $pool->is_active,
             'statistics' => $stats,
-            'members' => $pool->members->map(fn ($m) => [
+            'members' => $pool->members->map(fn (GpuPoolMember $m) => [
                 'id' => $m->id,
                 'account_id' => $m->gpu_provider_account_id,
-                'account_name' => $m->providerAccount?->name,
-                'provider' => $m->providerAccount?->provider,
+                'account_name' => $m->providerAccount->name,
+                'provider' => $m->providerAccount->provider,
                 'priority' => $m->priority,
                 'weight' => $m->weight,
                 'status' => $m->status,
-                'credits_balance' => $m->providerAccount?->credits_balance,
+                'credits_balance' => $m->providerAccount->credits_balance,
                 'instances_today' => $m->instances_today,
                 'success_rate' => $m->getSuccessRate(),
             ]),
@@ -921,7 +948,7 @@ class GpuProviderController extends Controller
             'docker_image' => $instance->docker_image,
             'gpu_provider_account_id' => $instance->gpu_provider_account_id,
             'gpu_account_pool_id' => $instance->gpu_account_pool_id,
-            'account_name' => $instance->providerAccount?->name,
+            'account_name' => $instance->providerAccount->name,
             'pool_name' => $instance->accountPool?->name,
             'started_at' => $instance->started_at?->toIso8601String(),
             'stopped_at' => $instance->stopped_at?->toIso8601String(),

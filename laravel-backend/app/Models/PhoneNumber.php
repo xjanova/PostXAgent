@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property int $id
+ * @property int|null $user_id
  * @property string $phone_number
  * @property string $country_code
  * @property string $provider
@@ -50,6 +51,7 @@ class PhoneNumber extends Model
     const PROVIDER_MANUAL = 'manual';
 
     protected $fillable = [
+        'user_id',
         'phone_number',
         'country_code',
         'provider',

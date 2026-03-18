@@ -60,26 +60,29 @@ class AccountCreationService
             throw new \InvalidArgumentException("Invalid platform: {$platform}");
         }
 
-        // Allocate resources
-        $phoneNumber = $this->allocatePhoneNumber($platform);
-        $emailAccount = $this->allocateEmailAccount($platform);
-        $proxyServer = $this->allocateProxy($platform);
+        // Allocate resources and create task within a transaction
+        // so that allocated resources are released if task creation fails
+        return DB::transaction(function () use ($user, $brand, $platform, $pool, $profileData) {
+            $phoneNumber = $this->allocatePhoneNumber($platform);
+            $emailAccount = $this->allocateEmailAccount($platform);
+            $proxyServer = $this->allocateProxy($platform);
 
-        // Generate profile data
-        $profile = $this->generateProfileData($platform, $profileData);
+            // Generate profile data
+            $profile = $this->generateProfileData($platform, $profileData);
 
-        return AccountCreationTask::create([
-            'user_id' => $user->id,
-            'brand_id' => $brand->id,
-            'account_pool_id' => $pool?->id,
-            'platform' => $platform,
-            'phone_number_id' => $phoneNumber?->id,
-            'email_account_id' => $emailAccount?->id,
-            'proxy_server_id' => $proxyServer?->id,
-            'profile_data' => $profile,
-            'generated_username' => $profile['username'],
-            'generated_password' => $profile['password'],
-        ]);
+            return AccountCreationTask::create([
+                'user_id' => $user->id,
+                'brand_id' => $brand->id,
+                'account_pool_id' => $pool?->id,
+                'platform' => $platform,
+                'phone_number_id' => $phoneNumber?->id,
+                'email_account_id' => $emailAccount?->id,
+                'proxy_server_id' => $proxyServer?->id,
+                'profile_data' => $profile,
+                'generated_username' => $profile['username'],
+                'generated_password' => $profile['password'],
+            ]);
+        });
     }
 
     /**
@@ -350,7 +353,7 @@ class AccountCreationService
         $base = preg_replace('/[^a-z0-9]/', '', $base);
 
         // Add random suffix
-        $suffix = rand(100, 9999);
+        $suffix = random_int(100, 9999);
 
         return substr($base, 0, 10) . $suffix;
     }
@@ -361,14 +364,14 @@ class AccountCreationService
         $password = '';
 
         // Ensure at least one of each type
-        $password .= chr(rand(97, 122)); // lowercase
-        $password .= chr(rand(65, 90));  // uppercase
-        $password .= chr(rand(48, 57));  // number
-        $password .= $chars[rand(62, 67)]; // special
+        $password .= chr(random_int(97, 122)); // lowercase
+        $password .= chr(random_int(65, 90));  // uppercase
+        $password .= chr(random_int(48, 57));  // number
+        $password .= $chars[random_int(62, 67)]; // special
 
         // Add more random chars
         for ($i = 0; $i < 8; $i++) {
-            $password .= $chars[rand(0, strlen($chars) - 1)];
+            $password .= $chars[random_int(0, strlen($chars) - 1)];
         }
 
         return str_shuffle($password);

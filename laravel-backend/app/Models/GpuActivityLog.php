@@ -26,6 +26,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
+ * @property-read GpuProviderAccount|null $providerAccount
+ * @property-read GpuAccountPool|null $accountPool
+ * @property-read GpuInstance|null $instance
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|static recent(int $hours = 24)
+ * @method static \Illuminate\Database\Eloquent\Builder|static forAccount(int $accountId)
+ * @method static \Illuminate\Database\Eloquent\Builder|static forPool(int $poolId)
+ *
  * @mixin \Illuminate\Database\Eloquent\Builder<static>
  */
 class GpuActivityLog extends Model
@@ -377,7 +385,7 @@ class GpuActivityLog extends Model
             'gpu_provider_account_id' => $newAccount?->id,
             'gpu_account_pool_id' => $pool->id,
             'user_id' => $pool->user_id,
-            'provider' => $newAccount?->provider ?? $failedAccount->provider,
+            'provider' => $newAccount !== null ? $newAccount->provider : $failedAccount->provider,
             'event_type' => self::EVENT_FAILOVER_TRIGGERED,
             'message' => $newAccount
                 ? "Failover from '{$failedAccount->name}' to '{$newAccount->name}': {$reason}"

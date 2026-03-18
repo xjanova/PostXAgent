@@ -96,10 +96,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     Route::post('/campaigns/{campaign}/pause', [CampaignController::class, 'pause']);
     Route::post('/campaigns/{campaign}/stop', [CampaignController::class, 'stop']);
 
-    // Posts
-    Route::apiResource('posts', PostController::class);
-    Route::get('/posts/{post}/metrics', [PostController::class, 'metrics']);
-
+    // Posts - literal routes MUST come before apiResource to avoid {post} wildcard conflicts
     // Bulk operations for posts
     Route::prefix('posts/bulk')->group(function () {
         Route::delete('/', [PostController::class, 'bulkDelete']);
@@ -113,11 +110,15 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
         Route::post('/posts/generate-image', [PostController::class, 'generateImage']);
     });
 
-    // Publishing (rate limited)
+    // Publishing (rate limited) - literal bulk route before wildcard
     Route::middleware(['throttle:publishing'])->group(function () {
-        Route::post('/posts/{post}/publish', [PostController::class, 'publish']);
         Route::post('/posts/bulk/publish', [PostController::class, 'bulkPublish']);
+        Route::post('/posts/{post}/publish', [PostController::class, 'publish']);
     });
+
+    // Posts resource (wildcard routes)
+    Route::apiResource('posts', PostController::class);
+    Route::get('/posts/{post}/metrics', [PostController::class, 'metrics']);
 
     // Subscriptions
     Route::prefix('subscription')->group(function () {
@@ -273,22 +274,26 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
         Route::post('/{execution}/cancel', [UserWorkflowController::class, 'cancelExecution']);
     });
 
-    // Seek and Post
+    // Seek and Post - literal routes MUST come before {task} wildcard
     Route::prefix('seek-and-post')->group(function () {
         Route::get('/', [SeekAndPostController::class, 'index']);
         Route::post('/', [SeekAndPostController::class, 'store']);
         Route::get('/statistics', [SeekAndPostController::class, 'statistics']);
+
+        // Groups literal routes before {task} wildcard
+        Route::get('/groups/list', [SeekAndPostController::class, 'groups']);
+        Route::get('/groups/search', [SeekAndPostController::class, 'searchGroups']);
+        Route::get('/groups/recommended', [SeekAndPostController::class, 'recommendedGroups']);
+        Route::get('/groups/statistics', [SeekAndPostController::class, 'groupStatistics']);
+        Route::get('/groups/{group}', [SeekAndPostController::class, 'groupShow']);
+
+        // Wildcard {task} routes after literals
         Route::get('/{task}', [SeekAndPostController::class, 'show']);
         Route::put('/{task}', [SeekAndPostController::class, 'update']);
         Route::delete('/{task}', [SeekAndPostController::class, 'destroy']);
         Route::post('/{task}/start', [SeekAndPostController::class, 'start']);
         Route::post('/{task}/pause', [SeekAndPostController::class, 'pause']);
         Route::post('/{task}/resume', [SeekAndPostController::class, 'resume']);
-        Route::get('/groups/list', [SeekAndPostController::class, 'groups']);
-        Route::get('/groups/search', [SeekAndPostController::class, 'searchGroups']);
-        Route::get('/groups/recommended', [SeekAndPostController::class, 'recommendedGroups']);
-        Route::get('/groups/statistics', [SeekAndPostController::class, 'groupStatistics']);
-        Route::get('/groups/{group}', [SeekAndPostController::class, 'groupShow']);
     });
 
     // Comment Management
@@ -397,26 +402,18 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
     });
 
     // Content Pipeline - ระบบสร้างเนื้อหาวิดีโออัตโนมัติ
+    // Literal routes MUST come before {pipeline} wildcard
     Route::prefix('content-pipeline')->group(function () {
         Route::get('/stats', [ContentPipelineController::class, 'stats']);
         Route::get('/providers/status', [ContentPipelineController::class, 'providerStatus']);
 
-        // Pipeline CRUD
-        Route::get('/', [ContentPipelineController::class, 'index']);
-        Route::post('/', [ContentPipelineController::class, 'store']);
-        Route::get('/{pipeline}', [ContentPipelineController::class, 'show']);
-        Route::put('/{pipeline}', [ContentPipelineController::class, 'update']);
-        Route::delete('/{pipeline}', [ContentPipelineController::class, 'destroy']);
-        Route::post('/{pipeline}/start', [ContentPipelineController::class, 'startRun']);
-        Route::post('/{pipeline}/toggle-active', [ContentPipelineController::class, 'toggleActive']);
-
-        // Pipeline Runs
+        // Pipeline Runs - literal "runs/*" before {pipeline} wildcard
         Route::get('/runs/list', [ContentPipelineController::class, 'listRuns']);
         Route::get('/runs/{run}', [ContentPipelineController::class, 'showRun']);
         Route::post('/runs/{run}/cancel', [ContentPipelineController::class, 'cancelRun']);
         Route::post('/runs/{run}/retry', [ContentPipelineController::class, 'retryRun']);
 
-        // API Key Pools
+        // API Key Pools - literal "api-keys/*" before {pipeline} wildcard
         Route::prefix('api-keys')->group(function () {
             Route::get('/', [ContentPipelineController::class, 'listApiKeyPools']);
             Route::post('/', [ContentPipelineController::class, 'createApiKeyPool']);
@@ -424,5 +421,14 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api'])->group(functio
             Route::post('/{pool}/members', [ContentPipelineController::class, 'addApiKey']);
             Route::delete('/{pool}/members/{member}', [ContentPipelineController::class, 'removeApiKey']);
         });
+
+        // Pipeline CRUD - wildcard {pipeline} routes last
+        Route::get('/', [ContentPipelineController::class, 'index']);
+        Route::post('/', [ContentPipelineController::class, 'store']);
+        Route::get('/{pipeline}', [ContentPipelineController::class, 'show']);
+        Route::put('/{pipeline}', [ContentPipelineController::class, 'update']);
+        Route::delete('/{pipeline}', [ContentPipelineController::class, 'destroy']);
+        Route::post('/{pipeline}/start', [ContentPipelineController::class, 'startRun']);
+        Route::post('/{pipeline}/toggle-active', [ContentPipelineController::class, 'toggleActive']);
     });
 });

@@ -35,6 +35,7 @@ class RunPipelineJob implements ShouldQueue
         }
 
         $pipeline = $run->pipeline;
+        /** @phpstan-ignore booleanNot.alwaysFalse */
         if (!$pipeline) {
             $run->markFailed('pending', 'Pipeline configuration not found');
             return;
@@ -111,8 +112,12 @@ class RunPipelineJob implements ShouldQueue
             'error' => $exception->getMessage(),
         ]);
 
+        $steps = PipelineRun::getStepOrder();
+        $currentStep = $this->run->error_step
+            ?? (in_array($this->run->status, $steps) ? $this->run->status : 'unknown');
+
         $this->run->markFailed(
-            $this->run->status !== PipelineRun::STATUS_PENDING ? $this->run->status : 'unknown',
+            $currentStep,
             $exception->getMessage()
         );
     }

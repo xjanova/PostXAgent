@@ -9,6 +9,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $template_id
+ * @property string $name
+ * @property string|null $description
+ * @property array|null $platforms
+ * @property array|null $workflow_json
+ * @property array|null $default_variables
+ * @property bool $is_active
+ * @property int $run_count
+ * @property float $success_rate
+ * @property \Illuminate\Support\Carbon|null $last_run_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\WorkflowTemplate|null $template
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WorkflowExecution> $executions
+ */
 class UserWorkflow extends Model
 {
     use HasFactory;
@@ -29,6 +48,7 @@ class UserWorkflow extends Model
 
     protected $casts = [
         'platforms' => 'array',
+        'workflow_json' => 'array',
         'default_variables' => 'array',
         'is_active' => 'boolean',
         'run_count' => 'integer',
@@ -133,7 +153,7 @@ class UserWorkflow extends Model
      */
     public function getNodes(): array
     {
-        $workflow = json_decode($this->workflow_json, true);
+        $workflow = $this->workflow_json;
         return $workflow['nodes'] ?? [];
     }
 
@@ -142,7 +162,7 @@ class UserWorkflow extends Model
      */
     public function getConnections(): array
     {
-        $workflow = json_decode($this->workflow_json, true);
+        $workflow = $this->workflow_json;
         return $workflow['connections'] ?? [];
     }
 
@@ -151,10 +171,10 @@ class UserWorkflow extends Model
      */
     public function updateWorkflow(array $nodes, array $connections): void
     {
-        $workflow = json_decode($this->workflow_json, true) ?? [];
+        $workflow = $this->workflow_json ?? [];
         $workflow['nodes'] = $nodes;
         $workflow['connections'] = $connections;
-        $this->workflow_json = json_encode($workflow);
+        $this->workflow_json = $workflow;
         $this->save();
     }
 }

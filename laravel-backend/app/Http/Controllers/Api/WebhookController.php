@@ -18,17 +18,21 @@ class WebhookController extends Controller
         $sigHeader = $request->header('Stripe-Signature');
         $endpointSecret = config('services.stripe.webhook_secret');
 
+        // Reject webhooks entirely if endpoint secret is not configured
+        if (!$endpointSecret) {
+            Log::warning('Stripe webhook received but webhook secret is not configured');
+            return response()->json([
+                'error' => 'Webhook endpoint is not configured. Set STRIPE_WEBHOOK_SECRET in your environment.',
+            ], 503);
+        }
+
         try {
-            // Verify webhook signature if secret is configured
-            if ($endpointSecret) {
-                $event = \Stripe\Webhook::constructEvent(
-                    $payload,
-                    $sigHeader,
-                    $endpointSecret
-                );
-            } else {
-                $event = json_decode($payload, false);
-            }
+            // Verify webhook signature
+            $event = \Stripe\Webhook::constructEvent(
+                $payload,
+                $sigHeader,
+                $endpointSecret
+            );
         } catch (\UnexpectedValueException $e) {
             Log::error('Stripe webhook: Invalid payload', ['error' => $e->getMessage()]);
             return response()->json(['error' => 'Invalid payload'], 400);

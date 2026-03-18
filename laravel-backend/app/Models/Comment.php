@@ -7,6 +7,36 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $post_id
+ * @property string $platform
+ * @property string|null $platform_comment_id
+ * @property int|null $parent_comment_id
+ * @property string|null $author_name
+ * @property string|null $author_id
+ * @property string|null $author_avatar_url
+ * @property string|null $content_text
+ * @property string|null $media_url
+ * @property string|null $sentiment
+ * @property float|null $sentiment_score
+ * @property bool $is_question
+ * @property bool $requires_reply
+ * @property int $priority
+ * @property \Illuminate\Support\Carbon|null $replied_at
+ * @property string|null $reply_content
+ * @property string|null $reply_comment_id
+ * @property string|null $reply_status
+ * @property int $likes_count
+ * @property int $replies_count
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $commented_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Post $post
+ * @property-read \App\Models\Comment|null $parent
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Comment> $replies
+ */
 class Comment extends Model
 {
     use HasFactory;

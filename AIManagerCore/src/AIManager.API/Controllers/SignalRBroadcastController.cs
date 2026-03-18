@@ -14,6 +14,23 @@ public class SignalRBroadcastController : ControllerBase
     private readonly IHubContext<AIManagerHub> _hubContext;
     private readonly ILogger<SignalRBroadcastController> _logger;
 
+    // Whitelist of allowed SignalR method names to prevent spoofing
+    private static readonly HashSet<string> AllowedMethods = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Task events
+        "TaskReceived", "TaskCompleted", "TaskFailed", "TaskCancelled", "TaskProgress",
+        // Worker events
+        "WorkerStatusChanged", "WorkerStarted", "WorkerStopped", "WorkerError",
+        // Stats events
+        "StatsUpdated", "SystemStatus",
+        // Payment events
+        "PaymentReceived", "PaymentApproved", "PaymentRejected",
+        // Mobile device events
+        "MobileDeviceHeartbeat", "MobileDeviceConnected", "MobileDeviceDisconnected",
+        // General notifications
+        "Notification", "Alert", "Message", "Broadcast"
+    };
+
     public SignalRBroadcastController(
         IHubContext<AIManagerHub> hubContext,
         ILogger<SignalRBroadcastController> logger)
@@ -31,6 +48,12 @@ public class SignalRBroadcastController : ControllerBase
         if (string.IsNullOrEmpty(request.Method))
         {
             return BadRequest(new { success = false, message = "Method is required" });
+        }
+
+        if (!AllowedMethods.Contains(request.Method))
+        {
+            _logger.LogWarning("Rejected broadcast with unknown method: {Method}", request.Method);
+            return BadRequest(new { success = false, message = $"Method '{request.Method}' is not in the allowed methods list" });
         }
 
         try
@@ -64,6 +87,12 @@ public class SignalRBroadcastController : ControllerBase
             return BadRequest(new { success = false, message = "GroupName and Method are required" });
         }
 
+        if (!AllowedMethods.Contains(request.Method))
+        {
+            _logger.LogWarning("Rejected group broadcast with unknown method: {Method}", request.Method);
+            return BadRequest(new { success = false, message = $"Method '{request.Method}' is not in the allowed methods list" });
+        }
+
         try
         {
             await _hubContext.Clients.Group(request.GroupName).SendAsync(request.Method, request.Data);
@@ -92,6 +121,11 @@ public class SignalRBroadcastController : ControllerBase
     [HttpPost("payment-notification")]
     public async Task<IActionResult> PaymentNotification([FromBody] PaymentNotificationRequest request)
     {
+        if (!AllowedMethods.Contains(request.EventType))
+        {
+            return BadRequest(new { success = false, message = $"EventType '{request.EventType}' is not allowed" });
+        }
+
         try
         {
             await _hubContext.Clients.All.SendAsync(request.EventType, new
@@ -121,6 +155,11 @@ public class SignalRBroadcastController : ControllerBase
     [HttpPost("mobile-status")]
     public async Task<IActionResult> MobileDeviceStatus([FromBody] MobileStatusRequest request)
     {
+        if (!AllowedMethods.Contains(request.EventType))
+        {
+            return BadRequest(new { success = false, message = $"EventType '{request.EventType}' is not allowed" });
+        }
+
         try
         {
             await _hubContext.Clients.All.SendAsync(request.EventType, new

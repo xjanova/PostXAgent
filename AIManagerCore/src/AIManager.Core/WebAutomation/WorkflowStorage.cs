@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AIManager.Core.WebAutomation.Models;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -11,7 +12,7 @@ public class WorkflowStorage
 {
     private readonly ILogger<WorkflowStorage> _logger;
     private readonly string _storagePath;
-    private readonly Dictionary<string, LearnedWorkflow> _cache = new();
+    private readonly ConcurrentDictionary<string, LearnedWorkflow> _cache = new();
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     public WorkflowStorage(ILogger<WorkflowStorage> logger, string? storagePath = null)
@@ -191,7 +192,7 @@ public class WorkflowStorage
                 File.Delete(filePath);
             }
 
-            _cache.Remove(id);
+            _cache.TryRemove(id, out _);
 
             _logger.LogInformation("Deleted workflow {Id}", id);
         }

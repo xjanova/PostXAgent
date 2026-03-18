@@ -219,6 +219,24 @@ public class ClaudeDesktopController : ControllerBase
     {
         try
         {
+            // Sanitize fileName to prevent path traversal attacks
+            fileName = Path.GetFileName(fileName);
+            if (string.IsNullOrEmpty(fileName) || fileName.Contains(".."))
+            {
+                return BadRequest(new { error = "Invalid file name" });
+            }
+
+            // Validate the resolved path is within the workspace directory
+            if (!string.IsNullOrEmpty(_config.WorkspacePath))
+            {
+                var fullPath = Path.GetFullPath(Path.Combine(_config.WorkspacePath, fileName));
+                var workspaceFullPath = Path.GetFullPath(_config.WorkspacePath);
+                if (!fullPath.StartsWith(workspaceFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { error = "Invalid file path" });
+                }
+            }
+
             var content = await _claudeService.ReadFromWorkspaceAsync(fileName);
 
             if (content == null)

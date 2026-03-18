@@ -5,6 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property string $platform
+ * @property string $keyword
+ * @property string|null $category
+ * @property string|null $region
+ * @property float $trend_score
+ * @property float $velocity
+ * @property int $mention_count
+ * @property int $post_count
+ * @property float $avg_likes
+ * @property float $avg_comments
+ * @property float $avg_shares
+ * @property float $engagement_rate
+ * @property float $viral_score
+ * @property \Illuminate\Support\Carbon|null $first_seen_at
+ * @property \Illuminate\Support\Carbon|null $peak_at
+ * @property \Illuminate\Support\Carbon|null $last_updated_at
+ * @property array|null $related_keywords
+ * @property array|null $top_posts
+ * @property array|null $hourly_trend
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class TrendingKeyword extends Model
 {
     use HasFactory;

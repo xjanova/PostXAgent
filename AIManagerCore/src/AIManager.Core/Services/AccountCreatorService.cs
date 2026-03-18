@@ -566,9 +566,10 @@ public class AccountCreatorService
                 new ElementSelector { Type = SelectorType.CSS, Value = "textarea[name='bio'], textarea[aria-label*='bio']" },
                 profile.Bio ?? "", true, 50, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // Bio field may not exist
+            // Bio field may not exist on all platforms
+            System.Diagnostics.Debug.WriteLine($"Bio field not found (expected): {ex.Message}");
         }
 
         // Try to upload avatar if we have one
@@ -579,9 +580,10 @@ public class AccountCreatorService
                 // Download avatar and upload
                 // This is simplified - real implementation would handle file download
             }
-            catch
+            catch (Exception ex)
             {
                 // Avatar upload is optional
+                System.Diagnostics.Debug.WriteLine($"Avatar upload failed (optional): {ex.Message}");
             }
         }
 

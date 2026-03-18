@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Crypt;
 
 /**
  * @property int $id
+ * @property int|null $user_id
  * @property string $email
  * @property string $password_encrypted
  * @property string $provider
@@ -50,6 +51,7 @@ class EmailAccount extends Model
     const PROVIDER_CUSTOM = 'custom';
 
     protected $fillable = [
+        'user_id',
         'email',
         'password_encrypted',
         'provider',

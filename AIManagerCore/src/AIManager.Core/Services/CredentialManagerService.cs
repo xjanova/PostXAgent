@@ -403,11 +403,11 @@ public class CredentialManagerService
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {creds.AccessToken}");
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name");
+            request.Headers.Add("Authorization", $"Bearer {creds.AccessToken}");
 
-            var response = await _httpClient.GetAsync(
-                "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name", ct);
+            var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
@@ -437,11 +437,11 @@ public class CredentialManagerService
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {creds.BearerToken}");
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                "https://api.twitter.com/2/users/me");
+            request.Headers.Add("Authorization", $"Bearer {creds.BearerToken}");
 
-            var response = await _httpClient.GetAsync(
-                "https://api.twitter.com/2/users/me", ct);
+            var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
@@ -473,11 +473,11 @@ public class CredentialManagerService
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {creds.ChannelAccessToken}");
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                "https://api.line.me/v2/bot/info");
+            request.Headers.Add("Authorization", $"Bearer {creds.ChannelAccessToken}");
 
-            var response = await _httpClient.GetAsync(
-                "https://api.line.me/v2/bot/info", ct);
+            var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
@@ -502,11 +502,11 @@ public class CredentialManagerService
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {creds.AccessToken}");
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true");
+            request.Headers.Add("Authorization", $"Bearer {creds.AccessToken}");
 
-            var response = await _httpClient.GetAsync(
-                "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", ct);
+            var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
@@ -569,11 +569,11 @@ public class CredentialManagerService
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {creds.AccessToken}");
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                "https://api.linkedin.com/v2/userinfo");
+            request.Headers.Add("Authorization", $"Bearer {creds.AccessToken}");
 
-            var response = await _httpClient.GetAsync(
-                "https://api.linkedin.com/v2/userinfo", ct);
+            var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
@@ -601,11 +601,11 @@ public class CredentialManagerService
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {creds.AccessToken}");
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                "https://api.pinterest.com/v5/user_account");
+            request.Headers.Add("Authorization", $"Bearer {creds.AccessToken}");
 
-            var response = await _httpClient.GetAsync(
-                "https://api.pinterest.com/v5/user_account", ct);
+            var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
@@ -684,8 +684,9 @@ public class CredentialManagerService
             }
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Facebook token refresh failed: {ex.Message}");
             return false;
         }
     }
@@ -727,8 +728,9 @@ public class CredentialManagerService
             }
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"YouTube token refresh failed: {ex.Message}");
             return false;
         }
     }

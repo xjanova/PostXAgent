@@ -6,6 +6,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $learned_workflow_id
+ * @property int $order
+ * @property string $action
+ * @property string|null $description
+ * @property string|null $selector_type
+ * @property string|null $selector_value
+ * @property string $selector_confidence
+ * @property string|null $ai_description
+ * @property array|null $alternative_selectors
+ * @property string|null $input_value
+ * @property string|null $input_variable
+ * @property bool $is_optional
+ * @property int $wait_before_ms
+ * @property int $wait_after_ms
+ * @property int $timeout_ms
+ * @property array|null $success_condition
+ * @property string|null $learned_from
+ * @property string $confidence_score
+ * @property array|null $visual_features
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\LearnedWorkflow $workflow
+ */
 class WorkflowStep extends Model
 {
     use HasFactory;

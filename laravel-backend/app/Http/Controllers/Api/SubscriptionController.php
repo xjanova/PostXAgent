@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Exceptions\IncompletePayment;
 
 class SubscriptionController extends Controller
@@ -74,7 +75,10 @@ class SubscriptionController extends Controller
             ],
         ];
 
-        return response()->json(['plans' => $plans]);
+        return response()->json([
+            'success' => true,
+            'data' => ['plans' => $plans],
+        ]);
     }
 
     /**
@@ -86,21 +90,27 @@ class SubscriptionController extends Controller
 
         if (!$user->subscribed('default')) {
             return response()->json([
-                'subscribed' => false,
-                'plan' => 'free',
-                'usage' => $user->getUsageQuota(),
+                'success' => true,
+                'data' => [
+                    'subscribed' => false,
+                    'plan' => 'free',
+                    'usage' => $user->getUsageQuota(),
+                ],
             ]);
         }
 
         $subscription = $user->subscription('default');
 
         return response()->json([
-            'subscribed' => true,
-            'plan' => $this->getPlanNameFromPrice($subscription->stripe_price),
-            'status' => $subscription->stripe_status,
-            'current_period_end' => $subscription->ends_at ?? $subscription->asStripeSubscription()->current_period_end,
-            'cancel_at_period_end' => $subscription->onGracePeriod(),
-            'usage' => $user->getUsageQuota(),
+            'success' => true,
+            'data' => [
+                'subscribed' => true,
+                'plan' => $this->getPlanNameFromPrice($subscription->stripe_price),
+                'status' => $subscription->stripe_status,
+                'current_period_end' => $subscription->ends_at ?? $subscription->asStripeSubscription()->current_period_end,
+                'cancel_at_period_end' => $subscription->onGracePeriod(),
+                'usage' => $user->getUsageQuota(),
+            ],
         ]);
     }
 
@@ -124,12 +134,17 @@ class SubscriptionController extends Controller
                 ]);
 
             return response()->json([
-                'checkout_url' => $checkout->url,
+                'success' => true,
+                'data' => [
+                    'checkout_url' => $checkout->url,
+                ],
             ]);
         } catch (\Exception $e) {
+            Log::error('Checkout session creation failed', ['error' => $e->getMessage()]);
             return response()->json([
-                'error' => 'Failed to create checkout session',
-                'message' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to create checkout session',
+                'errors' => [],
             ], 500);
         }
     }
@@ -146,7 +161,10 @@ class SubscriptionController extends Controller
         );
 
         return response()->json([
-            'portal_url' => $portal,
+            'success' => true,
+            'data' => [
+                'portal_url' => $portal,
+            ],
         ]);
     }
 
@@ -163,7 +181,9 @@ class SubscriptionController extends Controller
 
         if (!$user->subscribed('default')) {
             return response()->json([
-                'error' => 'No active subscription',
+                'success' => false,
+                'message' => 'No active subscription',
+                'errors' => [],
             ], 400);
         }
 
@@ -173,11 +193,14 @@ class SubscriptionController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Subscription updated successfully',
+                'data' => null,
             ]);
         } catch (\Exception $e) {
+            Log::error('Subscription change failed', ['error' => $e->getMessage()]);
             return response()->json([
-                'error' => 'Failed to change subscription',
-                'message' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to change subscription',
+                'errors' => [],
             ], 500);
         }
     }
@@ -191,7 +214,9 @@ class SubscriptionController extends Controller
 
         if (!$user->subscribed('default')) {
             return response()->json([
-                'error' => 'No active subscription',
+                'success' => false,
+                'message' => 'No active subscription',
+                'errors' => [],
             ], 400);
         }
 
@@ -200,6 +225,7 @@ class SubscriptionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Subscription will be cancelled at the end of the billing period',
+            'data' => null,
         ]);
     }
 
@@ -212,7 +238,9 @@ class SubscriptionController extends Controller
 
         if (!$user->subscription('default')?->onGracePeriod()) {
             return response()->json([
-                'error' => 'Subscription cannot be resumed',
+                'success' => false,
+                'message' => 'Subscription cannot be resumed',
+                'errors' => [],
             ], 400);
         }
 
@@ -221,6 +249,7 @@ class SubscriptionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Subscription resumed successfully',
+            'data' => null,
         ]);
     }
 
@@ -241,7 +270,10 @@ class SubscriptionController extends Controller
             ];
         });
 
-        return response()->json(['invoices' => $invoices]);
+        return response()->json([
+            'success' => true,
+            'data' => ['invoices' => $invoices],
+        ]);
     }
 
     private function getPlanNameFromPrice(string $priceId): string

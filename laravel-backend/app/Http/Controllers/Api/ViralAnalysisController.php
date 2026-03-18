@@ -24,6 +24,11 @@ class ViralAnalysisController extends Controller
      */
     public function dashboard(Request $request): JsonResponse
     {
+        $request->validate([
+            'brand_id' => 'nullable|integer|exists:brands,id',
+            'period' => 'nullable|string|in:24h,7d,30d,90d',
+        ]);
+
         $brandId = $request->brand_id;
         $period = $request->period ?? '7d';
 

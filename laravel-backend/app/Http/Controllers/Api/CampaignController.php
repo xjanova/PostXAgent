@@ -15,6 +15,10 @@ class CampaignController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $campaigns = Campaign::where('user_id', $request->user()->id)
             ->with(['brand:id,name'])
             ->withCount('posts')
@@ -22,7 +26,7 @@ class CampaignController extends Controller
             ->when($request->brand_id, fn($q, $brandId) => $q->where('brand_id', $brandId))
             ->when($request->search, fn($q, $search) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('created_at', 'desc')
-            ->paginate($request->per_page ?? 20);
+            ->paginate($request->integer('per_page', 20));
 
         return response()->json([
             'success' => true,

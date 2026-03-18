@@ -66,14 +66,25 @@ class SocialAccountController extends Controller
      */
     public function callback(Request $request, string $platform): JsonResponse
     {
+        // Verify user is authenticated
+        if (!$request->user()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required. Please log in and try again.',
+            ], 401);
+        }
+
         // Verify state
         $storedState = session('oauth_state');
-        if ($request->state !== $storedState) {
+        if (!$storedState || $request->state !== $storedState) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid OAuth state',
             ], 400);
         }
+
+        // Clear used state to prevent replay
+        session()->forget(['oauth_state', 'oauth_platform']);
 
         if ($request->has('error')) {
             return response()->json([

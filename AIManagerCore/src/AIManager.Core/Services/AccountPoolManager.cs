@@ -228,8 +228,7 @@ public class AccountPoolManager
 
     private PoolAccount GetRandomAccount(List<PoolAccount> accounts)
     {
-        var random = new Random();
-        return accounts[random.Next(accounts.Count)];
+        return accounts[Random.Shared.Next(accounts.Count)];
     }
 
     /// <summary>

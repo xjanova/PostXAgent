@@ -435,7 +435,7 @@ public class PostProcessBlockConfig : IBlockConfig
             result.Warnings.Add("Large upscale factor requires significant VRAM and time");
         }
 
-        if (EnableFaceRestore && FaceRestoreStrength < 0 || FaceRestoreStrength > 1)
+        if (EnableFaceRestore && (FaceRestoreStrength < 0 || FaceRestoreStrength > 1))
         {
             result.Warnings.Add("Face restore strength should be between 0 and 1");
         }

@@ -276,7 +276,7 @@ class AccountCreationController extends Controller
      */
     public function listPhoneNumbers(Request $request): JsonResponse
     {
-        $query = PhoneNumber::query();
+        $query = PhoneNumber::where('user_id', $request->user()->id);
 
         if ($request->has('status')) {
             $query->where('status', $request->input('status'));
@@ -314,6 +314,7 @@ class AccountCreationController extends Controller
         /** @var string $countryCode */
         $countryCode = $request->input('country_code');
         $phone = PhoneNumber::create([
+            'user_id' => $request->user()->id,
             'phone_number' => $phoneNumber,
             'country_code' => strtoupper($countryCode),
             'provider' => $request->input('provider') ?? PhoneNumber::PROVIDER_MANUAL,
@@ -332,6 +333,10 @@ class AccountCreationController extends Controller
      */
     public function deletePhoneNumber(PhoneNumber $phone): JsonResponse
     {
+        if ($phone->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to delete this resource');
+        }
+
         if ($phone->status === PhoneNumber::STATUS_IN_USE) {
             return response()->json([
                 'success' => false,
@@ -354,7 +359,7 @@ class AccountCreationController extends Controller
      */
     public function listEmailAccounts(Request $request): JsonResponse
     {
-        $query = EmailAccount::query();
+        $query = EmailAccount::where('user_id', $request->user()->id);
 
         if ($request->has('status')) {
             $query->where('status', $request->input('status'));
@@ -394,6 +399,7 @@ class AccountCreationController extends Controller
         /** @var string $passwordInput */
         $passwordInput = $request->input('password');
         $email = new EmailAccount([
+            'user_id' => $request->user()->id,
             'email' => $emailInput,
             'provider' => $request->input('provider') ?? $this->detectEmailProvider($emailInput),
             'recovery_email' => $request->input('recovery_email'),
@@ -415,6 +421,10 @@ class AccountCreationController extends Controller
      */
     public function deleteEmailAccount(EmailAccount $email): JsonResponse
     {
+        if ($email->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to delete this resource');
+        }
+
         if ($email->status === EmailAccount::STATUS_IN_USE) {
             return response()->json([
                 'success' => false,
@@ -437,7 +447,7 @@ class AccountCreationController extends Controller
      */
     public function listProxies(Request $request): JsonResponse
     {
-        $query = ProxyServer::query();
+        $query = ProxyServer::where('user_id', $request->user()->id);
 
         if ($request->has('status')) {
             $query->where('status', $request->input('status'));
@@ -492,6 +502,7 @@ class AccountCreationController extends Controller
         /** @var string|null $countryCodeInput */
         $countryCodeInput = $request->input('country_code');
         $proxy = new ProxyServer([
+            'user_id' => $request->user()->id,
             'host' => $hostInput,
             'port' => $portInput,
             'type' => $request->input('type') ?? ProxyServer::TYPE_HTTP,
@@ -521,6 +532,10 @@ class AccountCreationController extends Controller
      */
     public function deleteProxy(ProxyServer $proxy): JsonResponse
     {
+        if ($proxy->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to delete this resource');
+        }
+
         $proxy->delete();
 
         return response()->json([
@@ -534,6 +549,10 @@ class AccountCreationController extends Controller
      */
     public function testProxy(ProxyServer $proxy): JsonResponse
     {
+        if ($proxy->user_id !== request()->user()->id) {
+            abort(403, 'You do not have permission to access this resource');
+        }
+
         // This would actually test the proxy connection
         // For now, return mock result
         $startTime = microtime(true);
