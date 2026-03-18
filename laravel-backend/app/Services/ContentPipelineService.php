@@ -898,7 +898,7 @@ PROMPT;
         $description = ($run->generated_story['description'] ?? $title)
             . "\n\n" . implode(' ', $hashtags);
 
-        $response = Http::timeout(120)->post("{$this->aiManagerUrl}/api/Tasks/publish-video", [
+        $response = Http::timeout(120)->post("{$this->aiManagerUrl}/api/Pipeline/publish-video", [
             'platform' => $platform,
             'video_path' => $videoPath,
             'title' => $title,

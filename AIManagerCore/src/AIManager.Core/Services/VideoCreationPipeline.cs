@@ -867,9 +867,12 @@ public class VideoPostRequest
 {
     public SocialPlatform Platform { get; set; }
     public string VideoPath { get; set; } = "";
+    public string? ThumbnailPath { get; set; }
     public string? Title { get; set; }
     public string? Description { get; set; }
     public List<string>? Hashtags { get; set; }
+    public string? AccountId { get; set; }
+    public Dictionary<string, string>? Credentials { get; set; }
     public DateTime? ScheduleTime { get; set; }
 }
 
