@@ -38,7 +38,6 @@ class AuthController extends Controller
         ]);
 
         // Assign default role if it exists
-        /** @phpstan-ignore-next-line */
         if (\Spatie\Permission\Models\Role::where('name', 'user')->exists()) {
             $user->assignRole('user');
         }
@@ -80,7 +79,6 @@ class AuthController extends Controller
             ], 403);
         }
 
-        /** @phpstan-ignore-next-line */
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([

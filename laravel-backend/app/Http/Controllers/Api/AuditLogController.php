@@ -142,14 +142,12 @@ class AuditLogController extends Controller
         $startDate = now()->subDays($days);
 
         // Get activity by log name
-        /** @phpstan-ignore-next-line */
         $byLogName = Activity::where('created_at', '>=', $startDate)
             ->selectRaw('log_name, COUNT(*) as count')
             ->groupBy('log_name')
             ->pluck('count', 'log_name');
 
         // Get activity by event type
-        /** @phpstan-ignore-next-line */
         $byEvent = Activity::where('created_at', '>=', $startDate)
             ->whereNotNull('event')
             ->selectRaw('event, COUNT(*) as count')
@@ -157,7 +155,6 @@ class AuditLogController extends Controller
             ->pluck('count', 'event');
 
         // Get daily activity
-        /** @phpstan-ignore-next-line */
         $dailyActivity = Activity::where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
             ->groupBy('date')
@@ -165,7 +162,6 @@ class AuditLogController extends Controller
             ->pluck('count', 'date');
 
         // Get top causers
-        /** @phpstan-ignore-next-line */
         $topCausers = Activity::where('created_at', '>=', $startDate)
             ->whereNotNull('causer_id')
             ->with('causer:id,name,email')
@@ -189,7 +185,6 @@ class AuditLogController extends Controller
                 ];
             });
 
-        /** @phpstan-ignore-next-line */
         $totalActivities = Activity::where('created_at', '>=', $startDate)->count();
 
         return response()->json([
@@ -218,7 +213,6 @@ class AuditLogController extends Controller
             'per_page' => 'sometimes|integer|min:1|max:100',
         ]);
 
-        /** @phpstan-ignore-next-line */
         $logs = Activity::where('causer_id', $userId)
             ->where('causer_type', 'App\\Models\\User')
             ->with('subject')
@@ -250,7 +244,6 @@ class AuditLogController extends Controller
      */
     public function logNames(): JsonResponse
     {
-        /** @phpstan-ignore-next-line */
         $logNames = Activity::distinct('log_name')
             ->whereNotNull('log_name')
             ->pluck('log_name');

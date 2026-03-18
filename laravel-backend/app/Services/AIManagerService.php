@@ -43,7 +43,6 @@ class AIManagerService
         ];
 
         // Send to AI Manager via Redis
-        /** @phpstan-ignore staticMethod.notFound */
         Redis::lpush($this->queuePrefix . $platform, json_encode($task));
 
         Log::info("Task sent to AI Manager", ['task_id' => $taskId, 'type' => $type]);
@@ -506,7 +505,6 @@ class AIManagerService
      */
     public function getStats(): array
     {
-        /** @phpstan-ignore staticMethod.notFound */
         $stats = Redis::get('orchestrator:stats');
 
         if (!$stats) {
@@ -801,7 +799,6 @@ class AIManagerService
         LUA;
 
         while (time() - $startTime < $timeoutSeconds) {
-            /** @phpstan-ignore staticMethod.notFound */
             $result = Redis::eval($script, 1, $this->resultQueue, $taskId);
 
             if ($result) {
