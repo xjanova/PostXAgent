@@ -375,6 +375,28 @@ public class BrowserController : IAsyncDisposable
     /// <summary>
     /// คลิก Element
     /// </summary>
+    public async Task<bool> SetInputFilesAsync(string selector, string filePath, CancellationToken ct = default)
+    {
+        if (_page == null) return false;
+        _logger.LogDebug("Setting input files on: {Selector} with {File}", selector, filePath);
+        try
+        {
+            var element = await _page.QuerySelectorAsync(selector);
+            if (element != null)
+            {
+                await element.SetInputFilesAsync(filePath);
+                return true;
+            }
+            _logger.LogWarning("File input not found: {Selector}", selector);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "SetInputFiles failed: {Selector}", selector);
+            return false;
+        }
+    }
+
     public async Task<bool> ClickAsync(ElementSelector selector, int timeout = 10000, CancellationToken ct = default)
     {
         if (_page == null) return false;

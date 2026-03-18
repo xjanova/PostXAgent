@@ -94,6 +94,13 @@ class ContentPipelineService
         for ($attempt = 0; $attempt < $retries; $attempt++) {
             $key = $pool ? $this->keyRotation->getNextKey($pool) : null;
 
+            // If all keys are rate-limited, wait and retry once
+            if (!$key && $pool && $attempt < $retries - 1) {
+                Log::warning('All API keys rate-limited, waiting 30s before retry', ['run_id' => $run->id]);
+                sleep(30);
+                $key = $this->keyRotation->getNextKey($pool);
+            }
+
             try {
                 if ($key) {
                     $story = $this->callLlmApi($prompt, $key);
@@ -126,9 +133,12 @@ class ContentPipelineService
             }
         }
 
-        if (!$story) {
+        if (!$story || !is_array($story)) {
             throw new \RuntimeException('Story generation failed after all retries');
         }
+
+        // Validate and fix scene structure
+        $this->validateAndFixStoryScenes($story);
 
         $run->update(['generated_story' => $story]);
         Log::info('Story generated', ['run_id' => $run->id, 'title' => $story['title'] ?? '']);
@@ -149,43 +159,73 @@ class ContentPipelineService
         }
 
         $images = [];
+        $failedCount = 0;
+        $totalScenes = count($story['scenes']);
         $storagePath = "pipeline/{$run->id}/images";
         Storage::makeDirectory($storagePath);
 
         foreach ($story['scenes'] as $i => $scene) {
-            $run->update(['step_message' => "กำลังสร้างภาพ scene " . ($i + 1) . "/" . count($story['scenes'])]);
+            $run->update(['step_message' => "กำลังสร้างภาพ scene " . ($i + 1) . "/{$totalScenes}"]);
 
             try {
                 $imagePrompt = $scene['image_prompt'] ?? $scene['narration'] ?? '';
+                if (empty(trim($imagePrompt))) {
+                    Log::warning("Scene {$i}: Empty image prompt, skipping");
+                    $failedCount++;
+                    continue;
+                }
+
                 $imageResult = $this->generateImage($imagePrompt, $pipeline);
 
                 if ($imageResult && !empty($imageResult['image'])) {
+                    // Validate base64 before saving
+                    $decoded = base64_decode($imageResult['image'], true);
+                    if ($decoded === false || strlen($decoded) < 100) {
+                        Log::warning("Scene {$i}: Invalid or corrupt base64 image data");
+                        $failedCount++;
+                        continue;
+                    }
+
                     $filename = "scene_{$i}.png";
                     $imagePath = "{$storagePath}/{$filename}";
-                    Storage::put($imagePath, base64_decode($imageResult['image']));
+                    Storage::put($imagePath, $decoded);
+
+                    // Verify file was saved
+                    if (!Storage::exists($imagePath) || Storage::size($imagePath) < 100) {
+                        Log::warning("Scene {$i}: Image file invalid after save");
+                        $failedCount++;
+                        continue;
+                    }
 
                     $images[] = [
                         'scene_number' => $i,
                         'local_path' => $imagePath,
                         'provider' => $imageResult['provider'] ?? 'diffusers',
                     ];
+                } else {
+                    Log::warning("Scene {$i}: Image generation returned empty result");
+                    $failedCount++;
                 }
             } catch (\Exception $e) {
                 Log::warning("Image generation failed for scene {$i}", [
                     'run_id' => $run->id,
                     'error' => $e->getMessage(),
                 ]);
-                // Continue with other scenes
+                $failedCount++;
             }
 
             // Rate limit between generations
-            if ($i < count($story['scenes']) - 1) {
+            if ($i < $totalScenes - 1) {
                 sleep(2);
             }
         }
 
-        if (empty($images)) {
-            throw new \RuntimeException('No images were generated');
+        if ($failedCount > 0) {
+            Log::warning("Image generation: {$failedCount}/{$totalScenes} scenes failed", ['run_id' => $run->id]);
+        }
+
+        if (empty($images) || $failedCount > $totalScenes / 2) {
+            throw new \RuntimeException("Too many image generation failures: {$failedCount}/{$totalScenes}");
         }
 
         $run->update(['generated_images' => $images]);
@@ -248,6 +288,10 @@ class ContentPipelineService
             }
 
             sleep(2);
+        }
+
+        if (empty($videoClips)) {
+            throw new \RuntimeException('No video clips were generated for any scene');
         }
 
         $run->update(['generated_video_clips' => $videoClips]);
@@ -359,8 +403,12 @@ class ContentPipelineService
             $avatarPath = storage_path('app/' . $avatarPath);
         }
 
+        // Dynamic timeout based on audio duration
+        $audioDuration = (int) ($voiceover['duration_seconds'] ?? 60);
+        $lipsyncTimeout = max(300, $audioDuration * 2 + 60);
+
         // camelCase keys for C# deserialization
-        $response = Http::timeout(300)->post("{$this->aiManagerUrl}/api/Pipeline/generate-lipsync", [
+        $response = Http::timeout($lipsyncTimeout)->post("{$this->aiManagerUrl}/api/Pipeline/generate-lipsync", [
             'faceImagePath' => $avatarPath,
             'audioPath' => $audioPath,
             'provider' => $pipeline->lip_sync_provider, // sadtalker, wav2lip
@@ -372,6 +420,11 @@ class ContentPipelineService
                 'run_id' => $run->id,
                 'error' => $response->body(),
             ]);
+            $run->update(['generated_lipsync' => [
+                'success' => false,
+                'error' => substr($response->body(), 0, 500),
+                'fallback' => 'original_video',
+            ]]);
             return;
         }
 
@@ -407,32 +460,27 @@ class ContentPipelineService
         $pipeline = $run->pipeline;
         $run->updateProgress('assembly', 'กำลังประกอบวิดีโอ...');
 
-        // Ensure all video clip paths are absolute
+        // Ensure all video clip paths are absolute and files exist
         $videoClips = collect($run->generated_video_clips ?? [])
             ->pluck('local_path')
-            ->map(function (string $p): string {
-                if (!str_starts_with($p, '/') && !preg_match('/^[A-Z]:/i', $p)) {
-                    return storage_path("app/{$p}");
-                }
-                return $p;
-            })
+            ->filter(fn(string $p) => !empty($p))
+            ->map(fn(string $p) => $this->resolveAbsolutePath($p))
+            ->filter(fn(string $p) => file_exists($p))
+            ->values()
             ->toArray();
+
+        if (empty($videoClips)) {
+            throw new \RuntimeException('No valid video clip files available for assembly');
+        }
 
         $voiceover = $run->generated_voiceover;
         $lipsync = $run->generated_lipsync;
         $story = $run->generated_story;
 
-        // Ensure voiceover path is absolute
-        $voiceoverPath = $voiceover['local_path'] ?? null;
-        if ($voiceoverPath && !str_starts_with($voiceoverPath, '/') && !preg_match('/^[A-Z]:/i', $voiceoverPath)) {
-            $voiceoverPath = storage_path('app/' . $voiceoverPath);
-        }
-
-        // Ensure lipsync path is absolute
-        $lipsyncPath = $lipsync['local_path'] ?? null;
-        if ($lipsyncPath && !str_starts_with($lipsyncPath, '/') && !preg_match('/^[A-Z]:/i', $lipsyncPath)) {
-            $lipsyncPath = storage_path('app/' . $lipsyncPath);
-        }
+        $voiceoverPath = !empty($voiceover['local_path']) ? $this->resolveAbsolutePath($voiceover['local_path']) : null;
+        $lipsyncPath = (!empty($lipsync['local_path']) && ($lipsync['success'] ?? true) !== false)
+            ? $this->resolveAbsolutePath($lipsync['local_path'])
+            : null;
 
         $outputDir = storage_path("app/pipeline/{$run->id}/output");
         if (!is_dir($outputDir)) {
@@ -459,9 +507,14 @@ class ContentPipelineService
 
         // C# returns snake_case keys: video_path, thumbnail_path, duration_seconds
         $assemblyResult = $response->json();
+        $finalVideoPath = $assemblyResult['video_path'] ?? null;
+
+        if (empty($finalVideoPath)) {
+            throw new \RuntimeException('Assembly produced no video output');
+        }
 
         $run->update([
-            'final_video_path' => $assemblyResult['video_path'] ?? null,
+            'final_video_path' => $finalVideoPath,
             'thumbnail_path' => $assemblyResult['thumbnail_path'] ?? null,
         ]);
 
@@ -486,6 +539,12 @@ class ContentPipelineService
 
         if (!$run->final_video_path) {
             throw new \RuntimeException('No final video to publish');
+        }
+
+        // Validate final video file exists
+        $finalVideoAbsolute = $this->resolveAbsolutePath($run->final_video_path);
+        if (!file_exists($finalVideoAbsolute)) {
+            throw new \RuntimeException("Final video file not found: {$finalVideoAbsolute}");
         }
 
         $run->updateProgress('publishing', 'กำลังโพสต์เผยแพร่...');
@@ -788,8 +847,10 @@ PROMPT;
             $diffusersPort
         );
 
-        // Style prefix for image prompt
-        $styledPrompt = "{$pipeline->image_style} style, {$prompt}, high quality, detailed";
+        // Style prefix for image prompt (skip if empty)
+        $styledPrompt = !empty($pipeline->image_style)
+            ? "{$pipeline->image_style} style, {$prompt}, high quality, detailed"
+            : "{$prompt}, high quality, detailed";
 
         $response = Http::timeout(120)->post("{$diffusersUrl}/generate/image", [
             'prompt' => $styledPrompt,
@@ -850,11 +911,14 @@ PROMPT;
             return null;
         }
 
-        // Save video
-        $videoPath = "pipeline/{$image['scene_number']}/videos/clip_{$image['scene_number']}.mp4";
-        // The C# side handles frame assembly to video file
+        // Video path (server returns the actual path it saved to)
+        $videoPath = $data['video_path'] ?? null;
+        if (empty($videoPath)) {
+            return null;
+        }
+
         return [
-            'video_path' => $data['video_path'] ?? $videoPath,
+            'video_path' => $videoPath,
             'provider' => 'svd',
         ];
     }
@@ -864,21 +928,15 @@ PROMPT;
      */
     private function generateVideoFreepik(array $image, ContentPipeline $pipeline, PipelineRun $run): ?array
     {
-        // Ensure image path is absolute
-        $imagePath = $image['local_path'];
-        if (!str_starts_with($imagePath, '/') && !preg_match('/^[A-Z]:/i', $imagePath)) {
-            $imagePath = storage_path('app/' . $imagePath);
-        }
+        $imagePath = $this->resolveAbsolutePath($image['local_path']);
 
-        // Use existing web automation system (FreepikWorker + BrowserController)
-        $response = Http::timeout(300)->post("{$this->aiManagerUrl}/api/WebAutomation/execute-workflow", [
-            'platform' => 'freepik',
-            'workflow_type' => 'video_generation',
-            'payload' => [
-                'image_path' => $imagePath,
-                'prompt' => $run->generated_story['scenes'][$image['scene_number']]['narration'] ?? '',
-                'duration_seconds' => $pipeline->clip_duration_seconds,
-            ],
+        // Use C# Freepik automation service via Pipeline endpoint
+        $motionPrompt = $run->generated_story['scenes'][$image['scene_number']]['narration'] ?? '';
+        $response = Http::timeout(300)->post("{$this->aiManagerUrl}/api/Pipeline/generate-video-from-image", [
+            'imagePath' => $imagePath,
+            'motionPrompt' => $motionPrompt,
+            'durationSeconds' => $pipeline->clip_duration_seconds,
+            'outputDir' => storage_path("app/pipeline/{$run->id}/videos"),
         ]);
 
         if (!$response->successful()) {
@@ -896,11 +954,7 @@ PROMPT;
      */
     private function generateSlideshow(array $image, ContentPipeline $pipeline): ?array
     {
-        // Ensure image path is absolute
-        $imagePath = $image['local_path'];
-        if (!str_starts_with($imagePath, '/') && !preg_match('/^[A-Z]:/i', $imagePath)) {
-            $imagePath = storage_path('app/' . $imagePath);
-        }
+        $imagePath = $this->resolveAbsolutePath($image['local_path']);
 
         // camelCase keys for C# deserialization
         $response = Http::timeout(60)->post("{$this->aiManagerUrl}/api/Pipeline/create-slideshow", [
@@ -958,22 +1012,20 @@ PROMPT;
 
         if ($pool) {
             $account = $this->accountRotation->getNextAccount($pool);
+            if (!$account) {
+                Log::warning("No available account in pool for platform {$platform}", [
+                    'pool_id' => $pool->id,
+                ]);
+            }
         }
 
         $description = ($run->generated_story['description'] ?? $title)
             . "\n\n" . implode(' ', $hashtags);
 
-        // Ensure video path is absolute
-        $absoluteVideoPath = $videoPath;
-        if (!str_starts_with($absoluteVideoPath, '/') && !preg_match('/^[A-Z]:/i', $absoluteVideoPath)) {
-            $absoluteVideoPath = storage_path('app/' . $absoluteVideoPath);
-        }
-
-        // Ensure thumbnail path is absolute
-        $absoluteThumbnailPath = $run->thumbnail_path;
-        if ($absoluteThumbnailPath && !str_starts_with($absoluteThumbnailPath, '/') && !preg_match('/^[A-Z]:/i', $absoluteThumbnailPath)) {
-            $absoluteThumbnailPath = storage_path('app/' . $absoluteThumbnailPath);
-        }
+        $absoluteVideoPath = $this->resolveAbsolutePath($videoPath);
+        $absoluteThumbnailPath = $run->thumbnail_path
+            ? $this->resolveAbsolutePath($run->thumbnail_path)
+            : null;
 
         // camelCase keys for C# deserialization
         $response = Http::timeout(120)->post("{$this->aiManagerUrl}/api/Pipeline/publish-video", [
@@ -1012,5 +1064,41 @@ PROMPT;
             || str_contains($message, '429')
             || str_contains($message, 'too many requests')
             || str_contains($message, 'quota');
+    }
+
+    /**
+     * Resolve a path to absolute (handles both Laravel storage relative and C# absolute paths)
+     */
+    private function resolveAbsolutePath(string $path): string
+    {
+        if (str_starts_with($path, '/') || preg_match('/^[A-Z]:/i', $path)) {
+            return $path; // Already absolute
+        }
+        return storage_path('app/' . $path);
+    }
+
+    /**
+     * Validate scenes in generated story have required fields, fill defaults if missing
+     */
+    private function validateAndFixStoryScenes(array &$story): void
+    {
+        if (empty($story['scenes']) || !is_array($story['scenes'])) {
+            throw new \RuntimeException('Story has no valid scenes array');
+        }
+
+        foreach ($story['scenes'] as $i => &$scene) {
+            if (empty($scene['narration']) && empty($scene['text'])) {
+                $scene['narration'] = 'ฉากที่ ' . ($i + 1);
+                Log::warning("Scene {$i} missing narration, using default");
+            }
+            if (empty($scene['image_prompt'])) {
+                $scene['image_prompt'] = $scene['narration'] ?? $story['title'] ?? 'scene ' . ($i + 1);
+                Log::warning("Scene {$i} missing image_prompt, using narration as fallback");
+            }
+            if (!isset($scene['scene_number'])) {
+                $scene['scene_number'] = $i;
+            }
+        }
+        unset($scene);
     }
 }
