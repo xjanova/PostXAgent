@@ -52,11 +52,36 @@ public class LipSyncService
             return new LipSyncResult { Success = false, Error = $"Audio file not found: {audioPath}" };
         }
 
-        return provider switch
+        // Try primary provider first, then fallback chain
+        LipSyncResult result;
+
+        if (provider == "wav2lip")
         {
-            "wav2lip" => await GenerateWithWav2LipAsync(faceImagePath, audioPath, outputDir, ct),
-            _ => await GenerateWithSadTalkerAsync(faceImagePath, audioPath, outputDir, ct),
-        };
+            result = await GenerateWithWav2LipAsync(faceImagePath, audioPath, outputDir, ct);
+            if (result.Success)
+                return ValidateLipSyncOutput(result);
+
+            _logger.LogWarning("Wav2Lip failed, trying SadTalker fallback");
+            result = await GenerateWithSadTalkerAsync(faceImagePath, audioPath, outputDir, ct);
+            if (result.Success)
+                return ValidateLipSyncOutput(result);
+        }
+        else
+        {
+            result = await GenerateWithSadTalkerAsync(faceImagePath, audioPath, outputDir, ct);
+            if (result.Success)
+                return ValidateLipSyncOutput(result);
+
+            _logger.LogWarning("SadTalker failed, trying Wav2Lip fallback");
+            result = await GenerateWithWav2LipAsync(faceImagePath, audioPath, outputDir, ct);
+            if (result.Success)
+                return ValidateLipSyncOutput(result);
+        }
+
+        // Final fallback: static image + audio video (no lip movement, but pipeline doesn't crash)
+        _logger.LogWarning("Both SadTalker and Wav2Lip failed, generating fallback static video");
+        result = await GenerateFallbackVideoAsync(faceImagePath, audioPath, outputDir, ct);
+        return ValidateLipSyncOutput(result);
     }
 
     /// <summary>
@@ -180,9 +205,11 @@ public class LipSyncService
 
         if (string.IsNullOrEmpty(wav2LipDir) || !Directory.Exists(wav2LipDir))
         {
-            // Fallback to SadTalker
-            _logger.LogWarning("Wav2Lip not found, falling back to SadTalker");
-            return await GenerateWithSadTalkerAsync(faceImagePath, audioPath, outputDir, ct);
+            return new LipSyncResult
+            {
+                Success = false,
+                Error = "Wav2Lip not found. Set WAV2LIP_PATH environment variable or install Wav2Lip."
+            };
         }
 
         var outputVideo = Path.Combine(outputDir, "wav2lip_output.mp4");
@@ -218,8 +245,11 @@ public class LipSyncService
 
             if (process.ExitCode != 0 || !File.Exists(outputVideo))
             {
-                _logger.LogWarning("Wav2Lip failed, falling back to SadTalker");
-                return await GenerateWithSadTalkerAsync(faceImagePath, audioPath, outputDir, ct);
+                return new LipSyncResult
+                {
+                    Success = false,
+                    Error = $"Wav2Lip exit code {process.ExitCode}"
+                };
             }
 
             var duration = await GetVideoDurationAsync(outputVideo, ct);
@@ -235,7 +265,7 @@ public class LipSyncService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Wav2Lip failed");
-            return await GenerateWithSadTalkerAsync(faceImagePath, audioPath, outputDir, ct);
+            return new LipSyncResult { Success = false, Error = ex.Message };
         }
     }
 
@@ -257,6 +287,101 @@ public class LipSyncService
         var path = _wav2LipPath ?? FindToolPath("Wav2Lip");
         if (string.IsNullOrEmpty(path)) return false;
         return File.Exists(Path.Combine(path, "inference.py"));
+    }
+
+    /// <summary>
+    /// Fallback: create a static video from face image + audio overlay (no lip movement)
+    /// This ensures the pipeline doesn't crash when both SadTalker and Wav2Lip are unavailable
+    /// </summary>
+    private async Task<LipSyncResult> GenerateFallbackVideoAsync(
+        string faceImagePath, string audioPath, string outputDir, CancellationToken ct)
+    {
+        var outputPath = Path.Combine(outputDir, $"lipsync_fallback_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
+
+        try
+        {
+            // Use FFmpeg to create a static video from image + audio
+            // -loop 1: loop the image, -shortest: stop when audio ends
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = $"-y -loop 1 -i \"{faceImagePath}\" -i \"{audioPath}\" " +
+                                $"-c:v libx264 -tune stillimage -c:a aac -b:a 192k " +
+                                $"-pix_fmt yuv420p -shortest \"{outputPath}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                }
+            };
+
+            _logger.LogDebug("Running FFmpeg fallback: static image + audio");
+
+            process.Start();
+
+            var stderr = await process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct);
+
+            if (process.ExitCode != 0 || !File.Exists(outputPath))
+            {
+                _logger.LogWarning("FFmpeg fallback failed (exit {Code}): {Error}",
+                    process.ExitCode, stderr.Length > 500 ? stderr[..500] : stderr);
+                return new LipSyncResult
+                {
+                    Success = false,
+                    Error = $"FFmpeg fallback failed: exit code {process.ExitCode}"
+                };
+            }
+
+            var duration = await GetVideoDurationAsync(outputPath, ct);
+
+            _logger.LogInformation("Fallback static video created: {Path}, duration={Duration}s",
+                outputPath, duration);
+
+            return new LipSyncResult
+            {
+                Success = true,
+                VideoPath = outputPath,
+                DurationSeconds = duration,
+                Provider = "fallback_static",
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return new LipSyncResult { Success = false, Error = "Operation cancelled" };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "FFmpeg fallback video generation failed");
+            return new LipSyncResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Validate lip sync output video exists and is not corrupt
+    /// </summary>
+    private LipSyncResult ValidateLipSyncOutput(LipSyncResult result)
+    {
+        if (!result.Success)
+            return result;
+
+        if (string.IsNullOrEmpty(result.VideoPath) || !File.Exists(result.VideoPath))
+        {
+            return new LipSyncResult { Success = false, Error = "LipSync output file not found" };
+        }
+
+        var videoInfo = new FileInfo(result.VideoPath);
+        if (videoInfo.Length < 1000) // Less than 1KB is definitely corrupt
+        {
+            _logger.LogError("LipSync output file is too small ({Size} bytes): {Path}",
+                videoInfo.Length, result.VideoPath);
+            File.Delete(result.VideoPath);
+            return new LipSyncResult { Success = false, Error = "LipSync output file is corrupt or empty" };
+        }
+
+        return result;
     }
 
     // --- Private helpers ---

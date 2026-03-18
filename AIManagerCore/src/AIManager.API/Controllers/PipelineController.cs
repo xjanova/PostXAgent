@@ -252,6 +252,7 @@ public class PipelineController : ControllerBase
 
     /// <summary>
     /// Check availability of all pipeline services
+    /// ตรวจสอบความพร้อมของบริการทั้งหมดใน pipeline
     /// </summary>
     [HttpGet("check-services")]
     public async Task<ActionResult> CheckServices()
@@ -259,14 +260,16 @@ public class PipelineController : ControllerBase
         var edgeTts = await _ttsService.CheckEdgeTtsAvailableAsync();
         var sadTalker = _lipSyncService.CheckSadTalkerInstalled();
         var wav2Lip = _lipSyncService.CheckWav2LipInstalled();
-        var ffmpeg = await CheckFfmpegAvailableAsync();
+        var ffmpeg = await CheckCommandExistsAsync("ffmpeg", "-version");
+        var ffprobe = await CheckCommandExistsAsync("ffprobe", "-version");
 
         return Ok(new
         {
             edge_tts = edgeTts,
             sadtalker = sadTalker,
             wav2lip = wav2Lip,
-            ffmpeg = ffmpeg,
+            ffmpeg,
+            ffprobe,
             google_tts = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GOOGLE_TTS_API_KEY")),
         });
     }
@@ -480,7 +483,7 @@ public class PipelineController : ControllerBase
         return 0;
     }
 
-    private async Task<bool> CheckFfmpegAvailableAsync()
+    private static async Task<bool> CheckCommandExistsAsync(string command, string args = "--version")
     {
         try
         {
@@ -488,10 +491,11 @@ public class PipelineController : ControllerBase
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "ffmpeg",
-                    Arguments = "-version",
+                    FileName = command,
+                    Arguments = args,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                     CreateNoWindow = true,
                 }
             };

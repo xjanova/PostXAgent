@@ -268,21 +268,21 @@ class ContentPipelineService
             throw new \RuntimeException('No story scenes for voiceover');
         }
 
-        // Collect narration texts
+        // Collect narration texts (camelCase keys for C# deserialization)
         $segments = [];
         foreach ($story['scenes'] as $scene) {
             $segments[] = [
                 'text' => $scene['narration'] ?? $scene['text'] ?? '',
-                'scene_number' => $scene['scene_number'] ?? 0,
+                'sceneNumber' => $scene['scene_number'] ?? 0,
             ];
         }
 
-        // Call C# ThaiTtsService
+        // Call C# ThaiTtsService (camelCase keys for C# deserialization)
         $response = Http::timeout(120)->post("{$this->aiManagerUrl}/api/Pipeline/generate-tts", [
             'segments' => $segments,
-            'voice_id' => $pipeline->tts_voice_id,
+            'voiceId' => $pipeline->tts_voice_id,
             'provider' => $pipeline->tts_provider, // edge, google, both
-            'output_dir' => storage_path("app/pipeline/{$run->id}/audio"),
+            'outputDir' => storage_path("app/pipeline/{$run->id}/audio"),
         ]);
 
         if (!$response->successful()) {
@@ -291,8 +291,16 @@ class ContentPipelineService
 
         $ttsResult = $response->json();
 
+        // C# returns snake_case keys in anonymous objects (audio_path, duration_seconds)
+        $audioPath = $ttsResult['audio_path'] ?? null;
+
+        // Validate TTS output
+        if (empty($audioPath) || !file_exists($audioPath)) {
+            throw new \RuntimeException('TTS generated empty or missing audio file');
+        }
+
         $run->update(['generated_voiceover' => [
-            'local_path' => $ttsResult['audio_path'] ?? null,
+            'local_path' => $audioPath,
             'duration_seconds' => $ttsResult['duration_seconds'] ?? 0,
             'segments' => $ttsResult['segments'] ?? [],
             'provider' => $ttsResult['provider'] ?? 'edge',
@@ -326,12 +334,19 @@ class ContentPipelineService
 
         $run->updateProgress('lipsync', 'กำลังซิงค์เสียงกับปากพูด...');
 
+        // Ensure audio path is absolute
+        $audioPath = $voiceover['local_path'];
+        if (!str_starts_with($audioPath, '/') && !preg_match('/^[A-Z]:/i', $audioPath)) {
+            $audioPath = storage_path('app/' . $audioPath);
+        }
+
+        // Ensure avatar path is absolute
         $avatarPath = $pipeline->lip_sync_avatar_path;
         if (!$avatarPath) {
             // Use first generated image as fallback avatar
             $images = $run->generated_images;
             if (!empty($images)) {
-                $avatarPath = storage_path('app/' . $images[0]['local_path']);
+                $avatarPath = $images[0]['local_path'];
             }
         }
 
@@ -340,11 +355,16 @@ class ContentPipelineService
             return;
         }
 
+        if (!str_starts_with($avatarPath, '/') && !preg_match('/^[A-Z]:/i', $avatarPath)) {
+            $avatarPath = storage_path('app/' . $avatarPath);
+        }
+
+        // camelCase keys for C# deserialization
         $response = Http::timeout(300)->post("{$this->aiManagerUrl}/api/Pipeline/generate-lipsync", [
-            'face_image_path' => $avatarPath,
-            'audio_path' => $voiceover['local_path'],
+            'faceImagePath' => $avatarPath,
+            'audioPath' => $audioPath,
             'provider' => $pipeline->lip_sync_provider, // sadtalker, wav2lip
-            'output_dir' => storage_path("app/pipeline/{$run->id}/lipsync"),
+            'outputDir' => storage_path("app/pipeline/{$run->id}/lipsync"),
         ]);
 
         if (!$response->successful()) {
@@ -357,8 +377,20 @@ class ContentPipelineService
 
         $lipSyncResult = $response->json();
 
+        // C# returns snake_case keys: video_path, duration_seconds, provider
+        $lipSyncVideoPath = $lipSyncResult['video_path'] ?? null;
+
+        // Validate lipsync output
+        if (empty($lipSyncVideoPath) || !file_exists($lipSyncVideoPath)) {
+            Log::warning('Lip sync output file missing or empty', [
+                'run_id' => $run->id,
+                'path' => $lipSyncVideoPath,
+            ]);
+            return;
+        }
+
         $run->update(['generated_lipsync' => [
-            'local_path' => $lipSyncResult['video_path'] ?? null,
+            'local_path' => $lipSyncVideoPath,
             'duration' => $lipSyncResult['duration_seconds'] ?? 0,
             'provider' => $lipSyncResult['provider'] ?? 'sadtalker',
         ]]);
@@ -375,30 +407,49 @@ class ContentPipelineService
         $pipeline = $run->pipeline;
         $run->updateProgress('assembly', 'กำลังประกอบวิดีโอ...');
 
+        // Ensure all video clip paths are absolute
         $videoClips = collect($run->generated_video_clips ?? [])
             ->pluck('local_path')
-            ->map(fn(string $p): string => storage_path("app/{$p}"))
+            ->map(function (string $p): string {
+                if (!str_starts_with($p, '/') && !preg_match('/^[A-Z]:/i', $p)) {
+                    return storage_path("app/{$p}");
+                }
+                return $p;
+            })
             ->toArray();
 
         $voiceover = $run->generated_voiceover;
         $lipsync = $run->generated_lipsync;
         $story = $run->generated_story;
 
+        // Ensure voiceover path is absolute
+        $voiceoverPath = $voiceover['local_path'] ?? null;
+        if ($voiceoverPath && !str_starts_with($voiceoverPath, '/') && !preg_match('/^[A-Z]:/i', $voiceoverPath)) {
+            $voiceoverPath = storage_path('app/' . $voiceoverPath);
+        }
+
+        // Ensure lipsync path is absolute
+        $lipsyncPath = $lipsync['local_path'] ?? null;
+        if ($lipsyncPath && !str_starts_with($lipsyncPath, '/') && !preg_match('/^[A-Z]:/i', $lipsyncPath)) {
+            $lipsyncPath = storage_path('app/' . $lipsyncPath);
+        }
+
         $outputDir = storage_path("app/pipeline/{$run->id}/output");
         if (!is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
 
+        // camelCase keys for C# deserialization
         $response = Http::timeout(300)->post("{$this->aiManagerUrl}/api/Pipeline/assemble-video", [
-            'video_clips' => $videoClips,
-            'voiceover_path' => $voiceover['local_path'] ?? null,
-            'lipsync_video_path' => $lipsync['local_path'] ?? null,
-            'enable_music' => $pipeline->enable_music,
-            'music_style' => $pipeline->music_style,
-            'music_volume' => $pipeline->music_volume,
-            'music_source' => $pipeline->music_source,
-            'aspect_ratio' => $pipeline->aspect_ratio,
-            'output_dir' => $outputDir,
+            'videoClips' => $videoClips,
+            'voiceoverPath' => $voiceoverPath,
+            'lipSyncVideoPath' => $lipsyncPath,
+            'enableMusic' => $pipeline->enable_music,
+            'musicStyle' => $pipeline->music_style,
+            'musicVolume' => $pipeline->music_volume,
+            'musicSource' => $pipeline->music_source,
+            'aspectRatio' => $pipeline->aspect_ratio,
+            'outputDir' => $outputDir,
             'title' => $story['title'] ?? 'Untitled',
         ]);
 
@@ -406,6 +457,7 @@ class ContentPipelineService
             throw new \RuntimeException('Video assembly failed: ' . $response->body());
         }
 
+        // C# returns snake_case keys: video_path, thumbnail_path, duration_seconds
         $assemblyResult = $response->json();
 
         $run->update([
@@ -812,12 +864,18 @@ PROMPT;
      */
     private function generateVideoFreepik(array $image, ContentPipeline $pipeline, PipelineRun $run): ?array
     {
+        // Ensure image path is absolute
+        $imagePath = $image['local_path'];
+        if (!str_starts_with($imagePath, '/') && !preg_match('/^[A-Z]:/i', $imagePath)) {
+            $imagePath = storage_path('app/' . $imagePath);
+        }
+
         // Use existing web automation system (FreepikWorker + BrowserController)
         $response = Http::timeout(300)->post("{$this->aiManagerUrl}/api/WebAutomation/execute-workflow", [
             'platform' => 'freepik',
             'workflow_type' => 'video_generation',
             'payload' => [
-                'image_path' => storage_path('app/' . $image['local_path']),
+                'image_path' => $imagePath,
                 'prompt' => $run->generated_story['scenes'][$image['scene_number']]['narration'] ?? '',
                 'duration_seconds' => $pipeline->clip_duration_seconds,
             ],
@@ -838,11 +896,18 @@ PROMPT;
      */
     private function generateSlideshow(array $image, ContentPipeline $pipeline): ?array
     {
+        // Ensure image path is absolute
+        $imagePath = $image['local_path'];
+        if (!str_starts_with($imagePath, '/') && !preg_match('/^[A-Z]:/i', $imagePath)) {
+            $imagePath = storage_path('app/' . $imagePath);
+        }
+
+        // camelCase keys for C# deserialization
         $response = Http::timeout(60)->post("{$this->aiManagerUrl}/api/Pipeline/create-slideshow", [
-            'image_path' => storage_path('app/' . $image['local_path']),
-            'duration_seconds' => $pipeline->clip_duration_seconds,
+            'imagePath' => $imagePath,
+            'durationSeconds' => $pipeline->clip_duration_seconds,
             'effect' => 'ken_burns', // zoom/pan effect
-            'output_dir' => storage_path("app/pipeline/{$image['scene_number']}/videos"),
+            'outputDir' => storage_path("app/pipeline/{$image['scene_number']}/videos"),
         ]);
 
         if (!$response->successful()) {
@@ -898,14 +963,27 @@ PROMPT;
         $description = ($run->generated_story['description'] ?? $title)
             . "\n\n" . implode(' ', $hashtags);
 
+        // Ensure video path is absolute
+        $absoluteVideoPath = $videoPath;
+        if (!str_starts_with($absoluteVideoPath, '/') && !preg_match('/^[A-Z]:/i', $absoluteVideoPath)) {
+            $absoluteVideoPath = storage_path('app/' . $absoluteVideoPath);
+        }
+
+        // Ensure thumbnail path is absolute
+        $absoluteThumbnailPath = $run->thumbnail_path;
+        if ($absoluteThumbnailPath && !str_starts_with($absoluteThumbnailPath, '/') && !preg_match('/^[A-Z]:/i', $absoluteThumbnailPath)) {
+            $absoluteThumbnailPath = storage_path('app/' . $absoluteThumbnailPath);
+        }
+
+        // camelCase keys for C# deserialization
         $response = Http::timeout(120)->post("{$this->aiManagerUrl}/api/Pipeline/publish-video", [
             'platform' => $platform,
-            'video_path' => $videoPath,
+            'videoPath' => $absoluteVideoPath,
             'title' => $title,
             'description' => $description,
             'hashtags' => $hashtags,
-            'account_id' => $account?->social_account_id,
-            'thumbnail_path' => $run->thumbnail_path,
+            'accountId' => $account?->social_account_id,
+            'thumbnailPath' => $absoluteThumbnailPath,
         ]);
 
         if (!$response->successful()) {
@@ -922,7 +1000,7 @@ PROMPT;
         return [
             'success' => true,
             'post_id' => $response->json('post_id'),
-            'url' => $response->json('url'),
+            'url' => $response->json('post_url'),
             'platform' => $platform,
         ];
     }

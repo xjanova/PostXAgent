@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
 namespace AIManager.Core.Services;
@@ -62,7 +63,7 @@ public class ThaiTtsService
                 _ => await GenerateWithEdgeTtsAsync(segment.Text, voiceId, outputPath, ct),
             };
 
-            if (success && File.Exists(outputPath))
+            if (success && ValidateOutputFile(outputPath, $"TTS segment {i}"))
             {
                 var duration = await GetAudioDurationAsync(outputPath, ct);
                 segmentResults.Add(new TtsSegmentResult
@@ -105,22 +106,38 @@ public class ThaiTtsService
     }
 
     /// <summary>
+    /// Normalize Thai text before TTS to remove problematic characters
+    /// </summary>
+    private static string NormalizeThaiText(string text)
+    {
+        // Remove zero-width characters that can break TTS
+        text = text.Replace("\u200B", "").Replace("\u200C", "").Replace("\u200D", "").Replace("\uFEFF", "");
+        // Normalize whitespace
+        text = Regex.Replace(text, @"\s+", " ").Trim();
+        return text;
+    }
+
+    /// <summary>
     /// Generate speech using Edge TTS (free, no API key needed)
+    /// Uses temp file for Thai text to avoid shell encoding issues
     /// </summary>
     public async Task<bool> GenerateWithEdgeTtsAsync(
         string text, string voiceId, string outputPath, CancellationToken ct = default)
     {
+        text = NormalizeThaiText(text);
+
+        // Write Thai text to temp file to avoid shell escaping issues with Thai characters
+        var tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_{Guid.NewGuid():N}.txt");
         try
         {
-            // Escape text for command line
-            var escapedText = text.Replace("\"", "\\\"").Replace("\n", " ");
+            await File.WriteAllTextAsync(tempTextFile, text, Encoding.UTF8, ct);
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "edge-tts",
-                    Arguments = $"--voice \"{voiceId}\" --text \"{escapedText}\" --write-media \"{outputPath}\"",
+                    Arguments = $"--voice \"{voiceId}\" --file \"{tempTextFile}\" --write-media \"{outputPath}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -142,51 +159,96 @@ public class ThaiTtsService
                 _logger.LogWarning("Edge TTS failed (exit {Code}): {Error}", process.ExitCode, stderr);
 
                 // Fallback: try with python -m edge_tts
-                return await GenerateWithEdgeTtsPythonAsync(text, voiceId, outputPath, ct);
+                return await GenerateWithEdgeTtsPythonAsync(text, voiceId, outputPath, tempTextFile, ct);
             }
 
-            return File.Exists(outputPath);
+            return ValidateOutputFile(outputPath, "TTS");
         }
         catch (Exception ex)
         {
             _logger.LogWarning("Edge TTS command failed: {Error}", ex.Message);
-            return await GenerateWithEdgeTtsPythonAsync(text, voiceId, outputPath, ct);
+            return await GenerateWithEdgeTtsPythonAsync(text, voiceId, outputPath, tempTextFile, ct);
+        }
+        finally
+        {
+            try { File.Delete(tempTextFile); } catch { }
         }
     }
 
     /// <summary>
-    /// Fallback: run edge-tts via python module
+    /// Fallback: run edge-tts via python module, using temp file for Thai text
     /// </summary>
     private async Task<bool> GenerateWithEdgeTtsPythonAsync(
-        string text, string voiceId, string outputPath, CancellationToken ct)
+        string text, string voiceId, string outputPath, string? existingTempFile, CancellationToken ct)
     {
+        // Reuse existing temp file or create a new one
+        var tempTextFile = existingTempFile;
+        var ownsTempFile = false;
+
         try
         {
-            var escapedText = text.Replace("\"", "\\\"").Replace("\n", " ");
+            if (string.IsNullOrEmpty(tempTextFile) || !File.Exists(tempTextFile))
+            {
+                tempTextFile = Path.Combine(Path.GetTempPath(), $"tts_{Guid.NewGuid():N}.txt");
+                await File.WriteAllTextAsync(tempTextFile, text, Encoding.UTF8, ct);
+                ownsTempFile = true;
+            }
 
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "python",
-                    Arguments = $"-m edge_tts --voice \"{voiceId}\" --text \"{escapedText}\" --write-media \"{outputPath}\"",
+                    Arguments = $"-m edge_tts --voice \"{voiceId}\" --file \"{tempTextFile}\" --write-media \"{outputPath}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8,
                 }
             };
 
             process.Start();
             await process.WaitForExitAsync(ct);
 
-            return process.ExitCode == 0 && File.Exists(outputPath);
+            return process.ExitCode == 0 && ValidateOutputFile(outputPath, "TTS (Python fallback)");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Python edge-tts fallback also failed");
             return false;
         }
+        finally
+        {
+            if (ownsTempFile && tempTextFile != null)
+            {
+                try { File.Delete(tempTextFile); } catch { }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validate that an output file exists and is not corrupt (too small)
+    /// </summary>
+    private bool ValidateOutputFile(string outputPath, string context)
+    {
+        if (!File.Exists(outputPath))
+        {
+            _logger.LogError("{Context} output file not created: {Path}", context, outputPath);
+            return false;
+        }
+
+        var fileInfo = new FileInfo(outputPath);
+        if (fileInfo.Length < 100) // Less than 100 bytes is definitely corrupt
+        {
+            _logger.LogError("{Context} output file is too small ({Size} bytes): {Path}",
+                context, fileInfo.Length, outputPath);
+            File.Delete(outputPath);
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -195,6 +257,8 @@ public class ThaiTtsService
     public async Task<bool> GenerateWithGoogleTtsAsync(
         string text, string voiceId, string outputPath, CancellationToken ct = default)
     {
+        text = NormalizeThaiText(text);
+
         var apiKey = Environment.GetEnvironmentVariable("GOOGLE_TTS_API_KEY");
         if (string.IsNullOrEmpty(apiKey))
         {
