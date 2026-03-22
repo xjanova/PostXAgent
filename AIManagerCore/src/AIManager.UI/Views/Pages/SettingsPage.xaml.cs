@@ -50,6 +50,7 @@ public partial class SettingsPage : Page
 
         LoadSettings();
         LoadDatabaseSettings();
+        LoadGpuSettings();
         CboOllamaModel.SelectionChanged += CboOllamaModel_SelectionChanged;
 
         // Auto-detect resources and check all connections on load
@@ -1118,6 +1119,87 @@ public partial class SettingsPage : Page
         finally
         {
             BtnClearData.IsEnabled = true;
+        }
+    }
+
+    #endregion
+
+    #region GPU Resource Limits
+
+    private void LoadGpuSettings()
+    {
+        try
+        {
+            var settings = DiffusersEngineSettings.Load();
+            SliderVramLimit.Value = settings.GpuLimits.MaxVramUsagePercent;
+            SliderReservedVram.Value = settings.GpuLimits.ReservedVramGb;
+            TglOomRecovery.IsChecked = settings.GpuLimits.OomAutoRecovery;
+            TglAutoReduceBatch.IsChecked = settings.GpuLimits.AutoReduceBatchSize;
+            UpdateVramLimitDisplay();
+            UpdateReservedVramDisplay();
+        }
+        catch
+        {
+            // Defaults already set in XAML
+        }
+    }
+
+    private void VramLimit_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        UpdateVramLimitDisplay();
+    }
+
+    private void ReservedVram_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        UpdateReservedVramDisplay();
+    }
+
+    private void UpdateVramLimitDisplay()
+    {
+        if (TxtVramPercent == null) return;
+        TxtVramPercent.Text = $"{SliderVramLimit.Value:F0}%";
+    }
+
+    private void UpdateReservedVramDisplay()
+    {
+        if (TxtReservedVram == null) return;
+        TxtReservedVram.Text = $"{SliderReservedVram.Value:F1} GB";
+    }
+
+    private async void ApplyGpuLimits_Click(object sender, RoutedEventArgs e)
+    {
+        BtnApplyGpuLimits.IsEnabled = false;
+        try
+        {
+            var settings = DiffusersEngineSettings.Load();
+            settings.GpuLimits.MaxVramUsagePercent = SliderVramLimit.Value;
+            settings.GpuLimits.ReservedVramGb = SliderReservedVram.Value;
+            settings.GpuLimits.OomAutoRecovery = TglOomRecovery.IsChecked == true;
+            settings.GpuLimits.AutoReduceBatchSize = TglAutoReduceBatch.IsChecked == true;
+            settings.Save();
+
+            // Try to apply to running engine
+            var manager = DiffusersEngineManager.Instance;
+            if (manager.IsReady)
+            {
+                await manager.Engine.SetGpuLimitsAsync(
+                    maxVramPercent: settings.GpuLimits.MaxVramUsagePercent,
+                    reservedVramGb: settings.GpuLimits.ReservedVramGb,
+                    oomAutoRecovery: settings.GpuLimits.OomAutoRecovery,
+                    autoReduceBatchSize: settings.GpuLimits.AutoReduceBatchSize);
+            }
+
+            MessageBox.Show("GPU limits saved and applied.",
+                "GPU Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to apply GPU limits: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            BtnApplyGpuLimits.IsEnabled = true;
         }
     }
 

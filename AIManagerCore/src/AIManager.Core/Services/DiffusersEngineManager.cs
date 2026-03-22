@@ -110,6 +110,11 @@ public class DiffusersEngineSettings
     /// </summary>
     public string? HuggingFaceToken { get; set; }
 
+    /// <summary>
+    /// GPU resource limits - prevents system crashes from VRAM exhaustion
+    /// </summary>
+    public GpuResourceConfig GpuLimits { get; set; } = new();
+
     private static string SettingsPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PostXAgent", "diffusers_engine_settings.json");
@@ -278,6 +283,9 @@ public sealed class DiffusersEngineManager : IDisposable
         var gpuService = new LocalGpuService();
 
         _engine = new DiffusersGenerationEngine(modelService, gpuService, logger: null);
+
+        // Apply GPU resource limits
+        _engine.GpuConfig = _settings.GpuLimits;
 
         // Set HuggingFace token if configured
         if (!string.IsNullOrEmpty(_settings.HuggingFaceToken))

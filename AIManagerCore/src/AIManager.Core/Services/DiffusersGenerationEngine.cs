@@ -12,7 +12,25 @@ namespace AIManager.Core.Services;
 /// This service manages a Python process running diffusers for image/video generation
 /// with comprehensive GPU detection, VRAM monitoring, and model compatibility checks
 /// </summary>
-public class DiffusersGenerationEngine : IDisposable
+/// <summary>
+/// GPU resource configuration for preventing system crashes from VRAM exhaustion
+/// </summary>
+public class GpuResourceConfig
+{
+    /// <summary>Max VRAM usage percent (30-95%, default 85%)</summary>
+    public double MaxVramUsagePercent { get; set; } = 85.0;
+
+    /// <summary>VRAM reserved for OS/display in GB (default 1.5)</summary>
+    public double ReservedVramGb { get; set; } = 1.5;
+
+    /// <summary>Auto-recover from OOM errors</summary>
+    public bool OomAutoRecovery { get; set; } = true;
+
+    /// <summary>Auto-reduce batch size when VRAM limit reached</summary>
+    public bool AutoReduceBatchSize { get; set; } = true;
+}
+
+public class DiffusersGenerationEngine : IDisposable, IAsyncDisposable
 {
     private readonly ILogger<DiffusersGenerationEngine>? _logger;
     private readonly HuggingFaceModelService _modelService;
@@ -28,6 +46,11 @@ public class DiffusersGenerationEngine : IDisposable
     private readonly SemaphoreSlim _operationLock = new(1, 1);
 
     public const int DEFAULT_PORT = 5050;
+
+    /// <summary>
+    /// GPU resource configuration
+    /// </summary>
+    public GpuResourceConfig GpuConfig { get; set; } = new();
 
     // VRAM requirements for different model types (in GB)
     public static readonly IReadOnlyDictionary<string, double> ModelVramRequirements = new Dictionary<string, double>
@@ -344,6 +367,14 @@ public class DiffusersGenerationEngine : IDisposable
             // Build command line arguments
             var args = $"\"{scriptPath}\" --port {port} --models-dir \"{_modelService.ModelsDirectory}\"";
 
+            // Add GPU resource limits
+            args += $" --max-vram-percent {GpuConfig.MaxVramUsagePercent:F1}";
+            args += $" --reserved-vram {GpuConfig.ReservedVramGb:F1}";
+            if (!GpuConfig.OomAutoRecovery)
+                args += " --no-oom-recovery";
+            _logger?.LogInformation("GPU limits: max VRAM {Percent}%, reserved {Reserved} GB",
+                GpuConfig.MaxVramUsagePercent, GpuConfig.ReservedVramGb);
+
             // Add HuggingFace token if configured
             if (!string.IsNullOrEmpty(HuggingFaceToken))
             {
@@ -600,7 +631,7 @@ public class DiffusersGenerationEngine : IDisposable
 
             try
             {
-                var response = await _httpClient!.GetAsync($"http://localhost:{Port}/health", ct);
+                var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/health", ct);
                 if (response.IsSuccessStatusCode)
                 {
                     _logger?.LogInformation("Server ready after {Seconds}s", i + 1);
@@ -761,7 +792,7 @@ public class DiffusersGenerationEngine : IDisposable
                 Message = "Loading model into VRAM..."
             });
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/load-model", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/load-model", content, ct);
 
             // Fire progress: Processing response
             ModelLoadProgressChanged?.Invoke(this, new ModelLoadProgressEventArgs
@@ -841,7 +872,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            await _httpClient!.PostAsync($"http://localhost:{Port}/unload-model", null, ct);
+            await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/unload-model", null, ct);
             _modelService.MarkModelUnloaded(CurrentModel);
             CurrentModel = null;
 
@@ -864,13 +895,9 @@ public class DiffusersGenerationEngine : IDisposable
         DiffusersImageRequest request,
         CancellationToken ct = default)
     {
-        if (!_isRunning)
+        if (!EnsureRunning(out var client, out var err))
         {
-            return new DiffusersResult
-            {
-                Success = false,
-                Error = "Engine not running"
-            };
+            return new DiffusersResult { Success = false, Error = err };
         }
 
         try
@@ -880,7 +907,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/image", content, ct);
+            var response = await client.PostAsync($"http://localhost:{Port}/generate/image", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<DiffusersResult>(ct);
@@ -923,7 +950,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/img2img", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/img2img", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<DiffusersResult>(ct);
@@ -966,7 +993,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/video", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/video", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<DiffusersResult>(ct);
@@ -1012,7 +1039,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/lora/load", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/lora/load", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<LoraLoadResult>(ct);
@@ -1037,7 +1064,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/lora/unload", null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/lora/unload", null, ct);
             response.EnsureSuccessStatusCode();
             _logger?.LogInformation("All LoRAs unloaded");
             return true;
@@ -1063,7 +1090,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/schedulers", ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/schedulers", ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<SchedulersResponse>(ct);
@@ -1103,7 +1130,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/inpaint", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/inpaint", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<InpaintResult>(ct);
@@ -1146,7 +1173,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/outpaint", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/outpaint", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<OutpaintResult>(ct);
@@ -1193,7 +1220,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/upscale", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/upscale", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<UpscaleResult>(ct);
@@ -1230,7 +1257,7 @@ public class DiffusersGenerationEngine : IDisposable
         try
         {
             var url = $"http://localhost:{Port}/ip-adapter/load?adapter_name={Uri.EscapeDataString(adapterName)}";
-            var response = await _httpClient!.PostAsync(url, null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync(url, null, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<IPAdapterLoadResult>(ct);
@@ -1255,7 +1282,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/ip-adapter/unload", null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/ip-adapter/unload", null, ct);
             response.EnsureSuccessStatusCode();
             _logger?.LogInformation("IP-Adapter unloaded");
             return true;
@@ -1290,7 +1317,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/ip-adapter", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/ip-adapter", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<IPAdapterResult>(ct);
@@ -1338,7 +1365,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/multi-controlnet", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/multi-controlnet", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<MultiControlNetResult>(ct);
@@ -1377,7 +1404,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/queue/add", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/queue/add", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<QueueAddResult>(ct);
@@ -1403,7 +1430,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/queue/status/{Uri.EscapeDataString(taskId)}", ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/queue/status/{Uri.EscapeDataString(taskId)}", ct);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<QueueTaskStatus>(ct);
         }
@@ -1424,7 +1451,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/queue/cancel/{Uri.EscapeDataString(taskId)}", null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/queue/cancel/{Uri.EscapeDataString(taskId)}", null, ct);
             response.EnsureSuccessStatusCode();
             _logger?.LogInformation("Queue task cancelled: {TaskId}", taskId);
             return true;
@@ -1446,7 +1473,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/queue/list", ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/queue/list", ct);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<QueueListResult>(ct);
         }
@@ -1467,7 +1494,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/queue/clear", null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/queue/clear", null, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<QueueClearResult>(ct);
@@ -1509,7 +1536,7 @@ public class DiffusersGenerationEngine : IDisposable
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/generate/controlnet", content, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/generate/controlnet", content, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<ControlNetResult>(ct);
@@ -1539,7 +1566,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/controlnet/types", ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/controlnet/types", ct);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<ControlNetTypesResult>(ct);
         }
@@ -1568,7 +1595,7 @@ public class DiffusersGenerationEngine : IDisposable
                 url += $"&custom_model={Uri.EscapeDataString(customModel)}";
             }
 
-            var response = await _httpClient!.PostAsync(url, null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync(url, null, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<ControlNetLoadResult>(ct);
@@ -1593,7 +1620,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/controlnet/unload", null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/controlnet/unload", null, ct);
             response.EnsureSuccessStatusCode();
             _logger?.LogInformation("All ControlNets unloaded");
             return true;
@@ -1619,7 +1646,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/progress", ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/progress", ct);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<GenerationProgressInfo>(ct);
         }
@@ -1640,7 +1667,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.PostAsync($"http://localhost:{Port}/cancel", null, ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).PostAsync($"http://localhost:{Port}/cancel", null, ct);
             response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadFromJsonAsync<CancelGenerationResult>(ct);
@@ -1672,7 +1699,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/info", ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/info", ct);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<EngineInfo>(ct);
         }
@@ -1692,7 +1719,7 @@ public class DiffusersGenerationEngine : IDisposable
 
         try
         {
-            var response = await _httpClient!.GetAsync($"http://localhost:{Port}/startup-status", ct);
+            var response = await (_httpClient ?? throw new InvalidOperationException("Engine not running")).GetAsync($"http://localhost:{Port}/startup-status", ct);
             response.EnsureSuccessStatusCode();
             var status = await response.Content.ReadFromJsonAsync<StartupStatusResponse>(ct);
 
@@ -1973,13 +2000,145 @@ public class DiffusersGenerationEngine : IDisposable
 
     #endregion
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        try
+        {
+            await StopAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error during async dispose");
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
 
-        StopAsync().Wait();
+        try
+        {
+            // Use Task.Run to avoid deadlock when called from sync context
+            Task.Run(async () => await StopAsync()).Wait(TimeSpan.FromSeconds(10));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error during dispose, force-killing process");
+            try { _serverProcess?.Kill(true); } catch { }
+        }
     }
+
+    /// <summary>
+    /// Ensures engine is running and HttpClient is available
+    /// </summary>
+    private bool EnsureRunning([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out HttpClient? client, out string error)
+    {
+        if (!_isRunning || _httpClient == null)
+        {
+            client = null;
+            error = "Engine not running";
+            return false;
+        }
+        client = _httpClient;
+        error = "";
+        return true;
+    }
+
+    #region GPU Resource Management
+
+    /// <summary>
+    /// Get GPU resource limits from the running server
+    /// </summary>
+    public async Task<GpuLimitsResponse?> GetGpuLimitsAsync(CancellationToken ct = default)
+    {
+        if (!EnsureRunning(out var client, out var err))
+            return null;
+
+        try
+        {
+            var response = await client.GetAsync($"http://localhost:{Port}/gpu/limits", ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<GpuLimitsResponse>(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get GPU limits");
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Update GPU resource limits on the running server
+    /// </summary>
+    public async Task<GpuLimitsResponse?> SetGpuLimitsAsync(
+        double? maxVramPercent = null,
+        double? reservedVramGb = null,
+        bool? oomAutoRecovery = null,
+        bool? autoReduceBatchSize = null,
+        CancellationToken ct = default)
+    {
+        if (!EnsureRunning(out var client, out var err))
+            return null;
+
+        try
+        {
+            var queryParts = new List<string>();
+            if (maxVramPercent.HasValue) queryParts.Add($"max_vram_percent={maxVramPercent.Value}");
+            if (reservedVramGb.HasValue) queryParts.Add($"reserved_vram_gb={reservedVramGb.Value}");
+            if (oomAutoRecovery.HasValue) queryParts.Add($"oom_auto_recovery={oomAutoRecovery.Value.ToString().ToLower()}");
+            if (autoReduceBatchSize.HasValue) queryParts.Add($"auto_reduce_batch_size={autoReduceBatchSize.Value.ToString().ToLower()}");
+
+            var query = string.Join("&", queryParts);
+            var response = await client.PostAsync($"http://localhost:{Port}/gpu/limits?{query}", null, ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Update local config too
+                if (maxVramPercent.HasValue) GpuConfig.MaxVramUsagePercent = maxVramPercent.Value;
+                if (reservedVramGb.HasValue) GpuConfig.ReservedVramGb = reservedVramGb.Value;
+                if (oomAutoRecovery.HasValue) GpuConfig.OomAutoRecovery = oomAutoRecovery.Value;
+                if (autoReduceBatchSize.HasValue) GpuConfig.AutoReduceBatchSize = autoReduceBatchSize.Value;
+
+                return await response.Content.ReadFromJsonAsync<GpuLimitsResponse>(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to set GPU limits");
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Get GPU status (VRAM usage, throttle state, etc.)
+    /// </summary>
+    public async Task<GpuStatusResponse?> GetGpuStatusAsync(CancellationToken ct = default)
+    {
+        if (!EnsureRunning(out var client, out var err))
+            return null;
+
+        try
+        {
+            var response = await client.GetAsync($"http://localhost:{Port}/gpu/status", ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<GpuStatusResponse>(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get GPU status");
+        }
+        return null;
+    }
+
+    #endregion
 }
 
 #region Models
@@ -3266,6 +3425,78 @@ public class QueueClearResult
 
     [JsonPropertyName("cleared_count")]
     public int ClearedCount { get; set; }
+}
+
+/// <summary>
+/// GPU resource limits response from Python server
+/// </summary>
+public class GpuLimitsResponse
+{
+    [JsonPropertyName("limits")]
+    public GpuLimitsData? Limits { get; set; }
+
+    [JsonPropertyName("status")]
+    public GpuStatusResponse? Status { get; set; }
+}
+
+/// <summary>
+/// GPU limits configuration data
+/// </summary>
+public class GpuLimitsData
+{
+    [JsonPropertyName("max_vram_usage_percent")]
+    public double MaxVramUsagePercent { get; set; }
+
+    [JsonPropertyName("reserved_vram_gb")]
+    public double ReservedVramGb { get; set; }
+
+    [JsonPropertyName("oom_auto_recovery")]
+    public bool OomAutoRecovery { get; set; }
+
+    [JsonPropertyName("auto_reduce_batch_size")]
+    public bool AutoReduceBatchSize { get; set; }
+
+    [JsonPropertyName("monitor_interval_seconds")]
+    public int MonitorIntervalSeconds { get; set; }
+}
+
+/// <summary>
+/// GPU/VRAM status response
+/// </summary>
+public class GpuStatusResponse
+{
+    [JsonPropertyName("available")]
+    public bool Available { get; set; }
+
+    [JsonPropertyName("total_gb")]
+    public double TotalGb { get; set; }
+
+    [JsonPropertyName("allocated_gb")]
+    public double AllocatedGb { get; set; }
+
+    [JsonPropertyName("reserved_gb")]
+    public double ReservedGb { get; set; }
+
+    [JsonPropertyName("free_gb")]
+    public double FreeGb { get; set; }
+
+    [JsonPropertyName("usage_percent")]
+    public double UsagePercent { get; set; }
+
+    [JsonPropertyName("limit_percent")]
+    public double LimitPercent { get; set; }
+
+    [JsonPropertyName("max_usable_gb")]
+    public double MaxUsableGb { get; set; }
+
+    [JsonPropertyName("available_for_generation_gb")]
+    public double AvailableForGenerationGb { get; set; }
+
+    [JsonPropertyName("throttled")]
+    public bool Throttled { get; set; }
+
+    [JsonPropertyName("oom_count")]
+    public int OomCount { get; set; }
 }
 
 #endregion

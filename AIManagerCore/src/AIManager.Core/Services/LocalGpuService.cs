@@ -170,8 +170,9 @@ public class LocalGpuService
         var vram = await GetVramUsageAsync(ct);
         var freeGb = vram.FreeMb / 1024.0;
 
-        // Add buffer (keep 1GB free for system)
-        var requiredWithBuffer = requiredVramGb + 1.0;
+        // Dynamic safety buffer: 1.5GB for ≤8GB GPUs, 2.0GB for larger GPUs
+        var safetyBuffer = gpu.TotalVramGb <= 8.0 ? 1.5 : 2.0;
+        var requiredWithBuffer = requiredVramGb + safetyBuffer;
 
         if (freeGb < requiredWithBuffer)
         {

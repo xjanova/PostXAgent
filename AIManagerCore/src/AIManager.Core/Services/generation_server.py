@@ -504,8 +504,46 @@ SCHEDULER_REGISTRY = {
 # Generation Engine
 # ============================================================================
 
+class GpuResourceLimits:
+    """GPU resource limits to prevent system crashes from VRAM exhaustion."""
+    def __init__(self,
+                 max_vram_usage_percent: float = 85.0,
+                 reserved_vram_gb: float = 1.5,
+                 oom_auto_recovery: bool = True,
+                 auto_reduce_batch_size: bool = True,
+                 monitor_interval_seconds: int = 5):
+        self.max_vram_usage_percent = max(30.0, min(95.0, max_vram_usage_percent))
+        self.reserved_vram_gb = max(0.5, reserved_vram_gb)
+        self.oom_auto_recovery = oom_auto_recovery
+        self.auto_reduce_batch_size = auto_reduce_batch_size
+        self.monitor_interval_seconds = max(2, monitor_interval_seconds)
+
+    def to_dict(self) -> dict:
+        return {
+            "max_vram_usage_percent": self.max_vram_usage_percent,
+            "reserved_vram_gb": self.reserved_vram_gb,
+            "oom_auto_recovery": self.oom_auto_recovery,
+            "auto_reduce_batch_size": self.auto_reduce_batch_size,
+            "monitor_interval_seconds": self.monitor_interval_seconds,
+        }
+
+
+# Estimated VRAM usage per pixel for different operations (in bytes)
+VRAM_ESTIMATES = {
+    "base_model_sd15": 4.0,   # GB for model in VRAM
+    "base_model_sdxl": 8.0,
+    "per_megapixel_sd15": 1.5,  # GB per megapixel for generation
+    "per_megapixel_sdxl": 3.0,
+    "per_batch_multiplier": 0.8,  # Additional VRAM per extra batch item
+    "lora_each": 0.5,
+    "controlnet_each": 2.0,
+    "ip_adapter": 1.5,
+}
+
+
 class DiffusersEngine:
-    def __init__(self, models_dir: str, low_vram_mode: bool = False):
+    def __init__(self, models_dir: str, low_vram_mode: bool = False,
+                 gpu_limits: Optional[GpuResourceLimits] = None):
         self.models_dir = models_dir
         self.low_vram_mode = low_vram_mode
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -545,6 +583,14 @@ class DiffusersEngine:
         self._is_generating = False
         self._current_task_id: Optional[str] = None
 
+        # GPU Resource Limiting
+        self._gpu_limits = gpu_limits or GpuResourceLimits()
+        self._vram_throttled = False
+        self._vram_monitor_thread: Optional[Thread] = None
+        self._vram_monitor_stop = Event()
+        self._last_vram_warning_time = 0.0
+        self._oom_count = 0
+
         print(f"[Engine] Initialized")
         print(f"[Engine] Device: {self.device}")
         print(f"[Engine] Dtype: {self.dtype}")
@@ -554,8 +600,16 @@ class DiffusersEngine:
 
         if self.device == "cuda":
             props = torch.cuda.get_device_properties(0)
+            total_gb = props.total_memory / 1024**3
+            max_usable_gb = total_gb * (self._gpu_limits.max_vram_usage_percent / 100.0)
             print(f"[Engine] GPU: {props.name}")
-            print(f"[Engine] Total VRAM: {props.total_memory / 1024**3:.1f} GB")
+            print(f"[Engine] Total VRAM: {total_gb:.1f} GB")
+            print(f"[Engine] VRAM Limit: {self._gpu_limits.max_vram_usage_percent:.0f}% ({max_usable_gb:.1f} GB)")
+            print(f"[Engine] Reserved VRAM: {self._gpu_limits.reserved_vram_gb:.1f} GB")
+            print(f"[Engine] OOM Auto-Recovery: {self._gpu_limits.oom_auto_recovery}")
+
+            # Start VRAM monitor thread
+            self._start_vram_monitor()
 
     # =========================================================================
     # ControlNet Model Registry - Auto-select based on base model and type
@@ -1142,6 +1196,278 @@ class DiffusersEngine:
             vram_reserved = torch.cuda.memory_reserved() / 1024**3
             print(f"[Engine] VRAM cleared - Allocated: {vram_allocated:.2f} GB, Reserved: {vram_reserved:.2f} GB")
 
+    # =========================================================================
+    # GPU Resource Limiting
+    # =========================================================================
+
+    def _start_vram_monitor(self):
+        """Start background VRAM monitoring thread."""
+        if self._vram_monitor_thread is not None:
+            return
+        self._vram_monitor_stop.clear()
+        self._vram_monitor_thread = Thread(target=self._vram_monitor_loop, daemon=True, name="vram-monitor")
+        self._vram_monitor_thread.start()
+        print(f"[Engine] VRAM monitor started (interval: {self._gpu_limits.monitor_interval_seconds}s)")
+
+    def _stop_vram_monitor(self):
+        """Stop VRAM monitoring thread."""
+        self._vram_monitor_stop.set()
+        if self._vram_monitor_thread is not None:
+            self._vram_monitor_thread.join(timeout=5)
+            self._vram_monitor_thread = None
+
+    def _vram_monitor_loop(self):
+        """Background loop monitoring VRAM usage."""
+        while not self._vram_monitor_stop.is_set():
+            try:
+                if torch.cuda.is_available():
+                    props = torch.cuda.get_device_properties(0)
+                    allocated = torch.cuda.memory_allocated() / 1024**3
+                    total = props.total_memory / 1024**3
+                    usage_percent = (allocated / total) * 100 if total > 0 else 0
+                    limit = self._gpu_limits.max_vram_usage_percent
+
+                    was_throttled = self._vram_throttled
+                    self._vram_throttled = usage_percent >= limit
+
+                    now = time.time()
+                    # Log warnings (at most every 30 seconds)
+                    if usage_percent >= 90 and (now - self._last_vram_warning_time) > 30:
+                        print(f"[Engine] [CRITICAL] VRAM usage: {usage_percent:.1f}% ({allocated:.1f}/{total:.1f} GB) - NEAR LIMIT")
+                        self._last_vram_warning_time = now
+                    elif usage_percent >= 80 and (now - self._last_vram_warning_time) > 60:
+                        print(f"[Engine] [WARNING] VRAM usage: {usage_percent:.1f}% ({allocated:.1f}/{total:.1f} GB)")
+                        self._last_vram_warning_time = now
+
+                    if self._vram_throttled and not was_throttled:
+                        print(f"[Engine] [THROTTLE] VRAM at {usage_percent:.1f}% - exceeds limit of {limit:.0f}% - new generations blocked")
+                    elif not self._vram_throttled and was_throttled:
+                        print(f"[Engine] [THROTTLE] VRAM recovered to {usage_percent:.1f}% - generations unblocked")
+
+            except Exception as e:
+                print(f"[Engine] VRAM monitor error: {e}")
+
+            self._vram_monitor_stop.wait(timeout=self._gpu_limits.monitor_interval_seconds)
+
+    def _get_vram_status(self) -> Dict[str, Any]:
+        """Get current VRAM status with limit info."""
+        if not torch.cuda.is_available():
+            return {"available": False, "throttled": False}
+
+        props = torch.cuda.get_device_properties(0)
+        allocated = torch.cuda.memory_allocated()
+        reserved = torch.cuda.memory_reserved()
+        total = props.total_memory
+
+        total_gb = total / 1024**3
+        allocated_gb = allocated / 1024**3
+        usage_percent = (allocated / total) * 100 if total > 0 else 0
+        limit = self._gpu_limits.max_vram_usage_percent
+        max_usable_gb = total_gb * (limit / 100.0)
+        available_for_gen_gb = max(0, max_usable_gb - allocated_gb)
+
+        return {
+            "available": True,
+            "total_gb": round(total_gb, 2),
+            "allocated_gb": round(allocated_gb, 2),
+            "reserved_gb": round(reserved / 1024**3, 2),
+            "free_gb": round((total - allocated) / 1024**3, 2),
+            "usage_percent": round(usage_percent, 1),
+            "limit_percent": limit,
+            "max_usable_gb": round(max_usable_gb, 2),
+            "available_for_generation_gb": round(available_for_gen_gb, 2),
+            "throttled": self._vram_throttled,
+            "oom_count": self._oom_count,
+        }
+
+    def _estimate_generation_vram(self, width: int, height: int, batch_size: int = 1,
+                                   has_controlnet: bool = False, num_loras: int = 0,
+                                   has_ip_adapter: bool = False) -> float:
+        """Estimate VRAM needed for a generation (in GB)."""
+        megapixels = (width * height) / 1_000_000.0
+        model_lower = (self.current_model or "").lower()
+        is_sdxl = "xl" in model_lower or "sdxl" in model_lower
+
+        # Base generation overhead
+        per_mp = VRAM_ESTIMATES["per_megapixel_sdxl"] if is_sdxl else VRAM_ESTIMATES["per_megapixel_sd15"]
+        vram = megapixels * per_mp
+
+        # Batch size adds ~80% per additional image
+        if batch_size > 1:
+            vram += vram * VRAM_ESTIMATES["per_batch_multiplier"] * (batch_size - 1)
+
+        # ControlNet adds ~2GB
+        if has_controlnet:
+            vram += VRAM_ESTIMATES["controlnet_each"]
+
+        # LoRA adds ~0.5GB each
+        vram += num_loras * VRAM_ESTIMATES["lora_each"]
+
+        # IP-Adapter adds ~1.5GB
+        if has_ip_adapter:
+            vram += VRAM_ESTIMATES["ip_adapter"]
+
+        return vram
+
+    def _check_vram_before_generate(self, width: int, height: int, batch_size: int = 1,
+                                      has_controlnet: bool = False, num_loras: int = 0,
+                                      has_ip_adapter: bool = False) -> tuple:
+        """Check VRAM availability before generation.
+        Returns: (ok: bool, message: str, suggested_batch_size: int)
+        """
+        if self.device != "cuda":
+            return (True, "Running on CPU - no VRAM limit", batch_size)
+
+        if not self._gpu_limits.auto_reduce_batch_size and not self._vram_throttled:
+            # If auto-reduce disabled and not throttled, allow it
+            pass
+
+        # Check if throttled
+        if self._vram_throttled:
+            return (False,
+                    f"VRAM throttled: usage exceeds {self._gpu_limits.max_vram_usage_percent:.0f}% limit. "
+                    "Unload model or reduce VRAM usage.",
+                    0)
+
+        props = torch.cuda.get_device_properties(0)
+        total_gb = props.total_memory / 1024**3
+        allocated_gb = torch.cuda.memory_allocated() / 1024**3
+        max_usable_gb = total_gb * (self._gpu_limits.max_vram_usage_percent / 100.0)
+        available_gb = max_usable_gb - allocated_gb - self._gpu_limits.reserved_vram_gb
+
+        estimated = self._estimate_generation_vram(width, height, batch_size,
+                                                    has_controlnet, num_loras, has_ip_adapter)
+
+        if estimated <= available_gb:
+            return (True, f"VRAM OK: need ~{estimated:.1f} GB, have {available_gb:.1f} GB available", batch_size)
+
+        # Try reducing batch size if auto-reduce enabled
+        if self._gpu_limits.auto_reduce_batch_size and batch_size > 1:
+            for reduced in range(batch_size - 1, 0, -1):
+                reduced_est = self._estimate_generation_vram(width, height, reduced,
+                                                              has_controlnet, num_loras, has_ip_adapter)
+                if reduced_est <= available_gb:
+                    print(f"[Engine] Auto-reduced batch_size {batch_size} -> {reduced} "
+                          f"(estimated {estimated:.1f} GB -> {reduced_est:.1f} GB, available {available_gb:.1f} GB)")
+                    return (True,
+                            f"Batch size auto-reduced from {batch_size} to {reduced} due to VRAM limit",
+                            reduced)
+
+        return (False,
+                f"Insufficient VRAM: need ~{estimated:.1f} GB, have {available_gb:.1f} GB available "
+                f"(limit: {self._gpu_limits.max_vram_usage_percent:.0f}%, "
+                f"total: {total_gb:.1f} GB, used: {allocated_gb:.1f} GB)",
+                0)
+
+    def _handle_oom_recovery(self, error_msg: str = "") -> Dict[str, Any]:
+        """Handle CUDA Out-of-Memory error with graceful recovery."""
+        self._oom_count += 1
+        print(f"[Engine] [OOM] CUDA Out of Memory #{self._oom_count}")
+        if error_msg:
+            print(f"[Engine] [OOM] Error: {error_msg[:200]}")
+
+        if not self._gpu_limits.oom_auto_recovery:
+            print("[Engine] [OOM] Auto-recovery disabled")
+            return {"recovered": False, "action": "none"}
+
+        recovery_steps = []
+
+        # Step 1: Unload LoRAs
+        if self.loaded_loras:
+            try:
+                self.unload_loras()
+                recovery_steps.append("unloaded_loras")
+                print("[Engine] [OOM] Step 1: Unloaded LoRAs")
+            except Exception:
+                pass
+
+        # Step 2: Unload ControlNets
+        if self.loaded_controlnets:
+            try:
+                self.unload_controlnets()
+                recovery_steps.append("unloaded_controlnets")
+                print("[Engine] [OOM] Step 2: Unloaded ControlNets")
+            except Exception:
+                pass
+
+        # Step 3: Unload IP-Adapter
+        if self.ip_adapter_loaded:
+            try:
+                self.unload_ip_adapter()
+                recovery_steps.append("unloaded_ip_adapter")
+                print("[Engine] [OOM] Step 3: Unloaded IP-Adapter")
+            except Exception:
+                pass
+
+        # Step 4: Clear VRAM
+        self._clear_vram()
+        recovery_steps.append("cleared_vram")
+        print("[Engine] [OOM] Step 4: Cleared VRAM cache")
+
+        # Check if VRAM is now ok
+        if torch.cuda.is_available():
+            allocated_gb = torch.cuda.memory_allocated() / 1024**3
+            total_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            usage_pct = (allocated_gb / total_gb) * 100
+
+            if usage_pct < self._gpu_limits.max_vram_usage_percent:
+                print(f"[Engine] [OOM] Recovered - VRAM now at {usage_pct:.1f}%")
+                return {"recovered": True, "steps": recovery_steps, "vram_percent": usage_pct}
+
+            # Step 5: Last resort - unload model
+            print("[Engine] [OOM] Step 5: Unloading model as last resort")
+            try:
+                self.unload_model()
+                recovery_steps.append("unloaded_model")
+            except Exception:
+                pass
+
+        print(f"[Engine] [OOM] Recovery complete - steps: {recovery_steps}")
+        return {"recovered": True, "steps": recovery_steps}
+
+    def get_gpu_limits(self) -> Dict[str, Any]:
+        """Get current GPU resource limits."""
+        return {
+            "limits": self._gpu_limits.to_dict(),
+            "status": self._get_vram_status(),
+        }
+
+    def set_gpu_limits(self, max_vram_percent: Optional[float] = None,
+                        reserved_vram_gb: Optional[float] = None,
+                        oom_auto_recovery: Optional[bool] = None,
+                        auto_reduce_batch_size: Optional[bool] = None) -> Dict[str, Any]:
+        """Update GPU resource limits at runtime."""
+        if max_vram_percent is not None:
+            self._gpu_limits.max_vram_usage_percent = max(30.0, min(95.0, max_vram_percent))
+        if reserved_vram_gb is not None:
+            self._gpu_limits.reserved_vram_gb = max(0.5, reserved_vram_gb)
+        if oom_auto_recovery is not None:
+            self._gpu_limits.oom_auto_recovery = oom_auto_recovery
+        if auto_reduce_batch_size is not None:
+            self._gpu_limits.auto_reduce_batch_size = auto_reduce_batch_size
+
+        print(f"[Engine] GPU limits updated: {self._gpu_limits.to_dict()}")
+        return self.get_gpu_limits()
+
+    def _handle_generation_exception(self, e: Exception) -> Dict[str, Any]:
+        """Handle exceptions from generation methods with OOM detection and recovery.
+        All generation methods should call this in their except blocks for RuntimeError/Exception."""
+        error_str = str(e).lower()
+        is_oom = "out of memory" in error_str or ("cuda" in error_str and "alloc" in error_str)
+
+        if is_oom:
+            recovery = self._handle_oom_recovery(str(e))
+            return {
+                "success": False,
+                "error": f"CUDA Out of Memory: {str(e)[:200]}",
+                "error_type": "oom",
+                "recovery": recovery,
+                "task_id": self._current_task_id,
+            }
+
+        traceback.print_exc()
+        return {"success": False, "error": str(e), "task_id": self._current_task_id}
+
     def load_lora(self, lora_path: str, weight: float = 1.0, adapter_name: Optional[str] = None):
         """Load a LoRA adapter."""
         if self.pipeline is None:
@@ -1215,6 +1541,14 @@ class DiffusersEngine:
         if self.pipeline is None:
             return {"success": False, "error": "No model loaded"}
 
+        # VRAM pre-check
+        num_loras = len(request.lora_models) if request.lora_models else 0
+        vram_ok, vram_msg, safe_batch = self._check_vram_before_generate(
+            request.width, request.height, request.batch_size, num_loras=num_loras)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+        actual_batch_size = safe_batch
+
         with self._lock:
             orig_clip_layers = None
             try:
@@ -1250,6 +1584,8 @@ class DiffusersEngine:
                 print(f"  Steps: {request.steps}")
                 print(f"  Guidance: {request.guidance_scale}")
                 print(f"  Seed: {seed}")
+                if actual_batch_size != request.batch_size:
+                    print(f"  Batch: {request.batch_size} -> {actual_batch_size} (auto-reduced)")
 
                 start_time = time.time()
 
@@ -1260,7 +1596,7 @@ class DiffusersEngine:
                     "height": request.height,
                     "num_inference_steps": request.steps,
                     "guidance_scale": request.guidance_scale,
-                    "num_images_per_prompt": request.batch_size,
+                    "num_images_per_prompt": actual_batch_size,
                     "generator": generator,
                 }
 
@@ -1314,13 +1650,26 @@ class DiffusersEngine:
                     "generation_time": gen_time,
                     "vram_used_gb": vram_used,
                     "task_id": self._current_task_id,
+                    "batch_size_used": actual_batch_size,
                 }
 
             except InterruptedError as e:
                 return {"success": False, "error": "cancelled", "cancelled": True, "task_id": self._current_task_id}
-            except Exception as e:
+            except RuntimeError as e:
+                error_str = str(e).lower()
+                if "out of memory" in error_str or "cuda" in error_str and "alloc" in error_str:
+                    recovery = self._handle_oom_recovery(str(e))
+                    return {
+                        "success": False,
+                        "error": f"CUDA Out of Memory: {str(e)[:200]}",
+                        "error_type": "oom",
+                        "recovery": recovery,
+                        "task_id": self._current_task_id,
+                    }
                 traceback.print_exc()
                 return {"success": False, "error": str(e), "task_id": self._current_task_id}
+            except (RuntimeError, Exception) as e:
+                return self._handle_generation_exception(e)
             finally:
                 # Reset state
                 self._is_generating = False
@@ -1459,9 +1808,8 @@ class DiffusersEngine:
 
             except InterruptedError:
                 return {"success": False, "error": "cancelled", "cancelled": True, "task_id": self._current_task_id}
-            except Exception as e:
-                traceback.print_exc()
-                return {"success": False, "error": str(e), "task_id": self._current_task_id}
+            except (RuntimeError, Exception) as e:
+                return self._handle_generation_exception(e)
             finally:
                 # Reset state
                 self._is_generating = False
@@ -1607,9 +1955,8 @@ class DiffusersEngine:
 
             except InterruptedError:
                 return {"success": False, "error": "cancelled", "cancelled": True, "task_id": self._current_task_id}
-            except Exception as e:
-                traceback.print_exc()
-                return {"success": False, "error": str(e), "task_id": self._current_task_id}
+            except (RuntimeError, Exception) as e:
+                return self._handle_generation_exception(e)
             finally:
                 # Reset state
                 self._is_generating = False
@@ -1838,9 +2185,8 @@ class DiffusersEngine:
 
             except InterruptedError:
                 return {"success": False, "error": "cancelled", "cancelled": True, "task_id": self._current_task_id}
-            except Exception as e:
-                traceback.print_exc()
-                return {"success": False, "error": str(e), "task_id": self._current_task_id}
+            except (RuntimeError, Exception) as e:
+                return self._handle_generation_exception(e)
             finally:
                 self._is_generating = False
                 self._cancel_event.clear()
@@ -2038,9 +2384,8 @@ class DiffusersEngine:
 
             except InterruptedError:
                 return {"success": False, "error": "cancelled", "cancelled": True, "task_id": self._current_task_id}
-            except Exception as e:
-                traceback.print_exc()
-                return {"success": False, "error": str(e), "task_id": self._current_task_id}
+            except (RuntimeError, Exception) as e:
+                return self._handle_generation_exception(e)
             finally:
                 self._is_generating = False
                 self._cancel_event.clear()
@@ -2911,7 +3256,7 @@ class DiffusersEngine:
         }
 
     def get_vram_usage(self) -> Dict[str, Any]:
-        """Get detailed VRAM usage."""
+        """Get detailed VRAM usage with limit info."""
         if not torch.cuda.is_available():
             return {"available": False}
 
@@ -2920,13 +3265,22 @@ class DiffusersEngine:
         reserved = torch.cuda.memory_reserved()
         total = props.total_memory
 
+        total_gb = total / 1024**3
+        usage_pct = (allocated / total) * 100 if total > 0 else 0
+        limit_pct = self._gpu_limits.max_vram_usage_percent
+        max_usable_gb = total_gb * (limit_pct / 100.0)
+
         return {
             "available": True,
             "total_mb": total / 1024**2,
             "allocated_mb": allocated / 1024**2,
             "reserved_mb": reserved / 1024**2,
             "free_mb": (total - allocated) / 1024**2,
-            "utilization_percent": (allocated / total) * 100 if total > 0 else 0,
+            "utilization_percent": round(usage_pct, 1),
+            "limit_percent": limit_pct,
+            "max_usable_mb": max_usable_gb * 1024,
+            "throttled": self._vram_throttled,
+            "oom_count": self._oom_count,
         }
 
 
@@ -2948,6 +3302,8 @@ async def lifespan(app: FastAPI):
     # Cleanup on shutdown
     print("[Server] Shutting down...")
     if engine:
+        engine._stop_vram_monitor()
+        engine.queue_clear()
         engine.unload_model()
     print("[Server] Shutdown complete")
 
@@ -3368,10 +3724,59 @@ async def queue_clear():
     return engine.queue_clear()
 
 
+# ============================================================================
+# GPU Resource Limiting Endpoints
+# ============================================================================
+
+@app.get("/gpu/limits")
+async def get_gpu_limits():
+    """Get current GPU resource limits and VRAM status."""
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Engine not initialized")
+    return engine.get_gpu_limits()
+
+
+@app.post("/gpu/limits")
+async def set_gpu_limits(
+    max_vram_percent: Optional[float] = None,
+    reserved_vram_gb: Optional[float] = None,
+    oom_auto_recovery: Optional[bool] = None,
+    auto_reduce_batch_size: Optional[bool] = None,
+):
+    """Update GPU resource limits.
+
+    Args:
+        max_vram_percent: Max VRAM usage (30-95%, default 85%)
+        reserved_vram_gb: VRAM reserved for OS (default 1.5 GB)
+        oom_auto_recovery: Auto-recover from OOM errors (default True)
+        auto_reduce_batch_size: Auto-reduce batch size on VRAM limit (default True)
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Engine not initialized")
+    return engine.set_gpu_limits(max_vram_percent, reserved_vram_gb,
+                                  oom_auto_recovery, auto_reduce_batch_size)
+
+
+@app.get("/gpu/status")
+async def get_gpu_status():
+    """Get detailed GPU/VRAM status with limit info."""
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Engine not initialized")
+    return engine._get_vram_status()
+
+
 @app.post("/shutdown")
 async def shutdown():
     """Shutdown the server."""
     import threading
+
+    # Clean up queue before shutdown
+    if engine is not None:
+        try:
+            engine.queue_clear()
+            engine._stop_vram_monitor()
+        except Exception:
+            pass
 
     def do_shutdown():
         import time
@@ -3395,6 +3800,17 @@ def main():
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind")
     parser.add_argument("--low-vram", action="store_true", help="Enable low VRAM mode")
     parser.add_argument("--hf-token", type=str, default=None, help="HuggingFace API token for gated models")
+    # GPU Resource Limiting arguments
+    parser.add_argument("--max-vram-percent", type=float, default=85.0,
+                        help="Max VRAM usage percent (30-95, default: 85)")
+    parser.add_argument("--reserved-vram", type=float, default=1.5,
+                        help="VRAM reserved for OS/display in GB (default: 1.5)")
+    parser.add_argument("--oom-recovery", action="store_true", default=True,
+                        help="Enable OOM auto-recovery (default: enabled)")
+    parser.add_argument("--no-oom-recovery", action="store_true",
+                        help="Disable OOM auto-recovery")
+    parser.add_argument("--auto-reduce-batch", action="store_true", default=True,
+                        help="Auto-reduce batch size on VRAM limit (default: enabled)")
     args = parser.parse_args()
 
     # Set HuggingFace token if provided
@@ -3410,11 +3826,20 @@ def main():
         except Exception as e:
             print(f"[Server] [WARN] Could not login to HuggingFace: {e}")
 
-    # Initialize engine
-    engine = DiffusersEngine(args.models_dir, low_vram_mode=args.low_vram)
+    # Configure GPU resource limits
+    gpu_limits = GpuResourceLimits(
+        max_vram_usage_percent=args.max_vram_percent,
+        reserved_vram_gb=args.reserved_vram,
+        oom_auto_recovery=not args.no_oom_recovery,
+        auto_reduce_batch_size=args.auto_reduce_batch,
+    )
+
+    # Initialize engine with GPU limits
+    engine = DiffusersEngine(args.models_dir, low_vram_mode=args.low_vram, gpu_limits=gpu_limits)
 
     print(f"[Server] Starting on {args.host}:{args.port}")
     print(f"[Server] Models directory: {args.models_dir}")
+    print(f"[Server] GPU VRAM Limit: {gpu_limits.max_vram_usage_percent:.0f}%")
 
     # Run server
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
