@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -367,9 +369,9 @@ public class DiffusersGenerationEngine : IDisposable, IAsyncDisposable
             // Build command line arguments
             var args = $"\"{scriptPath}\" --port {port} --models-dir \"{_modelService.ModelsDirectory}\"";
 
-            // Add GPU resource limits
-            args += $" --max-vram-percent {GpuConfig.MaxVramUsagePercent:F1}";
-            args += $" --reserved-vram {GpuConfig.ReservedVramGb:F1}";
+            // Add GPU resource limits (use InvariantCulture for decimal point, not comma)
+            args += $" --max-vram-percent {GpuConfig.MaxVramUsagePercent.ToString("F1", CultureInfo.InvariantCulture)}";
+            args += $" --reserved-vram {GpuConfig.ReservedVramGb.ToString("F1", CultureInfo.InvariantCulture)}";
             if (!GpuConfig.OomAutoRecovery)
                 args += " --no-oom-recovery";
             _logger?.LogInformation("GPU limits: max VRAM {Percent}%, reserved {Reserved} GB",
@@ -2030,12 +2032,16 @@ public class DiffusersGenerationEngine : IDisposable, IAsyncDisposable
             _logger?.LogWarning(ex, "Error during dispose, force-killing process");
             try { _serverProcess?.Kill(true); } catch { }
         }
+        finally
+        {
+            _operationLock.Dispose();
+        }
     }
 
     /// <summary>
     /// Ensures engine is running and HttpClient is available
     /// </summary>
-    private bool EnsureRunning([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out HttpClient? client, out string error)
+    private bool EnsureRunning([NotNullWhen(true)] out HttpClient? client, out string error)
     {
         if (!_isRunning || _httpClient == null)
         {

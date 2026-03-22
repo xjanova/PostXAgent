@@ -1175,8 +1175,18 @@ class DiffusersEngine:
             self.loaded_loras = []
 
             # Clear ControlNets
-            self.controlnet = None
-            self.controlnet_type = None
+            self.controlnet_pipeline = None
+            self.loaded_controlnets = {}
+            self._preprocessors = {}
+
+            # Clear IP-Adapter
+            self.ip_adapter_loaded = False
+            self.ip_adapter_image_encoder = None
+            self.ip_adapter_image_processor = None
+
+            # Clear Upscaler
+            self.upscaler_model = None
+            self.upscaler_type = None
 
             self._clear_vram()
 
@@ -1653,22 +1663,9 @@ class DiffusersEngine:
                     "batch_size_used": actual_batch_size,
                 }
 
-            except InterruptedError as e:
+            except InterruptedError:
                 return {"success": False, "error": "cancelled", "cancelled": True, "task_id": self._current_task_id}
-            except RuntimeError as e:
-                error_str = str(e).lower()
-                if "out of memory" in error_str or "cuda" in error_str and "alloc" in error_str:
-                    recovery = self._handle_oom_recovery(str(e))
-                    return {
-                        "success": False,
-                        "error": f"CUDA Out of Memory: {str(e)[:200]}",
-                        "error_type": "oom",
-                        "recovery": recovery,
-                        "task_id": self._current_task_id,
-                    }
-                traceback.print_exc()
-                return {"success": False, "error": str(e), "task_id": self._current_task_id}
-            except (RuntimeError, Exception) as e:
+            except Exception as e:
                 return self._handle_generation_exception(e)
             finally:
                 # Reset state
@@ -1685,6 +1682,14 @@ class DiffusersEngine:
         """Generate image from image + prompt."""
         if self.pipeline is None:
             return {"success": False, "error": "No model loaded"}
+
+        # VRAM pre-check
+        num_loras = len(request.lora_models) if request.lora_models else 0
+        vram_ok, vram_msg, safe_batch = self._check_vram_before_generate(
+            request.width, request.height, request.batch_size, num_loras=num_loras)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+        request.batch_size = safe_batch
 
         with self._lock:
             orig_clip_layers = None
@@ -1853,6 +1858,11 @@ class DiffusersEngine:
         if not isinstance(self.pipeline, StableVideoDiffusionPipeline):
             return {"success": False, "error": "Video generation requires a video model (SVD)"}
 
+        # VRAM pre-check (video needs more VRAM due to multiple frames)
+        vram_ok, vram_msg, _ = self._check_vram_before_generate(576, 1024, batch_size=1)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+
         with self._lock:
             try:
                 # Reset state
@@ -2009,6 +2019,15 @@ class DiffusersEngine:
         """Generate image with ControlNet guidance."""
         if self.pipeline is None:
             return {"success": False, "error": "No base model loaded. Load a model first."}
+
+        # VRAM pre-check
+        num_loras = len(request.lora_models) if request.lora_models else 0
+        vram_ok, vram_msg, safe_batch = self._check_vram_before_generate(
+            request.width, request.height, request.batch_size,
+            has_controlnet=True, num_loras=num_loras)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+        request.batch_size = safe_batch
 
         with self._lock:
             orig_clip_layers = None
@@ -2223,6 +2242,14 @@ class DiffusersEngine:
         if self.pipeline is None:
             return {"success": False, "error": "No base model loaded. Load a model first."}
 
+        # VRAM pre-check
+        num_loras = len(request.lora_models) if request.lora_models else 0
+        vram_ok, vram_msg, safe_batch = self._check_vram_before_generate(
+            request.width, request.height, request.batch_size, num_loras=num_loras)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+        request.batch_size = safe_batch
+
         with self._lock:
             orig_clip_layers = None
             inpaint_pipeline = None
@@ -2405,6 +2432,12 @@ class DiffusersEngine:
         """Extend image canvas in specified direction(s)."""
         if self.pipeline is None:
             return {"success": False, "error": "No base model loaded. Load a model first."}
+
+        # VRAM pre-check (outpaint creates larger canvas)
+        vram_ok, vram_msg, _ = self._check_vram_before_generate(
+            1024 + request.extend_pixels, 1024 + request.extend_pixels, batch_size=1)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
 
         try:
             import numpy as np
@@ -2589,6 +2622,12 @@ class DiffusersEngine:
 
     def generate_upscale(self, request: UpscaleRequest, task_id: Optional[str] = None) -> Dict[str, Any]:
         """Upscale an image using Real-ESRGAN or similar."""
+        # VRAM pre-check (upscale uses significant VRAM for large images)
+        vram_ok, vram_msg, _ = self._check_vram_before_generate(
+            1024 * request.scale, 1024 * request.scale, batch_size=1)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+
         self._current_task_id = task_id or str(uuid.uuid4())
         self._is_generating = True
         self._generation_progress = 0
@@ -2736,6 +2775,15 @@ class DiffusersEngine:
         if self.pipeline is None:
             return {"success": False, "error": "No model loaded. Load a model first."}
 
+        # VRAM pre-check
+        num_loras = len(request.lora_models) if request.lora_models else 0
+        vram_ok, vram_msg, safe_batch = self._check_vram_before_generate(
+            request.width, request.height, request.batch_size,
+            num_loras=num_loras, has_ip_adapter=True)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+        request.batch_size = safe_batch
+
         if not self.ip_adapter_loaded:
             # Try to load IP-Adapter
             load_result = self.load_ip_adapter()
@@ -2855,6 +2903,15 @@ class DiffusersEngine:
         if not request.controls or len(request.controls) < 2:
             return {"success": False, "error": "Multi-ControlNet requires at least 2 control conditions"}
 
+        # VRAM pre-check (multi-controlnet uses more VRAM)
+        num_loras = len(request.lora_models) if request.lora_models else 0
+        vram_ok, vram_msg, safe_batch = self._check_vram_before_generate(
+            request.width, request.height, request.batch_size,
+            has_controlnet=True, num_loras=num_loras)
+        if not vram_ok:
+            return {"success": False, "error": vram_msg, "error_type": "vram_limit"}
+        request.batch_size = safe_batch
+
         self._current_task_id = task_id or str(uuid.uuid4())
         self._is_generating = True
         self._cancel_event.clear()
@@ -2893,7 +2950,7 @@ class DiffusersEngine:
                     ctrl_img = self._preprocess_control_image(ctrl_img, control_type, canny_low, canny_high)
 
                 # Resize to match output size
-                ctrl_img = ctrl_img.resize((request.width, request.height), Image.LANCZOS)
+                ctrl_img = ctrl_img.resize((request.width, request.height), Image.Resampling.LANCZOS)
                 control_images.append(ctrl_img)
                 controlnet_scales.append(control_weight)
 
