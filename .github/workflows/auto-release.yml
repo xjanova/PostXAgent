@@ -192,7 +192,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.check-release.outputs.new_version }}
           name: PostXAgent v${{ needs.check-release.outputs.new_version }}
@@ -244,7 +244,7 @@ jobs:
           Compress-Archive -Path AIManagerCore/publish/ui/* -DestinationPath AIManager-UI-win-x64.zip
 
       - name: Upload artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.release.outputs.version }}
           files: |
@@ -293,7 +293,7 @@ jobs:
             laravel-backend/
 
       - name: Upload artifact
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.release.outputs.version }}
           files: laravel-backend-v${{ needs.release.outputs.version }}.tar.gz
