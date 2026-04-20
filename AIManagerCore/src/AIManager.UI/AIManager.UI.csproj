@@ -26,7 +26,7 @@
     <!-- For System.Drawing (taskbar icon) -->
     <PackageReference Include="System.Drawing.Common" Version="10.0.5" />
     <!-- WebView2 for embedded browser -->
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3856.49" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3912.50" />
   </ItemGroup>
 
   <ItemGroup>
