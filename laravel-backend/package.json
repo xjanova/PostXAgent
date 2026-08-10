@@ -20,6 +20,6 @@
         "vue-router": "^5.0.3",
         "pinia": "^3.0.4",
         "@heroicons/vue": "^2.2.0",
-        "@microsoft/signalr": "^8.0.0"
+        "@microsoft/signalr": "^10.0.11"
     }
 }
